@@ -1,0 +1,14 @@
+export const targetContractVersion = "2.0";
+export const assetTypes = new Set(["agent", "workflow", "tool"]);
+export const bindingKinds = new Set(["function", "mcp", "built_in", "a2a", "unresolved"]);
+export const transportKinds = new Set(["in_process", "stdio", "http", "unknown"]);
+export const domainScopes = new Set(["domain_specific", "cross_domain", "domain_neutral"]);
+export const reuseStatuses = new Set(["not_reviewed", "reuse_existing", "publish_candidate", "project_only", "excluded"]);
+export const workflowRepresentations = new Set(["graph", "dynamic", "unresolved"]);
+export const workflowCoordinations = new Set(["explicit", "agent_delegation", "mixed"]);
+export const invocationControls = new Set(["workflow", "agent"]);
+export const graphNodeKinds = new Set(["input", "agent", "tool", "function", "human_input", "subworkflow", "join", "output"]);
+export const graphControlKinds = new Set(["next", "condition", "fan_out", "fan_in", "loop_back", "loop_exit", "retry", "fallback", "error", "callback", "resume", "cancel", "timeout"]);
+export const graphChannels = new Set([null, "event", "state", "artifact"]);
+export const graphRegionKinds = new Set(["parallel", "loop"]);
+export const functionRoles = new Set(["route", "transform", "validate", "merge", "prepare_input", "format_output"]);

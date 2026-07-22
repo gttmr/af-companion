@@ -1,0 +1,162 @@
+{
+  "contract_version": "2.0",
+  "requirement_id": "req-scenario-j",
+  "source": "approved_workbench_artifact",
+  "raw_requirement_to_code": false,
+  "output_mode": "runnable",
+  "assets": [
+    {
+      "asset_id": "tool.mock-lab",
+      "source_requirement_id": "req-scenario-j",
+      "catalog_entry_id": null,
+      "name": "Mock Lab Tool",
+      "asset_type": "tool",
+      "domain_scope": "domain_neutral",
+      "business_domains": [],
+      "owner": "platform",
+      "reuse_status": "project_only",
+      "capability_tags": [],
+      "binding": {
+        "kind": "mcp",
+        "server_ref": "mock-lab",
+        "tool_name": "lookup"
+      },
+      "connection": {
+        "transport": "http"
+      },
+      "workflow_profile": null,
+      "exposure": null,
+      "confidence": 0.9,
+      "rationale": "Reviewed tool responsibility for Mock Lab Tool",
+      "inputs": [],
+      "outputs": [],
+      "risk_level": "low",
+      "risk_signals": [],
+      "status": "approved",
+      "missing_information": [],
+      "developer_todos": []
+    },
+    {
+      "asset_id": "workflow.child",
+      "source_requirement_id": "req-scenario-j",
+      "catalog_entry_id": null,
+      "name": "Child Workflow",
+      "asset_type": "workflow",
+      "domain_scope": "domain_neutral",
+      "business_domains": [],
+      "owner": "platform",
+      "reuse_status": "project_only",
+      "capability_tags": [],
+      "binding": null,
+      "connection": null,
+      "workflow_profile": {
+        "representation": "graph",
+        "coordination": "explicit",
+        "template_ref": null
+      },
+      "exposure": null,
+      "confidence": 0.9,
+      "rationale": "Reviewed workflow responsibility for Child Workflow",
+      "inputs": [],
+      "outputs": [],
+      "risk_level": "low",
+      "risk_signals": [],
+      "status": "approved",
+      "missing_information": [],
+      "developer_todos": []
+    }
+  ],
+  "runtime_contracts": [],
+  "excluded_assets": [],
+  "graph": {
+    "graph_id": "graph.scenario-j",
+    "source_requirement_id": "req-scenario-j",
+    "workflow_ref": null,
+    "nodes": [
+      {
+        "id": "input",
+        "label": "Input",
+        "node_kind": "input"
+      },
+      {
+        "id": "tool",
+        "label": "Mock Lab Tool",
+        "node_kind": "tool",
+        "tool_ref": "tool.mock-lab",
+        "invocation_control": "workflow"
+      },
+      {
+        "id": "child",
+        "label": "Child Workflow",
+        "node_kind": "subworkflow",
+        "workflow_ref": "workflow.child"
+      },
+      {
+        "id": "output",
+        "label": "Output",
+        "node_kind": "output"
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge.input.tool",
+        "from": "input",
+        "to": "tool",
+        "control": {
+          "kind": "next",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      },
+      {
+        "id": "edge.tool.child",
+        "from": "tool",
+        "to": "child",
+        "control": {
+          "kind": "next",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      },
+      {
+        "id": "edge.child.output",
+        "from": "child",
+        "to": "output",
+        "control": {
+          "kind": "next",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      }
+    ],
+    "regions": []
+  },
+  "manifest": {
+    "catalog_bound_assets": [],
+    "new_code_required": [
+      {
+        "asset_id": "tool.mock-lab",
+        "asset_name": "Mock Lab Tool",
+        "reason": "No reviewed Catalog binding exists for this approved asset.",
+        "developer_todos": []
+      },
+      {
+        "asset_id": "workflow.child",
+        "asset_name": "Child Workflow",
+        "reason": "No reviewed Catalog binding exists for this approved asset.",
+        "developer_todos": []
+      }
+    ]
+  },
+  "validation": {
+    "can_generate_source": true,
+    "blockers": [],
+    "warnings": []
+  }
+}

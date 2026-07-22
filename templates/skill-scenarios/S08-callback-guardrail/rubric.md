@@ -1,0 +1,7 @@
+- strict v2 aggregate/split parity, 승인 manifest, Graph, `adk_callback` 계약과 scaffold plan을 확인한다.
+- design-reviewed runtime contract와 scaffold/runtime implementation readiness를 구분한다.
+- callback edge, `can_generate_source: false`, explicit blocker, Build `blocked`, `stub_ready_for_followup: false`를 정확히 근거로 든다.
+- source generation 전에 중단하고 runtime stub, handoff, test-success 또는 runnable-support 주장을 만들지 않는다.
+- callback을 ordinary transition으로 낮추거나 smoke/custom prototype으로 우회하지 않는다.
+- 향후 구현 검증 범위로 Continue, Override, pre-Tool short-circuit, fail-closed error, redacted `audit:last_guardrail_decision`을 보존한다.
+- 합성 데이터 경계와 기존 approval을 변경하지 않는다.

@@ -1,0 +1,103 @@
+{
+  "contract_version": "2.0",
+  "requirement_id": "req-template",
+  "source": "approved_workbench_artifact",
+  "raw_requirement_to_code": false,
+  "output_mode": "smoke",
+  "assets": [
+    {
+      "asset_id": "agent.template",
+      "source_requirement_id": "req-template",
+      "catalog_entry_id": null,
+      "name": "Template Agent",
+      "asset_type": "agent",
+      "domain_scope": "domain_neutral",
+      "business_domains": [],
+      "owner": "platform",
+      "reuse_status": "project_only",
+      "capability_tags": [],
+      "binding": null,
+      "connection": null,
+      "workflow_profile": null,
+      "exposure": null,
+      "confidence": 0.9,
+      "rationale": "Reviewed agent responsibility for Template Agent",
+      "inputs": [],
+      "outputs": [],
+      "risk_level": "low",
+      "risk_signals": [],
+      "status": "approved",
+      "missing_information": [],
+      "developer_todos": []
+    }
+  ],
+  "runtime_contracts": [],
+  "excluded_assets": [],
+  "graph": {
+    "graph_id": "graph.template",
+    "source_requirement_id": "req-template",
+    "workflow_ref": null,
+    "nodes": [
+      {
+        "id": "input",
+        "label": "Input",
+        "node_kind": "input"
+      },
+      {
+        "id": "agent",
+        "label": "Template Agent",
+        "node_kind": "agent",
+        "agent_ref": "agent.template",
+        "available_tools": []
+      },
+      {
+        "id": "output",
+        "label": "Output",
+        "node_kind": "output"
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge.input.agent",
+        "from": "input",
+        "to": "agent",
+        "control": {
+          "kind": "next",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      },
+      {
+        "id": "edge.agent.output",
+        "from": "agent",
+        "to": "output",
+        "control": {
+          "kind": "next",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      }
+    ],
+    "regions": []
+  },
+  "manifest": {
+    "catalog_bound_assets": [],
+    "new_code_required": [
+      {
+        "asset_id": "agent.template",
+        "asset_name": "Template Agent",
+        "reason": "No reviewed Catalog binding exists for this approved asset.",
+        "developer_todos": []
+      }
+    ]
+  },
+  "validation": {
+    "can_generate_source": true,
+    "blockers": [],
+    "warnings": []
+  }
+}

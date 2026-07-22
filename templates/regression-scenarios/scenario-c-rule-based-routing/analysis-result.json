@@ -1,0 +1,105 @@
+{
+  "contract_version": "2.0",
+  "normalizedRequirement": {
+    "id": "req-scenario-c",
+    "title": "Rule based routing",
+    "raw_text": "Rule based routing",
+    "domain": "공통",
+    "requester": {
+      "team": "platform",
+      "role": "developer"
+    },
+    "business_goal": "Rule based routing",
+    "current_process": [],
+    "inputs": [],
+    "outputs": [],
+    "systems": [],
+    "risk_signals": [],
+    "missing_information": [],
+    "contradictions": [],
+    "status": "approved"
+  },
+  "evidence": {
+    "requested_goal": "Rule based routing",
+    "business_domain_hint": "공통",
+    "user_role": "developer",
+    "input_data": [],
+    "output_data": [],
+    "systems_mentioned": [],
+    "decisions_implied": [],
+    "risk_signals": [],
+    "missing_information": [],
+    "contradictions": [],
+    "assumptions": []
+  },
+  "assetCandidates": [],
+  "a2aContracts": [],
+  "runtimeContracts": [],
+  "graph": {
+    "graph_id": "graph.scenario-c",
+    "source_requirement_id": "req-scenario-c",
+    "workflow_ref": null,
+    "nodes": [
+      {
+        "id": "input",
+        "label": "Input",
+        "node_kind": "input"
+      },
+      {
+        "id": "route",
+        "label": "Route",
+        "node_kind": "function",
+        "role": "route"
+      },
+      {
+        "id": "left",
+        "label": "left",
+        "node_kind": "output"
+      },
+      {
+        "id": "right",
+        "label": "right",
+        "node_kind": "output"
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge.input.route",
+        "from": "input",
+        "to": "route",
+        "control": {
+          "kind": "next",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      },
+      {
+        "id": "edge.route.left",
+        "from": "route",
+        "to": "left",
+        "control": {
+          "kind": "condition",
+          "condition": "left",
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      },
+      {
+        "id": "edge.route.right",
+        "from": "route",
+        "to": "right",
+        "control": {
+          "kind": "condition",
+          "condition": "right",
+          "accepted_aliases": [],
+          "default": true
+        },
+        "channel": null
+      }
+    ],
+    "regions": []
+  }
+}

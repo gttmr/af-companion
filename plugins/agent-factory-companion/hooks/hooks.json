@@ -1,0 +1,30 @@
+{
+  "description": "Portable bootstrap for Agent Factory session registration and next-prompt context delivery.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/scripts/af-codex-hook-entry.mjs\"",
+            "timeout": 1,
+            "statusMessage": "Agent Factory Session 연결 확인"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/scripts/af-codex-hook-entry.mjs\"",
+            "timeout": 1,
+            "statusMessage": "Agent Factory Context 확인"
+          }
+        ]
+      }
+    ]
+  }
+}

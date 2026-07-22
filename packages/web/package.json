@@ -1,0 +1,34 @@
+{
+  "name": "requirement-intake-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:companion-bridge": "node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/codexBridgeMain.ts --repo-root ../..",
+    "build": "tsc --noEmit && vite build",
+    "test:companion": "node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/companion/selectionBundle.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs --test server/codexBridge*.test.ts server/vscodeWorkspaceLauncher.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/codexCompanionApi.test.ts && node --test ../../scripts/af-codex-hook.test.mjs",
+    "test:analyzer": "node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/analyzer/afRunManifest.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/analyzer/analysisArtifactImport.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/analyzer/analyzeInput.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/analyzer/analysisReviewGate.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/analyzer/scaffoldPlan.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/analyzer/assetReview.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/analyzer/nestedWorkflowInsert.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/analyzer/a2aContracts.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/analyzer/graphValidation.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/analyzer/targetContract.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/components/graph/layout.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/components/graphElementEditorModel.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/components/stageRunnerNarrative.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/design/pathSearch.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/design/designWorkbenchTabs.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/routes/design/designStageModel.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/design/reviewNotesModel.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/design/A2AContractPanelModel.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/design/a2aContractValidator.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/routes/design/designWorkbenchActions.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/catalog/catalogDelta.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/catalog/catalogVersioning.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/catalog/scaffoldCatalog.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/catalog/catalogPublishProposal.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/mock-lab/mockLabIntegration.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/state/useGraphIR.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/state/useStreamingProcess.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/state/useRuntimeA2a.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/routes/run/runtimeInputRequiredView.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs src/routes/run/runtimeA2aProviderTarget.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/codexAnalyzer.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/stageRunner.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/afArtifactCrudApi.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/afArtifactsApi.streaming.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/artifactSyncService.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/artifactSyncCatalog.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/afRuntimeStubApi.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/artifactSyncRoute.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/afCatalogApi.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/httpApi.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/runtimeEnv.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/runtimeChat.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/afRuntimeA2aApi.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/runtimeA2a.test.ts && node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/runtimeA2aCard.test.ts && node --test ../../scripts/validate-artifacts.test.mjs ../../scripts/generate-adk-source.test.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@openai/codex-sdk": "^0.144.4",
+    "@tanstack/react-query": "^5.62.0",
+    "@types/js-yaml": "^4.0.9",
+    "dagre": "^0.8.5",
+    "js-yaml": "^4.1.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^6.28.0",
+    "reactflow": "^11.11.4"
+  },
+  "devDependencies": {
+    "@types/dagre": "^0.7.52",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  }
+}

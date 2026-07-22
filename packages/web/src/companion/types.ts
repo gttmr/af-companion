@@ -1,0 +1,135 @@
+import type { AssetType, GraphChannel, GraphControlKind, NodeKind } from "../analyzer/types";
+
+export const CODEX_BRIDGE_SCHEMA_VERSION = 1 as const;
+
+export interface SelectionSourceRevision {
+  head: string | null;
+  dirty_hash: string | null;
+  graph_etag: string;
+}
+
+export interface SelectedGraphNode {
+  kind: "graph_node";
+  id: string;
+  label: string;
+  node_kind: NodeKind;
+  artifact_ref: string | null;
+  source_refs: string[];
+}
+
+export interface SelectionConnectingEdge {
+  id: string;
+  from: string;
+  to: string;
+  control_kind: GraphControlKind;
+  channel: GraphChannel | null;
+}
+
+export interface SelectionRelatedAsset {
+  asset_id: string;
+  asset_type: AssetType;
+  owner: string;
+  domain_scope: string;
+  binding_kind: string | null;
+}
+
+export interface SelectionBundleV1 {
+  schema_version: typeof CODEX_BRIDGE_SCHEMA_VERSION;
+  selection_id: string;
+  workspace_id: string;
+  artifact_root_id: string;
+  graph_id: string;
+  source_revision: SelectionSourceRevision;
+  selected_objects: SelectedGraphNode[];
+  derived_context: {
+    connecting_edges: SelectionConnectingEdge[];
+    related_assets: SelectionRelatedAsset[];
+  };
+  user_intent: {
+    text: string | null;
+  };
+  created_at: string;
+  expires_at: string;
+}
+
+export type CodexSessionStatus = "active" | "stale";
+
+export type CodexSessionLastEvent = "session_start" | "prompt_submit";
+
+export interface CodexSession {
+  session_id: string;
+  cwd: string;
+  model: string;
+  permission_mode: string;
+  source: string;
+  started_at: string;
+  last_seen_at: string;
+  last_event: CodexSessionLastEvent;
+  last_turn_id: string | null;
+  status: CodexSessionStatus;
+  alias: string | null;
+  default_target: boolean;
+}
+
+export type DeliveryStatus = "queued" | "consumed" | "expired" | "canceled" | "failed";
+
+export interface ContextDelivery {
+  delivery_id: string;
+  selection_id: string;
+  target_session_id: string;
+  delivery_mode: "next_prompt";
+  consume_policy: "once";
+  status: DeliveryStatus;
+  created_at: string;
+  delivered_at: string | null;
+  consumed_at: string | null;
+  consumed_turn_id: string | null;
+  error: string | null;
+  bundle: SelectionBundleV1;
+}
+
+export interface CodexBridgeCapabilities {
+  bridge_available: boolean;
+  codex_version: string | null;
+  session_registration: boolean;
+  next_prompt_context: boolean;
+  session_end_event: "unsupported";
+  delivery_ack: boolean;
+  mcp_context_pull: boolean;
+  direct_turn_start: boolean;
+  inflight_steer: boolean;
+}
+
+export interface CodexBridgeSnapshot {
+  schema_version: typeof CODEX_BRIDGE_SCHEMA_VERSION;
+  capabilities: CodexBridgeCapabilities;
+  sessions: CodexSession[];
+  deliveries: ContextDelivery[];
+}
+
+export interface CodexWorkspaceDescriptor {
+  workspace_id: string;
+  canonical_path: string;
+  display_name: string;
+}
+
+export interface CodexEditorCapabilities {
+  code_available: boolean;
+  code_version: string | null;
+  wsl_environment: boolean;
+  codex_extension_installed: boolean;
+  codex_extension_version: string | null;
+  launch_supported: boolean;
+  probed_at: string;
+}
+
+export interface CodexCompanionSnapshot extends CodexBridgeSnapshot {
+  workspace: CodexWorkspaceDescriptor;
+  editor: CodexEditorCapabilities;
+}
+
+export interface VscodeLaunchReceipt {
+  status: "accepted";
+  workspace_path: string;
+  launched_at: string;
+}

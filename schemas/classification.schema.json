@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/classification.schema.json",
+  "title": "Asset Classification Summary",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["asset_id", "name", "asset_type", "rationale"],
+    "properties": {
+      "asset_id": { "type": "string", "minLength": 1 },
+      "name": { "type": "string", "minLength": 1 },
+      "asset_type": { "type": "string", "enum": ["agent", "workflow", "tool"] },
+      "rationale": { "type": "string", "minLength": 1 }
+    }
+  }
+}

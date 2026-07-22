@@ -1,0 +1,10 @@
+risk_gates:
+  - customer_impact
+  - external_message
+  - human_approval_required
+  - audit_required
+default_policy:
+  customer_impact: draft_or_recommendation_only
+  external_message: internal_preview_only
+  human_approval_required: retain_human_input_gate
+  audit_required: retain_review_artifact

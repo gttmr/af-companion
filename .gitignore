@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.env
+.env.*
+.codex/*
+!.codex/hooks.json
+.superpowers/
+__pycache__/
+.pytest_cache/
+generated/
+.playwright-cli/
+packages/mock-lab/.vite/
+generated/**/.venv/
+generated/**/.adk/
+# Workbench/skills outputs are local review artifacts. They include generated
+# runtime-stub bundles and per-run catalog-delta.yaml proposals.
+artifacts/
+# Keep canonical seed catalog files tracked; ignore local/generated catalog experiments.
+catalog/generated/
+catalog/local/
+catalog/**/*.local.*
+.agent-factory/runtime.env
+.agent-factory/runtime/
+.agent-factory/codex-bridge/
+# Windows download metadata materialized as WSL sidecar files.
+*:Zone.Identifier

@@ -1,0 +1,30 @@
+{
+  "description": "Register this Worktree's Codex sessions and attach explicitly queued Agent Factory context to the next prompt.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/af-codex-hook.mjs\"",
+            "timeout": 1,
+            "statusMessage": "Agent Factory Session 연결 확인"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/af-codex-hook.mjs\"",
+            "timeout": 1,
+            "statusMessage": "Agent Factory Context 확인"
+          }
+        ]
+      }
+    ]
+  }
+}

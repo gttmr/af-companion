@@ -1,0 +1,651 @@
+
+/* ===== Build & Verify ===== */
+
+.af-blocker-list {
+  margin-top: 8px;
+  font-size: var(--fs-sm);
+}
+
+.af-blocker-list summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.af-blocker-list ul {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.af-blocker-list pre {
+  background: var(--surface-muted);
+  padding: 8px;
+  border-radius: 4px;
+  overflow: auto;
+  max-height: 320px;
+  font-size: var(--fs-sm);
+}
+
+.af-build-stub-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .af-build-stub-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.af-build-file-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.af-build-file-button {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 6px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--fs-sm);
+}
+
+.af-build-file-button:hover {
+  background: var(--surface-muted);
+}
+
+.af-build-file-button-active {
+  background: var(--surface-muted);
+  border-color: var(--line-strong);
+}
+
+.af-build-file-button code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-xs);
+}
+
+.af-build-file-button small {
+  color: var(--text-subtle);
+  font-size: var(--fs-2xs);
+}
+
+.af-build-file-preview pre {
+  background: var(--surface-muted);
+  padding: 8px;
+  border-radius: 4px;
+  overflow: auto;
+  max-height: 480px;
+  font-size: var(--fs-xs);
+  white-space: pre;
+}
+
+.af-stream-log-panel {
+  margin-top: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface-muted);
+}
+
+.af-stream-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-strong);
+  font-size: var(--fs-sm);
+}
+
+.af-stream-log-header span {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.af-stream-log {
+  margin: 0;
+  padding: 10px;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--surface-muted);
+  color: var(--text-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.af-stream-log-empty {
+  padding: var(--space-lg);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+
+.af-build-primary-panel {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 3%, var(--surface));
+}
+
+.af-build-primary-panel .ui-section-header {
+  align-items: center;
+  margin-bottom: var(--space-2xl);
+}
+
+.af-build-primary-panel .ui-section-description {
+  max-width: 820px;
+}
+
+.af-build-primary-scan {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.af-build-primary-scan .af-stream-log-panel {
+  margin-top: 0;
+}
+
+.af-artifact-sync-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.af-artifact-sync-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-sm);
+}
+
+.af-artifact-sync-summary .af-stage-summary-item {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+}
+
+.af-artifact-sync-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) repeat(2, minmax(220px, 1fr));
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.af-artifact-sync-detail-grid > div,
+.af-artifact-sync-process {
+  min-width: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+}
+
+.af-artifact-sync-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin: var(--space-xs) 0 0;
+  padding-left: var(--space-4xl);
+  font-size: var(--fs-sm);
+}
+
+.af-artifact-sync-list code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.af-artifact-sync-process {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: var(--fs-sm);
+}
+
+.af-artifact-sync-process p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.af-artifact-sync-process > code {
+  display: block;
+  padding: var(--space-xs);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: var(--text-strong);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.af-artifact-sync-process small {
+  color: var(--text-subtle);
+  font-size: var(--fs-xs);
+}
+
+.af-build-advanced-section {
+  display: grid;
+  gap: var(--space-lg);
+  padding-top: var(--space-2xl);
+  border-top: 1px solid var(--line);
+}
+
+.af-build-advanced-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-2xl);
+}
+
+.af-build-advanced-heading span {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.af-build-advanced-heading p {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+
+.af-build-advanced-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.af-build-manual-panel {
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--surface-muted) 72%, var(--surface));
+}
+
+.af-build-manual-panel .ui-section-header {
+  margin-bottom: var(--space-2xl);
+}
+
+.af-build-manual-panel .ui-section-header h2 {
+  font-size: var(--fs-md);
+}
+
+.af-build-manual-panel .ui-section-action {
+  flex-shrink: 0;
+}
+
+.af-build-manual-panel .ui-button-primary {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.af-build-manual-panel .ui-button-primary:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface-muted);
+  color: var(--accent-strong);
+}
+
+@media (max-width: 900px) {
+  .af-build-advanced-grid,
+  .af-artifact-sync-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.af-markdown-editor {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-button);
+  resize: vertical;
+}
+
+.af-yaml-editor {
+  background: var(--surface-muted);
+}
+
+.af-verify-run-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.af-verify-run-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(20rem, 0.85fr);
+  gap: var(--space-lg);
+  align-items: stretch;
+}
+
+.af-verify-command-lane {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.af-verify-command-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  background: var(--surface-muted);
+  font-size: var(--fs-sm);
+}
+
+.af-verify-command-note strong {
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+}
+
+.af-verify-command-note span {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.af-verify-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-sm);
+}
+
+.af-verify-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  padding: var(--space-md);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.af-verify-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.af-verify-card strong {
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.af-verify-card code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.af-verify-card p {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: var(--lh-normal);
+}
+
+.af-verify-card .ui-button {
+  width: 100%;
+  margin-top: auto;
+}
+
+.af-verify-output-lane {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  background: var(--surface-muted);
+}
+
+.af-verify-output-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.af-verify-output-header div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.af-verify-output-header span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-tight);
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.af-verify-output-header strong {
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.af-verify-output-status {
+  flex: 0 0 auto;
+  padding: var(--space-3xs) var(--space-xs);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+
+.af-stream-log-panel-compact {
+  margin-top: 0;
+  background: var(--surface);
+}
+
+.af-verify-result {
+  padding: var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+}
+
+.af-verify-result p {
+  margin: 0 0 var(--space-sm);
+  overflow-wrap: anywhere;
+}
+
+.af-verify-result p:last-child {
+  margin-bottom: 0;
+}
+
+.af-verify-result pre {
+  background: var(--surface-muted);
+  padding: var(--space-md);
+  border-radius: var(--radius-button);
+  overflow: auto;
+  max-height: 320px;
+  font-size: var(--fs-xs);
+  white-space: pre;
+}
+
+.af-verify-recording-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2xl);
+  align-items: stretch;
+}
+
+.af-verify-recording-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.af-verify-recording-panel .ui-section-header {
+  margin-bottom: 0;
+}
+
+.af-verify-editor-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.af-verify-editor-meta strong {
+  color: var(--text-strong);
+  font-size: var(--fs-xs);
+}
+
+.af-verify-recording-panel .af-markdown-editor {
+  min-height: 16rem;
+}
+
+@media (max-width: 1100px) {
+  .af-verify-run-layout,
+  .af-verify-recording-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Smoke 일괄 실행 매크로 step label (BuildWorkbench) */
+.smoke-macro-step-label {
+  font-size: var(--fs-sm);
+  color: var(--text-strong);
+}
+
+/* Scaffold output_mode toggle (BuildWorkbench) */
+.af-output-mode-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.af-output-mode-hint {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.af-output-mode-dirty {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--fs-sm);
+  color: var(--warning-text);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-line);
+  border-radius: 4px;
+}
+
+.af-mcp-binding-panel {
+  margin-top: var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: var(--space-md);
+}
+
+.af-mcp-binding-header,
+.af-mcp-binding-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(260px, 420px) auto;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.af-mcp-binding-header {
+  margin-bottom: var(--space-sm);
+}
+
+.af-mcp-binding-header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.af-mcp-binding-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.af-mcp-binding-row {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.af-mcp-binding-asset {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.af-mcp-binding-asset strong {
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.af-mcp-binding-asset code,
+.af-mcp-binding-asset span {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.af-mcp-binding-row select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 4px 8px;
+}
+
+@media (max-width: 900px) {
+  .af-mcp-binding-header,
+  .af-mcp-binding-row {
+    grid-template-columns: 1fr;
+  }
+}

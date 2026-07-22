@@ -1,0 +1,1 @@
+context의 strict Target Contract v2 artifact 세트와 합성 Pub/Sub 이벤트를 검증하고, reviewed event-source, delivery identity, retry와 DLQ 경계를 현재 generic generator로 scaffold할 수 있는지 판단해줘. Scaffold Readiness가 `Not Ready`이면 source를 생성하거나 approval을 바꾸지 말고, 명시된 blocker와 unblock 조건을 보고한 뒤 중단해. `pubsub-event.json`은 opaque 합성 test input으로만 다뤄.

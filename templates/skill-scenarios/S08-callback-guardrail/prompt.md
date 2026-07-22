@@ -1,0 +1,1 @@
+context의 strict Target Contract v2 합성 artifact 세트를 검증해줘. runner-wide `before_tool` callback의 Continue, Override, fail-closed, state/audit 의미는 설계 검토됐지만 generic runnable generator에는 callback control lowerer가 없다. 이 blocker와 manifest 상태를 근거로 Scaffold `Not Ready`를 보고하고 source generation 전에 중단해줘. callback edge를 바꾸거나 smoke/local prototype으로 우회하지 말고 runnable 지원을 주장하지 마.

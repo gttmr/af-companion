@@ -1,0 +1,26 @@
+{
+  "name": "agent-factory-companion",
+  "version": "0.1.0+codex.20260722140353",
+  "description": "Provides a portable Hook bootstrap that delegates Codex lifecycle events to a workspace-owned Agent Factory adapter.",
+  "author": {
+    "name": "Agent Factory"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "agent-factory",
+    "codex",
+    "hooks",
+    "context"
+  ],
+  "interface": {
+    "displayName": "Agent Factory Companion",
+    "shortDescription": "Portable bootstrap for the workspace-owned Agent Factory Hook adapter.",
+    "longDescription": "Delegates Codex CLI and IDE lifecycle events to the workspace adapter. It is safe alongside a project Hook because the bridge deduplicates repeated session and turn observations.",
+    "developerName": "Agent Factory",
+    "category": "Productivity",
+    "capabilities": [
+      "Hooks"
+    ],
+    "defaultPrompt": "Show the Agent Factory context queued for this Codex session."
+  }
+}

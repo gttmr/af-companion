@@ -1,0 +1,165 @@
+{
+  "contract_version": "2.0",
+  "normalizedRequirement": {
+    "id": "req-scenario-d",
+    "title": "Loop Graph Workflow",
+    "raw_text": "Loop Graph Workflow",
+    "domain": "공통",
+    "requester": {
+      "team": "platform",
+      "role": "developer"
+    },
+    "business_goal": "Loop Graph Workflow",
+    "current_process": [],
+    "inputs": [],
+    "outputs": [],
+    "systems": [],
+    "risk_signals": [],
+    "missing_information": [],
+    "contradictions": [],
+    "status": "approved"
+  },
+  "evidence": {
+    "requested_goal": "Loop Graph Workflow",
+    "business_domain_hint": "공통",
+    "user_role": "developer",
+    "input_data": [],
+    "output_data": [],
+    "systems_mentioned": [],
+    "decisions_implied": [],
+    "risk_signals": [],
+    "missing_information": [],
+    "contradictions": [],
+    "assumptions": []
+  },
+  "assetCandidates": [
+    {
+      "asset_id": "tool.loop-work",
+      "source_requirement_id": "req-scenario-d",
+      "catalog_entry_id": null,
+      "name": "Loop Work",
+      "asset_type": "tool",
+      "domain_scope": "domain_neutral",
+      "business_domains": [],
+      "owner": "platform",
+      "reuse_status": "project_only",
+      "capability_tags": [],
+      "binding": {
+        "kind": "function"
+      },
+      "connection": {
+        "transport": "in_process"
+      },
+      "workflow_profile": null,
+      "exposure": null,
+      "confidence": 0.9,
+      "rationale": "Reviewed tool responsibility for Loop Work",
+      "inputs": [],
+      "outputs": [],
+      "risk_level": "low",
+      "risk_signals": [],
+      "status": "approved",
+      "missing_information": [],
+      "developer_todos": []
+    }
+  ],
+  "a2aContracts": [],
+  "runtimeContracts": [],
+  "graph": {
+    "graph_id": "graph.scenario-d",
+    "source_requirement_id": "req-scenario-d",
+    "workflow_ref": null,
+    "nodes": [
+      {
+        "id": "input",
+        "label": "Input",
+        "node_kind": "input"
+      },
+      {
+        "id": "work",
+        "label": "Loop Work",
+        "node_kind": "tool",
+        "tool_ref": "tool.loop-work",
+        "invocation_control": "workflow"
+      },
+      {
+        "id": "decision",
+        "label": "Decision",
+        "node_kind": "function",
+        "role": "validate"
+      },
+      {
+        "id": "output",
+        "label": "Output",
+        "node_kind": "output"
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge.input.work",
+        "from": "input",
+        "to": "work",
+        "control": {
+          "kind": "next",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      },
+      {
+        "id": "edge.work.decision",
+        "from": "work",
+        "to": "decision",
+        "control": {
+          "kind": "next",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      },
+      {
+        "id": "edge.decision.work",
+        "from": "decision",
+        "to": "work",
+        "control": {
+          "kind": "loop_back",
+          "condition": "retry",
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      },
+      {
+        "id": "edge.decision.output",
+        "from": "decision",
+        "to": "output",
+        "control": {
+          "kind": "loop_exit",
+          "condition": "done",
+          "accepted_aliases": [],
+          "default": true
+        },
+        "channel": null
+      }
+    ],
+    "regions": [
+      {
+        "id": "loop.review",
+        "kind": "loop",
+        "node_ids": [
+          "work",
+          "decision"
+        ],
+        "entry_node_ids": [
+          "work"
+        ],
+        "exit_node_ids": [
+          "decision"
+        ],
+        "parent_region_id": null
+      }
+    ]
+  }
+}

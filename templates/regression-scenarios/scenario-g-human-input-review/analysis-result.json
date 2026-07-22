@@ -1,0 +1,94 @@
+{
+  "contract_version": "2.0",
+  "normalizedRequirement": {
+    "id": "req-scenario-g",
+    "title": "Human input review",
+    "raw_text": "Human input review",
+    "domain": "공통",
+    "requester": {
+      "team": "platform",
+      "role": "developer"
+    },
+    "business_goal": "Human input review",
+    "current_process": [],
+    "inputs": [],
+    "outputs": [],
+    "systems": [],
+    "risk_signals": [],
+    "missing_information": [],
+    "contradictions": [],
+    "status": "approved"
+  },
+  "evidence": {
+    "requested_goal": "Human input review",
+    "business_domain_hint": "공통",
+    "user_role": "developer",
+    "input_data": [],
+    "output_data": [],
+    "systems_mentioned": [],
+    "decisions_implied": [],
+    "risk_signals": [],
+    "missing_information": [],
+    "contradictions": [],
+    "assumptions": []
+  },
+  "assetCandidates": [],
+  "a2aContracts": [],
+  "runtimeContracts": [],
+  "graph": {
+    "graph_id": "graph.scenario-g",
+    "source_requirement_id": "req-scenario-g",
+    "workflow_ref": null,
+    "nodes": [
+      {
+        "id": "input",
+        "label": "Input",
+        "node_kind": "input"
+      },
+      {
+        "id": "human",
+        "label": "Human review",
+        "node_kind": "human_input",
+        "human_input_contract": {
+          "message": "Continue?",
+          "payload_schema_ref": null,
+          "response_schema_ref": "str",
+          "response_mapping": null,
+          "default_choice": "continue"
+        }
+      },
+      {
+        "id": "output",
+        "label": "Output",
+        "node_kind": "output"
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge.input.human",
+        "from": "input",
+        "to": "human",
+        "control": {
+          "kind": "next",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      },
+      {
+        "id": "edge.human.output",
+        "from": "human",
+        "to": "output",
+        "control": {
+          "kind": "resume",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": "event"
+      }
+    ],
+    "regions": []
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/scaffold-plan.schema.json",
+  "title": "Target Runtime Handoff Scaffold Plan v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "requirement_id", "source", "raw_requirement_to_code", "output_mode", "assets", "runtime_contracts", "excluded_assets", "graph", "manifest", "validation"],
+  "properties": {
+    "contract_version": { "const": "2.0" },
+    "requirement_id": { "type": "string", "minLength": 1 },
+    "package_name": { "type": "string", "minLength": 1 },
+    "source": { "const": "approved_workbench_artifact" },
+    "raw_requirement_to_code": { "const": false },
+    "output_mode": { "type": "string", "enum": ["smoke", "runnable"] },
+    "assets": { "type": "array", "items": { "$ref": "./asset-candidate.schema.json" } },
+    "runtime_contracts": { "type": "array", "items": { "$ref": "./analysis-result.schema.json#/$defs/runtimeContract" } },
+    "excluded_assets": { "type": "array", "items": { "$ref": "#/$defs/excludedAsset" } },
+    "graph": { "$ref": "./graph.schema.json" },
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "validation": { "$ref": "#/$defs/validation" }
+  },
+  "$defs": {
+    "excludedAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_id", "name", "status", "reason"],
+      "properties": {
+        "asset_id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "enum": ["needs_info", "approved", "deferred", "rejected"] },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalog_bound_assets", "new_code_required"],
+      "properties": {
+        "catalog_bound_assets": { "type": "array", "items": { "$ref": "#/$defs/catalogBoundAsset" } },
+        "new_code_required": { "type": "array", "items": { "$ref": "#/$defs/newCodeAsset" } }
+      }
+    },
+    "catalogBoundAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_id", "asset_name", "catalog_id", "catalog_name"],
+      "properties": {
+        "asset_id": { "type": "string", "minLength": 1 },
+        "asset_name": { "type": "string", "minLength": 1 },
+        "catalog_id": { "type": "string", "minLength": 1 },
+        "catalog_name": { "type": "string", "minLength": 1 }
+      }
+    },
+    "newCodeAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_id", "asset_name", "reason", "developer_todos"],
+      "properties": {
+        "asset_id": { "type": "string", "minLength": 1 },
+        "asset_name": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "developer_todos": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["can_generate_source", "blockers", "warnings"],
+      "properties": {
+        "can_generate_source": { "type": "boolean" },
+        "blockers": { "type": "array", "items": { "type": "string" } },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

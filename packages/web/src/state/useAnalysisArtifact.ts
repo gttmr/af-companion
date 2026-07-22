@@ -1,0 +1,34 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchArtifactJson, putArtifactJson, type FetchWithEtagResult } from "./apiClient";
+import { parseTargetAnalysisResult } from "../analyzer/targetAnalysisResult";
+import type { AnalysisResult } from "../analyzer/types";
+
+type AnalysisFetchResult = FetchWithEtagResult<AnalysisResult> | null;
+
+export function useAnalysisArtifact(reqId: string | undefined) {
+  return useQuery<AnalysisFetchResult>({
+    queryKey: ["af", reqId, "analysis-result"] as const,
+    queryFn: async () => {
+      if (!reqId) return null;
+      const result = await fetchArtifactJson<AnalysisResult>(reqId, "analysis-result.json");
+      return result ? { ...result, data: parseTargetAnalysisResult(result.data) } : null;
+    },
+    enabled: Boolean(reqId),
+    refetchInterval: 1_500,
+    refetchIntervalInBackground: true
+  });
+}
+
+export function useSaveAnalysisArtifact(reqId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ analysis, etag }: { analysis: AnalysisResult; etag: string | null }) => {
+      if (!reqId) throw new Error("requirement_id가 없습니다.");
+      return await putArtifactJson(reqId, "analysis-result.json", analysis, etag);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["af", reqId, "analysis-result"] });
+      queryClient.invalidateQueries({ queryKey: ["af", reqId, "manifest"] });
+    }
+  });
+}

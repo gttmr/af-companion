@@ -1,0 +1,139 @@
+{
+  "contract_version": "2.0",
+  "normalizedRequirement": {
+    "id": "req-page-recommendation",
+    "title": "Page recommendation Workflow",
+    "raw_text": "Page recommendation Workflow",
+    "domain": "공통",
+    "requester": {
+      "team": "platform",
+      "role": "developer"
+    },
+    "business_goal": "Page recommendation Workflow",
+    "current_process": [],
+    "inputs": [],
+    "outputs": [],
+    "systems": [],
+    "risk_signals": [],
+    "missing_information": [],
+    "contradictions": [],
+    "status": "approved"
+  },
+  "evidence": {
+    "requested_goal": "Page recommendation Workflow",
+    "business_domain_hint": "공통",
+    "user_role": "developer",
+    "input_data": [],
+    "output_data": [],
+    "systems_mentioned": [],
+    "decisions_implied": [],
+    "risk_signals": [],
+    "missing_information": [],
+    "contradictions": [],
+    "assumptions": []
+  },
+  "assetCandidates": [
+    {
+      "asset_id": "agent.page-recommender",
+      "source_requirement_id": "req-page-recommendation",
+      "catalog_entry_id": null,
+      "name": "Page Recommender",
+      "asset_type": "agent",
+      "domain_scope": "domain_neutral",
+      "business_domains": [],
+      "owner": "platform",
+      "reuse_status": "project_only",
+      "capability_tags": [],
+      "binding": null,
+      "connection": null,
+      "workflow_profile": null,
+      "exposure": null,
+      "confidence": 0.9,
+      "rationale": "Reviewed agent responsibility for Page Recommender",
+      "inputs": [],
+      "outputs": [],
+      "risk_level": "low",
+      "risk_signals": [],
+      "status": "approved",
+      "missing_information": [],
+      "developer_todos": []
+    }
+  ],
+  "a2aContracts": [],
+  "runtimeContracts": [],
+  "graph": {
+    "graph_id": "graph.page-recommendation",
+    "source_requirement_id": "req-page-recommendation",
+    "workflow_ref": null,
+    "nodes": [
+      {
+        "id": "input",
+        "label": "Input",
+        "node_kind": "input"
+      },
+      {
+        "id": "agent",
+        "label": "Page Recommender",
+        "node_kind": "agent",
+        "agent_ref": "agent.page-recommender",
+        "available_tools": []
+      },
+      {
+        "id": "human",
+        "label": "Human review",
+        "node_kind": "human_input",
+        "human_input_contract": {
+          "message": "Use this recommendation?",
+          "payload_schema_ref": null,
+          "response_schema_ref": "str",
+          "response_mapping": null,
+          "default_choice": "yes"
+        }
+      },
+      {
+        "id": "output",
+        "label": "Output",
+        "node_kind": "output"
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge.input.agent",
+        "from": "input",
+        "to": "agent",
+        "control": {
+          "kind": "next",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": null
+      },
+      {
+        "id": "edge.agent.human",
+        "from": "agent",
+        "to": "human",
+        "control": {
+          "kind": "next",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": "event"
+      },
+      {
+        "id": "edge.human.output",
+        "from": "human",
+        "to": "output",
+        "control": {
+          "kind": "resume",
+          "condition": null,
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": "event"
+      }
+    ],
+    "regions": []
+  }
+}
