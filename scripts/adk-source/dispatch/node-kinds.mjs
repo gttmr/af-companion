@@ -18,8 +18,13 @@ import { emitFunctionNodeDecl, emitStubFunc } from "../emitters/function-node.mj
 import { emitHumanInputFunc, emitHumanInputNodeDecl } from "../emitters/hitl.mjs";
 import { emitRouteFunc, emitRouteNodeDecl } from "../emitters/route-function.mjs";
 import { emitTerminalOutputFunc, emitTerminalOutputNodeDecl } from "../emitters/terminal-output.mjs";
+import { emitRegistryReferenceDecl, isPythonRegistryReference } from "../registry-reference.mjs";
 
 const ASSET_EMISSION_HANDLERS = Object.freeze({
+  registry_reference: Object.freeze({
+    emitFunc: () => null,
+    emitDecl: (target, context) => emitRegistryReferenceDecl(target, context)
+  }),
   agent: Object.freeze({ emitFunc: () => null, emitDecl: (target, context) => emitAgentNode(target, context) }),
   connected_tool: Object.freeze({
     emitFunc: (target, context) => emitConnectedToolFunc(target, context),
@@ -284,7 +289,10 @@ function collisionTarget(owner, symbols) {
 }
 
 function assetEmission(target, context) {
-  const role = assetLoweringRole(target);
+  const asset = target.asset ?? target;
+  const role = isPythonRegistryReference(context, asset.asset_id)
+    ? "registry_reference"
+    : assetLoweringRole(target);
   const handler = ASSET_EMISSION_HANDLERS[role];
   if (!handler) throw new Error(`runnable codegen: no asset-lowering handler for role "${role}".`);
   return emissionResult(handler.emitFunc(target, context), handler.emitDecl(target, context));

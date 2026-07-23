@@ -133,11 +133,11 @@
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
     },
     "asset_decision": {
-      "digest": "f2cb3ab1a5535a42507194fae3c35ab1741a540ee0c70120a3a63fd4d6a43ec4",
+      "digest": "c11bf46ca8391a586b2b1cee2ece74fc4288932ac9a1bea452acf91396b3cd08",
       "subjects": [
         {
           "ref": "af-work-item.json#/asset_decisions",
-          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+          "sha256": "f220d031d1155b0cc03e7c6d474ce741861fac5cce97526a3f849e6f82866a8c"
         }
       ],
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
@@ -305,7 +305,31 @@
       "selected_option": "workflow-s10-event-processing"
     }
   ],
-  "asset_decisions": [],
+  "asset_decisions": [
+    {
+      "asset_decision_id": "asset-decision-1",
+      "asset_ref": "workflow-s10-event-processing",
+      "asset_type": "workflow",
+      "asset_version": 1,
+      "required": true,
+      "match_grade": "none",
+      "options": [
+        "create_project_draft"
+      ],
+      "recommended_disposition": "create_project_draft",
+      "selected_disposition": "create_project_draft",
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture asset disposition.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null
+    }
+  ],
   "solution_control_strategy": "explicit_workflow",
   "root_executable": {
     "asset_type": "workflow",
@@ -338,11 +362,11 @@
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
         },
         "asset_decision_revision": {
-          "digest": "f2cb3ab1a5535a42507194fae3c35ab1741a540ee0c70120a3a63fd4d6a43ec4",
+          "digest": "c11bf46ca8391a586b2b1cee2ece74fc4288932ac9a1bea452acf91396b3cd08",
           "subjects": [
             {
               "ref": "af-work-item.json#/asset_decisions",
-              "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+              "sha256": "f220d031d1155b0cc03e7c6d474ce741861fac5cce97526a3f849e6f82866a8c"
             }
           ],
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"

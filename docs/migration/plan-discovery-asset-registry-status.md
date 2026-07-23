@@ -129,6 +129,34 @@ claim that the current Codex UI performs the marker copy automatically.
 - The five canonical Work Skill IDs remain, but their routing and procedures
   become re-entrant and revision-aware.
 
+## Phase 7 — Scaffold alignment evidence
+
+Current generator behavior now validates and preserves both decision axes.
+
+- `single_agent`, `agent_delegation`, `explicit_workflow`, and `hybrid` are
+  checked against the selected Agent/Workflow Root and Graph ownership.
+- Generated `root_agent` is object-identical to the selected Root Executable;
+  Agent-root delegation uses a local coordinator with reviewed task sub-agents.
+- Every included Asset requires one resolved user disposition and exact version.
+  Registry-backed decisions are checked against the current Registry revision
+  and contract; project drafts remain distinct project-local bindings.
+- Decision, Asset Decision, and Root Executable payload hashes are recomputed
+  from the current Work Item before lowering, so post-review edits fail closed.
+- Local `reuse_exact` records load one reviewed `python:module#symbol` object;
+  source-less published contracts fail instead of becoming a new generated
+  Agent. MCP and A2A reuse continues through their reviewed bindings.
+- `reuse_new_version` and publish candidates accept only mutable Registry
+  versions, while `compose_existing` preserves exact component refs.
+- `compose_existing` lowers only as the selected project Workflow Root and
+  requires every exact component as an included `reuse_exact` binding. Both
+  explicit Graph Tool nodes and Agent-owned Python Tools import the reviewed
+  callable instead of disappearing or becoming a generated stub.
+- Duplicate Registry version bindings, stale Registry revisions, missing
+  decisions, and Root/Asset version drift fail before source generation.
+- The current 51-test executable matrix covers all four strategies, both Root types,
+  both Hybrid Root choices, smoke/runnable output, generated contract tests,
+  and the installed `google-adk 2.3.0` runtime types.
+
 ## Next proof gates
 
 1. Land the strict Work Item v2 schema, parser, validator, template, and CLI

@@ -5,12 +5,20 @@ import { graphIndexes } from "../graph/indexes.mjs";
 import { routeCasesFor } from "../graph/routes.mjs";
 import { nodeSymbol, pyNodeName } from "../naming.mjs";
 import { toPyStr, truncate } from "../python-literals.mjs";
+import {
+  emitRegistryReferenceDecl,
+  isPythonRegistryReference,
+  registryBindingFor
+} from "../registry-reference.mjs";
 
 export function emitAgentNode(target, context) {
   const asset = target.asset ?? target;
+  if (isPythonRegistryReference(context, asset.asset_id)) {
+    return emitRegistryReferenceDecl(target, context);
+  }
   const sym = nodeSymbol(target);
   const instruction = agentInstruction(target, context);
-  const toolsBlock = emitAgentTools(agentOwnedTools(context.graphContext, asset));
+  const toolsBlock = emitAgentTools(agentOwnedTools(context.graphContext, asset), context);
   const mode = agentMode(target, context);
   const modeBlock = mode ? `\n    mode=${toPyStr(mode)},` : "";
   const subAgentsBlock = isRootAgentTarget(target, context)
@@ -42,13 +50,16 @@ function emitSubAgents(symbols) {
   return `\n    sub_agents=[\n${rows}\n    ],`;
 }
 
-function emitAgentTools(tools) {
+function emitAgentTools(tools, context) {
   if (!tools.length) return "";
   const rows = tools
-    .map(
-      (tool) =>
-        `        McpToolset(connection_params=StreamableHTTPConnectionParams(url=_mcp_url(${toPyStr(tool.asset_id)}, ${toPyStr(tool.binding.server_ref)})), tool_filter=[${toPyStr(tool.binding.tool_name)}]),`
-    )
+    .map((tool) => {
+      if (isPythonRegistryReference(context, tool.asset_id)) {
+        const binding = registryBindingFor(context, tool.asset_id);
+        return `        _load_registry_asset(${toPyStr(binding.source_ref)}, "tool"),`;
+      }
+      return `        McpToolset(connection_params=StreamableHTTPConnectionParams(url=_mcp_url(${toPyStr(tool.asset_id)}, ${toPyStr(tool.binding.server_ref)})), tool_filter=[${toPyStr(tool.binding.tool_name)}]),`;
+    })
     .join("\n");
   return `\n    tools=[\n${rows}\n    ],`;
 }

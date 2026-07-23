@@ -40,12 +40,21 @@ export function buildFiles({
   outputMode,
   packageName,
   rootExecutablePlan,
-  solutionControlStrategy
+  solutionControlStrategy,
+  assetBindings,
+  registryRevision
 }) {
-  const graphContext = { assets, graph };
+  const graphContext = { assets, graph, assetBindings };
+  const registryReferenceIds = new Set(
+    assetBindings.filter((binding) => binding.source_ref).map((binding) => binding.asset_id)
+  );
   validateGraphCoverage(graphContext);
   const connectedTools = assets.filter((asset) => toolConnection(asset) === "mcp_connected");
-  const unconnectedTools = assets.filter((asset) => asset.asset_type === "tool" && toolConnection(asset) === "unconnected");
+  const unconnectedTools = assets.filter(
+    (asset) => asset.asset_type === "tool"
+      && toolConnection(asset) === "unconnected"
+      && !registryReferenceIds.has(asset.asset_id)
+  );
   const a2aProviderEnabled = hasApprovedA2aExposure({ analysisResult, assets });
   const supportContext = {
     artifactRoot,
@@ -60,6 +69,8 @@ export function buildFiles({
     packageName,
     rootExecutablePlan,
     solutionControlStrategy,
+    assetBindings,
+    registryRevision,
     graphContext,
     a2aProviderEnabled,
     unconnectedTools,
@@ -96,11 +107,12 @@ export function buildFiles({
       connectedTools,
       toolConfigForAsset,
       rootExecutablePlan,
-      solutionControlStrategy
+      solutionControlStrategy,
+      assetBindings
     }),
     [`${packageName}/workflow.py`]: buildWorkflowPy(),
-    [`${packageName}/schemas.py`]: buildSchemasPy({ assets, toolConnection }),
-    [`${packageName}/mock_config.yaml`]: buildMockConfigYaml({ assets, toolConnection }),
+    [`${packageName}/schemas.py`]: buildSchemasPy({ assets, assetBindings, toolConnection }),
+    [`${packageName}/mock_config.yaml`]: buildMockConfigYaml({ assets, assetBindings, toolConnection }),
     [`${packageName}/sample_inputs.yaml`]: buildSampleInputsYaml(supportContext),
     [`${packageName}/README.md`]: buildReadme(supportContext),
     [`${packageName}/nodes/__init__.py`]: "",
@@ -124,7 +136,9 @@ export function buildFiles({
         graphContext,
         toolConfigForAsset,
         rootExecutablePlan,
-        solutionControlStrategy
+        solutionControlStrategy,
+        assetBindings,
+        registryRevision
       }),
       null,
       2
@@ -138,7 +152,8 @@ export function buildFiles({
       packageName,
       a2aProviderEnabled,
       rootExecutablePlan,
-      solutionControlStrategy
+      solutionControlStrategy,
+      assetBindings
     }),
     "README.md": buildReadme(supportContext)
   };
@@ -149,6 +164,7 @@ export function buildFiles({
   if (outputMode === "runnable") {
     files["agents.config.yaml"] = buildAgentsConfig({
       assets,
+      assetBindings,
       agentNodeTargets: orderedGraphNodeSpecs(graphContext),
       defaultAgentInstruction: defaultAgentInstructionForConfig,
       toolConnection
@@ -172,7 +188,9 @@ function buildManifest({
   graphContext,
   toolConfigForAsset,
   rootExecutablePlan,
-  solutionControlStrategy
+  solutionControlStrategy,
+  assetBindings,
+  registryRevision
 }) {
   return buildSupportManifest({
     outputMode,
@@ -186,6 +204,8 @@ function buildManifest({
     graph,
     rootExecutablePlan,
     solutionControlStrategy,
+    assetBindings,
+    registryRevision,
     startNodeIds: () => startNodeIds(graphContext),
     terminalOutputIds: () => terminalOutputIds(graphContext),
     graphNodeSemantics: () => graphNodeSemantics(graphContext),

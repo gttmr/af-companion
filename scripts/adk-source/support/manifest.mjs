@@ -13,6 +13,8 @@ export function buildManifest({
   graph,
   rootExecutablePlan,
   solutionControlStrategy,
+  assetBindings,
+  registryRevision,
   startNodeIds,
   terminalOutputIds,
   graphNodeSemantics,
@@ -31,6 +33,8 @@ export function buildManifest({
       decision_id: rootExecutablePlan.decisionId,
       generated_symbol: "root_agent"
     },
+    asset_registry_revision: registryRevision,
+    asset_bindings: assetBindings,
     requirement: {
       id: normalizedRequirement.id,
       title: normalizedRequirement.title,

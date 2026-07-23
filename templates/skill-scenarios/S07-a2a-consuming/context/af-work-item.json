@@ -156,11 +156,11 @@
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
     },
     "asset_decision": {
-      "digest": "f2cb3ab1a5535a42507194fae3c35ab1741a540ee0c70120a3a63fd4d6a43ec4",
+      "digest": "4c544cca695a8e252ff3acaabd109d2e1af17ef31ca8e5954548ec59a797081d",
       "subjects": [
         {
           "ref": "af-work-item.json#/asset_decisions",
-          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+          "sha256": "32ac7606ce16d5acf7b64e66b762e205329972eee8ca85d2d6ceb3e8de3b2e59"
         }
       ],
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
@@ -328,7 +328,77 @@
       "selected_option": "workflow-s07-a2a-consuming"
     }
   ],
-  "asset_decisions": [],
+  "asset_decisions": [
+    {
+      "asset_decision_id": "asset-decision-1",
+      "asset_ref": "workflow-s07-a2a-consuming",
+      "asset_type": "workflow",
+      "asset_version": 1,
+      "required": true,
+      "match_grade": "none",
+      "options": [
+        "create_project_draft"
+      ],
+      "recommended_disposition": "create_project_draft",
+      "selected_disposition": "create_project_draft",
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture asset disposition.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null
+    },
+    {
+      "asset_decision_id": "asset-decision-2",
+      "asset_ref": "agent-s07-local-coordinator",
+      "asset_type": "agent",
+      "asset_version": 1,
+      "required": true,
+      "match_grade": "none",
+      "options": [
+        "create_project_draft"
+      ],
+      "recommended_disposition": "create_project_draft",
+      "selected_disposition": "create_project_draft",
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture asset disposition.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null
+    },
+    {
+      "asset_decision_id": "asset-decision-3",
+      "asset_ref": "agent-s07-remote-policy-qa",
+      "asset_type": "agent",
+      "asset_version": 1,
+      "required": true,
+      "match_grade": "none",
+      "options": [
+        "create_project_draft"
+      ],
+      "recommended_disposition": "create_project_draft",
+      "selected_disposition": "create_project_draft",
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture asset disposition.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null
+    }
+  ],
   "solution_control_strategy": "explicit_workflow",
   "root_executable": {
     "asset_type": "workflow",
@@ -361,11 +431,11 @@
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
         },
         "asset_decision_revision": {
-          "digest": "f2cb3ab1a5535a42507194fae3c35ab1741a540ee0c70120a3a63fd4d6a43ec4",
+          "digest": "4c544cca695a8e252ff3acaabd109d2e1af17ef31ca8e5954548ec59a797081d",
           "subjects": [
             {
               "ref": "af-work-item.json#/asset_decisions",
-              "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+              "sha256": "32ac7606ce16d5acf7b64e66b762e205329972eee8ca85d2d6ceb3e8de3b2e59"
             }
           ],
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"

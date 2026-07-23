@@ -6,6 +6,7 @@ import { readBundle } from "./adk-source-test/fixtures.mjs";
 import "./adk-source-test/target-only-contract.test.mjs";
 import "./adk-source-test/target-behavior-matrix.test.mjs";
 import "./adk-source-test/root-executable.test.mjs";
+import "./adk-source-test/asset-binding.test.mjs";
 
 const cliOutputRoot = process.argv[2];
 if (cliOutputRoot) {

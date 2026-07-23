@@ -176,12 +176,13 @@ export function targetWorkItem(root, options = {}) {
   const workId = analysis.normalizedRequirement.id;
   const registryPath = join(repoRoot, "catalog/asset-registry.json");
   const registrySource = readFileSync(registryPath);
-  const registryRevision = loadSnapshot(registryPath).registry_revision;
+  const registrySnapshot = loadSnapshot(registryPath);
+  const registryRevision = registrySnapshot.registry_revision;
   const rootAsset = chooseRootAsset(analysis, options.rootAssetId);
   const solutionControlStrategy = options.solutionControlStrategy
     ?? (rootAsset.asset_type === "workflow" ? "explicit_workflow" : "single_agent");
   const decisions = targetDecisions(rootAsset, solutionControlStrategy);
-  const assetDecisions = [];
+  const assetDecisions = targetAssetDecisions(analysis.assetCandidates, registrySnapshot, options);
   const requirementRevision = targetRevision([
     { ref: "analysis-result.json#/normalizedRequirement", content: jsonBytes(analysis.normalizedRequirement) }
   ], registryRevision);
@@ -203,7 +204,7 @@ export function targetWorkItem(root, options = {}) {
   const rootExecutable = {
     asset_type: rootAsset.asset_type,
     asset_ref: rootAsset.asset_id,
-    asset_version: 1,
+    asset_version: assetDecisions.find((decision) => decision.asset_ref === rootAsset.asset_id)?.asset_version ?? 1,
     decision_id: "decision-root-executable"
   };
   const rootExecutableRevision = targetRevision([
@@ -352,7 +353,19 @@ export function sha256File(path) {
 }
 
 export function refreshCompositionReviewEtag(root) {
-  writeJson(join(root, "af-work-item.json"), targetWorkItem(root));
+  const current = readJson(join(root, "af-work-item.json"));
+  writeJson(join(root, "af-work-item.json"), targetWorkItem(root, {
+    rootAssetId: current.root_executable?.asset_ref,
+    injectFixtureWorkflow: current.root_executable?.asset_ref === "workflow.fixture-root",
+    solutionControlStrategy: current.solution_control_strategy,
+    scaffoldStatus: current.skills?.["af-scaffold-runtime"]?.status ?? "not_started",
+    assetDispositions: Object.fromEntries(
+      current.asset_decisions.map((decision) => [decision.asset_ref, decision.selected_disposition])
+    ),
+    assetVersions: Object.fromEntries(
+      current.asset_decisions.map((decision) => [decision.asset_ref, decision.asset_version])
+    )
+  }));
 }
 
 function chooseRootAsset(analysis, explicitRootAssetId = null) {
@@ -368,7 +381,8 @@ function chooseRootAsset(analysis, explicitRootAssetId = null) {
 }
 
 function shouldInjectFixtureWorkflow(analysis, options) {
-  if (options.rootAssetId || analysis.graph.workflow_ref) return false;
+  if (options.injectFixtureWorkflow !== true) return false;
+  if ((options.rootAssetId && options.rootAssetId !== "workflow.fixture-root") || analysis.graph.workflow_ref) return false;
   const agentNodes = analysis.graph.nodes.filter((node) => node.node_kind === "agent");
   const standaloneAgentShape = agentNodes.length === 1
     && analysis.graph.nodes.every((node) => ["input", "output", "agent"].includes(node.node_kind));
@@ -402,6 +416,46 @@ function targetDecisions(rootAsset, solutionControlStrategy) {
     recommended_option: rootAsset.asset_id,
     selected_option: rootAsset.asset_id
   }];
+}
+
+function targetAssetDecisions(assets, registrySnapshot, options) {
+  return assets.map((asset, index) => {
+    const explicitDisposition = options.assetDispositions?.[asset.asset_id];
+    if (!explicitDisposition) {
+      throw new Error(
+        `Synthetic fixture must explicitly approve assetDispositions[${JSON.stringify(asset.asset_id)}]; tests do not infer user decisions.`
+      );
+    }
+    const selectedDisposition = explicitDisposition;
+    const registryAssetId = asset.catalog_entry_id;
+    const registryRecord = registryAssetId
+      ? registrySnapshot.assets
+          .filter((record) => record.asset_id === registryAssetId)
+          .sort((left, right) => right.version - left.version)[0] ?? null
+      : null;
+    const assetVersion = options.assetVersions?.[asset.asset_id]
+      ?? registryRecord?.version
+      ?? 1;
+    return {
+      asset_decision_id: `asset-decision-${index + 1}`,
+      asset_ref: asset.asset_id,
+      asset_type: asset.asset_type,
+      asset_version: assetVersion,
+      required: true,
+      match_grade: selectedDisposition === "reuse_exact" ? "exact" : "none",
+      options: [selectedDisposition],
+      recommended_disposition: selectedDisposition,
+      selected_disposition: selectedDisposition,
+      selected_by: "user",
+      selection_reason: "Approved synthetic fixture asset disposition.",
+      evidence_refs: ["analysis-result.json"],
+      catalog_refs: registryAssetId ? [`${registryAssetId}@${assetVersion}`] : [],
+      session_id: "fixture-session",
+      turn_id: "fixture-turn",
+      status: "resolved",
+      supersedes: null
+    };
+  });
 }
 
 function jsonBytes(value) {
@@ -523,8 +577,12 @@ export function targetRuntimeContract({
   return contract;
 }
 
-export function generateBundle(artifactRoot, outputRoot) {
-  const files = buildFiles({ artifactRoot, outputRoot, ...loadArtifactContext(artifactRoot) });
+export function generateBundle(artifactRoot, outputRoot, { registryPath } = {}) {
+  const files = buildFiles({
+    artifactRoot,
+    outputRoot,
+    ...loadArtifactContext(artifactRoot, registryPath ? { registryPath } : {})
+  });
   writeBundleFiles(outputRoot, files);
 }
 

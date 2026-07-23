@@ -133,11 +133,11 @@
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
     },
     "asset_decision": {
-      "digest": "f2cb3ab1a5535a42507194fae3c35ab1741a540ee0c70120a3a63fd4d6a43ec4",
+      "digest": "48899b3bdbfd189b357e08c6cc820609aea91beeb68120c0bc4ba8900f68d795",
       "subjects": [
         {
           "ref": "af-work-item.json#/asset_decisions",
-          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+          "sha256": "362e05431cf47facba144b025f2bad84ff4097b214609cfa1d929c1060769a3b"
         }
       ],
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
@@ -305,7 +305,54 @@
       "selected_option": "workflow-s15-private-data-safety-smoke"
     }
   ],
-  "asset_decisions": [],
+  "asset_decisions": [
+    {
+      "asset_decision_id": "asset-decision-1",
+      "asset_ref": "workflow-s15-private-data-safety-smoke",
+      "asset_type": "workflow",
+      "asset_version": 1,
+      "required": true,
+      "match_grade": "none",
+      "options": [
+        "create_project_draft"
+      ],
+      "recommended_disposition": "create_project_draft",
+      "selected_disposition": "create_project_draft",
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture asset disposition.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null
+    },
+    {
+      "asset_decision_id": "asset-decision-2",
+      "asset_ref": "tool-s15-environment-backed-service",
+      "asset_type": "tool",
+      "asset_version": 1,
+      "required": true,
+      "match_grade": "none",
+      "options": [
+        "create_project_draft"
+      ],
+      "recommended_disposition": "create_project_draft",
+      "selected_disposition": "create_project_draft",
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture asset disposition.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null
+    }
+  ],
   "solution_control_strategy": "explicit_workflow",
   "root_executable": {
     "asset_type": "workflow",
@@ -338,11 +385,11 @@
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
         },
         "asset_decision_revision": {
-          "digest": "f2cb3ab1a5535a42507194fae3c35ab1741a540ee0c70120a3a63fd4d6a43ec4",
+          "digest": "48899b3bdbfd189b357e08c6cc820609aea91beeb68120c0bc4ba8900f68d795",
           "subjects": [
             {
               "ref": "af-work-item.json#/asset_decisions",
-              "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+              "sha256": "362e05431cf47facba144b025f2bad84ff4097b214609cfa1d929c1060769a3b"
             }
           ],
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"

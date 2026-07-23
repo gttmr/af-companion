@@ -125,6 +125,10 @@ Neither mode implies production integration or deployment. Source writes remain 
 
 Scaffold는 Work Item에 사용자가 확정한 Solution Control Strategy와 Root Executable을 보존한다. 설치된 `google-adk 2.3.0` 계약에 맞춰 Workflow Root는 `google.adk.workflow.Workflow`, Agent Root는 선택된 `BaseAgent` object로 생성하고, ADK가 요구하는 `root_agent` symbol은 그 exact object를 가리킨다. 생성 manifest에는 asset ref/version, decision ID, strategy와 generated symbol을 함께 기록한다. Strategy, Graph owner/profile, Root Type이 충돌하면 Compose로 되돌아가야 하며 Scaffold가 자동으로 Root나 전략을 바꾸지 않는다.
 
+각 scaffold Asset은 exactly one resolved user `asset_decision`을 가져야 한다. Scaffold는 현재 Decision·Asset Decision·Root Executable JSON이 승인 Gate에 묶인 revision subject hash와 같은지도 다시 계산한다. `reuse_exact`/`reuse_new_version`/`create_publish_candidate`는 Work Item이 묶은 current Registry revision에서 exact Asset version과 contract projection을 다시 확인한다. Local Agent·Workflow·function Tool의 `reuse_exact`은 exactly one `python:module#symbol` executable `source_ref`를 요구하고 그 reviewed object/callable을 import한다. Source ref가 없는 published contract를 새 `LlmAgent`로 재생성하지 않는다. MCP Tool과 Remote A2A Agent는 reviewed binding을 runtime adapter로 연결한다. `reuse_new_version`과 `create_publish_candidate`는 draft/reviewed version만 구현하며 published version은 불변이다.
+
+`create_project_draft`와 `compose_existing`의 결과 Asset은 Registry ref를 가질 수 없고 project-local version 1로 구분한다. 현재 generator에서 `compose_existing`은 선택된 project Workflow Root여야 하고, 최소 두 개의 exact published/deprecated component Registry ref를 보존하며, 각 component가 scaffold의 `reuse_exact` binding으로 포함되어야 한다. Graph는 그 imported Agent·Workflow object와 Tool callable 또는 reviewed MCP/A2A binding을 조합하고 deprecated component를 경고한다. Agent `available_tools`의 local Python Tool도 exact callable을 import하며 누락하거나 새 stub으로 바꾸지 않는다. 같은 Registry version을 둘 이상의 candidate가 중복 binding하거나 Root version과 Asset decision version이 다르면 생성 전에 중단한다. Generated `workflow_manifest.json`은 `asset_registry_revision`과 각 `asset_bindings`의 disposition, source, generation action, Registry/component ref, executable source ref와 경고를 보존한다.
+
 ## 8. Verification
 
 Verification maps each claim to fresh evidence:

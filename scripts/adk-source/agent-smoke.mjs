@@ -3,8 +3,12 @@ import { collectGenerationNodes } from "./graph/collector.mjs";
 import { nodeFunctionName, todoFunctionName } from "./naming.mjs";
 import { escapePythonString, toPythonEdgeTupleLiteral, toPythonLiteral } from "./python-literals.mjs";
 import { componentContracts } from "./agent-contracts.mjs";
+import { buildReferencedRootPy, hasPythonReferencedRoot } from "./agent-referenced-root.mjs";
 
 export function buildSmokeAgentPy(context) {
+  if (hasPythonReferencedRoot(context)) {
+    return buildReferencedRootPy(context);
+  }
   const { assets, graphContext, packageName, rootExecutablePlan } = context;
   const collection = collectGenerationNodes(graphContext, { mode: "smoke" });
   const functions = [

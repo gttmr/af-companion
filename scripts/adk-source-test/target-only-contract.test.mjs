@@ -200,5 +200,11 @@ function writeTargetOnlyFixture(root) {
     manifest: { catalog_bound_assets: [], new_code_required: [] },
     validation: { can_generate_source: true, blockers: [], warnings: [] }
   });
-  writeJson(join(root, "af-work-item.json"), targetWorkItem(root));
+  writeJson(join(root, "af-work-item.json"), targetWorkItem(root, {
+    injectFixtureWorkflow: true,
+    assetDispositions: {
+      ...Object.fromEntries(assets.map((asset) => [asset.asset_id, "create_project_draft"])),
+      "workflow.fixture-root": "create_project_draft"
+    }
+  }));
 }

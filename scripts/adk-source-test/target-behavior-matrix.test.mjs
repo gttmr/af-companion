@@ -1007,7 +1007,14 @@ function writeTargetArtifactsFromObjects(root, analysis, plan) {
     graph: plan.graph,
     runnable: true,
     a2aContracts: analysis.a2aContracts,
-    runtimeContracts: analysis.runtimeContracts
+    runtimeContracts: analysis.runtimeContracts,
+    rootOptions: {
+      injectFixtureWorkflow: true,
+      assetDispositions: {
+        ...Object.fromEntries(plan.assets.map((asset) => [asset.asset_id, "create_project_draft"])),
+        "workflow.fixture-root": "create_project_draft"
+      }
+    }
   });
   writeFileSync(join(root, "analysis-result.json"), `${JSON.stringify(analysis, null, 2)}\n`);
   writeFileSync(join(root, "scaffold-plan.json"), `${JSON.stringify(plan, null, 2)}\n`);

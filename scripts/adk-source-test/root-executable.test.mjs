@@ -220,7 +220,10 @@ function rootFixture({
     runnable,
     rootOptions: {
       rootAssetId: root.asset_id,
-      solutionControlStrategy: strategy
+      solutionControlStrategy: strategy,
+      assetDispositions: Object.fromEntries(
+        assets.map((asset) => [asset.asset_id, "create_project_draft"])
+      )
     }
   };
 }

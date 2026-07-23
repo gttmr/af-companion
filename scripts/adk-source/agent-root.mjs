@@ -3,7 +3,7 @@ import { collectGenerationNodes } from "./graph/collector.mjs";
 import { assertNoSymbolCollisions } from "./graph/guards.mjs";
 import { emitRunnableNodeBlocks } from "./emitters/node-registry.mjs";
 import { buildRuntimeHelperSection } from "./emitters/runtime-helpers.mjs";
-import { hasAgentOwnedTools } from "./tools.mjs";
+import { hasAgentOwnedMcpTools } from "./tools.mjs";
 import { toPythonLiteral } from "./python-literals.mjs";
 import {
   assertRemoteA2aSupported,
@@ -12,7 +12,7 @@ import {
 } from "./remote-a2a.mjs";
 
 export function buildAgentRootPy(context) {
-  const { analysisResult, assets, graphContext, rootExecutablePlan } = context;
+  const { analysisResult, assetBindings, assets, graphContext, rootExecutablePlan } = context;
   const collection = collectGenerationNodes(graphContext, { mode: "static" });
   assertNoSymbolCollisions(collection.collisionTargets);
   assertRemoteA2aSupported({ analysisResult, assets });
@@ -36,7 +36,7 @@ export function buildAgentRootPy(context) {
     ? "from google.adk.agents.remote_a2a_agent import RemoteA2aAgent\n"
     : "";
   const eventImport = usesRemoteAuth ? "from google.adk.events import Event\n" : "";
-  const mcpToolsetImport = hasAgentOwnedTools(graphContext)
+  const mcpToolsetImport = hasAgentOwnedMcpTools(graphContext)
     ? "from google.adk.tools import McpToolset\nfrom google.adk.tools.mcp_tool import StreamableHTTPConnectionParams\n"
     : "";
 
@@ -52,7 +52,7 @@ import yaml
 from google.adk import Context
 from google.adk.agents import LlmAgent
 ${remoteConfigImport}${remoteImport}${eventImport}${mcpToolsetImport}
-${buildRuntimeHelperSection({ componentContractLiteral: toPythonLiteral(componentContracts(context)), assets })}
+${buildRuntimeHelperSection({ componentContractLiteral: toPythonLiteral(componentContracts(context)), assets, assetBindings })}
 
 ${nodeBlocks.join("\n\n")}
 

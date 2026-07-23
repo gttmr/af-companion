@@ -3,14 +3,19 @@ export function buildContractTest({
   packageName,
   a2aProviderEnabled = false,
   rootExecutablePlan,
-  solutionControlStrategy
+  solutionControlStrategy,
+  assetBindings
 }) {
+  const rootBinding = assetBindings.find((binding) => binding.asset_id === rootExecutablePlan.assetRef);
+  const referencedRoot = rootBinding?.generation_action === "reference_existing" && rootBinding?.source_ref;
   if (outputMode === "runnable") {
     const rootTypeImport = rootExecutablePlan.assetType === "workflow"
       ? "from google.adk.workflow import Workflow"
       : "from google.adk.agents import BaseAgent";
     const rootType = rootExecutablePlan.assetType === "workflow" ? "Workflow" : "BaseAgent";
-    const sourceAssertion = rootExecutablePlan.assetType === "workflow"
+    const sourceAssertion = referencedRoot
+      ? `assert "_load_registry_asset(${JSON.stringify(rootBinding.source_ref)}" in source`
+      : rootExecutablePlan.assetType === "workflow"
       ? 'assert "root_executable = Workflow(" in source or "root_executable = _AsyncResumeWorkflow(" in source'
       : `assert "root_executable = ${rootExecutablePlan.rootSymbol}" in source`;
     return `import importlib.util
@@ -40,6 +45,8 @@ def test_manifest_declares_runnable_mode():
     assert '"solution_control_strategy": "${solutionControlStrategy}"' in manifest
     assert '"asset_type": "${rootExecutablePlan.assetType}"' in manifest
     assert '"asset_ref": "${rootExecutablePlan.assetRef}"' in manifest
+    assert '"asset_bindings"' in manifest
+${assetBindings.map((binding) => `    assert '"decision_id": "${binding.decision_id}"' in manifest`).join("\n")}
 
 
 def test_runtime_chat_smoke_contract_is_present():
@@ -60,6 +67,26 @@ def test_root_agent_has_selected_runtime_type_and_identity():
     generated_package = importlib.import_module("${packageName}.agent")
     assert generated_package.root_agent is generated_package.root_executable
     assert isinstance(generated_package.root_agent, ${rootType})
+`;
+  }
+  if (referencedRoot) {
+    return `from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_agent_source_references_the_exact_registry_root():
+    source = (ROOT / "${packageName}" / "agent.py").read_text(encoding="utf-8")
+    assert "_load_registry_asset(${JSON.stringify(rootBinding.source_ref)}" in source
+    assert "root_agent = root_executable" in source
+    assert "SyntheticRuntimeSmokeAgent" not in source
+
+
+def test_manifest_preserves_registry_asset_decisions():
+    manifest = (ROOT / "${packageName}" / "workflow_manifest.json").read_text(encoding="utf-8")
+    assert '"asset_bindings"' in manifest
+${assetBindings.map((binding) => `    assert '"decision_id": "${binding.decision_id}"' in manifest`).join("\n")}
 `;
   }
   return `from pathlib import Path
@@ -86,6 +113,8 @@ def test_manifest_uses_scaffold_plan_contract():
     assert '"catalog_bound_assets"' in manifest
     assert '"new_code_required"' in manifest
     assert '"runtime_contracts"' in manifest
+    assert '"asset_bindings"' in manifest
+${assetBindings.map((binding) => `    assert '"decision_id": "${binding.decision_id}"' in manifest`).join("\n")}
 
 
 def test_runtime_chat_smoke_contract_is_present():
