@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { createA2AContractForCandidate, mintNextContractId } from "./a2aContracts.ts";
 import { strictAnalysisFixture } from "./targetContract.testFixture.ts";
 import { validateTargetAnalysisResult } from "./targetContract.ts";
-import "./localA2aProvider.test.ts";
 
 assert.equal(mintNextContractId(new Set(["a2a-001", "a2a-002"])), "a2a-003");
 const analysis = strictAnalysisFixture();
