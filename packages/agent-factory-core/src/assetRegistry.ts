@@ -484,6 +484,12 @@ export function contractContent(record: AssetRecord | AssetContractInput): Asset
   return Object.fromEntries(CONTRACT_KEYS.map((key) => [key, structuredClone(record[key])])) as unknown as AssetContractInput;
 }
 
+export function validateAssetContract(value: unknown): AssetContractInput {
+  const object = expectObject(value, "contract");
+  validateContractShape(object, "contract");
+  return structuredClone(value) as AssetContractInput;
+}
+
 export function canonicalize(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
   if (isObject(value)) {
@@ -830,9 +836,7 @@ function ensureExpectedRevision(snapshot: AssetRegistrySnapshot, expectedRevisio
 }
 
 function prepareContract(input: AssetContractInput): AssetContractInput {
-  const object = expectObject(input as unknown, "contract");
-  validateContractShape(object, "contract");
-  return structuredClone(input);
+  return validateAssetContract(input);
 }
 
 function wait(milliseconds: number): void {

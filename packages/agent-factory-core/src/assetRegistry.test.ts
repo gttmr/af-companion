@@ -17,6 +17,7 @@ import {
   search,
   sha256,
   usage,
+  validateAssetContract,
   validateRegistryDocument,
   type AssetContractInput,
   type AssetRecord,
@@ -202,6 +203,17 @@ test("strict parsing rejects unknown fields, duplicate versions, type drift, bad
     mutate(document);
     assert.throws(() => validateRegistryDocument(document), (error) => errorCode(error) === code, name);
   }
+});
+
+test("standalone contract validation reuses the mutation contract and returns an isolated value", () => {
+  const source = draftContract();
+  const validated = validateAssetContract(source);
+  assert.deepEqual(validated, source);
+  assert.notEqual(validated, source);
+  assert.throws(
+    () => validateAssetContract({ ...source, notes: "" }),
+    (error) => errorCode(error) === "registry_validation_failed",
+  );
 });
 
 test("search emits exact, compatible, partial, and none deterministic evidence without L2 contracts", () => {
