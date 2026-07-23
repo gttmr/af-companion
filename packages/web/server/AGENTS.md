@@ -14,7 +14,7 @@
 | Codex sessions and delivery facade | `codexBridgeStore.ts`, `codexCompanionApi.ts` |
 | Bridge process | `codexBridgeServer.ts`, `codexBridgeMain.ts` |
 | VS Code workspace/file/diff handoff | `vscodeWorkspaceLauncher.ts` |
-| Read-only Catalog | `afCatalogApi.ts` |
+| Asset Registry | `assetRegistryApi.ts` |
 
 ## Local rules
 
@@ -25,8 +25,8 @@
 - File and diff reads must stay within the canonical repository/Work Item root, reject symlinks that escape it, and cap size/count.
 - Editor launch uses fixed argv with a trusted host executable. Never execute client-supplied commands.
 - Persist only bounded Hook/session/activity metadata with restrictive permissions. Never persist prompt, transcript, tool input, or tool output.
-- Catalog middleware is GET-only.
-- Do not add stage runners, direct analyzers, build/verify triggers, arbitrary artifact PUT, runtime control APIs, or Catalog publish endpoints.
+- Registry writes require same-origin loopback, strict JSON validation, exact `If-Match`, atomic persistence, and explicit lifecycle decisions. Published versions stay immutable.
+- Do not add stage runners, direct analyzers, build/verify triggers, arbitrary artifact PUT, or runtime control APIs.
 
 ## Verification
 

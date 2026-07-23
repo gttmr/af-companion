@@ -70,8 +70,7 @@ const WRITE_WHITELIST: RegExp[] = [
   /^analysis-summary\.md$/,
   /^boundary-design\.md$/,
   /^implementation-handoff\.md$/,
-  /^validation-report\.md$/,
-  /^catalog-delta\.yaml$/
+  /^validation-report\.md$/
 ];
 
 const READ_WHITELIST: RegExp[] = [

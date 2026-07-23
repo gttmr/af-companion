@@ -2,28 +2,29 @@
 
 ## Scope
 
-`packages/web` is the React/Vite live companion for Agent Factory work executed by external Codex CLI or VS Code sessions. It projects strict Target v2 Work Items, artifacts, Git changes, Hook activity, and editor handoff. Graph IR is its only canonical artifact edit.
+`packages/web` is the React/Vite live companion for Agent Factory work executed by external Codex CLI or VS Code sessions. It projects strict Target v2 Work Items, artifacts, Git changes, Hook activity, and editor handoff. Its canonical writes are limited to guarded Graph IR and Asset Registry mutations.
 
 Asset meanings come from [Taxonomy](../../docs/workbench/taxonomy.md), Graph semantics from [Graph IR](../../docs/workbench/graph-ir.md), and ownership from [Operating Model](../../docs/workbench/operating-model.md).
 
 ## Structure
 
-- `src/routes`: home, four Work Skill screens, Connections, and read-only Assets.
+- `src/routes`: home, four Work Skill screens, Connections, and Asset Registry operations.
 - `src/layout`: live workspace shell, Work Skill rail, and live activity/Git rail.
 - `src/workspace`: projection API types and query/SSE hooks.
-- `src/state`: query client, read-only Catalog, and Codex session hooks.
+- `src/state`: query client, Asset Registry, and Codex session hooks.
 - `src/analyzer`: strict Target v2 types, Work Item parser, Graph validation, and scaffold contracts.
 - `src/components`: Graph canvas/editor/inspector and shared badges.
 - `src/styles`: tokens, primitives, category visuals, Graph feature CSS, and the live route layout.
-- `server`: workspace projection, Work Item/Graph API, Codex bridge/facade, VS Code launcher, and read-only Catalog.
+- `server`: workspace projection, Work Item/Graph API, Asset Registry API, Codex bridge/facade, and VS Code launcher.
 
 ## Local rules
 
 - `artifacts/af/<work-id>/af-work-item.json` is the lifecycle ledger; never persist lifecycle truth in browser storage.
-- The web app does not run Work Skills, change review decisions, generate source, execute runtime behavior, publish Catalog entries, stage, or commit.
-- Graph PUT is the sole artifact mutation. Require loopback, same-origin, current ETag, approved discovery, strict validation, and an explicit active target session.
+- The web app does not run Work Skills, change Work Item review gates, generate source, execute runtime behavior, stage, or commit.
+- Graph PUT requires loopback, same-origin, current ETag, approved discovery, strict validation, and an explicit active target session.
 - Synchronize `analysis-result.json.graph` and `graph-ir.json`, then invalidate composition and downstream evidence.
-- Catalog exposes only Agent, Workflow, and Tool and is read-only.
+- Asset Registry mutations require loopback, same-origin, exact `If-Match`, strict contract validation, atomic replacement, and explicit user decision evidence for review, publish, or deprecate transitions.
+- Published Registry versions are immutable. Agent, Workflow, and Tool remain the only asset types.
 - Keep Hook activity metadata-only; do not persist prompts, transcripts, tool arguments, or outputs.
 - VS Code paths must be canonical, repository-contained, and server-derived.
 - Do not restore `/api/af`, stage routes, proposal/apply, legacy manifests, or server-owned lifecycle execution.

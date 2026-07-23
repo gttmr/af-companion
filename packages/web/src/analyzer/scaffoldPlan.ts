@@ -1,4 +1,4 @@
-import type { CatalogEntry } from "../catalog/types";
+import type { AssetRecord } from "../registry/assetRegistryClient";
 import { validateGraphIR } from "./graphValidation";
 import { requiredRuntimeContractKeys, runtimeContractReadinessIssues } from "./runtimeContracts";
 import { approvedGraphReferenceIssues, candidateSemanticReadinessIssues, graphOwnershipReadinessIssues } from "./targetContract";
@@ -9,7 +9,7 @@ export interface BuildScaffoldPlanInput {
   assetCandidates: AssetCandidate[];
   graph: GraphIR;
   runtimeContracts?: RuntimeContract[];
-  catalogEntries?: CatalogEntry[];
+  registryAssets?: AssetRecord[];
   outputMode?: ScaffoldOutputMode;
   packageName?: string;
 }
@@ -19,7 +19,7 @@ export function buildScaffoldPlan({
   assetCandidates,
   graph,
   runtimeContracts = [],
-  catalogEntries = [],
+  registryAssets = [],
   outputMode = "smoke",
   packageName
 }: BuildScaffoldPlanInput): ScaffoldPlan {
@@ -49,19 +49,26 @@ export function buildScaffoldPlan({
   blockers.push(...graphOwnershipReadinessIssues(graph));
   blockers.push(...runnableRepresentationIssues(assetCandidates, graph, outputMode));
 
-  const catalogById = new Map(catalogEntries.map((entry) => [entry.asset_id, entry]));
+  const registryById = new Map<string, AssetRecord>();
+  for (const record of registryAssets) {
+    if (registryById.has(record.asset_id)) {
+      blockers.push(`${record.asset_id}: Scaffold plan에는 사용자 결정으로 고른 exact Registry version 하나만 전달해야 합니다.`);
+      continue;
+    }
+    registryById.set(record.asset_id, record);
+  }
   const catalogBoundAssets = assets.flatMap((asset) => {
     if (!asset.catalog_entry_id) return [];
-    const catalog = catalogById.get(asset.catalog_entry_id);
-    if (!catalog) {
-      blockers.push(`${asset.name}: catalog_entry_id ${asset.catalog_entry_id}를 찾을 수 없습니다.`);
+    const registryAsset = registryById.get(asset.catalog_entry_id);
+    if (!registryAsset) {
+      blockers.push(`${asset.name}: catalog_entry_id ${asset.catalog_entry_id}의 selected Registry version을 찾을 수 없습니다.`);
       return [];
     }
     return [{
       asset_id: asset.asset_id,
       asset_name: asset.name,
-      catalog_id: catalog.asset_id,
-      catalog_name: catalog.name
+      catalog_id: registryAsset.asset_id,
+      catalog_name: registryAsset.name
     }];
   });
   const catalogBoundIds = new Set(catalogBoundAssets.map((entry) => entry.asset_id));
@@ -82,7 +89,7 @@ export function buildScaffoldPlan({
       new_code_required: assets.filter((asset) => !catalogBoundIds.has(asset.asset_id)).map((asset) => ({
         asset_id: asset.asset_id,
         asset_name: asset.name,
-        reason: "검토된 Catalog binding이 없어 새 구현 경계가 필요합니다.",
+        reason: "검토된 Registry binding이 없어 새 구현 경계가 필요합니다.",
         developer_todos: [...(asset.developer_todos ?? [])]
       }))
     },
