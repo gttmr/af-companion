@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:companion-bridge": "node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs server/codexBridgeMain.ts --repo-root ../..",
     "build": "tsc --noEmit && vite build",
-    "test:contracts": "node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs --test src/analyzer/afWorkItem.test.ts src/analyzer/a2aContracts.test.ts src/analyzer/graphValidation.test.ts src/analyzer/scaffoldPlan.test.ts src/analyzer/targetContract.test.ts src/components/graph/layout.test.ts src/components/graphElementEditorModel.test.ts server/workItemRevision.test.ts && node --test ../../scripts/validate-artifacts.test.mjs ../../scripts/generate-adk-source.test.mjs",
+    "test:contracts": "node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs --test src/analyzer/afWorkItem.test.ts src/analyzer/a2aContracts.test.ts src/analyzer/graphValidation.test.ts src/analyzer/scaffoldPlan.test.ts src/analyzer/targetContract.test.ts src/components/graph/layout.test.ts src/components/graphElementEditorModel.test.ts src/registry/registryDraft.test.ts server/workItemRevision.test.ts && node --test ../../scripts/validate-artifacts.test.mjs ../../scripts/generate-adk-source.test.mjs",
     "test:companion": "node --experimental-strip-types --loader ./scripts/ts-extension-loader.mjs --test src/companion/selectionBundle.test.ts server/afCatalogApi.test.ts server/assetRegistryApi.test.ts server/codexBridge*.test.ts server/codexCompanionApi.test.ts server/vscodeWorkspaceLauncher.test.ts server/workItemApi.test.ts server/workspaceProjection.test.ts && node --test ../../scripts/af-codex-hook.test.mjs",
     "test:all": "npm run test:contracts && npm run test:companion",
     "preview": "vite preview"
