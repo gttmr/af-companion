@@ -2,7 +2,10 @@ import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 
 import { parseTargetAnalysisResult } from "../../analyzer/targetAnalysisResult";
+import type { AfWorkItemManifest } from "../../analyzer/afWorkItem";
 import type { AnalysisResult, AssetCandidate } from "../../analyzer/types";
+import type { CodexCompanionSnapshot } from "../../companion/types";
+import { useCodexSessions } from "../../state/useCodexSessions";
 import { useEditorActions, useWorkItem, useWorkItemFile } from "../../workspace/useWorkspaceProjection";
 import { ReviewGateLine, ScreenState, SkillScreenHeader } from "./SkillScreenHeader";
 
@@ -11,6 +14,7 @@ export default function DiscoverWorkspace() {
   const manifestQuery = useWorkItem(workId);
   const analysisQuery = useWorkItemFile(workId, "analysis-result.json");
   const editor = useEditorActions();
+  const codex = useCodexSessions();
   const parsed = useMemo(() => parseAnalysis(analysisQuery.data?.content), [analysisQuery.data?.content]);
   if (!workId) return null;
   const manifest = manifestQuery.data?.data ?? null;
@@ -27,12 +31,46 @@ export default function DiscoverWorkspace() {
       {analysisQuery.isLoading ? <ScreenState title="Discovery 산출물을 읽는 중" detail="외부 Codex가 기록한 analysis-result.json을 투영하고 있습니다." /> : null}
       {analysisQuery.error ? <ScreenState tone="warning" title="Discovery 산출물 없음" detail={(analysisQuery.error as Error).message} /> : null}
       {parsed.error ? <ScreenState tone="error" title="Target Contract 검증 실패" detail={parsed.error} /> : null}
-      {parsed.analysis ? <DiscoveryContent analysis={parsed.analysis} /> : null}
+      {manifest ? <DiscoveryLifecycle workId={workId} manifest={manifest} snapshot={codex.snapshot} /> : null}
+      {parsed.analysis ? <DiscoveryContent analysis={parsed.analysis} manifest={manifest} /> : null}
     </div>
   );
 }
 
-function DiscoveryContent({ analysis }: { analysis: AnalysisResult }) {
+function DiscoveryLifecycle({ workId, manifest, snapshot }: {
+  workId: string;
+  manifest: AfWorkItemManifest;
+  snapshot: CodexCompanionSnapshot | null;
+}) {
+  const sessions = snapshot?.sessions.filter((session) => session.work_id === workId) ?? [];
+  const planSessions = sessions.filter((session) => session.role === "plan");
+  const materializationSessions = sessions.filter((session) => session.role === "materialization");
+  const bridgeHandoffs = snapshot?.handoffs.filter((handoff) => handoff.work_id === workId) ?? [];
+  const latestBridgeHandoff = bridgeHandoffs[bridgeHandoffs.length - 1] ?? null;
+  const latestLedgerHandoff = manifest.session_handoffs[manifest.session_handoffs.length - 1] ?? null;
+  const latestCycle = manifest.discovery_cycles[manifest.discovery_cycles.length - 1] ?? null;
+  return (
+    <section className="discovery-lifecycle-register">
+      <div className="section-title-line"><div><span>Plan → Materialization</span><h2>Decision cycle과 Session Handoff</h2></div><p>Work Item이 primary identity이며 Session은 명시적으로 붙는 실행 actor입니다.</p></div>
+      <div className="lifecycle-metrics">
+        <LifecycleMetric label="Control strategy" value={manifest.solution_control_strategy ?? "결정 필요"} tone={manifest.solution_control_strategy ? "ok" : "warning"} />
+        <LifecycleMetric label="Root executable" value={manifest.root_executable ? `${manifest.root_executable.asset_type} · ${manifest.root_executable.asset_ref}@${manifest.root_executable.asset_version}` : "결정 필요"} tone={manifest.root_executable ? "ok" : "warning"} />
+        <LifecycleMetric label="Discovery cycle" value={latestCycle ? `${latestCycle.cycle_id} · ${latestCycle.status}` : "not started"} tone={latestCycle?.status === "complete" ? "ok" : "neutral"} />
+        <LifecycleMetric label="Handoff" value={latestBridgeHandoff?.status ?? latestLedgerHandoff?.status ?? "none"} tone={(latestBridgeHandoff?.status ?? latestLedgerHandoff?.status) === "claimed" ? "ok" : "warning"} />
+      </div>
+      <div className="session-role-register">
+        <SessionRole title="Plan Session" sessions={planSessions} empty="Plan Mode session이 아직 Work Item에 연결되지 않았습니다." />
+        <SessionRole title="Materialization Session" sessions={materializationSessions} empty="Fresh session claim 또는 수동 attach가 필요합니다." />
+        <div className="handoff-summary">
+          <span>Latest handoff</span>
+          {latestBridgeHandoff ? <><strong>{latestBridgeHandoff.status}</strong><code>{latestBridgeHandoff.handoff_id}</code><small>{latestBridgeHandoff.claimed_by_session_id ? `claimed by ${compactId(latestBridgeHandoff.claimed_by_session_id)}` : `expires ${new Date(latestBridgeHandoff.expires_at).toLocaleString()}`}</small></> : latestLedgerHandoff ? <><strong>{latestLedgerHandoff.status}</strong><code>{latestLedgerHandoff.handoff_id}</code><small>ledger revision {latestLedgerHandoff.discovery_revision.digest.slice(0, 10)}</small></> : <p>Plan marker가 생성되면 exact claim 상태를 표시합니다.</p>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DiscoveryContent({ analysis, manifest }: { analysis: AnalysisResult; manifest: AfWorkItemManifest | null }) {
   const missing = [
     ...analysis.evidence.missing_information.map((value) => ({ owner: "requirement", value })),
     ...analysis.assetCandidates.flatMap((candidate) => candidate.missing_information.map((value) => ({ owner: candidate.asset_id, value }))),
@@ -60,6 +98,8 @@ function DiscoveryContent({ analysis }: { analysis: AnalysisResult }) {
           <EvidenceRow label="Assumptions" values={analysis.evidence.assumptions} />
         </div>
       </section>
+
+      {manifest ? <DecisionRegisters manifest={manifest} /> : null}
 
       <section className="candidate-register">
         <div className="section-title-line"><div><span>Candidate register</span><h2>Agent · Workflow · Tool</h2></div><p>{analysis.assetCandidates.length} candidates · top-level category는 세 종류뿐입니다.</p></div>
@@ -89,6 +129,43 @@ function DiscoveryContent({ analysis }: { analysis: AnalysisResult }) {
       </section>
     </>
   );
+}
+
+function DecisionRegisters({ manifest }: { manifest: AfWorkItemManifest }) {
+  const decisions = manifest.decisions.filter((decision) => decision.status !== "superseded");
+  const assetDecisions = manifest.asset_decisions.filter((decision) => decision.status !== "superseded");
+  const openRequired = decisions.filter((decision) => decision.required && decision.status === "open").length
+    + assetDecisions.filter((decision) => decision.required && decision.status === "open").length;
+  return (
+    <section className="discovery-decision-grid">
+      <div className="decision-register">
+        <div className="section-title-line compact"><div><span>User decisions</span><h2>Required choices</h2></div><strong>{openRequired ? `${openRequired} open` : "resolved"}</strong></div>
+        {decisions.length ? <table><thead><tr><th>Topic</th><th>Selection</th><th>Recommendation</th><th>Status</th></tr></thead><tbody>{decisions.map((decision) => <tr key={decision.decision_id}>
+          <td><strong>{decision.topic}</strong><code>{decision.decision_id}</code></td>
+          <td>{decision.selected_option ?? "사용자 응답 필요"}<small>{decision.selection_reason ?? "자동 선택 없음"}</small></td>
+          <td>{decision.recommended_option ?? "—"}</td>
+          <td><span className={`decision-status is-${decision.status}`}>{decision.status}</span></td>
+        </tr>)}</tbody></table> : <ScreenState title="Decision record 없음" detail="Plan Conversation이 materialize되면 사용자 선택과 provenance가 나타납니다." />}
+      </div>
+      <div className="asset-decision-register">
+        <div className="section-title-line compact"><div><span>Asset search</span><h2>Match & disposition</h2></div><strong>{assetDecisions.length}</strong></div>
+        {assetDecisions.length ? <table><thead><tr><th>Asset</th><th>Match</th><th>Disposition</th><th>Status</th></tr></thead><tbody>{assetDecisions.map((decision) => <tr key={decision.asset_decision_id}>
+          <td><strong>{decision.asset_ref}{decision.asset_version ? `@${decision.asset_version}` : ""}</strong><small>{decision.asset_type} · {decision.catalog_refs.join(", ") || "project candidate"}</small></td>
+          <td><span className={`match-grade is-${decision.match_grade}`}>{decision.match_grade}</span></td>
+          <td>{decision.selected_disposition ?? "사용자 응답 필요"}<small>{decision.selected_disposition ? decision.selection_reason : `추천: ${decision.recommended_disposition ?? "없음"}`}</small></td>
+          <td><span className={`decision-status is-${decision.status}`}>{decision.status}</span></td>
+        </tr>)}</tbody></table> : <ScreenState title="Asset Decision 없음" detail="Registry 검색 결과와 reuse/extend/create 선택이 materialize되면 나타납니다." />}
+      </div>
+    </section>
+  );
+}
+
+function LifecycleMetric({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "neutral" | "ok" | "warning" }) {
+  return <div className={`lifecycle-metric is-${tone}`}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function SessionRole({ title, sessions, empty }: { title: string; sessions: CodexCompanionSnapshot["sessions"]; empty: string }) {
+  return <div className="session-role"><span>{title}</span>{sessions.length ? sessions.map((session) => <div key={session.session_id}><strong>{session.alias || compactId(session.session_id)}</strong><code>{compactId(session.session_id)}</code><small>{session.status} · {session.last_event} · {new Date(session.last_seen_at).toLocaleString()}</small></div>) : <p>{empty}</p>}</div>;
 }
 
 function CandidateRow({ candidate }: { candidate: AssetCandidate }) {
@@ -123,4 +200,8 @@ function parseAnalysis(content: string | undefined): { analysis: AnalysisResult 
   } catch (error) {
     return { analysis: null, error: error instanceof Error ? error.message : "analysis-result.json을 읽지 못했습니다." };
   }
+}
+
+function compactId(value: string): string {
+  return value.length > 20 ? `${value.slice(0, 9)}…${value.slice(-7)}` : value;
 }
