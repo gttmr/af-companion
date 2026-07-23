@@ -12,6 +12,7 @@ import type { AfWorkItemManifest } from "../src/analyzer/afWorkItem.ts";
 import { ArtifactRootStore } from "./artifactRootStore.ts";
 import { startCodexBridgeServer } from "./codexBridgeServer.ts";
 import { createWorkItemMiddleware } from "./workItemApi.ts";
+import { createWorkItemRevision } from "./workItemRevision.ts";
 
 const execFileAsync = promisify(execFile);
 const fixturePath = fileURLToPath(new URL(
@@ -98,10 +99,20 @@ test("Graph PUT edits only Graph projections, invalidates downstream state, and 
 
   const workItem = (await store.readWorkItem(workId)).manifest;
   assert.equal(workItem.skills["af-compose-solution"].status, "waiting_for_review");
-  assert.equal(workItem.review_gates.composition.status, "pending");
-  assert.equal(workItem.skills["af-scaffold-runtime"].status, "not_started");
-  assert.equal(workItem.skills["af-verify-runtime"].status, "not_started");
-  assert.equal(workItem.verification.outcome, null);
+  assert.equal(workItem.review_gates.composition.status, "stale");
+  assert.deepEqual(workItem.review_gates.composition.stale_reasons, ["graph_revision_changed"]);
+  assert.equal(workItem.skills["af-scaffold-runtime"].status, "stale");
+  assert.deepEqual(workItem.skills["af-scaffold-runtime"].output_refs, ["runtime-stub/agent.py"]);
+  assert.deepEqual(workItem.skills["af-scaffold-runtime"].output_roots, ["runtime-stub"]);
+  assert.equal(workItem.skills["af-verify-runtime"].status, "stale");
+  assert.equal(workItem.verification.outcome, "stale");
+  assert.deepEqual(workItem.verification.evidence_refs, ["validation-report.md"]);
+  assert.equal(workItem.composition_cycles.filter((cycle) => cycle.status === "active").length, 1);
+  assert.equal(workItem.composition_cycles.filter((cycle) => cycle.status === "superseded").length, 1);
+  assert.deepEqual(
+    workItem.invalidations.map((invalidation) => invalidation.target_skill),
+    ["af-compose-solution", "af-scaffold-runtime", "af-verify-runtime"],
+  );
 
   const snapshot = await bridge.store.snapshot();
   assert.equal(snapshot.deliveries.filter((delivery) => delivery.target_session_id === "session-exact").length, 1);
@@ -111,27 +122,159 @@ test("Graph PUT edits only Graph projections, invalidates downstream state, and 
 async function approveComposition(store: ArtifactRootStore, workId: string): Promise<void> {
   const result = await store.readWorkItem(workId);
   const at = "2030-01-01T00:00:00.000Z";
-  const complete = (refs: string[]) => ({
+  const analysis = await store.readArtifact(workId, "analysis-result.json");
+  const graphContent = `${JSON.stringify(JSON.parse(analysis.content).graph, null, 2)}\n`;
+  await store.writeArtifact(workId, "graph-ir.json", graphContent, null);
+  const strategyDecision = {
+    decision_id: "decision-control-strategy",
+    topic: "solution_control_strategy",
+    required: true,
+    options: ["single_agent"],
+    recommended_option: "single_agent",
+    selected_option: "single_agent",
+    selected_by: "user" as const,
+    selection_reason: "Fixture explicitly approves one local Agent.",
+    evidence_refs: ["analysis-result.json"],
+    catalog_refs: [],
+    session_id: "review",
+    turn_id: "turn-strategy",
+    status: "resolved" as const,
+    supersedes: null,
+  };
+  const rootDecision = {
+    decision_id: "decision-root-executable",
+    topic: "root_executable",
+    required: true,
+    options: ["agent.scenario-a"],
+    recommended_option: "agent.scenario-a",
+    selected_option: "agent.scenario-a",
+    selected_by: "user" as const,
+    selection_reason: "Fixture explicitly selects the approved Agent as root.",
+    evidence_refs: ["analysis-result.json"],
+    catalog_refs: [],
+    session_id: "review",
+    turn_id: "turn-root",
+    status: "resolved" as const,
+    supersedes: null,
+  };
+  const rootExecutable = {
+    asset_type: "agent" as const,
+    asset_ref: "agent.scenario-a",
+    asset_version: 1,
+    decision_id: rootDecision.decision_id,
+  };
+  const registryRevision = "f".repeat(64);
+  const revision = (subjects: Parameters<typeof createWorkItemRevision>[0]) =>
+    createWorkItemRevision(subjects, registryRevision);
+  const revisions = {
+    requirement: revision([{ ref: "analysis-result.json", content: analysis.content }]),
+    decision: revision([{
+      ref: "af-work-item.json#decisions",
+      content: JSON.stringify([strategyDecision, rootDecision]),
+    }]),
+    asset_decision: revision([{ ref: "af-work-item.json#asset_decisions", content: "[]" }]),
+    discovery: revision([{ ref: "analysis-result.json", content: analysis.content }]),
+    catalog_snapshot: revision([{ ref: "catalog/asset-registry.json", content: "fixture-registry" }]),
+    graph: revision([{ ref: "graph-ir.json", content: graphContent }]),
+    root_executable: revision([{
+      ref: "af-work-item.json#root_executable",
+      content: JSON.stringify(rootExecutable),
+    }]),
+    runtime_contract: revision([{ ref: "analysis-result.json", content: analysis.content }]),
+    composition: revision([
+      { ref: "analysis-result.json", content: analysis.content },
+      { ref: "graph-ir.json", content: graphContent },
+    ]),
+    scaffold: revision([{ ref: "runtime-stub/agent.py", content: "# generated fixture\n" }]),
+    verification: revision([{ ref: "validation-report.md", content: "fixture passed\n" }]),
+  };
+  const complete = (inputRevision: typeof revisions.discovery, outputRevision: typeof revisions.discovery, refs: string[], roots: string[] = []) => ({
     status: "complete" as const,
-    input_revision: "input",
-    output_revision: "output",
+    input_revision: inputRevision,
+    output_revision: outputRevision,
     output_refs: refs,
     blocker_refs: [],
-    output_roots: [],
+    output_roots: roots,
     started_at: at,
     updated_at: at,
     completed_at: at,
   });
-  const gate = (etag: string) => ({ status: "approved" as const, artifact_etag: etag, decided_at: at, session_id: "review", turn_id: "turn" });
   const manifest: AfWorkItemManifest = {
     ...result.manifest,
-    active_skill: "af-compose-solution",
+    ledger_revision: 1,
+    focus_skill: "af-compose-solution",
     skills: {
       ...result.manifest.skills,
-      "af-discover-assets": complete(["analysis-result.json"]),
-      "af-compose-solution": complete(["analysis-result.json", "graph-ir.json"]),
+      "af-discover-assets": complete(revisions.requirement, revisions.discovery, ["analysis-result.json"]),
+      "af-compose-solution": complete(revisions.discovery, revisions.composition, ["analysis-result.json", "graph-ir.json"]),
+      "af-scaffold-runtime": complete(revisions.composition, revisions.scaffold, ["runtime-stub/agent.py"], ["runtime-stub"]),
+      "af-verify-runtime": complete(revisions.scaffold, revisions.verification, ["validation-report.md"]),
     },
-    review_gates: { discovery: gate("a".repeat(64)), composition: gate("b".repeat(64)) },
+    revisions,
+    discovery_cycles: [{
+      cycle_id: "discovery-1",
+      status: "complete",
+      revision: revisions.discovery,
+      supersedes_cycle_id: null,
+      trigger: "initial",
+      artifact_refs: ["analysis-result.json"],
+      started_at: at,
+      completed_at: at,
+    }],
+    composition_cycles: [{
+      cycle_id: "composition-1",
+      status: "complete",
+      revision: revisions.composition,
+      supersedes_cycle_id: null,
+      artifact_refs: ["analysis-result.json", "graph-ir.json"],
+      return_to_discover: null,
+      started_at: at,
+      completed_at: at,
+    }],
+    decisions: [strategyDecision, rootDecision],
+    solution_control_strategy: "single_agent",
+    root_executable: rootExecutable,
+    review_gates: {
+      discovery: {
+        status: "approved",
+        binding: {
+          requirement_revision: revisions.requirement,
+          decision_revision: revisions.decision,
+          asset_decision_revision: revisions.asset_decision,
+          discovery_revision: revisions.discovery,
+          catalog_snapshot_revision: revisions.catalog_snapshot,
+          artifact_etag: analysis.etag,
+        },
+        decided_at: at,
+        session_id: "review",
+        turn_id: "turn-discovery",
+        stale_reasons: [],
+      },
+      composition: {
+        status: "approved",
+        binding: {
+          discovery_revision: revisions.discovery,
+          graph_revision: revisions.graph,
+          root_executable_revision: revisions.root_executable,
+          runtime_contract_revision: revisions.runtime_contract,
+          composition_revision: revisions.composition,
+          artifact_etag: analysis.etag,
+        },
+        decided_at: at,
+        session_id: "review",
+        turn_id: "turn-composition",
+        stale_reasons: [],
+      },
+    },
+    artifact_refs: ["analysis-result.json", "graph-ir.json", "runtime-stub/agent.py", "validation-report.md"],
+    generated_output_roots: ["runtime-stub"],
+    verification: {
+      outcome: "passed",
+      revision: revisions.verification,
+      report_ref: "validation-report.md",
+      evidence_refs: ["validation-report.md"],
+      verified_at: at,
+    },
   };
   await store.writeWorkItem(workId, manifest, result.etag);
 }

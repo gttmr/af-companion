@@ -44,7 +44,9 @@ export interface WorkspaceProjectionSnapshot {
 export interface WorkspaceWorkItemSummary {
   work_id: string;
   artifact_root: string;
-  active_skill: AfWorkItemManifest["active_skill"];
+  ledger_revision: number;
+  focus_skill: AfWorkItemManifest["focus_skill"];
+  active_runs: AfWorkItemManifest["active_runs"];
   skills: AfWorkItemManifest["skills"];
   review_gates: AfWorkItemManifest["review_gates"];
   verification: AfWorkItemManifest["verification"];

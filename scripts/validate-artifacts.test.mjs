@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { loadSnapshot } from "../packages/agent-factory-core/src/assetRegistry.ts";
 import * as rootEnums from "./artifact-validation/constants.mjs";
 
 const validator = new URL("./validate-artifacts.mjs", import.meta.url).pathname;
@@ -416,20 +417,20 @@ test("validator requires every Agent A2A binding or exposure ref to resolve to a
 test("validator requires a non-empty runtime stub when Scaffold is complete", () => {
   withRoot((root, analysis) => {
     writeJson(join(root, "analysis-result.json"), analysis);
-    writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(sha256Json(analysis)));
+    writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(analysis));
     assert.match(fail(root), /af-scaffold-runtime complete requires a non-empty runtime-stub/);
   });
   withRoot((root, analysis) => {
     writeJson(join(root, "analysis-result.json"), analysis);
     mkdirSync(join(root, "runtime-stub"));
-    writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(sha256Json(analysis)));
+    writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(analysis));
     assert.match(fail(root), /af-scaffold-runtime complete requires a non-empty runtime-stub/);
   });
   withRoot((root, analysis) => {
     writeJson(join(root, "analysis-result.json"), analysis);
     mkdirSync(join(root, "runtime-stub"));
     writeFileSync(join(root, "runtime-stub", "agent.py"), "# generated runtime\n");
-    writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(sha256Json(analysis)));
+    writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(analysis));
     assert.match(run(root), /Artifact validation OK/);
   });
 });
@@ -462,6 +463,23 @@ test("validator accepts an explicit Mock Lab MCP binding on an approved Tool pro
     writeJson(join(root, "analysis-result.json"), analysis);
     writeJson(join(root, "scaffold-plan.json"), plan);
     assert.match(run(root), /Artifact validation OK/);
+  });
+});
+
+test("Work Item revisions pin the canonical Registry revision and reject digest drift", () => {
+  const registryUrl = new URL("../catalog/asset-registry.json", import.meta.url);
+  const registrySource = readFileSync(registryUrl);
+  const rawFileSha = createHash("sha256").update(registrySource).digest("hex");
+  const registryRevision = loadSnapshot(registryUrl.pathname).registry_revision;
+  assert.notEqual(registryRevision, rawFileSha);
+
+  withRoot((root, analysis) => {
+    const manifest = completedScaffoldWorkItem(analysis);
+    assert.equal(manifest.revisions.catalog_snapshot.registry_revision, registryRevision);
+    assert.equal(manifest.revisions.catalog_snapshot.subjects[0].sha256, rawFileSha);
+    manifest.revisions.requirement.digest = "0".repeat(64);
+    writeJson(join(root, "af-work-item.json"), manifest);
+    assert.match(fail(root), /digest must match canonical subjects and registry_revision/);
   });
 });
 
@@ -596,41 +614,161 @@ function scaffoldPlan(analysis) {
   };
 }
 
-function completedScaffoldWorkItem(compositionEtag) {
+function completedScaffoldWorkItem(analysis) {
   const at = "2030-01-01T00:00:00.000Z";
-  const state = (status, refs = []) => ({
+  const registryUrl = new URL("../catalog/asset-registry.json", import.meta.url);
+  const registrySource = readFileSync(registryUrl);
+  const registryRevision = loadSnapshot(registryUrl.pathname).registry_revision;
+  const analysisSource = jsonBytes(analysis);
+  const decisions = resolvedFixtureDecisions("agent.writer", "single_agent");
+  const rootExecutable = {
+    asset_type: "agent",
+    asset_ref: "agent.writer",
+    asset_version: 1,
+    decision_id: "decision-root-executable"
+  };
+  const revisions = {
+    requirement: revision([{ ref: "analysis-result.json#/normalizedRequirement", content: jsonBytes(analysis.normalizedRequirement) }], registryRevision),
+    decision: revision([{ ref: "af-work-item.json#/decisions", content: jsonBytes(decisions) }], registryRevision),
+    asset_decision: revision([{ ref: "af-work-item.json#/asset_decisions", content: jsonBytes([]) }], registryRevision),
+    discovery: revision([{ ref: "analysis-result.json", content: analysisSource }], registryRevision),
+    catalog_snapshot: revision([{ ref: "catalog/asset-registry.json", content: registrySource }], registryRevision),
+    graph: revision([{ ref: "analysis-result.json#/graph", content: jsonBytes(analysis.graph) }], registryRevision),
+    root_executable: revision([{ ref: "af-work-item.json#/root_executable", content: jsonBytes(rootExecutable) }], registryRevision),
+    runtime_contract: revision([{ ref: "analysis-result.json#/runtimeContracts", content: jsonBytes(analysis.runtimeContracts) }], registryRevision),
+    composition: revision([{ ref: "analysis-result.json", content: analysisSource }], registryRevision),
+    scaffold: revision([{ ref: "runtime-stub/agent.py", content: "# generated runtime\n" }], registryRevision),
+    verification: null
+  };
+  const state = (status, inputRevision = null, outputRevision = null, refs = [], roots = []) => ({
     status,
-    input_revision: status === "not_started" ? null : "input-revision",
-    output_revision: status === "not_started" ? null : "output-revision",
+    input_revision: inputRevision,
+    output_revision: outputRevision,
     output_refs: refs,
     blocker_refs: [],
-    output_roots: status === "complete" ? ["runtime-stub"] : [],
+    output_roots: roots,
     started_at: status === "not_started" ? null : at,
     updated_at: at,
     completed_at: status === "complete" ? at : null
   });
-  const gate = (etag) => ({ status: "approved", artifact_etag: etag, decided_at: at, session_id: "session", turn_id: "turn" });
+  const gate = (binding, turnId) => ({
+    status: "approved",
+    binding,
+    decided_at: at,
+    session_id: "fixture-session",
+    turn_id: turnId,
+    stale_reasons: []
+  });
+  const compositionEtag = createHash("sha256").update(analysisSource).digest("hex");
   return {
-    schema_version: 1,
+    schema_version: 2,
     work_id: "req-target",
     artifact_root: "artifacts/af/req-target",
-    active_skill: "af-scaffold-runtime",
+    ledger_revision: 3,
+    focus_skill: "af-verify-runtime",
+    active_runs: [],
     skills: {
-      "af-discover-assets": state("complete", ["analysis-result.json"]),
-      "af-compose-solution": state("complete", ["graph-ir.json", "scaffold-plan.json"]),
-      "af-scaffold-runtime": state("complete", ["runtime-stub/agent.py"]),
+      "af-discover-assets": state("complete", revisions.requirement, revisions.discovery, ["analysis-result.json"]),
+      "af-compose-solution": state("complete", revisions.discovery, revisions.composition, ["analysis-result.json"]),
+      "af-scaffold-runtime": state("complete", revisions.composition, revisions.scaffold, ["runtime-stub/agent.py"], ["runtime-stub"]),
       "af-verify-runtime": state("not_started")
     },
+    revisions,
+    discovery_cycles: [{
+      cycle_id: "discovery-1",
+      status: "complete",
+      revision: revisions.discovery,
+      supersedes_cycle_id: null,
+      trigger: "initial",
+      artifact_refs: ["analysis-result.json"],
+      started_at: at,
+      completed_at: at
+    }],
+    composition_cycles: [{
+      cycle_id: "composition-1",
+      status: "complete",
+      revision: revisions.composition,
+      supersedes_cycle_id: null,
+      artifact_refs: ["analysis-result.json"],
+      return_to_discover: null,
+      started_at: at,
+      completed_at: at
+    }],
+    decisions,
+    asset_decisions: [],
+    solution_control_strategy: "single_agent",
+    root_executable: rootExecutable,
     review_gates: {
-      discovery: gate("a".repeat(64)),
-      composition: gate(compositionEtag)
+      discovery: gate({
+        requirement_revision: revisions.requirement,
+        decision_revision: revisions.decision,
+        asset_decision_revision: revisions.asset_decision,
+        discovery_revision: revisions.discovery,
+        catalog_snapshot_revision: revisions.catalog_snapshot,
+        artifact_etag: compositionEtag
+      }, "discover-review"),
+      composition: gate({
+        discovery_revision: revisions.discovery,
+        graph_revision: revisions.graph,
+        root_executable_revision: revisions.root_executable,
+        runtime_contract_revision: revisions.runtime_contract,
+        composition_revision: revisions.composition,
+        artifact_etag: compositionEtag
+      }, "compose-review")
     },
-    verification: { outcome: null, revision: null, report_ref: null }
+    artifact_refs: ["analysis-result.json", "runtime-stub/agent.py"],
+    generated_output_roots: ["runtime-stub"],
+    verification: { outcome: null, revision: null, report_ref: null, evidence_refs: [], verified_at: null },
+    invalidations: [],
+    session_handoffs: []
   };
 }
 
-function sha256Json(value) {
-  return createHash("sha256").update(`${JSON.stringify(value, null, 2)}\n`).digest("hex");
+function resolvedFixtureDecisions(rootRef, strategy) {
+  const selected = {
+    required: true,
+    selected_by: "user",
+    selection_reason: "Approved synthetic fixture decision.",
+    evidence_refs: ["analysis-result.json"],
+    catalog_refs: [],
+    session_id: "fixture-session",
+    turn_id: "fixture-turn",
+    status: "resolved",
+    supersedes: null
+  };
+  return [{
+    ...selected,
+    decision_id: "decision-solution-control-strategy",
+    topic: "solution_control_strategy",
+    options: ["single_agent", "agent_delegation", "explicit_workflow", "hybrid"],
+    recommended_option: strategy,
+    selected_option: strategy
+  }, {
+    ...selected,
+    decision_id: "decision-root-executable",
+    topic: "root_executable",
+    options: [rootRef],
+    recommended_option: rootRef,
+    selected_option: rootRef
+  }];
+}
+
+function revision(subjectInputs, registryRevision = null) {
+  const subjects = subjectInputs
+    .map(({ ref, content }) => ({
+      ref,
+      sha256: createHash("sha256").update(content).digest("hex")
+    }))
+    .sort((left, right) => left.ref.localeCompare(right.ref));
+  const digest = createHash("sha256").update(JSON.stringify({
+    subjects,
+    registry_revision: registryRevision
+  })).digest("hex");
+  return { digest, subjects, registry_revision: registryRevision };
+}
+
+function jsonBytes(value) {
+  return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 function writeJson(path, value) {

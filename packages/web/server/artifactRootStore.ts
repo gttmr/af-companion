@@ -29,7 +29,9 @@ export interface ArtifactWriteResult {
 export interface ArtifactRootSummary {
   work_id: string;
   artifact_root: string;
-  active_skill: AfWorkItemManifest["active_skill"];
+  ledger_revision: number;
+  focus_skill: AfWorkItemManifest["focus_skill"];
+  active_runs: AfWorkItemManifest["active_runs"];
   skills: AfWorkItemManifest["skills"];
   review_gates: AfWorkItemManifest["review_gates"];
   verification: AfWorkItemManifest["verification"];
@@ -159,7 +161,9 @@ export class ArtifactRootStore {
         summaries.push({
           work_id: manifest.work_id,
           artifact_root: `artifacts/af/${name}`,
-          active_skill: manifest.active_skill,
+          ledger_revision: manifest.ledger_revision,
+          focus_skill: manifest.focus_skill,
+          active_runs: manifest.active_runs,
           skills: manifest.skills,
           review_gates: manifest.review_gates,
           verification: manifest.verification,

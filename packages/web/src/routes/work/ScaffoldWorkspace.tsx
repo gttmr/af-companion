@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import type { WorkItemFileEntry } from "../../workspace/api";
+import type { AfRevisionRef } from "../../analyzer/afWorkItem";
 import {
   useEditorActions,
   useWorkItem,
@@ -128,6 +129,6 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1_024).toFixed(bytes > 10 * 1_024 ? 0 : 1)} KB`;
 }
 
-function shortRevision(value: string | null | undefined): string {
-  return value ? value.slice(0, 12) : "—";
+function shortRevision(value: AfRevisionRef | null | undefined): string {
+  return value ? value.digest.slice(0, 12) : "—";
 }

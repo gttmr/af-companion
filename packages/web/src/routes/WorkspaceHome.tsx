@@ -12,7 +12,7 @@ export default function WorkspaceHome() {
         <div>
           <span className="workspace-eyebrow">Agent Factory companion</span>
           <h1>Codex가 만들고,<br />Companion이 보여줍니다.</h1>
-          <p>CLI와 VS Code extension이 실제 산출물과 source를 소유합니다. 이 화면은 네 Work Skill의 상태, Graph IR, 검증 증거와 Git 변화를 실시간으로 투영합니다.</p>
+          <p>CLI와 VS Code extension이 실제 산출물과 source를 소유합니다. 이 화면은 반복 가능한 Work Skill cycle, Graph IR, 검증 증거와 Git 변화를 실시간으로 투영합니다.</p>
         </div>
         <div className="workspace-hero-meta">
           <div><span>Workspace</span><strong>{snapshot?.identity.display_name ?? "연결 중"}</strong></div>
@@ -22,7 +22,7 @@ export default function WorkspaceHome() {
         </div>
       </section>
 
-      <section className="work-map" aria-label="Work Skill lifecycle">
+      <section className="work-map" aria-label="Re-entrant Work Skill lifecycle">
         {afWorkSkillIds.map((skillId, index) => (
           <div key={skillId} className="work-map-step">
             <span>{String(index + 1).padStart(2, "0")}</span>
@@ -47,12 +47,13 @@ export default function WorkspaceHome() {
         ) : (
           <div className="work-item-table-wrap">
             <table className="work-item-table">
-              <thead><tr><th>Work item</th><th>Active skill</th><th>Discover</th><th>Compose</th><th>Scaffold</th><th>Verify</th><th>Updated</th></tr></thead>
+              <thead><tr><th>Work item</th><th>Focus</th><th>Active runs</th><th>Discover</th><th>Compose</th><th>Scaffold</th><th>Verify</th><th>Updated</th></tr></thead>
               <tbody>
                 {snapshot.work_items.map((item) => (
                   <tr key={item.work_id}>
                     <td><Link to={`/work/${encodeURIComponent(item.work_id)}/discover`}>{item.work_id}</Link><code>{item.artifact_root}</code></td>
-                    <td>{item.active_skill ? afWorkSkillLabels[item.active_skill].short : "—"}</td>
+                    <td>{item.focus_skill ? afWorkSkillLabels[item.focus_skill].short : "—"}</td>
+                    <td>{item.active_runs.length ? item.active_runs.map((run) => run.role).join(", ") : "—"}</td>
                     {afWorkSkillIds.map((skillId) => <td key={skillId}><span className={`table-status is-${item.skills[skillId].status}`}>{item.skills[skillId].status}</span></td>)}
                     <td><time>{new Date(item.updated_at).toLocaleString()}</time></td>
                   </tr>

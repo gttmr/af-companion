@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadSnapshot } from "../../packages/agent-factory-core/src/assetRegistry.ts";
 import { writeBundleFiles } from "../adk-source/bundle-writer.mjs";
 import { loadArtifactContext } from "../adk-source/context.mjs";
 import { buildFiles } from "../adk-source/file-builder.mjs";
@@ -127,7 +128,6 @@ export function writeTargetArtifacts(dir, { requirement, assets, graph, runnable
     runtimeContracts,
     graph
   });
-  writeJson(join(dir, "af-work-item.json"), targetWorkItem(strictRequirement.id, {}, sha256File(analysisPath)));
   writeJson(join(dir, "scaffold-plan.json"), {
     contract_version: "2.0",
     requirement_id: requirement.id,
@@ -141,46 +141,200 @@ export function writeTargetArtifacts(dir, { requirement, assets, graph, runnable
     manifest: { catalog_bound_assets: [], new_code_required: [] },
     validation: { can_generate_source: true, blockers: [], warnings: [] }
   });
+  writeJson(join(dir, "af-work-item.json"), targetWorkItem(dir));
 }
 
-export function targetWorkItem(workId, patch = {}, compositionEtag = "b".repeat(64)) {
+export function targetWorkItem(root, options = {}) {
   const at = "2030-01-01T00:00:00.000Z";
-  const state = (status, outputRefs = []) => ({
+  const analysisPath = join(root, "analysis-result.json");
+  const scaffoldPath = join(root, "scaffold-plan.json");
+  const analysis = JSON.parse(readFileSync(analysisPath));
+  const scaffoldPlan = JSON.parse(readFileSync(scaffoldPath));
+  if (!analysis.assetCandidates.some((asset) => asset.asset_type === "agent" || asset.asset_type === "workflow")) {
+    const fixtureRoot = targetAsset("workflow.fixture-root", "workflow", {
+      source_requirement_id: analysis.normalizedRequirement.id,
+      name: "Fixture Root Workflow"
+    });
+    analysis.assetCandidates.push(fixtureRoot);
+    scaffoldPlan.assets.push(structuredClone(fixtureRoot));
+    analysis.graph.workflow_ref = fixtureRoot.asset_id;
+    scaffoldPlan.graph.workflow_ref = fixtureRoot.asset_id;
+    writeJson(analysisPath, analysis);
+    writeJson(scaffoldPath, scaffoldPlan);
+  }
+  const analysisSource = readFileSync(analysisPath);
+  const scaffoldSource = readFileSync(scaffoldPath);
+  const workId = analysis.normalizedRequirement.id;
+  const registryPath = join(repoRoot, "catalog/asset-registry.json");
+  const registrySource = readFileSync(registryPath);
+  const registryRevision = loadSnapshot(registryPath).registry_revision;
+  const rootAsset = chooseRootAsset(analysis);
+  const solutionControlStrategy = rootAsset.asset_type === "workflow" ? "explicit_workflow" : "single_agent";
+  const decisions = targetDecisions(rootAsset, solutionControlStrategy);
+  const assetDecisions = [];
+  const requirementRevision = targetRevision([
+    { ref: "analysis-result.json#/normalizedRequirement", content: jsonBytes(analysis.normalizedRequirement) }
+  ], registryRevision);
+  const decisionRevision = targetRevision([
+    { ref: "af-work-item.json#/decisions", content: jsonBytes(decisions) }
+  ], registryRevision);
+  const assetDecisionRevision = targetRevision([
+    { ref: "af-work-item.json#/asset_decisions", content: jsonBytes(assetDecisions) }
+  ], registryRevision);
+  const discoveryRevision = targetRevision([
+    { ref: "analysis-result.json", content: analysisSource }
+  ], registryRevision);
+  const catalogSnapshotRevision = targetRevision([
+    { ref: "catalog/asset-registry.json", content: registrySource }
+  ], registryRevision);
+  const graphRevision = targetRevision([
+    { ref: "analysis-result.json#/graph", content: jsonBytes(analysis.graph) }
+  ], registryRevision);
+  const rootExecutable = {
+    asset_type: rootAsset.asset_type,
+    asset_ref: rootAsset.asset_id,
+    asset_version: 1,
+    decision_id: "decision-root-executable"
+  };
+  const rootExecutableRevision = targetRevision([
+    { ref: "af-work-item.json#/root_executable", content: jsonBytes(rootExecutable) }
+  ], registryRevision);
+  const runtimeContractRevision = targetRevision([
+    { ref: "analysis-result.json#/runtimeContracts", content: jsonBytes(analysis.runtimeContracts) }
+  ], registryRevision);
+  const compositionRevision = targetRevision([
+    { ref: "analysis-result.json", content: analysisSource },
+    { ref: "scaffold-plan.json", content: scaffoldSource }
+  ], registryRevision);
+  const scaffoldStatus = options.scaffoldStatus ?? "not_started";
+  const state = (status, inputRevision = null, outputRevision = null, outputRefs = [], blockerRefs = []) => ({
     status,
-    input_revision: status === "not_started" ? null : `input-${status}`,
-    output_revision: status === "not_started" ? null : `output-${status}`,
+    input_revision: inputRevision,
+    output_revision: outputRevision,
     output_refs: outputRefs,
-    blocker_refs: [],
+    blocker_refs: blockerRefs,
     output_roots: [],
     started_at: status === "not_started" ? null : at,
     updated_at: at,
     completed_at: status === "complete" ? at : null
   });
-  const approvedGate = (etag) => ({
+  const approvedGate = (binding, turnId) => ({
     status: "approved",
-    artifact_etag: etag,
+    binding,
     decided_at: at,
     session_id: "fixture-session",
-    turn_id: "fixture-turn"
+    turn_id: turnId,
+    stale_reasons: []
   });
+  const analysisEtag = createHash("sha256").update(analysisSource).digest("hex");
+  const activeRuns = scaffoldStatus === "active" ? [{
+    run_id: "run-scaffold",
+    skill_id: "af-scaffold-runtime",
+    role: "scaffold",
+    status: "active",
+    session_id: "fixture-scaffold-session",
+    parent_run_id: null,
+    input_revision: compositionRevision,
+    started_at: at,
+    updated_at: at
+  }] : [];
   return {
-    schema_version: 1,
+    schema_version: 2,
     work_id: workId,
     artifact_root: `artifacts/af/${workId}`,
-    active_skill: null,
+    ledger_revision: 2,
+    focus_skill: "af-scaffold-runtime",
+    active_runs: activeRuns,
     skills: {
-      "af-discover-assets": state("complete", ["analysis-result.json"]),
-      "af-compose-solution": state("complete", ["analysis-result.json", "graph-ir.json", "scaffold-plan.json"]),
-      "af-scaffold-runtime": state("not_started"),
+      "af-discover-assets": state("complete", requirementRevision, discoveryRevision, ["analysis-result.json"]),
+      "af-compose-solution": state("complete", discoveryRevision, compositionRevision, ["analysis-result.json", "scaffold-plan.json"]),
+      "af-scaffold-runtime": state(
+        scaffoldStatus,
+        scaffoldStatus === "not_started" ? null : compositionRevision,
+        null,
+        [],
+        scaffoldStatus === "blocked" ? ["implementation-handoff.md"] : []
+      ),
       "af-verify-runtime": state("not_started")
     },
-    review_gates: {
-      discovery: approvedGate("a".repeat(64)),
-      composition: approvedGate(compositionEtag)
+    revisions: {
+      requirement: requirementRevision,
+      decision: decisionRevision,
+      asset_decision: assetDecisionRevision,
+      discovery: discoveryRevision,
+      catalog_snapshot: catalogSnapshotRevision,
+      graph: graphRevision,
+      root_executable: rootExecutableRevision,
+      runtime_contract: runtimeContractRevision,
+      composition: compositionRevision,
+      scaffold: null,
+      verification: null
     },
-    verification: { outcome: null, revision: null, report_ref: null },
-    ...patch
+    discovery_cycles: [{
+      cycle_id: "discovery-1",
+      status: "complete",
+      revision: discoveryRevision,
+      supersedes_cycle_id: null,
+      trigger: "initial",
+      artifact_refs: ["analysis-result.json"],
+      started_at: at,
+      completed_at: at
+    }],
+    composition_cycles: [{
+      cycle_id: "composition-1",
+      status: "complete",
+      revision: compositionRevision,
+      supersedes_cycle_id: null,
+      artifact_refs: ["analysis-result.json", "scaffold-plan.json"],
+      return_to_discover: null,
+      started_at: at,
+      completed_at: at
+    }],
+    decisions,
+    asset_decisions: assetDecisions,
+    solution_control_strategy: solutionControlStrategy,
+    root_executable: rootExecutable,
+    review_gates: {
+      discovery: approvedGate({
+        requirement_revision: requirementRevision,
+        decision_revision: decisionRevision,
+        asset_decision_revision: assetDecisionRevision,
+        discovery_revision: discoveryRevision,
+        catalog_snapshot_revision: catalogSnapshotRevision,
+        artifact_etag: analysisEtag
+      }, "discover-review"),
+      composition: approvedGate({
+        discovery_revision: discoveryRevision,
+        graph_revision: graphRevision,
+        root_executable_revision: rootExecutableRevision,
+        runtime_contract_revision: runtimeContractRevision,
+        composition_revision: compositionRevision,
+        artifact_etag: analysisEtag
+      }, "compose-review")
+    },
+    artifact_refs: ["analysis-result.json", "scaffold-plan.json"],
+    generated_output_roots: [],
+    verification: { outcome: null, revision: null, report_ref: null, evidence_refs: [], verified_at: null },
+    invalidations: [],
+    session_handoffs: []
   };
+}
+
+export function targetRevision(subjectInputs, registryRevision = null) {
+  const subjects = subjectInputs
+    .map(({ ref, content }) => ({
+      ref,
+      sha256: createHash("sha256").update(content).digest("hex")
+    }))
+    .sort((left, right) => left.ref.localeCompare(right.ref));
+  if (new Set(subjects.map((subject) => subject.ref)).size !== subjects.length) {
+    throw new Error("revision subjects must use unique refs");
+  }
+  const digest = createHash("sha256").update(JSON.stringify({
+    subjects,
+    registry_revision: registryRevision
+  })).digest("hex");
+  return { digest, subjects, registry_revision: registryRevision };
 }
 
 export function sha256File(path) {
@@ -188,10 +342,49 @@ export function sha256File(path) {
 }
 
 export function refreshCompositionReviewEtag(root) {
-  const workItemPath = join(root, "af-work-item.json");
-  const workItem = JSON.parse(readFileSync(workItemPath, "utf8"));
-  workItem.review_gates.composition.artifact_etag = sha256File(join(root, "analysis-result.json"));
-  writeJson(workItemPath, workItem);
+  writeJson(join(root, "af-work-item.json"), targetWorkItem(root));
+}
+
+function chooseRootAsset(analysis) {
+  const rootRef = analysis.graph.workflow_ref;
+  const rootAsset = rootRef
+    ? analysis.assetCandidates.find((asset) => asset.asset_id === rootRef && asset.asset_type === "workflow")
+    : analysis.assetCandidates.find((asset) => asset.asset_type === "agent");
+  if (!rootAsset) throw new Error("fixture requires an Agent or Workflow root executable");
+  return rootAsset;
+}
+
+function targetDecisions(rootAsset, solutionControlStrategy) {
+  const base = {
+    required: true,
+    selected_by: "user",
+    selection_reason: "Approved synthetic fixture decision.",
+    evidence_refs: ["analysis-result.json"],
+    catalog_refs: [],
+    session_id: "fixture-session",
+    turn_id: "fixture-turn",
+    status: "resolved",
+    supersedes: null
+  };
+  return [{
+    ...base,
+    decision_id: "decision-solution-control-strategy",
+    topic: "solution_control_strategy",
+    options: ["single_agent", "agent_delegation", "explicit_workflow", "hybrid"],
+    recommended_option: solutionControlStrategy,
+    selected_option: solutionControlStrategy
+  }, {
+    ...base,
+    decision_id: "decision-root-executable",
+    topic: "root_executable",
+    options: [rootAsset.asset_id],
+    recommended_option: rootAsset.asset_id,
+    selected_option: rootAsset.asset_id
+  }];
+}
+
+function jsonBytes(value) {
+  return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 export function targetA2aContract({ contractId = "a2a-001", agentRef, name = "Remote", url }) {

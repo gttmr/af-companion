@@ -1,51 +1,102 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "work_id": "req-s08-callback-guardrail",
   "artifact_root": "artifacts/af/req-s08-callback-guardrail",
-  "active_skill": "af-scaffold-runtime",
+  "ledger_revision": 2,
+  "focus_skill": "af-scaffold-runtime",
+  "active_runs": [],
   "skills": {
     "af-discover-assets": {
       "status": "complete",
-      "input_revision": "requirement-v1",
-      "output_revision": "analysis-v1",
+      "input_revision": {
+        "digest": "c0a06c7fce16a80f5335fe9768981673a8ed6c3798606bc21712e4843076a978",
+        "subjects": [
+          {
+            "ref": "analysis-result.json#/normalizedRequirement",
+            "sha256": "01f6888adb95b4bced1a10a3564e8b778c94fbf47484315ce5a9119520d09610"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
+      "output_revision": {
+        "digest": "58d6ce18cbb442c54de9b44ef6448c99003d16684f53ee449d8a7a795e3181ec",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
       "output_refs": [
-        "analysis-result.json",
-        "normalized-requirement.json",
-        "asset-candidates.json"
+        "analysis-result.json"
       ],
       "blocker_refs": [],
       "output_roots": [],
-      "started_at": "2026-07-23T00:00:00.000Z",
-      "updated_at": "2026-07-23T00:00:00.000Z",
-      "completed_at": "2026-07-23T00:00:00.000Z"
+      "started_at": "2030-01-01T00:00:00.000Z",
+      "updated_at": "2030-01-01T00:00:00.000Z",
+      "completed_at": "2030-01-01T00:00:00.000Z"
     },
     "af-compose-solution": {
       "status": "complete",
-      "input_revision": "analysis-v1",
-      "output_revision": "composition-v1",
+      "input_revision": {
+        "digest": "58d6ce18cbb442c54de9b44ef6448c99003d16684f53ee449d8a7a795e3181ec",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
+      "output_revision": {
+        "digest": "137ee9c39823e44f93712ef4b8ed1c1a1a558a10a0f8116a24f948da44cc8b77",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+          },
+          {
+            "ref": "scaffold-plan.json",
+            "sha256": "2ea488a0ffb8760a9af9a5fd14662b38cf108dfe8976a257d64b378c735c3cef"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
       "output_refs": [
         "analysis-result.json",
-        "graph-ir.json",
-        "boundary-design.md",
         "scaffold-plan.json"
       ],
       "blocker_refs": [],
       "output_roots": [],
-      "started_at": "2026-07-23T00:00:00.000Z",
-      "updated_at": "2026-07-23T00:00:00.000Z",
-      "completed_at": "2026-07-23T00:00:00.000Z"
+      "started_at": "2030-01-01T00:00:00.000Z",
+      "updated_at": "2030-01-01T00:00:00.000Z",
+      "completed_at": "2030-01-01T00:00:00.000Z"
     },
     "af-scaffold-runtime": {
       "status": "blocked",
-      "input_revision": "composition-v1",
+      "input_revision": {
+        "digest": "137ee9c39823e44f93712ef4b8ed1c1a1a558a10a0f8116a24f948da44cc8b77",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+          },
+          {
+            "ref": "scaffold-plan.json",
+            "sha256": "2ea488a0ffb8760a9af9a5fd14662b38cf108dfe8976a257d64b378c735c3cef"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
       "output_revision": null,
       "output_refs": [],
       "blocker_refs": [
         "implementation-handoff.md"
       ],
       "output_roots": [],
-      "started_at": "2026-07-23T00:00:00.000Z",
-      "updated_at": "2026-07-23T00:00:00.000Z",
+      "started_at": "2030-01-01T00:00:00.000Z",
+      "updated_at": "2030-01-01T00:00:00.000Z",
       "completed_at": null
     },
     "af-verify-runtime": {
@@ -56,29 +107,350 @@
       "blocker_refs": [],
       "output_roots": [],
       "started_at": null,
-      "updated_at": "2026-07-23T00:00:00.000Z",
+      "updated_at": "2030-01-01T00:00:00.000Z",
       "completed_at": null
     }
+  },
+  "revisions": {
+    "requirement": {
+      "digest": "c0a06c7fce16a80f5335fe9768981673a8ed6c3798606bc21712e4843076a978",
+      "subjects": [
+        {
+          "ref": "analysis-result.json#/normalizedRequirement",
+          "sha256": "01f6888adb95b4bced1a10a3564e8b778c94fbf47484315ce5a9119520d09610"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "decision": {
+      "digest": "fd577c4731f0ab3f0a516f22df150f0f7156833fb7252618950d26af8cae840b",
+      "subjects": [
+        {
+          "ref": "af-work-item.json#/decisions",
+          "sha256": "e49fc859c457c43da43d79c39c383af1d4092b490e13ac0a0782e365ab0d2226"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "asset_decision": {
+      "digest": "f2cb3ab1a5535a42507194fae3c35ab1741a540ee0c70120a3a63fd4d6a43ec4",
+      "subjects": [
+        {
+          "ref": "af-work-item.json#/asset_decisions",
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "discovery": {
+      "digest": "58d6ce18cbb442c54de9b44ef6448c99003d16684f53ee449d8a7a795e3181ec",
+      "subjects": [
+        {
+          "ref": "analysis-result.json",
+          "sha256": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "catalog_snapshot": {
+      "digest": "c3b8ab95b14a661c7393e35237692cbdf03eac5c39a160142ff7b94b34671ed3",
+      "subjects": [
+        {
+          "ref": "catalog/asset-registry.json",
+          "sha256": "280dd08e925e78cd0e0380b7a708dedd82570e9dfc20abd33a0979f869577f4f"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "graph": {
+      "digest": "aa6acd10274da7220cf3cca79f136688c81be9f06c9eb4e99834cf05cad019d1",
+      "subjects": [
+        {
+          "ref": "analysis-result.json#/graph",
+          "sha256": "b76135b4e7f0b6d404a3afa511e91042a3e1cfa9bd6e2491ed7a223e4fdec233"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "root_executable": {
+      "digest": "593d8cad6e306860e85ab0f3c3e14cf65694bc119f9eaf2ba795d4c742f607cc",
+      "subjects": [
+        {
+          "ref": "af-work-item.json#/root_executable",
+          "sha256": "18a9462cf1bf382536e4fbeaa39b198b13a00e7c49da488aea159b7dde77c87b"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "runtime_contract": {
+      "digest": "e69a7ccdff299bc587aa750a216648a2157d1ffcfa800034a5f6765a5e67491a",
+      "subjects": [
+        {
+          "ref": "analysis-result.json#/runtimeContracts",
+          "sha256": "3bdfa26dca797f1a3cea5e8180b74044e1c4c3d77831fa3788512d1ffb7ad5b4"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "composition": {
+      "digest": "137ee9c39823e44f93712ef4b8ed1c1a1a558a10a0f8116a24f948da44cc8b77",
+      "subjects": [
+        {
+          "ref": "analysis-result.json",
+          "sha256": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+        },
+        {
+          "ref": "scaffold-plan.json",
+          "sha256": "2ea488a0ffb8760a9af9a5fd14662b38cf108dfe8976a257d64b378c735c3cef"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "scaffold": null,
+    "verification": null
+  },
+  "discovery_cycles": [
+    {
+      "cycle_id": "discovery-1",
+      "status": "complete",
+      "revision": {
+        "digest": "58d6ce18cbb442c54de9b44ef6448c99003d16684f53ee449d8a7a795e3181ec",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
+      "supersedes_cycle_id": null,
+      "trigger": "initial",
+      "artifact_refs": [
+        "analysis-result.json"
+      ],
+      "started_at": "2030-01-01T00:00:00.000Z",
+      "completed_at": "2030-01-01T00:00:00.000Z"
+    }
+  ],
+  "composition_cycles": [
+    {
+      "cycle_id": "composition-1",
+      "status": "complete",
+      "revision": {
+        "digest": "137ee9c39823e44f93712ef4b8ed1c1a1a558a10a0f8116a24f948da44cc8b77",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+          },
+          {
+            "ref": "scaffold-plan.json",
+            "sha256": "2ea488a0ffb8760a9af9a5fd14662b38cf108dfe8976a257d64b378c735c3cef"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
+      "supersedes_cycle_id": null,
+      "artifact_refs": [
+        "analysis-result.json",
+        "scaffold-plan.json"
+      ],
+      "return_to_discover": null,
+      "started_at": "2030-01-01T00:00:00.000Z",
+      "completed_at": "2030-01-01T00:00:00.000Z"
+    }
+  ],
+  "decisions": [
+    {
+      "required": true,
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture decision.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null,
+      "decision_id": "decision-solution-control-strategy",
+      "topic": "solution_control_strategy",
+      "options": [
+        "single_agent",
+        "agent_delegation",
+        "explicit_workflow",
+        "hybrid"
+      ],
+      "recommended_option": "explicit_workflow",
+      "selected_option": "explicit_workflow"
+    },
+    {
+      "required": true,
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture decision.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null,
+      "decision_id": "decision-root-executable",
+      "topic": "root_executable",
+      "options": [
+        "workflow-s08-callback-guardrail"
+      ],
+      "recommended_option": "workflow-s08-callback-guardrail",
+      "selected_option": "workflow-s08-callback-guardrail"
+    }
+  ],
+  "asset_decisions": [],
+  "solution_control_strategy": "explicit_workflow",
+  "root_executable": {
+    "asset_type": "workflow",
+    "asset_ref": "workflow-s08-callback-guardrail",
+    "asset_version": 1,
+    "decision_id": "decision-root-executable"
   },
   "review_gates": {
     "discovery": {
       "status": "approved",
-      "artifact_etag": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9",
-      "decided_at": "2026-07-23T00:00:00.000Z",
-      "session_id": "scenario-review",
-      "turn_id": "discover-review"
+      "binding": {
+        "requirement_revision": {
+          "digest": "c0a06c7fce16a80f5335fe9768981673a8ed6c3798606bc21712e4843076a978",
+          "subjects": [
+            {
+              "ref": "analysis-result.json#/normalizedRequirement",
+              "sha256": "01f6888adb95b4bced1a10a3564e8b778c94fbf47484315ce5a9119520d09610"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "decision_revision": {
+          "digest": "fd577c4731f0ab3f0a516f22df150f0f7156833fb7252618950d26af8cae840b",
+          "subjects": [
+            {
+              "ref": "af-work-item.json#/decisions",
+              "sha256": "e49fc859c457c43da43d79c39c383af1d4092b490e13ac0a0782e365ab0d2226"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "asset_decision_revision": {
+          "digest": "f2cb3ab1a5535a42507194fae3c35ab1741a540ee0c70120a3a63fd4d6a43ec4",
+          "subjects": [
+            {
+              "ref": "af-work-item.json#/asset_decisions",
+              "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "discovery_revision": {
+          "digest": "58d6ce18cbb442c54de9b44ef6448c99003d16684f53ee449d8a7a795e3181ec",
+          "subjects": [
+            {
+              "ref": "analysis-result.json",
+              "sha256": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "catalog_snapshot_revision": {
+          "digest": "c3b8ab95b14a661c7393e35237692cbdf03eac5c39a160142ff7b94b34671ed3",
+          "subjects": [
+            {
+              "ref": "catalog/asset-registry.json",
+              "sha256": "280dd08e925e78cd0e0380b7a708dedd82570e9dfc20abd33a0979f869577f4f"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "artifact_etag": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+      },
+      "decided_at": "2030-01-01T00:00:00.000Z",
+      "session_id": "fixture-session",
+      "turn_id": "discover-review",
+      "stale_reasons": []
     },
     "composition": {
       "status": "approved",
-      "artifact_etag": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9",
-      "decided_at": "2026-07-23T00:00:00.000Z",
-      "session_id": "scenario-review",
-      "turn_id": "compose-review"
+      "binding": {
+        "discovery_revision": {
+          "digest": "58d6ce18cbb442c54de9b44ef6448c99003d16684f53ee449d8a7a795e3181ec",
+          "subjects": [
+            {
+              "ref": "analysis-result.json",
+              "sha256": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "graph_revision": {
+          "digest": "aa6acd10274da7220cf3cca79f136688c81be9f06c9eb4e99834cf05cad019d1",
+          "subjects": [
+            {
+              "ref": "analysis-result.json#/graph",
+              "sha256": "b76135b4e7f0b6d404a3afa511e91042a3e1cfa9bd6e2491ed7a223e4fdec233"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "root_executable_revision": {
+          "digest": "593d8cad6e306860e85ab0f3c3e14cf65694bc119f9eaf2ba795d4c742f607cc",
+          "subjects": [
+            {
+              "ref": "af-work-item.json#/root_executable",
+              "sha256": "18a9462cf1bf382536e4fbeaa39b198b13a00e7c49da488aea159b7dde77c87b"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "runtime_contract_revision": {
+          "digest": "e69a7ccdff299bc587aa750a216648a2157d1ffcfa800034a5f6765a5e67491a",
+          "subjects": [
+            {
+              "ref": "analysis-result.json#/runtimeContracts",
+              "sha256": "3bdfa26dca797f1a3cea5e8180b74044e1c4c3d77831fa3788512d1ffb7ad5b4"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "composition_revision": {
+          "digest": "137ee9c39823e44f93712ef4b8ed1c1a1a558a10a0f8116a24f948da44cc8b77",
+          "subjects": [
+            {
+              "ref": "analysis-result.json",
+              "sha256": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+            },
+            {
+              "ref": "scaffold-plan.json",
+              "sha256": "2ea488a0ffb8760a9af9a5fd14662b38cf108dfe8976a257d64b378c735c3cef"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "artifact_etag": "3fc57ee6b3cc454a0aa702e2d76940e83a3a35673394275557aec8c4d42826a9"
+      },
+      "decided_at": "2030-01-01T00:00:00.000Z",
+      "session_id": "fixture-session",
+      "turn_id": "compose-review",
+      "stale_reasons": []
     }
   },
+  "artifact_refs": [
+    "analysis-result.json",
+    "scaffold-plan.json"
+  ],
+  "generated_output_roots": [],
   "verification": {
     "outcome": null,
     "revision": null,
-    "report_ref": null
-  }
+    "report_ref": null,
+    "evidence_refs": [],
+    "verified_at": null
+  },
+  "invalidations": [],
+  "session_handoffs": []
 }

@@ -41,7 +41,7 @@ export function ReviewGateLine({ manifest, gate }: {
     <div className={`review-gate-line is-${value?.status ?? "pending"}`}>
       <span>{gate === "discovery" ? "Discovery review" : "Composition review"}</span>
       <strong>{value?.status ?? "pending"}</strong>
-      {value?.artifact_etag ? <code>{value.artifact_etag.slice(0, 12)}</code> : null}
+      {value?.binding?.artifact_etag ? <code>{value.binding.artifact_etag.slice(0, 12)}</code> : null}
       {value?.decided_at ? <time dateTime={value.decided_at}>{new Date(value.decided_at).toLocaleString()}</time> : null}
     </div>
   );
@@ -64,5 +64,6 @@ function statusLabel(status: string): string {
     complete: "Complete",
     blocked: "Blocked",
     failed: "Failed",
+    stale: "Stale",
   } as Record<string, string>)[status] ?? status;
 }

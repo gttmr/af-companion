@@ -79,6 +79,8 @@ export function loadArtifactContext(artifactRoot) {
     graph,
     assetCandidates,
     workItem,
+    rootExecutable: workItem.root_executable,
+    solutionControlStrategy: workItem.solution_control_strategy,
     mockLabSpec,
     scaffoldPlan,
     assets,
@@ -291,11 +293,24 @@ function validateWorkInputs({ analysisResult, analysisEtag, normalizedRequiremen
   if (workItem.review_gates?.composition?.status !== "approved") {
     throw new Error("af-work-item.json composition review must be approved before generation.");
   }
-  if (workItem.review_gates.composition.artifact_etag !== analysisEtag) {
+  if (workItem.review_gates.composition.binding?.artifact_etag !== analysisEtag) {
     throw new Error("af-work-item.json composition review does not match current analysis-result.json bytes.");
+  }
+  if (
+    workItem.review_gates.composition.binding?.composition_revision?.digest
+    !== workItem.revisions?.composition?.digest
+  ) {
+    throw new Error("af-work-item.json composition review does not bind the current composition revision.");
   }
   if (workItem.skills?.["af-compose-solution"]?.status !== "complete") {
     throw new Error("af-work-item.json af-compose-solution must be complete before generation.");
+  }
+  if (!workItem.solution_control_strategy || !workItem.root_executable) {
+    throw new Error("af-work-item.json requires a user-selected solution control strategy and root executable before generation.");
+  }
+  const rootAsset = assets.find((asset) => asset.asset_id === workItem.root_executable.asset_ref);
+  if (!rootAsset || rootAsset.asset_type !== workItem.root_executable.asset_type) {
+    throw new Error("af-work-item.json root executable must reference a matching scaffold Agent or Workflow asset.");
   }
   const unapprovedRuntime = [...analysisResult.runtimeContracts, ...(scaffoldPlan.runtime_contracts ?? [])].filter(
     (contract) => contract?.contract_status !== "approved"

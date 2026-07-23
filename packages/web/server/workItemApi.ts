@@ -3,7 +3,14 @@ import type { Dirent } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { extname, isAbsolute, relative, resolve, sep } from "node:path";
 
-import type { AfWorkItemManifest, AfWorkSkillState } from "../src/analyzer/afWorkItem";
+import type {
+  AfCompositionCycle,
+  AfInvalidation,
+  AfRevisionRef,
+  AfWorkItemManifest,
+  AfWorkSkillId,
+  AfWorkSkillState,
+} from "../src/analyzer/afWorkItem";
 import { parseTargetAnalysisResult } from "../src/analyzer/targetAnalysisResult";
 import { validateTargetAnalysisResult } from "../src/analyzer/targetContract";
 import type { GraphEdge, GraphIR, GraphNode, GraphRegion } from "../src/analyzer/types";
@@ -16,6 +23,7 @@ import {
 import { CompanionApiError, enqueueGraphChangeContext } from "./codexCompanionApi";
 import { ifMatchHeader, isRecord, readJsonBody, sendJson } from "./httpApi";
 import type { WorkspaceProjection } from "./workspaceProjection";
+import { createWorkItemRevision } from "./workItemRevision";
 
 type MiddlewareNext = (error?: unknown) => void;
 const MAX_FILE_BYTES = 1 * 1_024 * 1_024;
@@ -190,7 +198,13 @@ async function saveGraph(input: {
     await input.store.writeArtifact(input.workId, "graph-ir.json", serializedGraph, null);
     nextEtag = analysisWrite.etag;
     candidates = analysis.assetCandidates;
-    const nextWorkItem = invalidateAfterGraphChange(workItem.manifest, artifact.etag, nextEtag, new Date());
+    const nextWorkItem = invalidateAfterGraphChange(workItem.manifest, {
+      previousAnalysis: artifact.content,
+      previousGraph: `${JSON.stringify(previousGraph, null, 2)}\n`,
+      nextAnalysis: serializedAnalysis,
+      nextGraph: serializedGraph,
+      now: new Date(),
+    });
     await input.store.writeWorkItem(input.workId, nextWorkItem, workItem.etag);
   });
 
@@ -223,54 +237,157 @@ async function saveGraph(input: {
 
 export function invalidateAfterGraphChange(
   manifest: AfWorkItemManifest,
-  inputRevision: string,
-  outputRevision: string,
-  now: Date,
+  input: {
+    previousAnalysis: string;
+    previousGraph: string;
+    nextAnalysis: string;
+    nextGraph: string;
+    now: Date;
+  },
 ): AfWorkItemManifest {
-  const at = now.toISOString();
-  const reset = (): AfWorkSkillState => ({
-    status: "not_started",
-    input_revision: null,
-    output_revision: null,
-    output_refs: [],
-    blocker_refs: [],
-    output_roots: [],
-    started_at: null,
-    updated_at: at,
-    completed_at: null,
-  });
+  const at = input.now.toISOString();
+  const registryRevision = manifest.revisions.catalog_snapshot?.registry_revision ?? null;
+  const previousCompositionRevision = manifest.revisions.composition ?? createWorkItemRevision([
+    { ref: GRAPH_ARTIFACT, content: input.previousAnalysis },
+    { ref: "graph-ir.json", content: input.previousGraph },
+  ], registryRevision);
+  const graphRevision = createWorkItemRevision([
+    { ref: "graph-ir.json", content: input.nextGraph },
+  ], registryRevision);
+  const compositionRevision = createWorkItemRevision([
+    { ref: GRAPH_ARTIFACT, content: input.nextAnalysis },
+    { ref: "graph-ir.json", content: input.nextGraph },
+  ], registryRevision);
   const compose = manifest.skills["af-compose-solution"];
+  const staleSkill = (state: AfWorkSkillState): AfWorkSkillState => state.status === "not_started"
+    ? state
+    : { ...state, status: "stale", updated_at: at };
+  const previousCycle = [...manifest.composition_cycles]
+    .reverse()
+    .find((cycle) => cycle.status !== "superseded") ?? null;
+  const cycleId = nextStableId(
+    `composition-${manifest.ledger_revision + 1}`,
+    new Set(manifest.composition_cycles.map((cycle) => cycle.cycle_id)),
+  );
+  const nextCycle: AfCompositionCycle = {
+    cycle_id: cycleId,
+    status: "active",
+    revision: compositionRevision,
+    supersedes_cycle_id: previousCycle?.cycle_id ?? null,
+    artifact_refs: [GRAPH_ARTIFACT, "graph-ir.json"],
+    return_to_discover: null,
+    started_at: at,
+    completed_at: null,
+  };
+  const invalidations = graphInvalidations(manifest, graphRevision, previousCompositionRevision, at);
+  const priorCompositionGate = manifest.review_gates.composition;
+  const compositionGate = priorCompositionGate.status === "pending"
+    ? priorCompositionGate
+    : {
+        ...priorCompositionGate,
+        status: "stale" as const,
+        stale_reasons: [...new Set([...priorCompositionGate.stale_reasons, "graph_revision_changed"])],
+      };
+
   return {
     ...manifest,
-    active_skill: "af-compose-solution",
+    ledger_revision: manifest.ledger_revision + 1,
+    focus_skill: "af-compose-solution",
+    active_runs: manifest.active_runs.filter(
+      (run) => run.skill_id !== "af-scaffold-runtime" && run.skill_id !== "af-verify-runtime",
+    ),
     skills: {
       ...manifest.skills,
       "af-compose-solution": {
         status: "waiting_for_review",
-        input_revision: inputRevision,
-        output_revision: outputRevision,
-        output_refs: ["analysis-result.json", "graph-ir.json"],
+        input_revision: manifest.revisions.discovery,
+        output_revision: compositionRevision,
+        output_refs: [GRAPH_ARTIFACT, "graph-ir.json"],
         blocker_refs: [],
         output_roots: [],
         started_at: compose.started_at ?? at,
         updated_at: at,
         completed_at: null,
       },
-      "af-scaffold-runtime": reset(),
-      "af-verify-runtime": reset(),
+      "af-scaffold-runtime": staleSkill(manifest.skills["af-scaffold-runtime"]),
+      "af-verify-runtime": staleSkill(manifest.skills["af-verify-runtime"]),
     },
+    revisions: {
+      ...manifest.revisions,
+      graph: graphRevision,
+      composition: compositionRevision,
+    },
+    composition_cycles: [
+      ...manifest.composition_cycles.map((cycle) => cycle.status === "superseded"
+        ? cycle
+        : { ...cycle, status: "superseded" as const, completed_at: cycle.completed_at ?? at }),
+      nextCycle,
+    ],
     review_gates: {
       ...manifest.review_gates,
-      composition: {
-        status: "pending",
-        artifact_etag: null,
-        decided_at: null,
-        session_id: null,
-        turn_id: null,
-      },
+      composition: compositionGate,
     },
-    verification: { outcome: null, revision: null, report_ref: null },
+    artifact_refs: [...new Set([...manifest.artifact_refs, GRAPH_ARTIFACT, "graph-ir.json"])],
+    invalidations: [...manifest.invalidations, ...invalidations],
+    verification: manifest.verification.outcome === null
+      ? manifest.verification
+      : { ...manifest.verification, outcome: "stale" },
   };
+}
+
+function graphInvalidations(
+  manifest: AfWorkItemManifest,
+  triggeringRevision: AfRevisionRef,
+  previousCompositionRevision: AfRevisionRef,
+  at: string,
+): AfInvalidation[] {
+  const existing = new Set(manifest.invalidations.map((entry) => entry.invalidation_id));
+  const targets: Array<{ skill: AfWorkSkillId; revision: AfRevisionRef | null; refs: string[] }> = [
+    {
+      skill: "af-compose-solution",
+      revision: previousCompositionRevision,
+      refs: manifest.skills["af-compose-solution"].output_refs,
+    },
+    {
+      skill: "af-scaffold-runtime",
+      revision: manifest.revisions.scaffold ?? manifest.skills["af-scaffold-runtime"].output_revision,
+      refs: manifest.skills["af-scaffold-runtime"].output_refs,
+    },
+    {
+      skill: "af-verify-runtime",
+      revision: manifest.revisions.verification ?? manifest.verification.revision,
+      refs: manifest.verification.evidence_refs,
+    },
+  ];
+  return targets.flatMap(({ skill, revision, refs }) => {
+    if (revision === null) return [];
+    return [{
+      invalidation_id: nextStableId(
+        `invalidation-${manifest.ledger_revision + 1}-${skill}`,
+        existing,
+      ),
+      source_skill: "af-compose-solution",
+      target_skill: skill,
+      triggering_revision: triggeringRevision,
+      invalidated_revision: revision,
+      reason: "Workbench Graph IR changed after the recorded revision.",
+      affected_refs: refs.length ? refs : revision.subjects.map((subject) => subject.ref),
+      status: "active",
+      created_at: at,
+      resolved_at: null,
+    } satisfies AfInvalidation];
+  });
+}
+
+function nextStableId(base: string, existing: Set<string>): string {
+  let candidate = base;
+  let suffix = 2;
+  while (existing.has(candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  existing.add(candidate);
+  return candidate;
 }
 
 export function changedGraphNodeIds(previous: GraphIR, next: GraphIR): string[] {
