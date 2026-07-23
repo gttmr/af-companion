@@ -180,10 +180,10 @@ ADK server에 올릴 단위는 “Agent 파일의 개수”가 아니라 하나�
 ```mermaid
 flowchart TD
     AR["analysis-result.json<br/>Assets · Graph · Contracts"] --> AP["사람 승인<br/>analysis / boundaries / runtime contracts"]
-    AP --> SYNC["artifact-sync"]
-    SYNC --> PLAN["buildScaffoldPlan"]
+    AP --> WORK["af-work-item.json<br/>composition approval + SHA-256"]
+    WORK --> PLAN["af-scaffold-runtime<br/>scaffold-plan 확인/작성"]
     PLAN --> CHECK{"blocker가 0개인가?"}
-    CHECK -- "아니오" --> STOP["can_generate_source: false<br/>Build 중단"]
+    CHECK -- "아니오" --> STOP["can_generate_source: false<br/>Scaffold 중단"]
     CHECK -- "예" --> SP["scaffold-plan.json<br/>approved assets only"]
     SP --> LOAD["loadArtifactContext"]
     LOAD --> PARITY{"canonical artifact와<br/>identity·reference·contract가 같은가?"}
@@ -204,10 +204,10 @@ Scaffold Plan은 최소한 다음 불변식을 갖는다.
 
 Generator는 다시 다음을 검사한다.
 
-- `analysis-result.json`, `scaffold-plan.json`, `af-run-manifest.json`이 모두 존재하고 strict schema를 통과하는가?
+- `analysis-result.json`, `scaffold-plan.json`, `af-work-item.json`이 모두 존재하고 strict schema를 통과하는가?
 - requirement ID와 source requirement ID가 일치하는가?
 - Scaffold의 Asset·Graph·Runtime Contract가 canonical analysis와 drift하지 않았는가?
-- Analyze와 두 Design approval이 true이고 Design stage가 complete인가?
+- Discover와 Compose가 완료됐고 두 review가 승인됐으며, Compose 승인 SHA-256이 현재 `analysis-result.json`과 일치하는가?
 - 필요한 Runtime/A2A Contract가 승인되었는가?
 - MCP transport, Graph control, async resume 같은 선택 기능을 현재 lowerer가 실제 지원하는가?
 
@@ -328,23 +328,23 @@ Dynamic representation은 `dynamic_workflow` Node를 만들고 `(START, dynamic_
 
 ```mermaid
 sequenceDiagram
-    participant B as Build / Generator
+    participant B as Scaffold / Generator
     participant F as runtime-stub
-    participant R as RuntimeChatManager
+    participant C as External Codex
     participant A as adk api_server
 
     B->>F: package, agent.py, manifest, config, tests 생성
-    R->>F: 하위 directory 탐색
-    F-->>R: workflow_manifest.package 또는 agent.py directory
-    R->>R: appName과 shared ADK venv 확인
-    R->>A: cwd=runtime-stub, PYTHONPATH=runtime-stub
-    R->>A: adk api_server --with_ui .
+    C->>F: 하위 directory와 workflow_manifest 확인
+    F-->>C: package 또는 agent.py directory
+    C->>C: appName과 ADK environment 확인
+    C->>A: cwd=runtime-stub, PYTHONPATH=runtime-stub
+    C->>A: adk api_server --with_ui .
     A->>F: import package.__init__
     F->>F: from .agent import root_agent
-    A-->>R: /apps/appName readiness
+    A-->>C: /apps/appName readiness
 ```
 
-Current Workbench의 실제 local command shape는 다음과 같다.
+Companion 웹앱은 runtime process를 시작하지 않는다. 다음은 외부 Codex나 개발자가 검토 후 실행할 수 있는 standalone 예시다.
 
 ```bash
 adk api_server \
@@ -421,23 +421,23 @@ adk api_server \
 
 | 행동 | Source locator |
 | --- | --- |
-| Scaffold Plan 생성과 blocker | [`packages/web/src/analyzer/scaffoldPlan.ts`](../../packages/web/src/analyzer/scaffoldPlan.ts) · `buildScaffoldPlan` |
-| canonical artifact 동기화 | [`packages/web/server/artifactSync.ts`](../../packages/web/server/artifactSync.ts) · `syncArtifactRoot` |
-| generator 입력·approval·parity gate | [`scripts/adk-source/context.mjs`](../../scripts/adk-source/context.mjs) · `loadArtifactContext`, `validateRunInputs` |
+| Work Item lifecycle과 review gate | [`packages/web/src/analyzer/afWorkItem.ts`](../../packages/web/src/analyzer/afWorkItem.ts) · `parseAfWorkItem`, `validateAfWorkItemLifecycle` |
+| Graph-only web mutation | [`packages/web/server/workItemApi.ts`](../../packages/web/server/workItemApi.ts) · `handleWorkItemApi` |
+| generator 입력·approval·parity gate | [`scripts/adk-source/context.mjs`](../../scripts/adk-source/context.mjs) · `loadArtifactContext`, `validateWorkInputs` |
 | static/dynamic representation 선택 | [`scripts/adk-source/graph/dynamic.mjs`](../../scripts/adk-source/graph/dynamic.mjs) · `runnableWorkflowRepresentation` |
 | runnable root Workflow 생성 | [`scripts/adk-source/agent-runnable.mjs`](../../scripts/adk-source/agent-runnable.mjs) · `buildRunnableAgentPy` |
 | dynamic root Workflow 생성 | [`scripts/adk-source/agent-dynamic.mjs`](../../scripts/adk-source/agent-dynamic.mjs) · `buildDynamicRunnableAgentPy` |
 | smoke root Agent 생성 | [`scripts/adk-source/agent-smoke.mjs`](../../scripts/adk-source/agent-smoke.mjs) · `buildSmokeAgentPy` |
 | package와 지원 파일 조립 | [`scripts/adk-source/file-builder.mjs`](../../scripts/adk-source/file-builder.mjs) · `buildFiles` |
-| ADK app 발견과 server command | [`packages/web/server/runtimeChat.ts`](../../packages/web/server/runtimeChat.ts) · `discoverAppName`, `buildAdkServerCommand` |
-| runtime env와 `PYTHONPATH` | [`packages/web/server/runtimeEnv.ts`](../../packages/web/server/runtimeEnv.ts) · `buildRuntimeProcessEnv` |
+| 외부 Codex activity와 source diff projection | [`packages/web/server/workspaceProjection.ts`](../../packages/web/server/workspaceProjection.ts) · `WorkspaceProjection` |
+| VS Code file/diff handoff | [`packages/web/server/vscodeWorkspaceLauncher.ts`](../../packages/web/server/vscodeWorkspaceLauncher.ts) · `VsCodeWorkspaceLauncher` |
 
 ## 11. 함께 읽을 문서
 
 - [Agent Factory 자산 Taxonomy](../workbench/taxonomy.md)
 - [Workflow Graph IR](../workbench/graph-ir.md)
 - [Operating Model](../workbench/operating-model.md)
-- [Runtime Handoff Build](../handbook/stages/runtime-handoff-build.md)
-- [Runtime Execution](../handbook/stages/runtime-execution.md)
+- [Scaffold Runtime](../handbook/work/scaffold-runtime.md)
+- [Verify Runtime](../handbook/work/verify-runtime.md)
 - [Validation](../workbench/validation.md)
 - [ADK Agent Execution Modes](../workbench/adk-agent-execution-modes.md)

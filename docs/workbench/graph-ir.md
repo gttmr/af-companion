@@ -304,7 +304,7 @@ flowchart LR
 
 strict Graph read boundary는 legacy Graph를 migration·backfill·projection하지 않고 거부한다. `processFlow`, `process-flow.json`, `module_id`, `adapter`, `adapter_call`, `workflow_call`, `router`, `loop_control`, `callback_wait`, `remote_a2a`, `remote_agent_call`, `edge_kind`, `container_kind`, `invoke_binding`, `call_control`, `decision_owner`, `route_condition`, `state_key`, `artifact_key`는 활성 Graph IR 필드나 enum이 아니다.
 
-제거된 입력을 현재 shape로 추정 변환하지 않는다. 현재 Analyze/Design 경로에서 `graph`와 `graph-ir.json`을 다시 생성한다.
+제거된 입력을 현재 shape로 추정 변환하지 않는다. 외부 Codex의 Compose Work Skill에서 `graph`와 `graph-ir.json`을 다시 생성한다.
 
 ## Current source locators
 

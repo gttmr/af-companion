@@ -55,7 +55,7 @@ A2A Agent는 Graph에서 `node_kind: agent`와 `agent_ref`로 표시한다. Node
 - timeout, auth, retry handoff, fallback handoff, cancellation
 - audit와 data policy
 
-Design의 A2A 계약 검토와 validator는 Binding·Exposure의 `contract_ref`와 `A2AContract.agent_ref`를 함께 확인한다. 승인된 계약과 유효한 Agent Card URL이 없는 원격 Agent는 runnable lowering 대상이 아니다.
+Compose의 A2A 계약 검토와 validator는 Binding·Exposure의 `contract_ref`와 `A2AContract.agent_ref`를 함께 확인한다. 승인된 계약과 유효한 Agent Card URL이 없는 원격 Agent는 runnable lowering 대상이 아니다.
 
 ## 원격 Agent 소비
 
@@ -80,7 +80,7 @@ Agent Card, RPC URL, task ID는 runtime 경계의 값이다. provider 노출이 
 
 ## 지원하지 않는 역사 입력
 
-legacy `module_category: remote_a2a`와 별도 원격 A2A 자산 root는 strict v2 입력이 아니다. 현재 reader와 generator는 이를 Agent + A2A Binding·Exposure로 projection하지 않으며, 현재 Analyze·Design 경로에서 Target v2 artifact를 다시 생성해야 한다.
+legacy `module_category: remote_a2a`와 별도 원격 A2A 자산 root는 strict v2 입력이 아니다. 현재 reader와 generator는 이를 Agent + A2A Binding·Exposure로 projection하지 않으며, 외부 Codex가 Discover·Compose Work Skill로 Target v2 artifact를 다시 생성해야 한다.
 
 ## Current source locators
 

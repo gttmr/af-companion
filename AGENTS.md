@@ -17,7 +17,7 @@ Before non-trivial work:
 3. Use the canonical document that owns the decision:
    - concepts and asset classification: [docs/workbench/taxonomy.md](docs/workbench/taxonomy.md)
    - Workflow Graph decisions and display: [docs/workbench/graph-ir.md](docs/workbench/graph-ir.md)
-   - stages, approvals, artifacts, and verification: [docs/workbench/operating-model.md](docs/workbench/operating-model.md)
+   - Work Skills, reviews, artifacts, and verification: [docs/workbench/operating-model.md](docs/workbench/operating-model.md)
    - Target Contract versus Current Implementation gaps: [docs/migration/taxonomy-vnext-status.md](docs/migration/taxonomy-vnext-status.md)
 
 Do not duplicate or redefine a canonical taxonomy or Graph enum in this file. Link to the owning document.
@@ -31,9 +31,9 @@ Do not duplicate or redefine a canonical taxonomy or Graph enum in this file. Li
 
 ## Current Implementation Contract
 
-Analyze, Design, scaffold, Catalog publish, validator, generator, and UI paths use strict Target Contract v2 fields such as `asset_type`, `binding`, `workflow_profile`, `domain_scope`, `owner`, `reuse_status`, asset refs, and `invocation_control`. Stage Runner writes require `contract_version: "2.0"`. Legacy-only roots, fields, split artifact names, and in-memory lowering projections are not supported.
+External Codex and the four Work Skills write strict Target Contract v2 fields such as `asset_type`, `binding`, `workflow_profile`, `domain_scope`, `owner`, `reuse_status`, asset refs, and `invocation_control`. `af-work-item.json` is the lifecycle ledger. The web app projects repository state and writes only Graph IR; Stage Runner, `/api/af`, proposal/apply artifacts, and `af-run-manifest.json` are unsupported.
 
-Graph IR uses the canonical Target node/edge envelope. Catalog publication and reads use `agents.yaml`, `workflows.yaml`, and `tools.yaml`; Adapter and Remote A2A are not asset categories or Catalog buckets. A2A remains a protocol binding for Agent assets. The skill tree is `af-workflow` plus four canonical Work Skills with no former-stage shims. Strict cutover state is tracked in [docs/migration/taxonomy-vnext-status.md](docs/migration/taxonomy-vnext-status.md) and [.agents/skills/AGENTS.md](.agents/skills/AGENTS.md).
+Graph IR uses the canonical Target node/edge envelope. Catalog reads use `agents.yaml`, `workflows.yaml`, and `tools.yaml`; publication is a separate reviewed repository workflow, not an app mutation. Adapter and Remote A2A are not asset categories or Catalog buckets. A2A remains a protocol binding for Agent assets. The skill tree is `af-workflow` plus four canonical Work Skills with no former-stage shims.
 
 ## Local AGENTS.md Hierarchy
 
@@ -124,8 +124,8 @@ Git worktrees created for isolated slices must be cleaned up after their work la
 
 - Keep changes scoped to the requested behavior. Do not add unrelated abstractions, configuration, or extensibility.
 - Keep Target Contract wording and Current Implementation behavior visibly separate.
-- Runtime Handoff and scaffold generation consume approved artifacts, never raw requirements or unreviewed analyzer output.
-- Follow [Operating Model](docs/workbench/operating-model.md) for Catalog publication; do not edit `catalog/*.yaml` as an ad hoc application path.
+- Runtime Handoff and scaffold generation consume approved artifacts, never raw requirements or unreviewed discovery output.
+- Follow [Operating Model](docs/workbench/operating-model.md) for Catalog publication; the web Catalog is read-only and Work Skills do not edit `catalog/*.yaml`.
 - Do not solve generated behavior by hard-coding domain terms, route aliases, product names, scenario names, or Workflow-specific literals into a generator. Generator defaults must stay framework- and runtime-neutral; behavior-specific choices belong in reviewed artifacts or Catalog/mock contracts.
 - Preserve Korean workbench UI copy unless the task explicitly changes the language.
 - Before a visual change, read `docs/visualization/design-system.md`; verify the result in the real screen and capture a screenshot before reporting completion.
@@ -173,7 +173,7 @@ Use a separate `--user-data-dir` for the automation browser. Do not retrofit the
 
 ## Verification
 
-After TypeScript, React, analyzer, export, or web behavior changes, run:
+After TypeScript, React, Work Item, projection, or web behavior changes, run:
 
 ```bash
 cd packages/web

@@ -1,5 +1,7 @@
 # 스킬 정비 증거 원장 — ADK 2.3 기준 (2026-07)
 
+> 역사적 판정 원장이다. 2026-07-23 external-Codex-first hard cutover가 R5, R6, R7, R12와 Q3의 당시 결론을 대체했다. 현재 계약은 [Operating Model](operating-model.md)과 [CLI Companion](cli-companion.md)을 따른다.
+
 `.agents/skills` DLC 스킬 세트를 ADK 2.3 · 현행 코드베이스 · google-agents-cli 스킬 관례 기준으로 재작성하면서,
 출처 간 모순이 발견될 때 **어느 쪽을 따랐고 왜인지**를 기록하는 원장이다.
 판정 기준(진실 위계): ① 실제 런타임(설치된 venv 소스·실행 관찰) ② adk.dev 공식 문서 ③ 리포 코드 ④ 리포 문서.
@@ -33,14 +35,17 @@
 ### R5. 직접 아티팩트 쓰기 vs Stage Runner proposed-first
 - **충돌**: 구판 스킬은 스테이지가 canonical 아티팩트·매니페스트를 직접 쓴다고 서술 ↔ 현행 Stage Runner의 analyze/design은 proposed-artifacts에만 쓰고 diff/preview 승인 후에만 canonical이 바뀐다(`stageRunner.ts:825-841, 1199-1208, 559-608`).
 - **판정**: **proposed-first가 1차 경로**. 재작성 스킬은 Stage Runner 실행 시 허용된 proposed 파일만 쓴다. 워크벤치 밖 단독 실행(수동/임포트 모드)은 별도 표기된 보조 모드로 유지한다 — harness가 비-워크벤치 아티팩트 생산을 여전히 허용하기 때문.
+- **2026-07-23 후속**: Stage Runner와 proposal/apply를 제거했다. 외부 Codex가 canonical artifact를 직접 관리하고 Companion은 Graph IR만 제한적으로 편집한다.
 
 ### R6. Build 1차 경로: 직접 생성기 호출 → artifact-sync
 - **충돌**: 구판 build 참조는 `node scripts/generate-adk-source.mjs` 직접 호출을 1차로 서술 ↔ 현행 워크벤치 build는 `POST /api/af/:reqId/artifact-sync/run`(계약 동기화→scaffold-plan 파생→재생성→검증)이 1차이고 직접 생성기는 수동/고급 경로(CLAUDE.md build 절, `artifactSyncRunApi.ts:17-68`).
 - **판정**: **artifact-sync를 1차로 교육**, 직접 생성기는 동기화된 아티팩트 존재 후의 저수준 수동 확인 수단으로 강등.
+- **2026-07-23 후속**: artifact-sync API를 제거했다. 승인된 Work Item을 읽은 `af-scaffold-runtime`이 generator 실행과 source diff를 소유한다.
 
 ### R7. 매니페스트 승인 토글 주체
 - **충돌**: 구판 design 스킬 "Record human approval status in af-run-manifest.json" ↔ 현행은 승인 부울을 리뷰 엔드포인트(`afArtifactCrudApi.ts:70-107`)가 쓰고 스테이지 상태를 양방향 투영하며, Stage Runner는 `stage_runs` 실행 메타데이터만 기록(`stageRunner.ts:1274-1306`).
 - **판정**: **스킬은 승인 부울·스테이지 상태를 직접 토글하지 않는다.** 스킬은 준비 상태를 보고할 뿐, 승인 기록은 인간 리뷰 경로의 몫.
+- **2026-07-23 후속**: `af-work-item.json`의 review gate가 승인 revision과 SHA-256을 소유한다. Companion은 승인 상태를 쓰지 않는다.
 
 ### R8. Remote A2A 계약 파일: 분리 `a2a-contracts.json` vs 임베디드 `a2aContracts`
 - **충돌**: 구판 artifact-contracts는 `a2a-contracts.json`을 표준 아티팩트로 나열 ↔ 현행 검증기·생성기는 `analysis-result.json.a2aContracts`만 소비(`types.ts:962-974`, `validate-artifacts.mjs:955-1045`, `remote-a2a.mjs:6-15`), artifact-sync는 분리 파일을 파생하지 않고 유일한 코드 참조는 CRUD 허용목록 1건(`afArtifactsApi.ts:49`).
@@ -62,6 +67,7 @@
 ### R12. 스킬 파일 경로의 코드 결합과 strict cutover
 - **과거 사실**: strict cutover 전 `stageRunner.ts`가 구 stage skill 경로를 하드 참조해 네 shim을 즉시 제거할 수 없었다.
 - **2026-07-19 판정**: Stage Runner가 `af-discover-assets`, `af-compose-solution`, `af-scaffold-runtime`, `af-verify-runtime`의 canonical `SKILL.md`를 직접 참조하도록 전환했고 구 shim 네 개를 삭제했다. canonical 다섯 디렉터리는 현재 실행 계약이므로 경로 변경 시 Stage Runner와 skill validator를 함께 갱신한다. 구 ID는 지원 경로가 아니다.
+- **2026-07-23 후속**: Stage Runner 코드 결합 자체를 제거했다. 외부 Codex의 skill routing과 `af-work-item.json` predecessor gate가 canonical 실행 경계다.
 
 ### R13. state/artifact channel의 저장 key
 - **충돌**: 구 state/artifact skill은 strict Graph Edge에 `state_key`·`artifact_key`가 있는 것처럼 지시했지만 strict v2 Edge는 `id`, `from`, `to`, `control`, `channel`만 허용하고 해당 두 field를 거부한다.
@@ -71,7 +77,7 @@
 ## 열린 질문 처리 (갭 분석 §5)
 
 - 서명 수준 venv 검증(Q1): B4 재작성에서 ADK 토픽 참조 작성 전 venv 소스 확인을 요구, 불가 시 미검증 표기.
-- Stage Runner/단독 이중 모드(Q3): R5로 판정 — 이중 모드 지원, proposed-first가 1차.
+- Stage Runner/단독 이중 모드(Q3): 2026-07-23 hard cutover로 닫힘 — 외부 Codex direct execution만 지원한다.
 - `a2a-contracts.json`(Q4): R8로 판정.
 - frontmatter(Q5): R11로 판정.
 - `rerun_on_resume`(Q2)·정적 back-edge(Q6): 스킬 범위 밖 — Phase C/후속으로 이관.

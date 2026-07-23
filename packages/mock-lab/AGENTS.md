@@ -3,8 +3,8 @@
 ## Scope
 
 `packages/mock-lab` is the standalone development package for local MCP test
-doubles. It serves Tool assets only. The default user-facing surface is
-`http://127.0.0.1:5173/mock-lab`; this package also runs independently on 5176.
+doubles. It serves Tool assets only and runs independently at
+`http://127.0.0.1:5176/`. Agent Factory Companion does not embed or proxy its UI.
 
 Tool and MCP meanings are canonical in [Taxonomy](../../docs/workbench/taxonomy.md)
 and [Graph IR](../../docs/workbench/graph-ir.md).
@@ -44,4 +44,6 @@ npm run test
 npm run build
 ```
 
-Standalone dev uses fixed port 5176. Integrated workbench testing uses 5173.
+Standalone development and browser testing use fixed port 5176. The Companion
+on 5173 provides only a read-only Tool Catalog projection and does not mount
+Mock Lab routes or APIs.

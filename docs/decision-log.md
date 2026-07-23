@@ -10,6 +10,12 @@
 
 ---
 
+## 2026-07-23 · PR pending — Stage Runner 제거와 external-Codex-first Companion 하드 컷오버
+
+- **결정**: Web의 Analyze·Design·Build·Verify Stage Runner, `/api/af`, proposal/apply, server analyzer/build/verify/runtime control, `af-run-manifest.json`, stage shell과 관련 route를 제거한다. Lifecycle UI와 artifact ledger를 `af-discover-assets` → `af-compose-solution` → `af-scaffold-runtime` → `af-verify-runtime` 및 strict `af-work-item.json`으로 교체한다. 외부 Codex CLI·VS Code session이 canonical artifact와 source를 소유하고 Web은 Work Item·file·Git diff·evidence·Hook activity를 실시간 projection한다. Web의 유일한 canonical edit는 Graph IR이며 ETag, same-origin loopback, approved discovery, strict validation, explicit active session target을 요구한다. Catalog는 read-only다. (대체: 2026-07-22 Hook-first MVP의 write-ownership migration 미완료 결정과 과거 stage shell 관련 항목)
+- **배경**: 사용자의 실제 작업면은 외부 Codex 채팅과 VS Code인데 Web이 별도 lifecycle 실행기로 남아 같은 요구와 파일을 중복 소유했고, 그 결과 새 Work Skill 요청도 과거 `/analyze/run`으로 돌아갔다. Stage 이름과 server primitive를 유지한 점이 우발적 fallback이 아니라 구조적 원인이었다.
+- **영향**: `packages/web` route/layout/state/server/CSS, Codex Hook event coverage, workspace/Git projection, VS Code file/diff handoff, Work Item schema/parser/validator/templates, generator predecessor gate, canonical five-skill instructions, root/Handbook/Operating Model/Companion/Design System 문서가 함께 바뀐다. 기존 run history와 legacy manifest/API 호환은 제공하지 않는다. 실제 IDE 연결 성공은 Hook trust 후 fresh prompt와 current session/turn receipt로 별도 확인한다.
+
 ## 2026-07-22 · PR pending — Hook source를 추측하지 않는 병렬 bootstrap과 protocol adapter 분리
 
 - **결정**: tracked project Hook과 enabled plugin Hook을 서로 독립적인 thin bootstrap으로 유지하고 둘 다 workspace-owned adapter에 위임한다. Plugin은 `.codex/hooks.json` 파일 존재만으로 실행을 포기하지 않는다. 외부 Codex Hook input/output shape는 `scripts/af-codex-hook-protocol.mjs`, endpoint discovery와 authenticated loopback transport는 `scripts/af-codex-hook.mjs`, session·delivery semantics는 bridge store가 각각 소유한다. (대체: 같은 날짜 `Project Hook 기반 CLI·IDE Session Registry` 항목의 plugin legacy-fallback/양보 결정)

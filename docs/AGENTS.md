@@ -9,7 +9,7 @@
 충돌하거나 어디서부터 읽을지 불분명할 때 다음 순서를 따른다.
 
 1. `docs/README.md`: 사람과 coding agent의 기본 읽기 경로
-2. `docs/workbench/taxonomy.md`, `docs/workbench/graph-ir.md`, `docs/workbench/operating-model.md`: 자산 분류, Graph 표현, 작업 단계의 canonical 문서
+2. `docs/workbench/taxonomy.md`, `docs/workbench/graph-ir.md`, `docs/workbench/operating-model.md`: 자산 분류, Graph 표현, Work Skill lifecycle의 canonical 문서
 3. `docs/handbook/**`: 저장소 행동과 최신 source locator를 연결하는 지도
 4. `docs/migration/taxonomy-vnext-status.md`: strict cutover 결과와 지원하지 않는 과거 입력
 5. review, validation, Mock Lab, visualization, architecture reference 같은 보조 문서
@@ -27,7 +27,7 @@
 - 문서 전용 수정은 코드, schema, validator, UI, runtime 행동이 함께 바뀐 것처럼 암시하지 않는다. 구현 주장은 현재 소스와 검증 결과로 확인한다.
 - interface, schema, gate, UX contract 또는 운영 정책의 설계 결정이 바뀌면 `docs/decision-log.md`에 날짜 · PR · 결정 · 근거 · 영향을 추가한다. 단순 문구 정렬은 새 결정을 꾸며 만들지 않고, 과거 항목을 현재 설명에 맞춰 고치지 않는다.
 - strict v2 현재 동작과 구현되지 않은 향후 제안을 같은 표나 문단에서 무표시로 혼합하지 않는다.
-- Agent·Workflow·Tool 정의는 `taxonomy.md`, Node·Edge와 Invocation Control은 `graph-ir.md`, 단계와 승인 gate는 `operating-model.md`에 링크한다. 보조 문서에서 이를 다시 정의하지 않는다.
+- Agent·Workflow·Tool 정의는 `taxonomy.md`, Node·Edge와 Invocation Control은 `graph-ir.md`, Work Skill과 review gate는 `operating-model.md`에 링크한다. 보조 문서에서 이를 다시 정의하지 않는다.
 - 화면을 설명하는 한국어 UI 카피는 실제 Workbench 문구와 일관되게 쓴다. Agent, Workflow, Tool, Graph IR, Runtime Handoff처럼 영어 기술 용어가 더 명확한 경우에는 그대로 사용한다.
 - archive, handoff, source code, schema, catalog, script를 문서 작업의 편의 때문에 함께 수정하지 않는다. 허용 범위 밖의 불일치는 Migration Status나 별도 후속으로만 드러낸다.
 
