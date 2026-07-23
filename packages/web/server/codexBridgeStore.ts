@@ -733,7 +733,7 @@ function parsePlanHandoffMarker(prompt: string): ParsedPlanHandoffMarker | null 
   if ((start > 0 && prompt[start - 1] !== "\n") || !endsAtLineBoundary) {
     return null;
   }
-  const lines = prompt.slice(start, end).replaceAll("\r\n", "\n").split("\n");
+  const lines = prompt.slice(start, end).split("\r\n").join("\n").split("\n");
   if (lines.length !== 9 || lines[0] !== PLAN_HANDOFF_MARKER_START || lines[8] !== PLAN_HANDOFF_MARKER_END) {
     return null;
   }
@@ -1018,6 +1018,8 @@ export class CodexBridgeStore {
       });
       return null;
     }
+
+    if (input.hook_event_name !== "UserPromptSubmit") return null;
 
     const consumed = await this.#mutate((now): { delivery: ContextDelivery | null; handoff: PlanHandoff | null } | null => {
       const receiptKey = promptReceiptKey(input.session_id, input.turn_id);
