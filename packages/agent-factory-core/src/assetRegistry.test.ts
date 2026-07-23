@@ -11,6 +11,7 @@ import {
   computeContractHash,
   computeRegistryRevision,
   contractContent,
+  getL1Card,
   getL2Contract,
   loadSnapshot,
   list,
@@ -264,6 +265,43 @@ test("L0 list and default search result bundles never exceed 20 records", () => 
   assert.equal(bundle.results.length, 20);
   assert.equal(bundle.candidates_considered.length, 20);
   assert.equal(bundle.candidates_considered_count, 25);
+});
+
+test("a 1200-asset Registry keeps local-model disclosure bounded and progressive", (context) => {
+  const assets = Array.from({ length: 1200 }, (_, index) => {
+    const id = `tool.test.local-model-${String(index).padStart(4, "0")}`;
+    return publishedRecord({
+      ...draftContract(id),
+      name: `Local Model Reader ${index}`,
+      capability_tags: ["synthetic", "local-model", `partition-${index % 12}`],
+    });
+  });
+  const snapshot = snapshotFromAssets(assets);
+  const bundle = search(snapshot, {
+    asset_type: "tool",
+    required_inputs: [{ name: "query", type: "string", required: true }],
+    required_outputs: [{ name: "records", type: "array", required: true }],
+    side_effect_class: "read_only",
+    binding_kind: "function",
+    runtime_requirements: ["Node.js runtime"],
+    limit: 8,
+  });
+  const serializedBytes = Buffer.byteLength(JSON.stringify(bundle), "utf8");
+
+  assert.equal(bundle.candidates_considered_count, 1200);
+  assert.equal(bundle.candidates_considered.length, 20);
+  assert.equal(bundle.results.length, 8);
+  assert.ok(serializedBytes < 64 * 1024, `bounded L0 search evidence was ${serializedBytes} bytes`);
+  assert.equal(bundle.results.every((result) => !("runtime_mock" in result.card) && !("lifecycle" in result.card)), true);
+
+  const selected = { asset_id: assets[0].asset_id, version: 1 };
+  const l1 = getL1Card(snapshot, selected);
+  const l2 = getL2Contract(snapshot, selected);
+  assert.equal("source_refs" in l1, true);
+  assert.equal("lifecycle" in l1, false);
+  assert.equal("lifecycle" in l2, true);
+  assert.equal("runtime_mock" in l2, true);
+  context.diagnostic(`1200 assets -> ${bundle.candidates_considered.length} L0 evidence rows, ${bundle.results.length} results, ${serializedBytes} JSON bytes`);
 });
 
 test("create, update, review, publish, new version, and deprecate preserve immutable version history", () => {
