@@ -3,20 +3,18 @@
 ## Scope
 
 Shared React components for strict Target v2 artifact review, Graph IR
-visualization and editing, asset and protocol badges, and Stage Runner controls.
+visualization and editing plus asset and protocol badges.
 
 Asset and node meanings come from [Taxonomy](../../../../docs/workbench/taxonomy.md)
 and [Graph IR](../../../../docs/workbench/graph-ir.md).
 
 ## Structure
 
-- `AnalysisResult.tsx`: aggregate analysis summary and review evidence.
 - `CategoryBadge.tsx`: Agent, Workflow, and Tool category badges plus MCP/A2A protocol badges.
 - `GraphCanvas.tsx`: ReactFlow canvas and explicit edit-mode shell.
 - `graph/*`: layout, node, edge, region-overlay, and validation rendering.
 - `GraphInspector.tsx`: read-only node and edge detail.
 - `GraphElementEditor.tsx` and `graphElementEditorModel.ts`: field-level Graph IR edits.
-- `StageRunnerPanel.tsx`: shared Analyze, Design, Build, and Verify run surface.
 
 ## Local Rules
 
@@ -25,7 +23,7 @@ and [Graph IR](../../../../docs/workbench/graph-ir.md).
 - Render edge `control` separately from optional `channel`, and render `parallel` and `loop` as regions.
 - Keep `GraphCanvas` read-only by default; edit controls appear only through explicit editable props.
 - Node positions are presentation state and are not serialized into strict Graph IR.
-- Saving Graph edit mode updates `analysis-result.json.graph`; artifact sync derives `graph-ir.json`.
+- Saving Graph edit mode updates `analysis-result.json.graph` and `graph-ir.json` through the Graph-only Work Item API, then invalidates composition/downstream evidence.
 - A root Graph may use `workflow_ref: null` for a standalone Agent or Tool.
 
 ## Anti-Patterns
@@ -35,6 +33,7 @@ and [Graph IR](../../../../docs/workbench/graph-ir.md).
 - Do not let region overlays obscure node or edge readability.
 - Do not make structural nodes bind to asset candidates.
 - Do not add Graph semantics only in the renderer; update contract validation and tests too.
+- Do not add lifecycle execution, approval controls, or arbitrary file editing to shared components.
 
 ## Verification
 

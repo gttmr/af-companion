@@ -15,8 +15,8 @@ Asset terminology is canonical in [Taxonomy](../../../../docs/workbench/taxonomy
 - `base.css`: element defaults.
 - `primitives.css`: shared `.ui-*` surfaces.
 - `category.css`: three asset-category visuals and separate MCP/A2A protocol badges paired with `CategoryBadge.tsx`.
-- `features/*`: component-specific blocks, including Graph rendering.
-- `router/*`: route and shell CSS.
+- `features/graph.css`: Graph rendering, inspector, and canonical Graph editor.
+- `router/live-workbench.css`: the complete route and shell layout.
 
 ## Local Rules
 
@@ -32,7 +32,7 @@ Asset terminology is canonical in [Taxonomy](../../../../docs/workbench/taxonomy
 - Do not add retired category selectors or alias them to Target categories.
 - Do not create one-off page palettes outside the token system.
 - Do not use CSS specificity fights where layer placement solves the conflict.
-- Do not reintroduce marketing-style hero or card layouts into the operational workbench.
+- Do not reintroduce retired stage shells or route-specific CSS bundles.
 
 ## Verification
 

@@ -67,6 +67,27 @@ function promptSubmit(sessionId: string, turnId: string, cwd: string, prompt = "
   });
 }
 
+function toolHook(
+  event: "PreToolUse" | "PostToolUse" | "Stop",
+  sessionId: string,
+  turnId: string,
+  cwd: string,
+  toolName?: string,
+) {
+  return validateCodexHookInput({
+    session_id: sessionId,
+    turn_id: turnId,
+    transcript_path: `/private/${sessionId}.jsonl`,
+    cwd,
+    hook_event_name: event,
+    model: "gpt-5.6",
+    permission_mode: "default",
+    ...(event === "Stop" ? {} : { tool_name: toolName ?? "Bash" }),
+    tool_input: "DO NOT STORE TOOL INPUT",
+    tool_response: "DO NOT STORE TOOL OUTPUT",
+  });
+}
+
 async function fixture(t: test.TestContext, start = "2030-01-01T00:00:00.000Z") {
   const root = await mkdtemp(join(tmpdir(), "af-codex-store-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -119,6 +140,27 @@ test("routes the oldest delivery to only its exact session and consumes it once"
   assert.equal(consumed?.delivered_at, consumed?.consumed_at);
   const persisted = await readFile(store.statePath, "utf8");
   assert.doesNotMatch(persisted, /DO NOT STORE THIS PROMPT|\/private\/session-a\.jsonl/);
+});
+
+test("projects tool and stop lifecycle metadata without persisting tool payloads", async (t) => {
+  const { root, store } = await fixture(t);
+  await store.handleHook(sessionStart("session-live", root));
+  await store.handleHook(promptSubmit("session-live", "turn-live", root));
+  await store.handleHook(toolHook("PreToolUse", "session-live", "turn-live", root, "apply_patch"));
+  await store.handleHook(toolHook("PostToolUse", "session-live", "turn-live", root, "apply_patch"));
+  await store.handleHook(toolHook("Stop", "session-live", "turn-live", root));
+
+  const snapshot = await store.snapshot();
+  assert.deepEqual(snapshot.activities.map(({ event, tool_name }) => ({ event, tool_name })), [
+    { event: "session_start", tool_name: null },
+    { event: "prompt_submit", tool_name: null },
+    { event: "tool_start", tool_name: "apply_patch" },
+    { event: "tool_end", tool_name: "apply_patch" },
+    { event: "turn_stop", tool_name: null },
+  ]);
+  assert.equal(snapshot.sessions[0].last_event, "turn_stop");
+  const persisted = await readFile(store.statePath, "utf8");
+  assert.doesNotMatch(persisted, /DO NOT STORE|tool_input|tool_response|transcript_path/);
 });
 
 test("marks sessions stale by TTL and expires queued bundles before prompt consumption", async (t) => {
@@ -209,6 +251,7 @@ test("migrates old schema-version-1 sessions and strips unrecognized secret fiel
   const persisted = await readFile(store.statePath, "utf8");
   assert.doesNotMatch(persisted, /transcript_path|DO NOT PERSIST/);
   assert.deepEqual(JSON.parse(persisted).prompt_receipts, []);
+  assert.deepEqual(JSON.parse(persisted).activities, []);
 });
 
 test("recovers an unknown prompt session and protects the same turn from concurrent duplicate hooks", async (t) => {

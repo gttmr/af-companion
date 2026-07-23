@@ -1,122 +1,73 @@
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import type { IncomingMessage } from "node:http";
+import { ServerResponse } from "node:http";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { load as parseYaml } from "js-yaml";
-import {
-  getCatalog,
-  postPublish,
-  validAgentA2aProposal,
-  validToolProposal,
-  withTempRepo,
-  writeCanonicalCatalogs,
-  writeDelta
-} from "./afCatalogApi.test-fixtures.ts";
+import { Readable } from "node:stream";
+
+import { createAfCatalogMiddleware } from "./afCatalogApi.ts";
 
 await withTempRepo(async (repoRoot) => {
-  await writeCanonicalCatalogs(repoRoot);
-  const catalog = await getCatalog(repoRoot);
+  await writeCatalogs(repoRoot);
+  const catalog = await invoke(repoRoot, "GET", "/");
   assert.equal(catalog.status, 200);
-  assert.deepEqual(Object.keys(catalog.body).sort(), ["agents", "tools", "workflows"]);
-  assert.deepEqual(catalog.body, { agents: { agents: [] }, workflows: { workflows: [] }, tools: { tools: [] } });
+  assert.deepEqual(catalog.body, {
+    agents: { agents: [] },
+    workflows: { workflows: [] },
+    tools: { tools: [] },
+  });
+
+  const writeAttempt = await invoke(repoRoot, "POST", "/publish");
+  assert.equal(writeAttempt.status, 404, "unknown paths fail before method handling");
+
+  const rootWriteAttempt = await invoke(repoRoot, "POST", "/");
+  assert.equal(rootWriteAttempt.status, 405);
+  assert.equal(rootWriteAttempt.body.code, "catalog_read_only");
 });
 
 await withTempRepo(async (repoRoot) => {
   await writeFile(join(repoRoot, "catalog", "agents.yaml"), "agents: []\n", "utf8");
   await writeFile(join(repoRoot, "catalog", "workflows.yaml"), "workflows: []\n", "utf8");
-  const missing = await getCatalog(repoRoot);
+  const missing = await invoke(repoRoot, "GET", "/");
   assert.equal(missing.status, 500);
-  assert.match(String(missing.body.error), /tools\.yaml|ENOENT/);
+  assert.equal(missing.body.code, "catalog_read_failed");
 });
 
-await withTempRepo(async (repoRoot) => {
-  await writeCanonicalCatalogs(repoRoot);
-  await writeFile(join(repoRoot, "catalog", "tools.yaml"), "tools: [not-valid\n", "utf8");
-  const malformed = await getCatalog(repoRoot);
-  assert.equal(malformed.status, 500);
-});
+async function withTempRepo(run: (repoRoot: string) => Promise<void>): Promise<void> {
+  const repoRoot = await mkdtemp(join(tmpdir(), "af-catalog-readonly-"));
+  try {
+    await mkdir(join(repoRoot, "catalog"), { recursive: true });
+    await run(repoRoot);
+  } finally {
+    await rm(repoRoot, { recursive: true, force: true });
+  }
+}
 
-await withTempRepo(async (repoRoot) => {
-  await writeCanonicalCatalogs(repoRoot);
-  const oldCategory = await postPublish(repoRoot, {
-    req_id: "req_old",
-    proposal: { ...validToolProposal, asset_type: "adapter" }
+async function writeCatalogs(repoRoot: string): Promise<void> {
+  await Promise.all([
+    writeFile(join(repoRoot, "catalog", "agents.yaml"), "agents: []\n", "utf8"),
+    writeFile(join(repoRoot, "catalog", "workflows.yaml"), "workflows: []\n", "utf8"),
+    writeFile(join(repoRoot, "catalog", "tools.yaml"), "tools: []\n", "utf8"),
+  ]);
+}
+
+async function invoke(repoRoot: string, method: string, url: string) {
+  const request = Readable.from([]) as IncomingMessage;
+  request.method = method;
+  request.url = url;
+  const chunks: string[] = [];
+  const response = new ServerResponse(request);
+  response.setHeader = function setHeader() { return this; };
+  response.end = function end(chunk?: string | Uint8Array) {
+    if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk.toString("utf8") : chunk.toString());
+    return this;
+  };
+  await createAfCatalogMiddleware(repoRoot)(request, response, (error) => {
+    throw error instanceof Error ? error : new Error("unexpected middleware next()");
   });
-  assert.equal(oldCategory.status, 422);
-  assert.match(JSON.stringify(oldCategory.body), /agent, workflow, tool/);
-
-  await writeDelta(repoRoot, "req_one", [validToolProposal]);
-  const first = await postPublish(repoRoot, { req_id: "req_one", proposal: validToolProposal });
-  assert.equal(first.status, 200);
-  assert.equal(first.body.asset_id, validToolProposal.asset_id);
-  assert.equal(first.body.version, 1);
-  assert.equal(first.body.file, "catalog/tools.yaml");
-
-  const firstText = await readFile(join(repoRoot, "catalog", "tools.yaml"), "utf8");
-  assert.doesNotMatch(firstText, /module_category|adapter_kind|owner_domain|runtime_binding/);
-  const firstDoc = parseYaml(firstText) as { tools: Array<Record<string, unknown>> };
-  assert.deepEqual(firstDoc.tools[0]?.runtime_mock, validToolProposal.runtime_mock);
-  const repeated = await postPublish(repoRoot, { req_id: "req_one", proposal: validToolProposal });
-  assert.equal(repeated.status, 200);
-  assert.equal(repeated.body.already_published, true);
-  assert.equal(await readFile(join(repoRoot, "catalog", "tools.yaml"), "utf8"), firstText);
-
-  const renamed = { ...validToolProposal, name: "고객 안내문 Tool" };
-  await writeDelta(repoRoot, "req_two", [renamed]);
-  const second = await postPublish(repoRoot, { req_id: "req_two", proposal: renamed });
-  assert.equal(second.status, 200);
-  assert.equal(second.body.version, 2, "display name changes stay on the asset_id version line");
-
-  const sameNameDifferentId = { ...renamed, asset_id: "tool.customer.notice-template-v2" };
-  await writeDelta(repoRoot, "req_three", [sameNameDifferentId]);
-  const independent = await postPublish(repoRoot, { req_id: "req_three", proposal: sameNameDifferentId });
-  assert.equal(independent.status, 200);
-  assert.equal(independent.body.version, 1, "same display name does not merge different asset IDs");
-
-  await writeDelta(repoRoot, "req_agent", [validAgentA2aProposal]);
-  const agent = await postPublish(repoRoot, { req_id: "req_agent", proposal: validAgentA2aProposal });
-  assert.equal(agent.status, 200);
-  assert.equal(agent.body.file, "catalog/agents.yaml");
-  const agentDoc = parseYaml(await readFile(join(repoRoot, "catalog", "agents.yaml"), "utf8")) as {
-    agents: Array<Record<string, unknown>>;
+  return {
+    status: response.statusCode,
+    body: chunks.length ? JSON.parse(chunks.join("")) as Record<string, unknown> : {},
   };
-  assert.equal((agentDoc.agents[0]?.binding as Record<string, unknown>).kind, "a2a");
-  assert.deepEqual(agentDoc.agents[0]?.exposure, { protocol: "a2a", contract_ref: "a2a.partner.remote-review.v1" });
-});
-
-await withTempRepo(async (repoRoot) => {
-  await writeCanonicalCatalogs(repoRoot);
-  const toolsBefore = await readFile(join(repoRoot, "catalog", "tools.yaml"), "utf8");
-  const unresolvedTool = {
-    ...validToolProposal,
-    asset_id: "tool.unresolved",
-    binding: { kind: "unresolved" },
-    connection: { transport: "unknown" }
-  };
-  await writeDelta(repoRoot, "req_unresolved_tool", [unresolvedTool]);
-  const toolResponse = await postPublish(repoRoot, { req_id: "req_unresolved_tool", proposal: unresolvedTool });
-  assert.equal(toolResponse.status, 422);
-  assert.match(JSON.stringify(toolResponse.body), /binding.*unresolved|transport.*unknown/);
-  assert.equal(await readFile(join(repoRoot, "catalog", "tools.yaml"), "utf8"), toolsBefore);
-
-  const workflowsBefore = await readFile(join(repoRoot, "catalog", "workflows.yaml"), "utf8");
-  const unresolvedWorkflow = {
-    asset_id: "workflow.unresolved",
-    asset_type: "workflow",
-    name: "Unresolved Workflow",
-    domain_scope: "domain_neutral",
-    business_domains: [],
-    owner: "AI공통플랫폼팀",
-    reuse_status: "publish_candidate",
-    capability_tags: [],
-    binding: null,
-    connection: null,
-    workflow_profile: { representation: "unresolved", coordination: "explicit", template_ref: null },
-    exposure: null,
-    responsibility: "검토되지 않은 실행 구조"
-  };
-  await writeDelta(repoRoot, "req_unresolved_workflow", [unresolvedWorkflow]);
-  const workflowResponse = await postPublish(repoRoot, { req_id: "req_unresolved_workflow", proposal: unresolvedWorkflow });
-  assert.equal(workflowResponse.status, 422);
-  assert.match(JSON.stringify(workflowResponse.body), /workflow_profile.*unresolved/);
-  assert.equal(await readFile(join(repoRoot, "catalog", "workflows.yaml"), "utf8"), workflowsBefore);
-});
+}

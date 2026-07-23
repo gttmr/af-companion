@@ -6,6 +6,7 @@ import { basename, isAbsolute, join, relative, sep } from "node:path";
 import { promisify } from "node:util";
 
 import { parseTargetAnalysisResult } from "../src/analyzer/targetAnalysisResult";
+import type { AssetCandidate, GraphIR } from "../src/analyzer/types";
 import {
   buildSelectionBundleV1,
   renderSelectionBundlePreview,
@@ -69,7 +70,7 @@ export interface CodexCompanionMiddlewareOptions {
   workspaceController?: CodexCompanionWorkspaceController;
 }
 
-class CompanionApiError extends Error {
+export class CompanionApiError extends Error {
   readonly statusCode: number;
   readonly code: string;
 
@@ -79,6 +80,61 @@ class CompanionApiError extends Error {
     this.statusCode = statusCode;
     this.code = code;
   }
+}
+
+export interface GraphChangeContextInput {
+  workId: string;
+  graph: GraphIR;
+  assetCandidates: readonly AssetCandidate[];
+  changedNodeIds: readonly string[];
+  targetSessionId: string;
+  graphEtag: string;
+}
+
+/** Queue graph-change metadata for one explicit Codex session. Never selects a default target. */
+export async function enqueueGraphChangeContext(
+  repoRoot: string,
+  input: GraphChangeContextInput,
+): Promise<ContextDelivery> {
+  if (!REQ_ID_PATTERN.test(input.workId)) {
+    throw new CompanionApiError(400, "invalid_work_id", "work_id 형식이 올바르지 않습니다.");
+  }
+  if (!input.targetSessionId.trim()) {
+    throw new CompanionApiError(400, "target_session_required", "Graph 변경을 받을 Codex session을 명시해야 합니다.");
+  }
+  const selectedNodeIds = [...new Set(input.changedNodeIds)].slice(0, MAX_SELECTED_NODE_IDS);
+  if (selectedNodeIds.length === 0) {
+    selectedNodeIds.push(...input.graph.nodes.slice(0, MAX_SELECTED_NODE_IDS).map((node) => node.id));
+  }
+  if (selectedNodeIds.length === 0) {
+    throw new CompanionApiError(422, "graph_context_empty", "Graph 변경 context에 포함할 Node가 없습니다.");
+  }
+  const now = new Date();
+  const revision = await readSourceRevision(repoRoot);
+  const bundle = buildSelectionBundleV1({
+    graph: input.graph,
+    assetCandidates: input.assetCandidates,
+    selectedNodeIds,
+    source: {
+      workspaceId: await workspaceId(repoRoot),
+      artifactRootId: `artifacts/af/${input.workId}`,
+      graphEtag: input.graphEtag,
+      gitHead: revision.head,
+      dirtyHash: revision.dirtyHash,
+    },
+    userIntent: "graph_change: Workbench에서 Graph IR가 수정되었습니다. 저장된 최신 Graph와 관련 source를 검토하세요.",
+    now,
+    expiresAt: new Date(now.getTime() + SELECTION_TTL_MS),
+  });
+  return brokerRequest<ContextDelivery>(repoRoot, "/v1/deliveries", {
+    method: "POST",
+    body: {
+      target_session_id: input.targetSessionId,
+      delivery_mode: "next_prompt",
+      consume_policy: "once",
+      bundle,
+    },
+  });
 }
 
 export function createCodexCompanionMiddleware(
@@ -276,6 +332,7 @@ function unavailableSnapshot(): CodexBridgeSnapshot {
     },
     sessions: [],
     deliveries: [],
+    activities: [],
   };
 }
 

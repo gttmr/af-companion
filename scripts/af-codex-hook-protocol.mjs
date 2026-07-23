@@ -26,6 +26,15 @@ export function toBridgeHookInput(value) {
     if (value.agent_type !== undefined) normalized.agent_type = value.agent_type;
     return normalized;
   }
+  if (value.hook_event_name === "PreToolUse" || value.hook_event_name === "PostToolUse") {
+    normalized.turn_id = value.turn_id;
+    normalized.tool_name = value.tool_name;
+    return normalized;
+  }
+  if (value.hook_event_name === "Stop") {
+    normalized.turn_id = value.turn_id;
+    return normalized;
+  }
   throw new Error("unsupported hook event");
 }
 

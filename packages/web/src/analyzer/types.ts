@@ -41,7 +41,6 @@ export const riskSignals = [
   "audit_required"
 ] as const;
 export const sideEffects = ["none", "read", "write", "read_write", "unknown"] as const;
-export const codexAnalyzerModels = ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.3-codex-spark"] as const;
 
 export const A2A_OPERATION_NAMES = [
   "SendMessage",
@@ -148,7 +147,6 @@ export type BankDomain = (typeof bankDomains)[number];
 export type RequirementDomain = (typeof requirementDomains)[number];
 export type RiskSignal = (typeof riskSignals)[number];
 export type SideEffect = (typeof sideEffects)[number];
-export type CodexAnalyzerModel = (typeof codexAnalyzerModels)[number];
 export type A2AOperationName = (typeof A2A_OPERATION_NAMES)[number];
 export type A2AHttpPath = (typeof A2A_HTTP_PATHS)[number];
 export type A2ATaskState = (typeof A2A_TASK_STATES)[number];

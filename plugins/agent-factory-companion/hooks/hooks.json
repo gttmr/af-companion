@@ -1,5 +1,5 @@
 {
-  "description": "Portable bootstrap for Agent Factory session registration and next-prompt context delivery.",
+  "description": "Portable bootstrap for Agent Factory external Codex activity projection and next-prompt context delivery.",
   "hooks": {
     "SessionStart": [
       {
@@ -22,6 +22,41 @@
             "command": "node \"$PLUGIN_ROOT/scripts/af-codex-hook-entry.mjs\"",
             "timeout": 1,
             "statusMessage": "Agent Factory Context 확인"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/scripts/af-codex-hook-entry.mjs\"",
+            "timeout": 1
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/scripts/af-codex-hook-entry.mjs\"",
+            "timeout": 1
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/scripts/af-codex-hook-entry.mjs\"",
+            "timeout": 1
           }
         ]
       }
