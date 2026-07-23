@@ -55,7 +55,7 @@ ${buildSampleDialogueMarkdown(context)}
 ## Tool과 synthetic MCP provider
 
 연결된 Tool은 streamable-HTTP로 실행 중인 synthetic MCP tool을 호출합니다
-(\`AF_MOCK_LAB_MCP_URL\` base, 기본값 \`http://127.0.0.1:5173/api/mock-lab/mcp\`).
+(\`AF_MOCK_LAB_MCP_URL\` base, 기본값 \`http://127.0.0.1:5176/api/mock-lab/mcp\`).
 이 결과는 \`${RUNTIME_MCP_LABEL}\` 라벨과 함께 payload와 \`workflow_manifest.json\`에 기록됩니다.
 synthetic MCP server가 binding/running 상태가 아닌 Tool은 reviewed synthetic mock output을 반환하는 TODO stub으로 남고,
 \`workflow_manifest.json\`의 \`runtime.unconnected_tools\`에 표시됩니다.

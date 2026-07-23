@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -9,6 +10,7 @@ import { scaffoldAssetProjectionErrors } from "./artifact-validation/scaffold-as
 const root = resolve(process.argv[2] ?? "templates");
 const errors = [];
 const REMOVED_FILENAMES = new Map([
+  ["af-run-manifest.json", "af-work-item.json"],
   ["module-candidates.json", "asset-candidates.json"],
   ["process-flow.json", "graph-ir.json"],
   ["commonization-notes.json", "analysis-result.json"]
@@ -55,21 +57,60 @@ function validateFile(path) {
   else if (name === "asset-candidates.json") validateAssetList(value, label);
   else if (name === "graph-ir.json") validateGraph(value, label, siblingAssets(path));
   else if (name === "scaffold-plan.json" || name === "scaffold-plan.template.json") validateScaffoldPlan(value, label, path);
-  else if (name === "af-run-manifest.json") validateRunManifest(value, label, path);
+  else if (name === "af-work-item.json") validateWorkItem(value, label, path);
   else if (name === "a2a-contract.template.json") validateA2aContract(value, label, null);
 }
 
-function validateRunManifest(manifest, label, path) {
-  pushAll(validateAgainstSchema(manifest, "af-run-manifest.schema.json", label));
+function validateWorkItem(manifest, label, path) {
+  pushAll(validateAgainstSchema(manifest, "af-work-item.schema.json", label));
   if (!record(manifest)) return;
-  if (manifest.approvals?.stub_ready_for_followup === true && !containsRegularFile(join(dirname(path), "runtime-stub"))) {
-    push(`${label}.approvals.stub_ready_for_followup requires a non-empty runtime-stub directory.`);
+  const skills = manifest.skills ?? {};
+  const discovery = skills["af-discover-assets"];
+  const compose = skills["af-compose-solution"];
+  const scaffold = skills["af-scaffold-runtime"];
+  const verify = skills["af-verify-runtime"];
+  const started = (state) => state?.status && state.status !== "not_started";
+  if (manifest.review_gates?.composition?.status === "approved" && manifest.review_gates?.discovery?.status !== "approved") {
+    push(`${label}.review_gates.composition approval requires approved discovery.`);
+  }
+  if (manifest.review_gates?.discovery?.status === "approved" && discovery?.status !== "complete") {
+    push(`${label}.review_gates.discovery approval requires af-discover-assets complete.`);
+  }
+  if (manifest.review_gates?.composition?.status === "approved" && compose?.status !== "complete") {
+    push(`${label}.review_gates.composition approval requires af-compose-solution complete.`);
+  }
+  if (started(compose) && manifest.review_gates?.discovery?.status !== "approved") {
+    push(`${label}.af-compose-solution start requires approved discovery.`);
+  }
+  if ((started(scaffold) || started(verify)) && manifest.review_gates?.composition?.status !== "approved") {
+    push(`${label}.Scaffold/Verify start requires approved composition.`);
+  }
+  if (started(verify) && scaffold?.status !== "complete") {
+    push(`${label}.af-verify-runtime start requires af-scaffold-runtime complete.`);
+  }
+  if (manifest.active_skill && skills[manifest.active_skill]?.status === "not_started") {
+    push(`${label}.active_skill cannot reference a not_started skill.`);
+  }
+  if (scaffold?.status === "complete" && !containsRegularFile(join(dirname(path), "runtime-stub"))) {
+    push(`${label}.skills.af-scaffold-runtime complete requires a non-empty runtime-stub directory.`);
+  }
+  if (manifest.verification?.outcome === "passed" && verify?.status !== "complete") {
+    push(`${label}.verification.outcome passed requires af-verify-runtime complete.`);
+  }
+  if (verify?.status === "complete" && manifest.verification?.outcome !== "passed") {
+    push(`${label}.af-verify-runtime complete requires verification.outcome passed.`);
   }
   const analysisPath = join(dirname(path), "analysis-result.json");
   if (!existsSync(analysisPath)) return;
+  if (manifest.review_gates?.composition?.status === "approved") {
+    const actualEtag = createHash("sha256").update(readFileSync(analysisPath)).digest("hex");
+    if (manifest.review_gates.composition.artifact_etag !== actualEtag) {
+      push(`${label}.review_gates.composition.artifact_etag must match current analysis-result.json bytes.`);
+    }
+  }
   const analysis = readJson(analysisPath);
-  if (record(analysis) && manifest.requirement_id !== analysis.normalizedRequirement?.id) {
-    push(`${label}.requirement_id must equal analysis-result.json.normalizedRequirement.id.`);
+  if (record(analysis) && manifest.work_id !== analysis.normalizedRequirement?.id) {
+    push(`${label}.work_id must equal analysis-result.json.normalizedRequirement.id.`);
   }
 }
 

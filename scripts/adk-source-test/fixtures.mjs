@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
@@ -116,7 +117,8 @@ export function targetEdge(from, to, kind = "next", patch = {}) {
 export function writeTargetArtifacts(dir, { requirement, assets, graph, runnable, a2aContracts = [], runtimeContracts = [] }) {
   const strictRequirement = targetRequirement(requirement.id, requirement);
   const strictAssets = assets.map((asset) => ({ ...asset, source_requirement_id: strictRequirement.id }));
-  writeJson(join(dir, "analysis-result.json"), {
+  const analysisPath = join(dir, "analysis-result.json");
+  writeJson(analysisPath, {
     contract_version: "2.0",
     normalizedRequirement: strictRequirement,
     evidence: targetEvidence(strictRequirement),
@@ -125,24 +127,7 @@ export function writeTargetArtifacts(dir, { requirement, assets, graph, runnable
     runtimeContracts,
     graph
   });
-  writeJson(join(dir, "af-run-manifest.json"), {
-    requirement_id: strictRequirement.id,
-    artifact_root: `artifacts/af/${strictRequirement.id}`,
-    current_stage: "build",
-    stages: {
-      analyze: { status: "complete", outputs: ["analysis-result.json"] },
-      design: { status: "complete", outputs: ["scaffold-plan.json"] },
-      build: { status: "pending", outputs: [] },
-      verify: { status: "pending", outputs: [] }
-    },
-    approvals: {
-      analysis_reviewed: true,
-      boundaries_approved: true,
-      runtime_contracts_approved: true,
-      stub_ready_for_followup: false
-    },
-    validation: { commands: [], last_result: "not_run" }
-  });
+  writeJson(join(dir, "af-work-item.json"), targetWorkItem(strictRequirement.id, {}, sha256File(analysisPath)));
   writeJson(join(dir, "scaffold-plan.json"), {
     contract_version: "2.0",
     requirement_id: requirement.id,
@@ -156,6 +141,57 @@ export function writeTargetArtifacts(dir, { requirement, assets, graph, runnable
     manifest: { catalog_bound_assets: [], new_code_required: [] },
     validation: { can_generate_source: true, blockers: [], warnings: [] }
   });
+}
+
+export function targetWorkItem(workId, patch = {}, compositionEtag = "b".repeat(64)) {
+  const at = "2030-01-01T00:00:00.000Z";
+  const state = (status, outputRefs = []) => ({
+    status,
+    input_revision: status === "not_started" ? null : `input-${status}`,
+    output_revision: status === "not_started" ? null : `output-${status}`,
+    output_refs: outputRefs,
+    blocker_refs: [],
+    output_roots: [],
+    started_at: status === "not_started" ? null : at,
+    updated_at: at,
+    completed_at: status === "complete" ? at : null
+  });
+  const approvedGate = (etag) => ({
+    status: "approved",
+    artifact_etag: etag,
+    decided_at: at,
+    session_id: "fixture-session",
+    turn_id: "fixture-turn"
+  });
+  return {
+    schema_version: 1,
+    work_id: workId,
+    artifact_root: `artifacts/af/${workId}`,
+    active_skill: null,
+    skills: {
+      "af-discover-assets": state("complete", ["analysis-result.json"]),
+      "af-compose-solution": state("complete", ["analysis-result.json", "graph-ir.json", "scaffold-plan.json"]),
+      "af-scaffold-runtime": state("not_started"),
+      "af-verify-runtime": state("not_started")
+    },
+    review_gates: {
+      discovery: approvedGate("a".repeat(64)),
+      composition: approvedGate(compositionEtag)
+    },
+    verification: { outcome: null, revision: null, report_ref: null },
+    ...patch
+  };
+}
+
+export function sha256File(path) {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+export function refreshCompositionReviewEtag(root) {
+  const workItemPath = join(root, "af-work-item.json");
+  const workItem = JSON.parse(readFileSync(workItemPath, "utf8"));
+  workItem.review_gates.composition.artifact_etag = sha256File(join(root, "analysis-result.json"));
+  writeJson(workItemPath, workItem);
 }
 
 export function targetA2aContract({ contractId = "a2a-001", agentRef, name = "Remote", url }) {

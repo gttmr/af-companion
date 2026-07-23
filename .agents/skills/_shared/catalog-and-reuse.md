@@ -35,11 +35,11 @@ For each reuse decision, record:
 
 ## Artifact implications
 
-- Write proposal feedback only to `artifacts/af/<req-id>/catalog-delta.yaml` or the Stage Runner Verify proposal path.
+- Write proposal feedback only to `artifacts/af/<work-id>/catalog-delta.yaml`.
 - Do not edit `catalog/*.yaml` from a DLC skill.
 - Each `proposed_additions[]` item is an Agent, Workflow, or Tool entry. It may carry a deterministic synthetic `runtime_mock`; runtime contract differences belong in that entry's reviewed fields or notes, not in a separate top-level Catalog category.
 - Keep private endpoints, credentials, customer data, deployment scripts, and production logic out of proposals.
-- Proposal existence and Verify apply do not publish an entry.
+- Proposal existence and Verify completion do not publish an entry.
 
 ## Scaffold implications
 
@@ -64,12 +64,12 @@ Stop when reuse compatibility is unproven, publication approval is absent, a pro
 ## Official sources checked
 
 - [Taxonomy Reuse Governance](../../../docs/workbench/taxonomy.md#reuse-governance)
-- [Operating Model Catalog governance](../../../docs/workbench/operating-model.md#5-catalog재사용-거버넌스)
-- Current publish boundary: `POST /api/catalog/publish`
+- [Operating Model verification and Catalog feedback](../../../docs/workbench/operating-model.md#8-verification)
+- Current workbench Catalog surface is read-only; publication is a separate reviewed repository workflow.
 
 ## Checked date
 
-- Checked date: 2026-07-20
+- Checked date: 2026-07-23
 - Official sources: Agent Factory Taxonomy and Operating Model
 - Installed package version: `google-adk 2.3.0`
 - Known compatibility note: Current Catalog proposals and publish APIs are product contracts; `reuse_status` remains the Target governance vocabulary.

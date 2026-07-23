@@ -25,8 +25,8 @@ Only these five IDs are valid. Do not add aliases, compatibility entrypoints, or
 | --- | --- |
 | Which skill to run next | `af-workflow/SKILL.md` |
 | Truth hierarchy and Target/Current/Blocker labels | `_shared/source-of-truth.md` |
-| Stage order, raw→code prohibition, approval invariants | `_shared/lifecycle-invariants.md` |
-| Artifact root, run ledger, proposed-first apply (Current Implementation) | `_shared/artifact-root-and-stage-runner.md` |
+| Work Skill order, raw→code prohibition, review invariants | `_shared/lifecycle-invariants.md` |
+| Work Item, external Codex ownership, review provenance, web Graph boundary | `_shared/work-item-and-external-codex.md` |
 | Asset taxonomy summary (canonical: docs/workbench/taxonomy.md) | `_shared/taxonomy.md` |
 | Graph IR summary (canonical: docs/workbench/graph-ir.md) | `_shared/graph-ir.md` |
 | Strict Target Contract v2 artifact shape | `_shared/target-contract-v2.md` |
@@ -39,11 +39,13 @@ Only these five IDs are valid. Do not add aliases, compatibility entrypoints, or
 
 ## Local Rules
 
-- Keep stage order intact: discover → compose → scaffold → verify; `af-workflow` routes but never skips gates.
+- Keep Work Skill order intact: discover → compose → scaffold → verify; `af-workflow` routes but never skips gates.
 - `af-scaffold-runtime` must not consume raw requirements or unapproved compose output.
 - Tool Invocation Control uses only Workflow | Agent.
-- New canonical/proposed artifacts write only strict Target v2 fields from `_shared/target-contract-v2.md`; do not emit retired fields or accept retired artifact shapes.
-- Skills do not toggle `manifest.approvals.*` or stage statuses, and never write `catalog/*.yaml` directly.
+- New canonical artifacts write only strict Target v2 fields from `_shared/target-contract-v2.md`; do not emit retired fields or accept retired artifact shapes.
+- Each executing skill updates only its own Work Item status. Review gates change only after an explicit user/reviewer decision with current Codex session and turn provenance.
+- The workbench is a live projection and edits only Graph IR; lifecycle execution and all other canonical writes belong to the external Codex CLI or VS Code session.
+- Skills never write `catalog/*.yaml` directly.
 - Keep `_shared` references generic; skill-specific procedure belongs in that skill's `SKILL.md` or `references/`.
 - Reference files stay version-neutral in name; record Checked date, official source, and installed package version inside the file.
 - Canonical skills never reference retired skill IDs.

@@ -1,114 +1,71 @@
-# Design Output and Readiness
-
-## Contents
-
-- [Purpose](#purpose)
-- [When to read](#when-to-read)
-- [Decision criteria](#decision-criteria)
-- [Required evidence](#required-evidence)
-- [Artifact implications](#artifact-implications)
-- [Scaffold implications](#scaffold-implications)
-- [Verification](#verification)
-- [Stop conditions](#stop-conditions)
-- [Official sources checked](#official-sources-checked)
-- [Checked date](#checked-date)
+# Composition Output and Readiness
 
 ## Purpose
 
-Compose 결과의 mode별 output과 Scaffold Readiness gate를 고정한다.
+Fix the canonical Compose output set and Scaffold Readiness gate.
 
-## When to read
+## Output paths
 
-Design output을 쓰기 직전과 `ready`를 보고하기 직전에 읽는다.
-
-## Decision criteria
-
-### Stage Runner mode
-
-정확히 두 proposal을 쓴다.
+Write a coherent set under the confirmed Work Item root:
 
 ```text
-<run-dir>/proposed-artifacts/analysis-result.json
-<run-dir>/proposed-artifacts/boundary-design.md
+<artifact-root>/analysis-result.json
+<artifact-root>/graph-ir.json
+<artifact-root>/boundary-design.md
+<artifact-root>/scaffold-plan.json
+<artifact-root>/af-work-item.json
 ```
 
-current diff builder가 한 파일만으로 진행할 수 있어도 두 파일 계약을 약화하지 않는다.
+Update `asset-candidates.json` or other split projections when the composition decision changes their canonical content. Do not emit proposal or run-ledger files.
 
-### Standalone mode
+## Readiness checklist
 
-사용자가 지정한 design note path를 우선한다.
+Confirm all of:
 
-Canonical write는 explicit artifact root와 user/document gate가 있을 때만 수행한다.
+- approved discovery review gate matches the current discovery artifact;
+- selected candidate responsibility, input/output, and side-effect contract;
+- explicit standalone or owning Workflow decision;
+- valid Graph IR including control, channel, and region semantics;
+- Binding, Transport, and Tool Invocation Control;
+- selected Runtime Pattern contracts and required auth variable names;
+- closed candidate-level Missing Information;
+- testable success and failure scenarios;
+- strict v2 artifact validation;
+- explicit output roots suitable for Scaffold.
 
-### Readiness checklist
+## Boundary design evidence
 
-다음을 모두 확인한다.
+`boundary-design.md` records:
 
-- approved asset responsibility
-- input/output and side-effect contract
-- standalone 또는 reviewed Graph
-- Binding, Transport, Invocation Control
-- selected Runtime Pattern contracts
-- required auth variable names
-- closed candidate-level Missing Information
-- testable success/failure scenarios
-- actual review/approval state
-- strict v2 artifact validation, 해당하는 경우
+- approve, defer, and reject decisions;
+- standalone/Workflow rationale;
+- Graph changes and validation findings;
+- Tool Invocation Control and Binding;
+- Runtime Pattern and A2A readiness;
+- reuse decisions;
+- unresolved gates and blockers;
+- Scaffold Readiness conclusion with evidence.
 
-## Required evidence
+## Work Item update
 
-`boundary-design.md`에 최소 다음을 기록한다.
+When outputs are complete and validation passes, set Compose to `waiting_for_review`, record output refs/revision, and leave `review_gates.composition` pending. Set Compose to `complete` only after explicit approval is durably recorded with current session/turn provenance.
 
-- candidate approve/defer/reject summary
-- standalone/Workflow 판단
-- Graph changes와 validation findings
-- Tool Invocation Control과 Binding
-- Runtime Pattern selection과 contract readiness
-- A2A 1:1 pairing review, 해당하는 경우
-- reuse decision 또는 proposal note
-- unresolved gates와 blockers
-- Scaffold Readiness 결과와 근거
-
-## Artifact implications
-
-Stage Runner proposal은 canonical artifact, approval, stage status를 바꾸지 않는다.
-
-Target design과 Current Implementation evidence를 분리해 설명한다.
-
-Product gap은 `docs/migration/skill-vnext-status.md` Blocker 대상으로 보고한다.
-
-## Scaffold implications
-
-Ready는 scaffold authorization의 필요조건이지 approval 자체가 아니다.
-
-승인 artifact와 scaffold plan이 없으면 code generation을 시작하지 않는다.
+The web Graph editor may change Graph IR concurrently with an external session. Before finalizing, re-read `analysis-result.json`, `graph-ir.json`, and `af-work-item.json`. A Graph change resets composition approval and downstream evidence.
 
 ## Verification
 
 ```bash
-node scripts/validate-artifacts.mjs <artifact-root-or-proposed-dir>
-find <run-dir>/proposed-artifacts -maxdepth 1 -type f -print
+node scripts/validate-artifacts.mjs <artifact-root>
+git diff --check
 ```
 
-두 proposal file과 validator result를 함께 확인한다.
+Directly compare `analysis-result.json.graph` with `graph-ir.json` and inspect the Work Item review revision.
 
 ## Stop conditions
 
-- Stage Runner Design precondition이 없음
-- proposal 두 파일 중 하나가 없음
-- readiness 항목이 미충족인데 Ready로 표시됨
-- approval boolean을 skill이 바꿔야 함
-- strict v2 구조가 Target rationale를 보존하지 못함
-- runtime source 또는 Catalog seed write가 요구됨
-
-## Official sources checked
-
-- `packages/web/server/stageRunner.ts`
-- `docs/workbench/operating-model.md`
-- `tests/skills/evidence/research/r1-stagerunner-contract.md`
-- `scripts/validate-artifacts.mjs`
+Stop when discovery is not approved, candidate hard gates remain, Graph or runtime contracts are unresolved, current files changed since review, validation fails, or source generation is requested before composition approval.
 
 ## Checked date
 
-- Checked date: 2026-07-20
-- Current behavior: Design proposals require both registered files; explicit apply does not approve the design.
+- Checked date: 2026-07-23
+- Contract sources: Graph IR, strict v2 validator, and Work Item lifecycle

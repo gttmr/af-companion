@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -412,23 +413,23 @@ test("validator requires every Agent A2A binding or exposure ref to resolve to a
   });
 });
 
-test("validator requires a non-empty runtime stub for handoff approval", () => {
+test("validator requires a non-empty runtime stub when Scaffold is complete", () => {
   withRoot((root, analysis) => {
     writeJson(join(root, "analysis-result.json"), analysis);
-    writeJson(join(root, "af-run-manifest.json"), approvedManifest(root));
-    assert.match(fail(root), /stub_ready_for_followup requires a non-empty runtime-stub/);
+    writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(sha256Json(analysis)));
+    assert.match(fail(root), /af-scaffold-runtime complete requires a non-empty runtime-stub/);
   });
   withRoot((root, analysis) => {
     writeJson(join(root, "analysis-result.json"), analysis);
     mkdirSync(join(root, "runtime-stub"));
-    writeJson(join(root, "af-run-manifest.json"), approvedManifest(root));
-    assert.match(fail(root), /stub_ready_for_followup requires a non-empty runtime-stub/);
+    writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(sha256Json(analysis)));
+    assert.match(fail(root), /af-scaffold-runtime complete requires a non-empty runtime-stub/);
   });
   withRoot((root, analysis) => {
     writeJson(join(root, "analysis-result.json"), analysis);
     mkdirSync(join(root, "runtime-stub"));
     writeFileSync(join(root, "runtime-stub", "agent.py"), "# generated runtime\n");
-    writeJson(join(root, "af-run-manifest.json"), approvedManifest(root));
+    writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(sha256Json(analysis)));
     assert.match(run(root), /Artifact validation OK/);
   });
 });
@@ -595,25 +596,41 @@ function scaffoldPlan(analysis) {
   };
 }
 
-function approvedManifest(root) {
+function completedScaffoldWorkItem(compositionEtag) {
+  const at = "2030-01-01T00:00:00.000Z";
+  const state = (status, refs = []) => ({
+    status,
+    input_revision: status === "not_started" ? null : "input-revision",
+    output_revision: status === "not_started" ? null : "output-revision",
+    output_refs: refs,
+    blocker_refs: [],
+    output_roots: status === "complete" ? ["runtime-stub"] : [],
+    started_at: status === "not_started" ? null : at,
+    updated_at: at,
+    completed_at: status === "complete" ? at : null
+  });
+  const gate = (etag) => ({ status: "approved", artifact_etag: etag, decided_at: at, session_id: "session", turn_id: "turn" });
   return {
-    requirement_id: "req-target",
-    artifact_root: root,
-    current_stage: "verify",
-    stages: {
-      analyze: { status: "complete", outputs: ["analysis-result.json"] },
-      design: { status: "complete", outputs: ["analysis-result.json", "boundary-design.md"] },
-      build: { status: "complete", outputs: ["runtime-stub/agent.py"] },
-      verify: { status: "pending", outputs: [] }
+    schema_version: 1,
+    work_id: "req-target",
+    artifact_root: "artifacts/af/req-target",
+    active_skill: "af-scaffold-runtime",
+    skills: {
+      "af-discover-assets": state("complete", ["analysis-result.json"]),
+      "af-compose-solution": state("complete", ["graph-ir.json", "scaffold-plan.json"]),
+      "af-scaffold-runtime": state("complete", ["runtime-stub/agent.py"]),
+      "af-verify-runtime": state("not_started")
     },
-    approvals: {
-      analysis_reviewed: true,
-      boundaries_approved: true,
-      runtime_contracts_approved: true,
-      stub_ready_for_followup: true
+    review_gates: {
+      discovery: gate("a".repeat(64)),
+      composition: gate(compositionEtag)
     },
-    validation: { commands: [], last_result: "not_run" }
+    verification: { outcome: null, revision: null, report_ref: null }
   };
+}
+
+function sha256Json(value) {
+  return createHash("sha256").update(`${JSON.stringify(value, null, 2)}\n`).digest("hex");
 }
 
 function writeJson(path, value) {

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -11,6 +12,7 @@ export const RUNTIME_MCP_LABEL = "런타임 MCP";
 export const RUNTIME_MCP_NOTE = "실행 시점에 synthetic MCP 서버를 통해 모델이 파악한 데이터입니다.";
 
 const REMOVED_FILENAMES = new Map([
+  ["af-run-manifest.json", "af-work-item.json"],
   ["module-candidates.json", "asset-candidates.json"],
   ["process-flow.json", "graph-ir.json"],
   ["commonization-notes.json", "analysis-result.json"]
@@ -56,18 +58,19 @@ export function loadArtifactContext(artifactRoot) {
   }
 
   const analysisResult = readRequiredJson(artifactRoot, "analysis-result.json");
+  const analysisEtag = createHash("sha256").update(readFileSync(join(artifactRoot, "analysis-result.json"))).digest("hex");
   const scaffoldPlan = readRequiredJson(artifactRoot, "scaffold-plan.json");
-  const runManifest = readRequiredJson(artifactRoot, "af-run-manifest.json");
+  const workItem = readRequiredJson(artifactRoot, "af-work-item.json");
   const mockLabSpec = readOptionalJson(artifactRoot, "mock-lab/mock-spec.json");
   assertStrictAnalysisResult(analysisResult);
   assertStrictScaffoldPlan(scaffoldPlan);
-  assertSchema(runManifest, "af-run-manifest.schema.json", "af-run-manifest.json");
+  assertSchema(workItem, "af-work-item.schema.json", "af-work-item.json");
 
   const normalizedRequirement = analysisResult.normalizedRequirement;
   const graph = scaffoldPlan.graph;
   const assetCandidates = analysisResult.assetCandidates;
   const assets = scaffoldPlan.assets;
-  validateRunInputs({ analysisResult, normalizedRequirement, graph, assetCandidates, runManifest, scaffoldPlan, assets });
+  validateWorkInputs({ analysisResult, analysisEtag, normalizedRequirement, graph, assetCandidates, workItem, scaffoldPlan, assets });
   assertSupportedToolTransports(assets);
 
   return {
@@ -75,7 +78,7 @@ export function loadArtifactContext(artifactRoot) {
     normalizedRequirement,
     graph,
     assetCandidates,
-    runManifest,
+    workItem,
     mockLabSpec,
     scaffoldPlan,
     assets,
@@ -271,7 +274,7 @@ function assertNoRemovedRecursive(value, label) {
   }
 }
 
-function validateRunInputs({ analysisResult, normalizedRequirement, graph, assetCandidates, runManifest, scaffoldPlan, assets }) {
+function validateWorkInputs({ analysisResult, analysisEtag, normalizedRequirement, graph, assetCandidates, workItem, scaffoldPlan, assets }) {
   const requirementId = normalizedRequirement.id || scaffoldPlan.requirement_id;
   if (scaffoldPlan.requirement_id !== requirementId) throw new Error("scaffold-plan.json requirement_id does not match normalizedRequirement.id.");
   if (graph.source_requirement_id !== requirementId) throw new Error("Graph source_requirement_id does not match the requirement.");
@@ -279,14 +282,21 @@ function validateRunInputs({ analysisResult, normalizedRequirement, graph, asset
   if (!deepEqual(analysisResult.runtimeContracts, scaffoldPlan.runtime_contracts)) {
     throw new Error("scaffold-plan.json runtime_contracts do not match approved analysis runtime contracts.");
   }
-  if (runManifest.requirement_id !== requirementId) {
-    throw new Error("af-run-manifest.json requirement_id does not match normalizedRequirement.id.");
+  if (workItem.work_id !== requirementId) {
+    throw new Error("af-work-item.json work_id does not match normalizedRequirement.id.");
   }
-  const missingApprovals = ["analysis_reviewed", "boundaries_approved", "runtime_contracts_approved"].filter(
-    (key) => runManifest.approvals[key] !== true
-  );
-  if (missingApprovals.length) throw new Error(`af-run-manifest.json is not approved for build: ${missingApprovals.join(", ")}.`);
-  if (runManifest.stages.design.status !== "complete") throw new Error("af-run-manifest.json design stage must be complete before generation.");
+  if (workItem.review_gates?.discovery?.status !== "approved") {
+    throw new Error("af-work-item.json discovery review must be approved before generation.");
+  }
+  if (workItem.review_gates?.composition?.status !== "approved") {
+    throw new Error("af-work-item.json composition review must be approved before generation.");
+  }
+  if (workItem.review_gates.composition.artifact_etag !== analysisEtag) {
+    throw new Error("af-work-item.json composition review does not match current analysis-result.json bytes.");
+  }
+  if (workItem.skills?.["af-compose-solution"]?.status !== "complete") {
+    throw new Error("af-work-item.json af-compose-solution must be complete before generation.");
+  }
   const unapprovedRuntime = [...analysisResult.runtimeContracts, ...(scaffoldPlan.runtime_contracts ?? [])].filter(
     (contract) => contract?.contract_status !== "approved"
   );

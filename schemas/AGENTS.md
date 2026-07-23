@@ -17,7 +17,7 @@ and [Graph IR](../docs/workbench/graph-ir.md).
 - `normalized-requirement.schema.json`: normalized request shape.
 - `asset-candidate.schema.json`: Agent, Workflow, and Tool candidate contract.
 - `graph.schema.json`: Graph IR nodes, edges, and regions.
-- `af-run-manifest.schema.json`: complete lifecycle stage, approval, and validation state.
+- `af-work-item.schema.json`: four Work Skill states, explicit review provenance, and verification outcome.
 - `classification.schema.json`: supporting Asset classification output.
 - `scaffold-plan.schema.json`: approved Runtime Handoff input.
 - `a2a-contract.schema.json`: A2A protocol contract for an Agent boundary.
@@ -38,6 +38,7 @@ return as supported artifact surfaces.
 - Keep schemas aligned with `packages/web/src/analyzer/types.ts`, `targetContract.ts`, templates, and validator tests.
 - Tighten contracts only with matching source, fixture, and regression updates.
 - Preserve `raw_requirement_to_code=false` and approved-artifact posture in scaffold-plan contracts.
+- Preserve Discover review → Compose review → Scaffold → Verify ordering in the Work Item schema and validators.
 
 ## Anti-Patterns
 
@@ -45,6 +46,7 @@ return as supported artifact surfaces.
 - Do not add schema fields for scenario-specific hard-coded workarounds.
 - Do not loosen `additionalProperties` without a reviewed contract change.
 - Do not model MCP or A2A as another top-level asset type.
+- Do not add legacy stage, run, proposal/apply, or manifest compatibility fields.
 
 ## Verification
 

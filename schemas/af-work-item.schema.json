@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/af-work-item.schema.json",
+  "title": "Agent Factory Work Item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "work_id", "artifact_root", "active_skill", "skills", "review_gates", "verification"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "work_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$" },
+    "artifact_root": { "type": "string", "pattern": "^artifacts/af/[a-z0-9][a-z0-9_-]{0,63}$" },
+    "active_skill": {
+      "anyOf": [
+        { "$ref": "#/$defs/skillId" },
+        { "type": "null" }
+      ]
+    },
+    "skills": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["af-discover-assets", "af-compose-solution", "af-scaffold-runtime", "af-verify-runtime"],
+      "properties": {
+        "af-discover-assets": { "$ref": "#/$defs/skillState" },
+        "af-compose-solution": { "$ref": "#/$defs/skillState" },
+        "af-scaffold-runtime": { "$ref": "#/$defs/skillState" },
+        "af-verify-runtime": { "$ref": "#/$defs/skillState" }
+      }
+    },
+    "review_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["discovery", "composition"],
+      "properties": {
+        "discovery": { "$ref": "#/$defs/reviewGate" },
+        "composition": { "$ref": "#/$defs/reviewGate" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "revision", "report_ref"],
+      "properties": {
+        "outcome": {
+          "anyOf": [
+            { "type": "string", "enum": ["passed", "failed", "unverified"] },
+            { "type": "null" }
+          ]
+        },
+        "revision": { "$ref": "#/$defs/nullableString" },
+        "report_ref": { "$ref": "#/$defs/nullableString" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "review_gates": { "properties": { "discovery": { "properties": { "status": { "const": "approved" } } } } } } },
+      "then": { "properties": { "skills": { "properties": { "af-discover-assets": { "properties": { "status": { "const": "complete" } } } } } } }
+    },
+    {
+      "if": { "properties": { "review_gates": { "properties": { "composition": { "properties": { "status": { "const": "approved" } } } } } } },
+      "then": {
+        "properties": {
+          "review_gates": { "properties": { "discovery": { "properties": { "status": { "const": "approved" } } } } },
+          "skills": { "properties": { "af-compose-solution": { "properties": { "status": { "const": "complete" } } } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "skills": { "properties": { "af-compose-solution": { "properties": { "status": { "const": "not_started" } } } } } } },
+      "else": { "properties": { "review_gates": { "properties": { "discovery": { "properties": { "status": { "const": "approved" } } } } } } }
+    },
+    {
+      "if": { "properties": { "skills": { "properties": { "af-scaffold-runtime": { "properties": { "status": { "const": "not_started" } } } } } } },
+      "else": { "properties": { "review_gates": { "properties": { "composition": { "properties": { "status": { "const": "approved" } } } } } } }
+    },
+    {
+      "if": { "properties": { "skills": { "properties": { "af-verify-runtime": { "properties": { "status": { "const": "not_started" } } } } } } },
+      "else": { "properties": { "skills": { "properties": { "af-scaffold-runtime": { "properties": { "status": { "const": "complete" } } } } } } }
+    },
+    {
+      "if": { "properties": { "skills": { "properties": { "af-verify-runtime": { "properties": { "status": { "const": "complete" } } } } } } },
+      "then": { "properties": { "verification": { "properties": { "outcome": { "const": "passed" } } } } }
+    },
+    {
+      "if": { "properties": { "verification": { "properties": { "outcome": { "const": "passed" } } } } },
+      "then": { "properties": { "skills": { "properties": { "af-verify-runtime": { "properties": { "status": { "const": "complete" } } } } } } }
+    }
+  ],
+  "$defs": {
+    "skillId": {
+      "type": "string",
+      "enum": ["af-discover-assets", "af-compose-solution", "af-scaffold-runtime", "af-verify-runtime"]
+    },
+    "skillState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status", "input_revision", "output_revision", "output_refs", "blocker_refs", "output_roots",
+        "started_at", "updated_at", "completed_at"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "active", "waiting_for_input", "waiting_for_review", "complete", "blocked", "failed"]
+        },
+        "input_revision": { "$ref": "#/$defs/nullableString" },
+        "output_revision": { "$ref": "#/$defs/nullableString" },
+        "output_refs": { "$ref": "#/$defs/stringArray" },
+        "blocker_refs": { "$ref": "#/$defs/stringArray" },
+        "output_roots": { "$ref": "#/$defs/stringArray" },
+        "started_at": { "$ref": "#/$defs/nullableDateTime" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "completed_at": { "$ref": "#/$defs/nullableDateTime" }
+      }
+    },
+    "reviewGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "artifact_etag", "decided_at", "session_id", "turn_id"],
+      "properties": {
+        "status": { "type": "string", "enum": ["pending", "approved", "changes_requested"] },
+        "artifact_etag": { "$ref": "#/$defs/nullableSha256" },
+        "decided_at": { "$ref": "#/$defs/nullableDateTime" },
+        "session_id": { "$ref": "#/$defs/nullableString" },
+        "turn_id": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "nullableString": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ]
+    },
+    "nullableSha256": {
+      "anyOf": [
+        { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        { "type": "null" }
+      ]
+    },
+    "nullableDateTime": {
+      "anyOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ]
+    },
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

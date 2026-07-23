@@ -10,8 +10,7 @@ Define the only artifact vocabulary that canonical Agent Factory skills may writ
 
 Read before writing, replacing, reviewing, scaffolding from, or verifying:
 
-- Stage Runner Analyze or Design `analysis-result.json` proposals;
-- canonical `artifacts/af/<req-id>/analysis-result.json`;
+- canonical `artifacts/af/<work-id>/analysis-result.json`;
 - `asset-candidates.json`, `graph-ir.json`, scaffold plans, or Catalog proposals.
 
 ## Required v2 output
@@ -28,9 +27,9 @@ Read before writing, replacing, reviewing, scaffolding from, or verifying:
 
 Split artifacts use `asset-candidates.json` and `graph-ir.json`. Never write alternate candidate or Graph filenames.
 
-`af-run-manifest.json`은 별도 lifecycle schema를 사용하며 `contract_version`을 넣지 않는다. 대신 requirement/root identity, 네 stage, 네 approval, validation을 완전하게 기록한다. 누락값을 default로 보정하지 않으며 current generator input에서는 manifest가 필수다.
+`af-work-item.json`은 별도 lifecycle schema를 사용하며 `contract_version`을 넣지 않는다. 네 Work Skill 상태, discovery/composition review provenance, verification outcome을 완전하게 기록한다. 누락값을 default로 보정하지 않으며 current generator input에서는 Work Item이 필수다.
 
-Approval은 Analyze → boundary → runtime-contract → handoff 순서를 건너뛰지 않는다. 상위 approval을 취소하면 downstream approval도 취소되며, handoff approval은 실제 non-empty `runtime-stub/`을 요구한다.
+Lifecycle은 Discover review → Compose review → Scaffold → Verify 순서를 건너뛰지 않는다. 관련 canonical bytes가 바뀌면 stale review gate와 downstream evidence를 무효화한다.
 
 Each `assetCandidates[]` entry uses exactly one `asset_type`: `agent`, `workflow`, or `tool`. Keep Resource and Dependency records outside the asset list.
 
@@ -64,10 +63,10 @@ Represent execution decisions under `control`, data and state movement under `ch
 
 ## Artifact and scaffold implications
 
-- Analyze and Design proposals must parse and pass the active strict v2 validator before apply.
-- `normalized-requirement.json`, `asset-candidates.json`, `graph-ir.json`은 canonical analysis에서 artifact-sync가 파생하며 외부 caller가 직접 PUT하지 않는다.
-- changed analysis는 범위에 따라 Analyze 또는 Design 이후 approval과 stale validation을 무효화한다.
-- Design produces both `analysis-result.json` and `boundary-design.md`.
+- Discover and Compose outputs must parse and pass the active strict v2 validator before review.
+- External Codex owns canonical analysis and split artifacts. The web workbench may update only Graph IR, synchronizing `analysis-result.json.graph` and `graph-ir.json` atomically within its process boundary.
+- Changed discovery or composition artifacts invalidate the affected review gate and downstream evidence.
+- Compose produces a coherent `analysis-result.json`, `graph-ir.json`, `boundary-design.md`, and `scaffold-plan.json` when readiness is achieved.
 - Scaffold consumes reviewed and approved v2 artifacts only.
 - Catalog publication proposes Agent, Workflow, or Tool entries; skills never write `catalog/*.yaml` directly.
 - Missing required Target data is a Blocker. Do not repair it by inventing a retired field or selector.
@@ -103,6 +102,6 @@ Stop and report a Blocker when:
 
 ## Checked date
 
-- Checked date: 2026-07-20
+- Checked date: 2026-07-23
 - Product contract: strict Target Contract v2 only
 - Installed package version: `google-adk 2.3.0`

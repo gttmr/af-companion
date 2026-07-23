@@ -190,7 +190,7 @@ AF_VLLM_MODEL=hosted_vllm/local-model
 # AF_VLLM_API_KEY=...
 # GOOGLE_API_KEY=...
 # PYTHONUTF8=1
-# AF_MOCK_LAB_MCP_URL=http://127.0.0.1:5173/api/mock-lab/mcp
+# AF_MOCK_LAB_MCP_URL=http://127.0.0.1:5176/api/mock-lab/mcp
 ${remoteEnvLines.length ? `\n# Remote A2A auth env vars\n${remoteEnvLines.join("\n")}\n` : ""}
 `;
 }
