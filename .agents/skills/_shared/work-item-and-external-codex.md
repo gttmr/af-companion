@@ -2,29 +2,21 @@
 
 ## Purpose
 
-Define the canonical lifecycle ledger, write ownership, and review provenance for Agent Factory work performed from an external Codex CLI or VS Code session.
+Define the schema-version-2 lifecycle ledger, session/run continuity, write ownership, revision-bound reviews, and re-entrant handoffs for Agent Factory work performed by an external Codex CLI or VS Code session.
 
-The web workbench is a live projection of that work. It does not run lifecycle stages. Its only canonical artifact edit is Graph IR.
+## Canonical identity
 
-## Canonical root
-
-Use one explicit root:
+Use one explicit root and ledger:
 
 ```text
 artifacts/af/<work-id>/
-```
-
-The lifecycle ledger is:
-
-```text
 artifacts/af/<work-id>/af-work-item.json
 ```
 
-Do not infer `<work-id>` from the newest directory. Confirm it from the user, the active Codex context, or an existing valid Work Item.
+Do not infer `<work-id>` from the newest directory, route, first active session, or handoff. Confirm it from the user, an exact marker/session binding, or an existing valid Work Item.
 
-The normal artifact inventory is:
+The current canonical artifact inventory may include:
 
-- `af-work-item.json`
 - `analysis-result.json`
 - `normalized-requirement.json`
 - `asset-candidates.json`
@@ -35,26 +27,21 @@ The normal artifact inventory is:
 - `runtime-stub/`
 - `implementation-handoff.md`
 - `validation-report.md`
-- `catalog-delta.yaml`, only when verified reuse feedback exists
 
-Do not recreate `af-run-manifest.json`, `runs/<stage>/`, proposal directories, apply ledgers, or `/api/af` calls.
+Do not create or read-fallback `af-run-manifest.json`, old stage runs, proposal/apply ledgers, route aliases, compatibility imports, or `/api/af` lifecycle calls.
 
-## Ownership
+## Work Item contract
 
-| Surface | Canonical writer |
-| --- | --- |
-| Requirement, candidates, contracts, handoff, source, reports | external Codex CLI or VS Code session using the matching Work Skill |
-| `af-work-item.json` skill status and evidence refs | the executing external Codex session |
-| Discovery or composition review decision | external Codex session, only after an explicit user or reviewer decision in that session |
-| Graph IR | Compose skill or the web Graph editor |
-| Catalog seeds | separate publication workflow; never a Work Skill |
-| Activity, Git state, file inventory | workbench projection; read-only metadata |
+`schemas/af-work-item.schema.json` is the exact shape. The root requires:
 
-The web Graph editor writes both the embedded `analysis-result.json.graph` and `graph-ir.json`, resets composition approval and downstream lifecycle state, and delivers a `graph_change` context item to an explicitly selected live Codex session. The external session must re-read the changed files before continuing.
+- identity: `schema_version: 2`, `work_id`, `artifact_root`, `ledger_revision`;
+- routing/execution: `focus_skill`, `active_runs`, exactly four `skills` entries;
+- revision history: `revisions`, `discovery_cycles`, `composition_cycles`, `invalidations`;
+- user decisions: `decisions`, `asset_decisions`, `solution_control_strategy`, `root_executable`;
+- gates/outputs: `review_gates`, `artifact_refs`, `generated_output_roots`, `verification`;
+- continuity: `session_handoffs`.
 
-## Work Item state
-
-`af-work-item.json` has exactly four skill entries:
+The four skill IDs are exactly:
 
 ```text
 af-discover-assets
@@ -63,89 +50,113 @@ af-scaffold-runtime
 af-verify-runtime
 ```
 
-Allowed status values are:
+`focus_skill` is the user's current surface and may be null. `active_runs` is the current actor set; its supported roles are `plan`, `planning_subagent`, `materializer`, `compose`, `scaffold`, and `verify`. A planning subagent has a `parent_run_id`; every run records an exact session and input revision.
+
+Skill status is one of:
 
 ```text
-not_started | active | waiting_for_input | waiting_for_review | complete | blocked | failed
+not_started | active | waiting_for_input | waiting_for_review | complete | blocked | failed | stale
 ```
 
-At skill start:
+At skill start, set only the selected skill/run state to active, record its input revision and timestamps, update `focus_skill` only when the user surface changes, and preserve unrelated runs, outputs, evidence, and history. Use `complete` only for current required outputs and checks. A revision mismatch makes old completion stale.
 
-1. set `active_skill` to the selected skill;
-2. set that skill to `active`;
-3. record `input_revision`, `started_at`, and `updated_at`;
-4. preserve unrelated skill evidence.
+## Revisions and cycles
 
-At a durable boundary:
+A revision contains a digest, one or more `{ ref, sha256 }` subjects, and the exact `registry_revision` or null. Current revision slots are requirement, decision, Asset decision, discovery, Catalog snapshot, Graph, root executable, runtime contract, composition, scaffold, and verification.
 
-- use `waiting_for_input` when a user answer is required;
-- use `waiting_for_review` when outputs exist but a review gate is pending;
-- use `blocked` for a concrete unresolved contract or environment blocker;
-- use `failed` for a failed execution that produced usable diagnostics;
-- use `complete` only after required outputs and checks exist.
+Discovery cycles use trigger `initial`, `return_to_discover`, or `invalidation`; discovery and composition cycles use status `active`, `complete`, or `superseded`. Preserve prior cycles and connect replacement cycles with `supersedes_cycle_id`.
 
-Record actual relative paths in `output_refs` and authorized source roots in `output_roots`. Record reproducible blocker or report paths in `blocker_refs`. Never mark a later skill started before its predecessor gate is satisfied.
+A Compose return to Discover records the schema-defined `return_to_discover` fields: triggering revision, missing capability, failed Asset refs, required contract delta, Graph impact, recommended search criteria, optional open decision ID, and creation time. Do not replace that record with prose-only handoff.
 
-## Review gates
+An invalidation records source/target skills, triggering and invalidated revisions, reason, affected refs, active/resolved status, and timestamps. Keep old files as historical evidence while the UI distinguishes active from stale revisions.
 
-There are two review gates:
+## Decisions
 
-- `review_gates.discovery` before Compose;
-- `review_gates.composition` before Scaffold.
+Required decisions never default. An open `decisions[]` record has null selection/provenance. It becomes resolved only after the user chooses an offered option and the record contains `selected_by: "user"`, a selection reason, session ID, and turn ID. “Use the recommendation” is a valid explicit user choice; model silence or inference is not.
 
-A skill may prepare review material but must not approve itself. Change a gate from `pending` only when the user or reviewer explicitly approves or requests changes in the current external Codex session.
+`asset_decisions[]` follows the same provenance rule and uses only these dispositions:
 
-For a decision, record all of:
+```text
+reuse_exact | reuse_new_version | compose_existing | create_project_draft
+create_publish_candidate | defer | exclude
+```
 
-- `status` as `approved` or `changes_requested`;
-- `artifact_etag` as the SHA-256 of the reviewed canonical `analysis-result.json` bytes;
-- `decided_at`;
-- the current Codex `session_id` and `turn_id` supplied by the hook/session context.
+`solution_control_strategy` is null until explicitly selected from `single_agent`, `agent_delegation`, `explicit_workflow`, or `hybrid`. `root_executable`, when resolved, points to an exact Agent or Workflow Asset ID/version and its decision ID.
 
-If session or turn provenance is unavailable, keep the gate pending and report the review decision as not durably recorded. Any relevant artifact change makes the old gate stale; reset the affected gate and downstream evidence instead of retaining approval.
+## Revision-bound review gates
 
-## Write boundary
+There are two gates:
 
-Before writing, list the exact artifact root and any source output root. Writes are limited to:
+- discovery, before Compose;
+- composition, before Scaffold.
 
-- the selected Work Item root;
-- explicit output roots approved for scaffolding;
-- repository files directly required by the user's implementation request.
+Gate status is `pending`, `approved`, `changes_requested`, or `stale`. A pending gate has no binding or decision provenance. Any non-pending gate has a binding plus decision time/session/turn; a stale gate also has non-empty `stale_reasons`.
 
-Do not write credentials, private endpoints, customer data, deployment scripts, or organization-specific production logic. Do not use the workbench API as a substitute for direct repository edits.
+Discovery approval binds requirement, decision, Asset-decision, discovery, and Catalog-snapshot revisions plus the reviewed artifact hash. Composition approval binds discovery, Graph, root-executable, runtime-contract, and composition revisions plus the reviewed artifact hash.
+
+A skill never self-approves. Before honoring an approval, compare every bound revision subject and Registry revision with current state. New Discover material resets the discovery gate to pending and stales composition/downstream state. New composition material leaves an undecided gate pending or marks its prior decision stale, then stales Scaffold/Verify. Append the owning invalidation and never preserve approval for unreviewed bytes.
+
+## Session and Plan handoff
+
+Discover Phase A runs in confirmed Plan Mode and makes no repository or Work Item write. It ends with a Discovery Decision Plan and a machine-readable marker created through the current Bridge handoff path. The marker and pending handoff are bound to one `work_id`, source session/turn, discovery and decision revisions, Plan hash, target `af-discover-assets.materialize`, expiry, and marker digest.
+
+A fresh materialization session must present an exact marker on its first prompt. Claim only one unexpired pending record after all marker fields/digest and revisions match, the new session differs from the Plan session, and the same handoff was not already claimed. A claimed Work Item record requires `claimed_by_session_id`, `claimed_turn_id`, and `claimed_at`. Duplicate, expired, superseded, ambiguous, stale, wrong-work-item, wrong-cwd, or Plan-hash-mismatched claims stop materialization.
+
+The Bridge's observed handoff and the Work Item's durable `session_handoffs` are related evidence, not interchangeable shapes. Re-read both plus the approved Plan before writing. Bridge health alone does not prove first-prompt delivery or claim.
+
+If automatic claim is unavailable, explicitly attach the known session; never attach the first active session by guesswork.
+
+## Ownership and web write boundary
+
+| Surface | Canonical writer |
+| --- | --- |
+| Requirement, candidates, decisions, contracts, handoff, source, reports | external Codex session using the owning Work Skill |
+| Work Item state, revisions, cycles, invalidations, durable handoff refs | executing external Codex session |
+| Discovery/composition review decision | external Codex session after explicit user/reviewer choice |
+| Graph IR | Compose skill or web Graph editor |
+| Versioned Asset Registry | shared Asset Registry service, called by web or `scripts/af.mjs` |
+| Activity, Git state, file inventory | workbench projection metadata |
+
+The web workbench has exactly two canonical write surfaces: Graph IR and the versioned Asset Registry. It does not arbitrarily mutate other Work Item artifacts or source. Graph writes synchronize the embedded and split Graph, then stale composition/downstream state. Registry mutations require the current optimistic `registry_revision`; direct file edits are unsupported.
+
+## Supported Work Item CLI
+
+The complete `work` command set currently dispatched by `scripts/af.mjs` is:
+
+```bash
+node scripts/af.mjs work init <work-id> [--root <path>]
+node scripts/af.mjs work validate <work-id-or-path> [--root <path>]
+node scripts/af.mjs work revision <ref=path>... --registry-revision <sha256|null> [--root <path>]
+node scripts/af.mjs work attach-session --session <id> --work-id <id> --role <unassigned|plan|materialization> [--root <path>]
+```
+
+`work init` fails if the Work Item exists. `work revision` requires repository-relative `ref=path` subjects and returns a revision object without mutating the ledger. `work attach-session` requires the current loopback Bridge endpoint. There is no current CLI subcommand for gate approval, handoff creation/claim, focus change, run change, or generic Work Item mutation; do not invent one.
 
 ## Verification
 
-At minimum:
-
 ```bash
 test -f <artifact-root>/af-work-item.json
+node scripts/af.mjs work validate <work-id-or-path> [--root <path>]
 node scripts/validate-artifacts.mjs <artifact-root>
 git status --short
 git diff --check
 ```
 
-Also run the checks required by the selected Work Skill and inspect the exact output inventory.
+Also run the selected skill's checks and inspect the exact output inventory and bound revision subjects.
 
 ## Stop conditions
 
-Stop when:
-
-- repository root or Work Item root is ambiguous;
-- a predecessor review gate is not approved;
-- the selected session cannot be identified for a review decision or Graph-change continuation;
-- a write would escape the declared artifact/source roots;
-- a requested action would restore Stage Runner, proposal/apply, or legacy manifest behavior;
-- proceeding requires invented approval, credentials, private data, or an unsupported contract.
+Stop when repository/Work Item/session identity is ambiguous; Plan Mode cannot be confirmed for Phase A; a required decision is open; a gate binding is stale or incomplete; a handoff cannot be exactly claimed; a write would escape declared roots; Registry mutation lacks expected revision; or proceeding would restore legacy manifests, stages, aliases, APIs, importers, or compatibility projection.
 
 ## Sources checked
 
-- [Operating Model](../../../docs/workbench/operating-model.md)
 - `schemas/af-work-item.schema.json`
-- `packages/web/server/workItemApi.ts`
-- `packages/web/server/workspaceProjection.ts`
-- official Codex Hooks lifecycle events, checked 2026-07-23
+- `scripts/af.mjs`
+- `packages/web/src/analyzer/afWorkItem.ts`
+- `packages/web/server/codexBridgeStore.ts`
+- `packages/agent-factory-core/src/assetRegistry.ts`
+- [Operating Model](../../../docs/workbench/operating-model.md)
 
 ## Checked date
 
-- Checked date: 2026-07-23
+- Checked date: 2026-07-24

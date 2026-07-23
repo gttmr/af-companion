@@ -2,83 +2,98 @@
 
 ## Purpose
 
-Keep external Codex work reviewable: discover candidates, compose an execution design, scaffold only from approved artifacts, then verify with fresh evidence.
+Keep external Codex work reviewable in a re-entrant lifecycle: explore and decide in Discover, compose an execution design, scaffold only from current approved artifacts, verify with fresh evidence, and return to the skill that owns any newly exposed defect.
 
 ## When to read
 
-Read this reference at the start of every canonical work skill and after context compaction. Read it again before crossing from one lifecycle phase to the next.
+Read this reference at the start of every canonical Work Skill, after context compaction, before a gate decision, and before any forward or backward transition.
 
-## Decision criteria
+## State graph
 
-Use the canonical sequence:
+The five canonical skill IDs remain `af-workflow` plus:
 
 ```text
-af-discover-assets
-  -> af-compose-solution
-  -> af-scaffold-runtime
-  -> af-verify-runtime
+af-discover-assets ⇄ af-compose-solution → af-scaffold-runtime → af-verify-runtime
+        ↑                     ↑                       │                 │
+        └─────────────────────┴───────────────────────┴─────────────────┘
+                         route by evidence ownership
 ```
 
-`af-workflow` may inspect state and route to a phase, but it does not create artifacts or change approvals.
+The arrows do not authorize gate skipping. The normal path still requires current Discover approval before Compose and current composition approval before Scaffold. `af-workflow` chooses the owner from revisions, gates, invalidations, and failure evidence; it never advances a fixed stage counter.
 
-Apply these invariants:
+## Core invariants
 
 - `raw_requirement_to_code=false`.
-- Discovery identifies Agent, Workflow, and Tool candidates; it does not finalize Graph topology or runtime APIs.
-- Composition decides whether the result is standalone or a Workflow. Do not create a Workflow when one Agent or Tool is sufficient.
-- Scaffolding consumes reviewed, approved artifacts only.
-- Verification records observed results; it does not create prior-stage approval.
-- Each skill maintains its own `af-work-item.json` status and evidence references.
-- A review gate changes only after an explicit user or reviewer decision in the current Codex session; a skill never self-approves.
+- Discover Phase A requires confirmed Plan Mode and is non-mutating: targeted exploration, Registry search, options, questions, and a Discovery Decision Plan only.
+- Discover Phase B runs in Default/Coding mode and materializes an approved Plan into canonical Work Item/artifact state.
+- Required decisions and Asset dispositions never default. A recommendation is not selected until the user explicitly accepts it; record session and turn provenance.
+- Discovery identifies Agent, Workflow, and Tool candidates. It does not finalize Graph topology or runtime APIs.
+- Composition preserves the selected `solution_control_strategy`, chooses an Agent or Workflow `root_executable`, and owns Graph/runtime contracts. It does not silently revise a Discover decision.
+- Scaffolding consumes current approved composition artifacts only. Verification records observations and cannot create a prior approval.
+- Use `focus_skill` for the current user surface and `active_runs` for concurrent actors. Preserve unrelated active runs.
+- Preserve discovery/composition cycles, prior revisions, and invalidation records. Supersede history; do not delete or silently overwrite it.
+- Artifact presence, validation success, and skill `complete` never substitute for an explicit current gate decision.
 - Runtime Handoff is a local follow-up bundle, not production deployment.
-- The workbench projects files, activity, and Git state. It does not execute these skills; Graph IR is its only canonical edit surface.
+- The workbench projects lifecycle state and may canonically write Graph IR and the versioned Asset Registry only. Registry mutations use the shared service with optimistic `registry_revision` matching.
+
+## Revision-bound transitions
+
+Discovery approval is bound to current requirement, decision, Asset-decision, discovery, Catalog/Registry snapshot revisions, and the reviewed artifact hash. Composition approval is bound to current discovery, Graph, root-executable, runtime-contract, composition revisions, and the reviewed artifact hash.
+
+Before entering a skill, compare the gate binding and the skill's `input_revision`/`output_revision` with the current `revisions` subjects. Any mismatch is stale even if the stored status says `approved` or `complete`.
+
+Changes invalidate by ownership:
+
+- requirement, decision, Asset decision, discovery, or Registry snapshot change → Discovery review `pending`; composition review, Scaffold, and Verify stale;
+- Graph, root executable, runtime contract, or composition change → composition review remains `pending` when undecided, otherwise stale; Scaffold and Verify stale;
+- Scaffold/source change → Verify stale;
+- stale verification revision → verification outcome `stale` until rerun.
+
+Append an `invalidations[]` record with source skill, target skill, triggering and invalidated revisions, reason, affected refs, and timestamps. Do not retain an approval for bytes or Registry state the reviewer did not approve.
+
+## Return ownership
+
+Route backward from concrete evidence:
+
+| Problem | Owning skill |
+| --- | --- |
+| missing/incompatible Asset, changed requirement, unresolved user choice, owner/security boundary | `af-discover-assets` |
+| Graph topology, root strategy, invocation/binding, Human Input, or runtime-contract design | `af-compose-solution` |
+| source generation, lowering, import, or scaffold implementation | `af-scaffold-runtime` |
+| missing/stale proof, scenario failure diagnosis, or retest | `af-verify-runtime` |
+
+Compose returns to Discover by recording the current composition revision, missing capability, failed Asset refs, required contract delta, Graph impact, search criteria, and optional open decision. Start a new discovery cycle with trigger `return_to_discover`; mark the previous cycle superseded only after preserving it. On Compose re-entry, present the previous composition diff and conflicts. Never auto-merge the old Graph.
+
+## Plan and session continuity
+
+- Bind every run to one explicit repository, `work_id`, session, role, and input revision.
+- A Plan-to-materialization handoff targets only `af-discover-assets.materialize` and is bound to the Work Item, Plan hash, discovery revision, decision revision, marker digest, expiry, and source session/turn.
+- A fresh session may materialize only after one exact pending handoff is claimed with complete new session/turn provenance. Reject stale, expired, ambiguous, mismatched, same-session, or duplicate claims.
+- Bridge health is not delivery proof. Use current first-prompt receipts and Work Item/Bridge handoff state; otherwise require explicit manual session attachment.
+- After compaction or resume, re-read the Work Item, current Plan/decisions, Registry revision, and selected skill before writing.
 
 ## Required evidence
 
-Before entering a phase, identify:
+Before execution, identify repository and Work Item roots, `ledger_revision`, session/run identity, current revision subjects, Registry revision, predecessor gate, open decisions, active invalidations, allowed write roots, and exact verification commands.
 
-- repository root, Work Item root, and current external Codex session;
-- current phase outputs and required predecessor artifacts;
-- relevant approval gates;
-- unresolved requirement-level and candidate-level missing information;
-- runtime pattern evidence, if any;
-- exact allowed artifact/source write set and verification command.
-
-## Artifact implications
-
-- Discovery preserves evidence, assumptions, contradictions, and missing information separately.
-- Composition preserves explicit approve, defer, or reject decisions and Target rationale.
-- Open `_shared/work-item-and-external-codex.md` before changing lifecycle state or canonical files.
-- Write only named canonical files under one unambiguous Work Item root and explicitly authorized source roots.
-- Artifact presence, skill completion, and validation output never substitute for review approval.
-
-## Scaffold implications
-
-- Prefer the repository's deterministic generator when it supports the approved composition.
-- Do not hand-author runtime behavior from the raw requirement.
-- Keep generated smoke mode to TODO/runtime wiring and runnable mode to reviewed synthetic behavior.
-- Preserve generator non-goals: no deploy scripts, private endpoints, credentials, customer data, organization-specific runtime code, or production business logic.
+At a durable boundary, use only schema-supported states: `not_started`, `active`, `waiting_for_input`, `waiting_for_review`, `complete`, `blocked`, `failed`, or `stale`. Keep required decisions open and the skill `waiting_for_input` when user selection is absent.
 
 ## Verification
 
-Run the phase-specific check and preserve command, exit code, output summary, and residual uncertainty. For artifact-sensitive phases:
+Run the phase-specific check and preserve command, cwd, exit code, concise output, bound revision, and residual uncertainty. At minimum for Work Item/artifact-sensitive work:
 
 ```bash
+node scripts/af.mjs work validate <work-id-or-path> [--root <path>]
 node scripts/validate-artifacts.mjs <artifact-root-or-proposed-dir>
+git status --short
+git diff --check
 ```
 
-Before handoff, inspect the write inventory and confirm no unrelated path changed.
+Before handoff, inspect the exact write inventory and confirm that no unrelated path changed.
 
 ## Stop conditions
 
-Stop when:
-
-- the Work Item root, external Codex session, or selected skill is ambiguous;
-- a predecessor artifact or required approval is absent;
-- candidate-level missing information remains unresolved;
-- a required runtime or A2A contract is not approved;
-- the requested action would skip a skill gate, write outside the allowed set, or turn a raw requirement into code;
-- the task requires product-code migration that is outside the authorized skill scope.
+Stop when identity or Plan Mode is ambiguous; a required decision is open; a gate binding is missing or stale; a handoff cannot be exactly claimed; a predecessor artifact is absent; candidate contract data remains unresolved; a requested action would skip review, escape write roots, auto-merge stale work, mutate the Registry without expected revision, or restore a legacy stage/manifest/alias/parser.
 
 ## Official sources checked
 
@@ -86,10 +101,12 @@ Stop when:
 - [Taxonomy](../../../docs/workbench/taxonomy.md)
 - [Graph IR](../../../docs/workbench/graph-ir.md)
 - [Work Item and External Codex](work-item-and-external-codex.md)
+- `schemas/af-work-item.schema.json`
+- `scripts/af.mjs`
 
 ## Checked date
 
-- Checked date: 2026-07-23
-- Official sources: Agent Factory active workbench documents
+- Checked date: 2026-07-24
+- Official sources: Agent Factory active workbench documents and current repository contracts
 - Installed package version: `google-adk 2.3.0`
-- Contract note: the four Work Skill IDs are the lifecycle labels; legacy stage labels are retired.
+- Contract note: the normal forward order remains gate-protected, but routing is re-entrant and revision-owned.
