@@ -11,14 +11,35 @@ export function emitAgentNode(target, context) {
   const sym = nodeSymbol(target);
   const instruction = agentInstruction(target, context);
   const toolsBlock = emitAgentTools(agentOwnedTools(context.graphContext, asset));
+  const mode = agentMode(target, context);
+  const modeBlock = mode ? `\n    mode=${toPyStr(mode)},` : "";
+  const subAgentsBlock = isRootAgentTarget(target, context)
+    ? emitSubAgents(context.rootExecutablePlan.delegatedAgentSymbols)
+    : "";
   return `${sym} = LlmAgent(
     name=${toPyStr(pyNodeName(target))},
     model=_model_for(${toPyStr(asset.asset_id)}, ${toPyStr(DEFAULT_MODEL)}),
     instruction=_agent_cfg_for_node(${toPyStr(target.node?.id ?? asset.asset_id)}, ${toPyStr(asset.asset_id)}, "instruction", ${toPyStr(instruction)}),
     description=${toPyStr(truncate(asset.name))},
-    output_key=${toPyStr(agentOutputStateKey(context.graphContext, asset))},
-    mode="single_turn",${toolsBlock}
+    output_key=${toPyStr(agentOutputStateKey(context.graphContext, asset))},${modeBlock}${subAgentsBlock}${toolsBlock}
 )`;
+}
+
+function agentMode(target, context) {
+  if (context.rootExecutablePlan?.assetType !== "agent") return "single_turn";
+  if (isRootAgentTarget(target, context)) return null;
+  return "task";
+}
+
+function isRootAgentTarget(target, context) {
+  return context.rootExecutablePlan?.assetType === "agent"
+    && target.node?.id === context.rootExecutablePlan.rootNodeId;
+}
+
+function emitSubAgents(symbols) {
+  if (!symbols.length) return "";
+  const rows = symbols.map((symbol) => `        ${symbol},`).join("\n");
+  return `\n    sub_agents=[\n${rows}\n    ],`;
 }
 
 function emitAgentTools(tools) {

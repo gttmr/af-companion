@@ -123,6 +123,8 @@ Scaffold consumes current approved artifacts, a reviewed scaffold plan with `raw
 
 Neither mode implies production integration or deployment. Source writes remain within approved roots; private endpoints, credentials, real customer data, deploy scripts, and organization-specific production logic are forbidden.
 
+Scaffold는 Work Item에 사용자가 확정한 Solution Control Strategy와 Root Executable을 보존한다. 설치된 `google-adk 2.3.0` 계약에 맞춰 Workflow Root는 `google.adk.workflow.Workflow`, Agent Root는 선택된 `BaseAgent` object로 생성하고, ADK가 요구하는 `root_agent` symbol은 그 exact object를 가리킨다. 생성 manifest에는 asset ref/version, decision ID, strategy와 generated symbol을 함께 기록한다. Strategy, Graph owner/profile, Root Type이 충돌하면 Compose로 되돌아가야 하며 Scaffold가 자동으로 Root나 전략을 바꾸지 않는다.
+
 ## 8. Verification
 
 Verification maps each claim to fresh evidence:

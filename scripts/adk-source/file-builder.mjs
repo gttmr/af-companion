@@ -38,7 +38,9 @@ export function buildFiles({
   scaffoldPlan,
   assets,
   outputMode,
-  packageName
+  packageName,
+  rootExecutablePlan,
+  solutionControlStrategy
 }) {
   const graphContext = { assets, graph };
   validateGraphCoverage(graphContext);
@@ -56,6 +58,8 @@ export function buildFiles({
     assets,
     outputMode,
     packageName,
+    rootExecutablePlan,
+    solutionControlStrategy,
     graphContext,
     a2aProviderEnabled,
     unconnectedTools,
@@ -90,7 +94,9 @@ export function buildFiles({
       packageName,
       graphContext,
       connectedTools,
-      toolConfigForAsset
+      toolConfigForAsset,
+      rootExecutablePlan,
+      solutionControlStrategy
     }),
     [`${packageName}/workflow.py`]: buildWorkflowPy(),
     [`${packageName}/schemas.py`]: buildSchemasPy({ assets, toolConnection }),
@@ -116,7 +122,9 @@ export function buildFiles({
         assets,
         graph,
         graphContext,
-        toolConfigForAsset
+        toolConfigForAsset,
+        rootExecutablePlan,
+        solutionControlStrategy
       }),
       null,
       2
@@ -125,7 +133,13 @@ export function buildFiles({
     "implementation-handoff.md": buildImplementationHandoff(supportContext),
     "runtime-chat-smoke.json": `${JSON.stringify(buildRuntimeChatSmoke(supportContext), null, 2)}\n`,
     [`${packageName}/tests/__init__.py`]: "",
-    [`${packageName}/tests/test_workflow_contract.py`]: buildContractTest({ outputMode, packageName, a2aProviderEnabled }),
+    [`${packageName}/tests/test_workflow_contract.py`]: buildContractTest({
+      outputMode,
+      packageName,
+      a2aProviderEnabled,
+      rootExecutablePlan,
+      solutionControlStrategy
+    }),
     "README.md": buildReadme(supportContext)
   };
   if (a2aProviderEnabled) {
@@ -156,7 +170,9 @@ function buildManifest({
   assets,
   graph,
   graphContext,
-  toolConfigForAsset
+  toolConfigForAsset,
+  rootExecutablePlan,
+  solutionControlStrategy
 }) {
   return buildSupportManifest({
     outputMode,
@@ -168,6 +184,8 @@ function buildManifest({
     scaffoldPlan,
     assets,
     graph,
+    rootExecutablePlan,
+    solutionControlStrategy,
     startNodeIds: () => startNodeIds(graphContext),
     terminalOutputIds: () => terminalOutputIds(graphContext),
     graphNodeSemantics: () => graphNodeSemantics(graphContext),

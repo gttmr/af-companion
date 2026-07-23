@@ -5,6 +5,7 @@ import { isDeepStrictEqual } from "node:util";
 import { validateAgainstSchema } from "../artifact-validation/json-schema.mjs";
 import { scaffoldAssetProjectionErrors } from "../artifact-validation/scaffold-asset-projection.mjs";
 import { toPythonIdentifier } from "./naming.mjs";
+import { resolveRootExecutablePlan } from "./root-executable.mjs";
 
 export const DEFAULT_MODEL = "hosted_vllm/local-model";
 export const GEMINI_FALLBACK_MODEL = "gemini-2.5-flash";
@@ -70,7 +71,16 @@ export function loadArtifactContext(artifactRoot) {
   const graph = scaffoldPlan.graph;
   const assetCandidates = analysisResult.assetCandidates;
   const assets = scaffoldPlan.assets;
-  validateWorkInputs({ analysisResult, analysisEtag, normalizedRequirement, graph, assetCandidates, workItem, scaffoldPlan, assets });
+  const rootExecutablePlan = validateWorkInputs({
+    analysisResult,
+    analysisEtag,
+    normalizedRequirement,
+    graph,
+    assetCandidates,
+    workItem,
+    scaffoldPlan,
+    assets
+  });
   assertSupportedToolTransports(assets);
 
   return {
@@ -81,6 +91,7 @@ export function loadArtifactContext(artifactRoot) {
     workItem,
     rootExecutable: workItem.root_executable,
     solutionControlStrategy: workItem.solution_control_strategy,
+    rootExecutablePlan,
     mockLabSpec,
     scaffoldPlan,
     assets,
@@ -321,6 +332,7 @@ function validateWorkInputs({ analysisResult, analysisEtag, normalizedRequiremen
   assertRequiredRuntimeContracts({ normalizedRequirement, graph, assets, contracts: scaffoldPlan.runtime_contracts });
   const blockers = scaffoldAssetProjectionErrors(assetCandidates, assets);
   if (blockers.length) throw new Error(`scaffold-plan.json includes unapproved or drifted assets: ${blockers.join("; ")}`);
+  return resolveRootExecutablePlan({ assets, graph, workItem });
 }
 
 function assertRequiredRuntimeContracts({ normalizedRequirement, graph, assets, contracts }) {

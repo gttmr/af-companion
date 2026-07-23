@@ -34,6 +34,19 @@ regions: []
 
 `workflow_ref`는 Graph 전체를 소유하는 Workflow 자산 참조다. 검토된 해가 standalone Agent 또는 Tool이면 반드시 `null`이다. Subworkflow Node의 `workflow_ref`와 Graph root의 `workflow_ref`를 혼동하지 않는다.
 
+## Solution Control Strategy와 Root Executable
+
+`solution_control_strategy`와 `root_executable`은 Graph shape에서 추론하는 값이 아니라 Work Item에 남는 서로 다른 사용자 결정이다. Root Executable은 Agent 또는 Workflow 자산이며, 생성기의 Python 변수명 `root_agent`는 ADK 진입점 관례일 뿐 Asset Type이 아니다.
+
+| Strategy | 현재 지원 Root | Compose 일관성 |
+| --- | --- | --- |
+| `single_agent` | Agent | Root Agent Node 하나와 Input/Output만 사용한다. Tool은 `available_tools`로 연결한다. |
+| `agent_delegation` | Agent | local Root Agent에서 한 개 이상의 reviewed Agent로 향하는 delegation edge를 둔다. |
+| `explicit_workflow` | Workflow | `graph.workflow_ref`가 Root Workflow와 같고 `workflow_profile.coordination: explicit`이다. |
+| `hybrid` | Agent 또는 Workflow | Agent root는 delegation topology, Workflow root는 `workflow_profile.coordination: mixed`를 사용한다. |
+
+Agent Root Graph는 `workflow_ref: null`이어야 한다. 현재 ADK 2.3 lowering에서 허용되는 edge는 channel 없는 `next` 중 `Input → Root Agent`, `Root Agent → Output`, `Root Agent → delegated Agent`뿐이다. 마지막 형태는 순차 Workflow 실행이 아니라 coordinator의 `task` sub-agent 관계다. Tool/Function/Human Input/Subworkflow/Join Node, 조건·분기·data channel이 필요하면 Workflow Root를 선택해야 하며 generator는 이를 암묵 변환하지 않는다.
+
 ## 권장 Node 종류
 
 `node_kind`는 다음 여덟 값만 허용한다.

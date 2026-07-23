@@ -17,10 +17,14 @@ import { componentContracts } from "./agent-contracts.mjs";
 import { emitRunnableNodeBlocks } from "./emitters/node-registry.mjs";
 import { buildRuntimeHelperSection } from "./emitters/runtime-helpers.mjs";
 import { buildDynamicRunnableAgentPy } from "./agent-dynamic.mjs";
+import { buildAgentRootPy } from "./agent-root.mjs";
 
 export function buildRunnableAgentPy(context) {
   const { analysisResult, assets, connectedTools, graphContext, normalizedRequirement, packageName } =
     context;
+  if (context.rootExecutablePlan.assetType === "agent") {
+    return buildAgentRootPy(context);
+  }
   if (hasDynamicRunnableShape(graphContext)) {
     return buildDynamicRunnableAgentPy(context);
   }
@@ -103,10 +107,11 @@ ${funcBlocks.join("\n\n")}${funcBlocks.length ? "\n\n\n" : ""}# ----------------
 ${nodeBlocks.join("\n\n")}
 ${joinDecls.length ? `\n${joinDecls.join("\n")}\n` : ""}
 
-root_agent = ${asyncResumeRootClass(context)}(
+root_executable = ${asyncResumeRootClass(context)}(
     name=${toPyStr(packageName)},
     description=${toPyStr(description)},
     edges=${edgeLiteral},
 )
+root_agent = root_executable
 `;
 }

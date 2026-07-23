@@ -90,11 +90,12 @@ ${funcBlocks.join("\n\n")}${funcBlocks.length ? "\n\n\n" : ""}
 ${nodeBlocks.join("\n\n")}
 ${dynamicWorkflow}
 
-root_agent = ${asyncResumeRootClass(context)}(
+root_executable = ${asyncResumeRootClass(context)}(
     name=${toPyStr(packageName)},
     description=${toPyStr(description)},
     edges=[(START, dynamic_workflow)],
 )
+root_agent = root_executable
 `;
 }
 

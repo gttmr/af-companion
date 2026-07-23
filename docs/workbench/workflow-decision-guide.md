@@ -124,11 +124,13 @@ flowchart TD
 
 외부 Codex의 `af-compose-solution`은 approved discovery에서 canonical `analysis-result.json`, `graph-ir.json`, `boundary-design.md`, `scaffold-plan.json`을 갱신한다. strict Graph와 candidate contract가 유효하지 않으면 composition review 또는 Scaffold Readiness가 성립하지 않는다.
 
-현재 generator는 Graph root의 `workflow_ref`가 가리키는 owning Workflow Profile만 보고 runnable mode를 선택한다. `graph`는 acyclic static Graph Workflow로, `dynamic`은 dynamic node를 포함한 Workflow로 생성한다. `unresolved`, dynamic-only child/edge, routed cycle이 `graph`와 함께 들어오면 mode를 바꾸지 않고 오류로 중단한다. standalone Graph(`workflow_ref: null`)은 static `graph`로 취급한다.
+현재 generator는 Work Item의 resolved 사용자 결정인 `solution_control_strategy`와 `root_executable`을 먼저 검증한다. Workflow Root는 Graph root의 `workflow_ref`와 exact match해야 하고 owning Workflow Profile이 runnable mode를 선택한다. `graph`는 acyclic static Graph Workflow로, `dynamic`은 dynamic node를 포함한 Workflow로 생성한다. `unresolved`, dynamic-only child/edge, routed cycle이 `graph`와 함께 들어오면 mode를 바꾸지 않고 오류로 중단한다.
+
+Agent Root는 `workflow_ref: null`인 standalone topology만 받는다. `single_agent`는 선택된 Agent object를 그대로 ADK `root_agent`에 연결하고, `agent_delegation`과 Agent-root `hybrid`는 선택된 local `LlmAgent`를 coordinator로 두어 reviewed subordinate Agent를 `mode="task"` sub-agent로 연결한다. Workflow-owned Node나 edge 의미가 섞이면 Workflow로 조용히 감싸지 않고 Compose mismatch로 중단한다. Workflow-root `hybrid`는 owning Workflow의 `coordination: mixed`를 요구한다.
 
 ### Source locators
 
-2026-07-23 현재 working tree에서 다음을 재확인했다.
+2026-07-24 현재 working tree에서 다음을 재확인했다.
 
 | 행동 | Path | Stable symbol |
 | --- | --- | --- |
@@ -139,3 +141,5 @@ flowchart TD
 | Graph-only web write | `packages/web/server/workItemApi.ts` | `saveGraph`, `invalidateAfterGraphChange` |
 | Workflow JSON Schema | `schemas/asset-candidate.schema.json` | `workflowProfile`, `allOf` Workflow 제약 |
 | ADK representation 선택 | `scripts/adk-source/graph/dynamic.mjs` | `runnableWorkflowRepresentation`, `assertStaticGraphRepresentationSupported` |
+| Strategy/Root 일관성 및 root symbol | `scripts/adk-source/root-executable.mjs` | `resolveRootExecutablePlan` |
+| Agent Root ADK lowering | `scripts/adk-source/agent-root.mjs` | `buildAgentRootPy` |

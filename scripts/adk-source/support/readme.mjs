@@ -4,14 +4,14 @@ import { remoteA2aEnvVars, remoteA2aRuntimeRows } from "../remote-a2a.mjs";
 import { sampleConversationTranscript } from "./samples.mjs";
 
 export function buildReadme(context) {
-  const { normalizedRequirement, outputMode, packageName } = context;
+  const { normalizedRequirement, outputMode, packageName, rootExecutablePlan, solutionControlStrategy } = context;
   const runtimeEnvPath = runtimeEnvRelativePath(context);
   const runtimeEnvDir = posixDirname(runtimeEnvPath);
   const runtimeRequirementsPath = runtimeRequirementsRelativePath(context);
   if (outputMode === "runnable") {
     return `# ${packageName}
 
-${normalizedRequirement.title}의 승인된 scaffold-plan.json에서 생성한 runnable ADK 2.3 Workflow입니다.
+${normalizedRequirement.title}의 승인된 scaffold-plan.json에서 생성한 runnable ADK 2.3 Runtime Handoff입니다.
 
 \`\`\`bash
 # repository root
@@ -30,7 +30,8 @@ Windows에서는 \`py -3 -m venv .agent-factory\\runtime\\.venv\` 후 \`.agent-f
 
 ## 이 번들의 역할
 
-- \`root_agent\`는 \`google.adk.workflow.Workflow\` graph입니다. Agent node는 runtime env에 따라
+- \`root_agent\`는 선택된 Root Executable \`${rootExecutablePlan.assetRef}@${rootExecutablePlan.assetVersion}\`의 ADK ${rootExecutablePlan.assetType === "workflow" ? "`Workflow`" : "`BaseAgent`"} object를 가리킵니다. 선택된 Solution Control Strategy는 \`${solutionControlStrategy}\`입니다.
+- Agent node는 runtime env에 따라
   vLLM(OpenAI-compatible, \`LiteLlm\`) 또는 Gemini fallback을 쓰는 \`LlmAgent\`이고, Tool node는 deterministic
   \`FunctionNode\`입니다.
 - graph는 **synthetic input만** 사용합니다. private endpoint, credential, 실제 고객 데이터는 포함하지 않습니다.

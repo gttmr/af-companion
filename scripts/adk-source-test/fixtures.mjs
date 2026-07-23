@@ -115,7 +115,15 @@ export function targetEdge(from, to, kind = "next", patch = {}) {
   };
 }
 
-export function writeTargetArtifacts(dir, { requirement, assets, graph, runnable, a2aContracts = [], runtimeContracts = [] }) {
+export function writeTargetArtifacts(dir, {
+  requirement,
+  assets,
+  graph,
+  runnable,
+  a2aContracts = [],
+  runtimeContracts = [],
+  rootOptions = {}
+}) {
   const strictRequirement = targetRequirement(requirement.id, requirement);
   const strictAssets = assets.map((asset) => ({ ...asset, source_requirement_id: strictRequirement.id }));
   const analysisPath = join(dir, "analysis-result.json");
@@ -141,7 +149,7 @@ export function writeTargetArtifacts(dir, { requirement, assets, graph, runnable
     manifest: { catalog_bound_assets: [], new_code_required: [] },
     validation: { can_generate_source: true, blockers: [], warnings: [] }
   });
-  writeJson(join(dir, "af-work-item.json"), targetWorkItem(dir));
+  writeJson(join(dir, "af-work-item.json"), targetWorkItem(dir, rootOptions));
 }
 
 export function targetWorkItem(root, options = {}) {
@@ -150,10 +158,11 @@ export function targetWorkItem(root, options = {}) {
   const scaffoldPath = join(root, "scaffold-plan.json");
   const analysis = JSON.parse(readFileSync(analysisPath));
   const scaffoldPlan = JSON.parse(readFileSync(scaffoldPath));
-  if (!analysis.assetCandidates.some((asset) => asset.asset_type === "agent" || asset.asset_type === "workflow")) {
+  if (shouldInjectFixtureWorkflow(analysis, options)) {
     const fixtureRoot = targetAsset("workflow.fixture-root", "workflow", {
       source_requirement_id: analysis.normalizedRequirement.id,
-      name: "Fixture Root Workflow"
+      name: "Fixture Root Workflow",
+      workflow_profile: { representation: "graph", coordination: "explicit", template_ref: null }
     });
     analysis.assetCandidates.push(fixtureRoot);
     scaffoldPlan.assets.push(structuredClone(fixtureRoot));
@@ -168,8 +177,9 @@ export function targetWorkItem(root, options = {}) {
   const registryPath = join(repoRoot, "catalog/asset-registry.json");
   const registrySource = readFileSync(registryPath);
   const registryRevision = loadSnapshot(registryPath).registry_revision;
-  const rootAsset = chooseRootAsset(analysis);
-  const solutionControlStrategy = rootAsset.asset_type === "workflow" ? "explicit_workflow" : "single_agent";
+  const rootAsset = chooseRootAsset(analysis, options.rootAssetId);
+  const solutionControlStrategy = options.solutionControlStrategy
+    ?? (rootAsset.asset_type === "workflow" ? "explicit_workflow" : "single_agent");
   const decisions = targetDecisions(rootAsset, solutionControlStrategy);
   const assetDecisions = [];
   const requirementRevision = targetRevision([
@@ -345,13 +355,24 @@ export function refreshCompositionReviewEtag(root) {
   writeJson(join(root, "af-work-item.json"), targetWorkItem(root));
 }
 
-function chooseRootAsset(analysis) {
-  const rootRef = analysis.graph.workflow_ref;
+function chooseRootAsset(analysis, explicitRootAssetId = null) {
+  const rootRef = explicitRootAssetId ?? analysis.graph.workflow_ref;
   const rootAsset = rootRef
-    ? analysis.assetCandidates.find((asset) => asset.asset_id === rootRef && asset.asset_type === "workflow")
+    ? analysis.assetCandidates.find((asset) => asset.asset_id === rootRef)
     : analysis.assetCandidates.find((asset) => asset.asset_type === "agent");
   if (!rootAsset) throw new Error("fixture requires an Agent or Workflow root executable");
+  if (rootAsset.asset_type !== "agent" && rootAsset.asset_type !== "workflow") {
+    throw new Error("fixture root executable must be an Agent or Workflow asset");
+  }
   return rootAsset;
+}
+
+function shouldInjectFixtureWorkflow(analysis, options) {
+  if (options.rootAssetId || analysis.graph.workflow_ref) return false;
+  const agentNodes = analysis.graph.nodes.filter((node) => node.node_kind === "agent");
+  const standaloneAgentShape = agentNodes.length === 1
+    && analysis.graph.nodes.every((node) => ["input", "output", "agent"].includes(node.node_kind));
+  return !standaloneAgentShape;
 }
 
 function targetDecisions(rootAsset, solutionControlStrategy) {
