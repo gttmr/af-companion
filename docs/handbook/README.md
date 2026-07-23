@@ -2,7 +2,7 @@
 
 The Handbook maps current product behavior to source. It is a navigation aid, not authority over the code.
 
-Current survey date: 2026-07-23.
+Current survey date: 2026-07-24.
 
 ## Reading path
 
@@ -16,7 +16,7 @@ Current survey date: 2026-07-23.
    - [Scaffold projection](work/scaffold-runtime.md)
    - [Verify projection](work/verify-runtime.md)
    - [Live companion](work/live-companion.md)
-   - [Read-only Assets](work/assets-projection.md)
+   - [Asset Registry](work/assets-projection.md)
 5. [Coverage](coverage.md) and [maintenance](maintenance.md)
 
 Before relying on a locator, open the current file and confirm symbol, caller, input, output, and side effects.

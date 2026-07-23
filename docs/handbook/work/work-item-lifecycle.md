@@ -1,17 +1,16 @@
 # Work Item Lifecycle
 
-`af-work-item.json` is parsed by `parseAfWorkItemManifest` in `packages/web/src/analyzer/afWorkItem.ts` and persisted/read through `ArtifactRootStore`.
+`parseAfWorkItemManifest` in `packages/web/src/analyzer/afWorkItem.ts` parses strict `schema_version: 2`; `ArtifactRootStore` persists it with ETag and canonical write locking.
 
-The parser rejects unknown or missing fields and enforces:
+The parser rejects unknown/missing fields, v1 input, ambiguous identifiers, unsorted or empty revision subjects, invalid digests, stale gates that pretend to be current, incomplete user decisions, duplicate handoff claims, and inconsistent Verify completion. It models:
 
-- approved Discover must be complete;
-- Compose start requires approved Discover;
-- approved Compose must be complete;
-- Scaffold start requires approved Compose;
-- Verify start requires complete Scaffold;
-- Verify complete and `verification.outcome: passed` imply each other;
-- `active_skill` cannot point at `not_started`.
+- `focus_skill` separately from zero or more `active_runs`;
+- revisioned skill inputs/outputs and `stale` status;
+- append-preserved discovery/composition cycles and Return-to-Discover records;
+- required decisions, Asset dispositions, Solution Control Strategy, and Root Executable;
+- exact discovery/composition gate bindings;
+- invalidations, session handoffs, and verification evidence.
 
-`schemas/af-work-item.schema.json` and `scripts/validate-artifacts.mjs` enforce the same public shape/order. `WorkspaceHome` lists only roots with readable valid Work Items.
+Compose may return to Discover; no global forward-order assertion forbids that. Current approved discovery still gates composition review, current approved composition gates Scaffold, and Verify complete is equivalent to a fresh `passed` outcome.
 
-The browser has no lifecycle mutation. Graph PUT may reset composition/downstream state because that canonical edit invalidates prior evidence.
+`schemas/af-work-item.schema.json`, `scripts/validate-artifacts.mjs`, and `scripts/af.mjs work validate` enforce the same public shape. `WorkspaceHome` lists only roots with readable valid Work Items. The browser has no general lifecycle mutation; Graph PUT creates a new composition revision/cycle and marks dependent evidence stale without deleting history.

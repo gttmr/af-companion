@@ -108,12 +108,13 @@ metadata into that context. The supported Companion contract is therefore:
 5. Missing or ambiguous markers never select the first active session. Web and
    CLI expose an explicit attach fallback.
 
-This path remains **partially verified** until the bridge implementation proves
-two distinct session IDs, one Work Item, matching plan hash, Activity
-continuity, and duplicate-claim rejection. The spike deliberately does not
-claim that the current Codex UI performs the marker copy automatically.
+The implemented bridge integration tests now prove two distinct session IDs,
+one Work Item, matching Plan hash and revisions, exact first-prompt claim,
+Activity continuity, expiry, same-session/subagent rejection, and duplicate
+prevention. The implementation still does not claim that the Codex UI copies
+the marker automatically; marker carriage is an explicit user/session action.
 
-## Architecture decision draft
+## Architecture decision
 
 - Primary identity is `work_id`; sessions are attached actors.
 - `af-work-item.json` is a breaking v2 contract. No v1 reader or migration shim
@@ -128,6 +129,68 @@ claim that the current Codex UI performs the marker copy automatically.
   replacement; published versions are immutable.
 - The five canonical Work Skill IDs remain, but their routing and procedures
   become re-entrant and revision-aware.
+
+## Phase 2 — Work Item v2 evidence
+
+- Schema, TypeScript parser, blank template, root validator, and `scripts/af.mjs`
+  accept only breaking `schema_version: 2`.
+- `focus_skill`, concurrent `active_runs`, content-addressed revisions,
+  discovery/composition cycles, required decisions, Asset dispositions, Root,
+  exact gate bindings, invalidations, handoffs, and stale outcomes are explicit.
+- Parser tests cover re-entry, stale gates, user provenance, revision ordering,
+  duplicate IDs/claims, separate strategy/Root decisions, and Verify coherence.
+- v1, `active_skill`, silent backfill, and linear-order compatibility are rejected.
+
+## Phase 3 — fresh-session handoff evidence
+
+- Bridge and facade create a pending handoff only from an observed active
+  Plan-mode session and exact latest turn.
+- The signed marker binds Work Item, handoff, discovery/decision revisions,
+  Plan hash, target, and claim token; it is expiring and consume-once.
+- Hook tests prove exact claim in a distinct session and reject missing,
+  malformed, ambiguous, mismatched, same-session, subagent, expired, and
+  duplicate claims.
+- `/connections` and `scripts/af.mjs work attach-session` attach only an
+  explicitly named active session.
+
+## Phase 4 — Asset Registry foundation evidence
+
+- `catalog/asset-registry.json` is the only canonical Asset store; migrated
+  strict Target assets retain their removed YAML location only as historical
+  `git:<commit>:<path>` seed provenance.
+- `AssetRegistryService` owns strict contracts, hashes, exact versions,
+  deterministic search, L0/L1/L2, usage, compare, draft/review/publish/deprecate,
+  process locking, revision conflict, and atomic replacement.
+- Published versions are immutable and published dependencies must resolve to
+  exact published versions.
+- Web API, root CLI, generator, and Mock Lab prefill all use the shared core.
+
+## Phase 5 — Registry and lifecycle UI evidence
+
+- `/assets` browses/searches Agent·Workflow·Tool, exposes compatibility facts,
+  exact version detail/usage/compare, validates contracts, and performs guarded
+  draft/review/publish/deprecate operations.
+- Discover projects cycles, decisions, Asset matches/dispositions, strategy,
+  Root, Registry revision, and Plan/materialization handoff.
+- Compose projects readiness, Root/Asset decisions, Return-to-Discover, active
+  invalidations, and preserves the guarded Graph editor.
+- Connections projects capability, Work Item/role/cwd/last-seen, handoffs,
+  deliveries, and explicit session attach.
+- Fixed-port browser checks covered Discover, Compose, Connections, and narrow
+  viewport overflow with zero console errors or warnings.
+
+## Phase 6 — Work Skill evidence
+
+- `af-discover-assets` requires actual Plan mode for Phase A, performs no tracked
+  writes there, uses Repository/Handbook/Registry evidence before questions,
+  leaves required decisions open, and materializes only in a fresh session.
+- `af-compose-solution` consumes exact approved decisions/Assets/Root and owns a
+  structured Return-to-Discover instead of deleting or auto-merging history.
+- `af-workflow` routes by current evidence, revisions, gates, invalidations, and
+  handoffs instead of fixed forward order.
+- Scaffold and Verify enforce exact revisions/Assets and route failures by
+  evidence ownership. Verify no longer creates a Catalog delta.
+- All five skills pass the skill-creator validator and repository skill validator.
 
 ## Phase 7 — Scaffold alignment evidence
 
@@ -157,12 +220,34 @@ Current generator behavior now validates and preserves both decision axes.
   both Hybrid Root choices, smoke/runnable output, generated contract tests,
   and the installed `google-adk 2.3.0` runtime types.
 
+## Phase 8 — re-entry and invalidation evidence
+
+- Graph saves create a new composition cycle/revision, supersede but preserve
+  prior cycles, retain stale gate bindings, mark dependent Scaffold/Verify
+  evidence stale, and append structured invalidations.
+- New discovery revisions and Return-to-Discover records preserve prior
+  discovery/composition history; Compose must compare revisions and does not
+  automatically merge an old Graph.
+- Work Item tests and web companion tests cover non-linear routing and Graph
+  invalidation without a destructive reset to `not_started`.
+
+## Phase 9 — legacy and documentation evidence
+
+- YAML asset buckets, `/api/catalog`, the old Catalog adapter/query/parser/seed
+  code, direct Catalog-delta write allowance, and YAML dependencies are removed.
+- Rejection tests keep those paths absent; no compatibility parser or alias was
+  added.
+- Active contributor contracts, Operating Model, taxonomy locators, Companion,
+  security/review/validation guides, design system, Mock Lab guide, root status,
+  and source-backed Handbook now point at current source.
+
 ## Next proof gates
 
-1. Land the strict Work Item v2 schema, parser, validator, template, and CLI
-   helper tests.
-2. Implement handoff marker creation, exact claim, manual attach, expiry, and
-   duplicate prevention; run the two-session integration probe.
-3. Implement the Registry service before rewriting Discover.
-4. Update each active owning document and Handbook locator in the same commit
-   slice as its source contract.
+1. Run fresh-context, no-answer-leakage forward tests against all changed Work
+   Skill routing/gates and close every subagent.
+2. Run the bounded 128k-local-model scenario and record prompt/context size plus
+   the L0/L1/L2 reduction evidence.
+3. Rerun all root, Web, Mock Lab, skill, artifact, CLI, generator, and browser
+   verification gates from the final tree.
+4. Complete the legacy/source-locator audit and final Work Order report without
+   pushing the branch.

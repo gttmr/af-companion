@@ -2,15 +2,15 @@
 
 | Register | Producer | Consumer | Persistence and boundary | Source |
 | --- | --- | --- | --- | --- |
-| Work Item | external Codex Work Skills; web Graph invalidation | all Work Skill screens, generator | `artifacts/af/<work-id>/af-work-item.json`; strict four-skill ledger | `packages/web/src/analyzer/afWorkItem.ts`, `packages/web/server/artifactRootStore.ts` |
-| Analysis aggregate | Discover/Compose external Codex | Discover/Compose UI, validator, generator | strict v2 `analysis-result.json`; canonical aggregate | `packages/web/src/analyzer/targetAnalysisResult.ts`, `scripts/validate-artifacts.mjs` |
-| Candidate/requirement splits | Discover external Codex | projection and validator | `normalized-requirement.json`, `asset-candidates.json` | schemas and validator |
-| Graph IR | Compose external Codex or web Graph PUT | Compose UI, validator, generator | embedded Graph and `graph-ir.json`; web ETag guarded | `packages/web/server/workItemApi.ts`, `GraphCanvas.tsx` |
-| Composition notes/plan | Compose external Codex | Scaffold skill/UI/generator | `boundary-design.md`, `scaffold-plan.json` | `scripts/adk-source/context.mjs` |
-| Runtime source/handoff | Scaffold external Codex | Scaffold/Verify projection | explicit output roots and `implementation-handoff.md` | `scripts/generate-adk-source.mjs`, `ScaffoldWorkspace.tsx` |
-| Verification | Verify external Codex | Verify UI and lifecycle outcome | `validation-report.md`, optional `catalog-delta.yaml` | `VerifyWorkspace.tsx`, Work Item schema |
-| Catalog | reviewed repository files | Assets UI and reuse checks | `catalog/agents.yaml`, `workflows.yaml`, `tools.yaml`; app read-only | `packages/web/server/afCatalogApi.ts` |
-| Codex bridge | project/plugin Hooks and companion facade | Connections/live rail and next prompt | ignored `.agent-factory/codex-bridge/v1`; bounded metadata | `codexBridgeStore.ts` |
+| Work Item v2 | external Codex Work Skills; web Graph invalidation | router, all Work Skill screens, validator, generator | `artifacts/af/<work-id>/af-work-item.json`; strict breaking v2 | `packages/web/src/analyzer/afWorkItem.ts`, `schemas/af-work-item.schema.json` |
+| Revisions and decisions | external Codex; web Graph revision helper | review gates, Scaffold, Verify, UI | content-addressed subjects, Registry revision, user provenance inside Work Item | `packages/web/server/workItemRevision.ts`, `afWorkItem.ts` |
+| Analysis aggregate/splits | Discover/Compose external Codex | Discover/Compose UI, validator, generator | strict Target v2 `analysis-result.json`, `normalized-requirement.json`, `asset-candidates.json` | `targetAnalysisResult.ts`, `scripts/validate-artifacts.mjs` |
+| Graph IR | Compose external Codex or guarded web Graph PUT | Compose UI, validator, generator | embedded Graph plus `graph-ir.json`; ETag/revision guarded | `packages/web/server/workItemApi.ts`, `GraphCanvas.tsx` |
+| Composition notes/plan | Compose external Codex | Scaffold skill/UI/generator | `boundary-design.md`, `scaffold-plan.json`; bound to current composition | `scripts/adk-source/context.mjs` |
+| Runtime source/handoff | Scaffold external Codex | Scaffold/Verify projection | approved output roots and `implementation-handoff.md` | `scripts/generate-adk-source.mjs`, `ScaffoldWorkspace.tsx` |
+| Verification | Verify external Codex | Verify UI and lifecycle outcome | `validation-report.md` plus approved evidence refs; no Catalog delta | `VerifyWorkspace.tsx`, Work Item schema |
+| Asset Registry | shared Registry service through guarded Web/CLI | Discover search, Assets UI, generator, Mock Lab prefill | `catalog/asset-registry.json`; exact versions, lifecycle decisions, atomic revision writes | `packages/agent-factory-core/src/assetRegistry.ts` |
+| Codex bridge | project/plugin Hooks and companion facade | Connections/Discover/live rail and next prompt | ignored `.agent-factory/codex-bridge/v1`; bounded sessions, handoffs, receipts, deliveries | `codexBridgeStore.ts` |
 | Workspace activity | filesystem/Git/bridge projection | live rail | ignored `.agent-factory/workspace-projection/activity.json`; metadata only | `workspaceProjection.ts` |
 
-The browser does not persist lifecycle truth in localStorage and does not write Catalog seeds, source, review decisions, or verification results.
+The browser does not persist lifecycle truth in localStorage and does not write Work Item decisions, source, review gates, or verification results. Its canonical write boundary is Graph IR plus revision-checked Asset Registry lifecycle operations.
