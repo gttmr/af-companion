@@ -1,11 +1,13 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
-import { access, realpath, stat } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { release as osRelease } from "node:os";
-import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 
 import type { CodexEditorCapabilities, VscodeLaunchReceipt } from "../src/companion/types.ts";
+import type { EditorOpenReceipt } from "../src/workspace/types.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -127,6 +129,72 @@ export class VscodeWorkspaceLauncher {
     }
   }
 
+  async openFile(relativePath: string, line?: number): Promise<EditorOpenReceipt> {
+    const { executable, canonicalRoot } = await this.#trustedExecutable();
+    const absolutePath = await resolveContainedWorkspaceFile(canonicalRoot, relativePath, true);
+    const normalizedLine = line === undefined ? null : normalizeLine(line);
+    const target = normalizedLine === null ? absolutePath : `${absolutePath}:${normalizedLine}`;
+    await this.#runOpen(executable, canonicalRoot, ["--reuse-window", "--goto", target]);
+    return {
+      status: "accepted",
+      mode: "file",
+      path: relativePath,
+      opened_at: this.#now().toISOString(),
+    };
+  }
+
+  async openDiff(relativePath: string): Promise<EditorOpenReceipt> {
+    const { executable, canonicalRoot } = await this.#trustedExecutable();
+    const absolutePath = await resolveContainedWorkspaceFile(canonicalRoot, relativePath, false);
+    const currentExists = await stat(absolutePath).then((value) => value.isFile(), () => false);
+    const base = await readHeadVersion(canonicalRoot, relativePath);
+    if (!currentExists && base === null) {
+      throw new VscodeWorkspaceLauncherError(404, "file_not_found", "Diff 대상을 찾을 수 없습니다");
+    }
+    const diffDir = join(canonicalRoot, ".agent-factory", "editor-diffs");
+    await mkdir(diffDir, { recursive: true, mode: 0o700 });
+    await chmod(diffDir, 0o700);
+    const key = createHash("sha256").update(relativePath).digest("hex").slice(0, 16);
+    const label = basename(relativePath).replace(/[^A-Za-z0-9_.-]/g, "_") || "file";
+    const basePath = join(diffDir, `${key}.HEAD.${label}`);
+    const workingPath = currentExists ? absolutePath : join(diffDir, `${key}.WORKTREE.${label}`);
+    await writeFile(basePath, base ?? "", { encoding: "utf8", mode: 0o600 });
+    if (!currentExists) await writeFile(workingPath, "", { encoding: "utf8", mode: 0o600 });
+    await this.#runOpen(executable, canonicalRoot, ["--reuse-window", "--diff", basePath, workingPath]);
+    return {
+      status: "accepted",
+      mode: "diff",
+      path: relativePath,
+      opened_at: this.#now().toISOString(),
+    };
+  }
+
+  async #trustedExecutable(): Promise<{ executable: string; canonicalRoot: string }> {
+    const editor = await this.probe();
+    const executable = this.#probeCache?.executable ?? null;
+    if (!editor.code_available || !executable) {
+      throw new VscodeWorkspaceLauncherError(503, "code_unavailable", "A trusted host VS Code executable is unavailable");
+    }
+    return { executable, canonicalRoot: await this.#canonicalRoot };
+  }
+
+  async #runOpen(executable: string, canonicalRoot: string, args: string[]): Promise<void> {
+    try {
+      await execFileAsync(executable, args, {
+        cwd: canonicalRoot,
+        encoding: "utf8",
+        env: this.#env,
+        maxBuffer: 64 * 1_024,
+        shell: false,
+        timeout: this.#launchTimeoutMs,
+        windowsHide: true,
+      });
+    } catch {
+      this.#probeCache = null;
+      throw new VscodeWorkspaceLauncherError(503, "code_open_failed", "VS Code에서 대상을 열지 못했습니다");
+    }
+  }
+
   async #probeFresh(): Promise<CodexEditorCapabilities> {
     const canonicalRoot = await this.#canonicalRoot;
     const executable = await resolveHostCodeExecutable(canonicalRoot, this.#env);
@@ -178,6 +246,47 @@ export class VscodeWorkspaceLauncher {
       executable: codeAvailable ? executable : null,
     };
     return value;
+  }
+}
+
+async function resolveContainedWorkspaceFile(root: string, relativePath: string, mustExist: boolean): Promise<string> {
+  if (typeof relativePath !== "string" || !relativePath.trim() || isAbsolute(relativePath) || relativePath.includes("\0")) {
+    throw new VscodeWorkspaceLauncherError(400, "invalid_path", "Workspace 상대 경로가 필요합니다");
+  }
+  const absolutePath = resolve(root, relativePath);
+  if (!isContainedPath(root, absolutePath)) {
+    throw new VscodeWorkspaceLauncherError(403, "path_outside_workspace", "Workspace 밖의 파일은 열 수 없습니다");
+  }
+  const info = await stat(absolutePath).catch(() => null);
+  if (mustExist && !info?.isFile()) {
+    throw new VscodeWorkspaceLauncherError(404, "file_not_found", "파일을 찾을 수 없습니다");
+  }
+  if (info) {
+    const canonicalPath = await realpath(absolutePath);
+    if (!isContainedPath(root, canonicalPath)) {
+      throw new VscodeWorkspaceLauncherError(403, "path_outside_workspace", "Workspace 밖의 파일은 열 수 없습니다");
+    }
+  }
+  return absolutePath;
+}
+
+function normalizeLine(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > 10_000_000) {
+    throw new VscodeWorkspaceLauncherError(400, "invalid_line", "line은 양의 정수여야 합니다");
+  }
+  return value;
+}
+
+async function readHeadVersion(repoRoot: string, relativePath: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync("git", ["show", `HEAD:${relativePath.split(sep).join("/")}`], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      maxBuffer: 4 * 1_024 * 1_024,
+    });
+    return stdout;
+  } catch {
+    return null;
   }
 }
 

@@ -3,10 +3,11 @@ import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import {
-  parseAfRunManifest,
-  serializeAfRunManifest,
-  type AfRunManifest
-} from "../src/analyzer/afRunManifest";
+  createAfWorkItemManifest,
+  parseAfWorkItemManifest,
+  serializeAfWorkItemManifest,
+  type AfWorkItemManifest
+} from "../src/analyzer/afWorkItem";
 
 export const REQ_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 
@@ -26,10 +27,12 @@ export interface ArtifactWriteResult {
 }
 
 export interface ArtifactRootSummary {
-  requirement_id: string;
+  work_id: string;
   artifact_root: string;
-  current_stage: AfRunManifest["current_stage"];
-  approvals: AfRunManifest["approvals"];
+  active_skill: AfWorkItemManifest["active_skill"];
+  skills: AfWorkItemManifest["skills"];
+  review_gates: AfWorkItemManifest["review_gates"];
+  verification: AfWorkItemManifest["verification"];
   updated_at: string;
 }
 
@@ -56,7 +59,7 @@ export class ArtifactConflictError extends Error {
 }
 
 const WRITE_WHITELIST: RegExp[] = [
-  /^af-run-manifest\.json$/,
+  /^af-work-item\.json$/,
   /^analysis-result\.json$/,
   /^normalized-requirement\.json$/,
   /^asset-candidates\.json$/,
@@ -66,8 +69,7 @@ const WRITE_WHITELIST: RegExp[] = [
   /^boundary-design\.md$/,
   /^implementation-handoff\.md$/,
   /^validation-report\.md$/,
-  /^catalog-delta\.yaml$/,
-  /^collaboration\/(comments|highlights)\.json$/
+  /^catalog-delta\.yaml$/
 ];
 
 const READ_WHITELIST: RegExp[] = [
@@ -148,17 +150,19 @@ export class ArtifactRootStore {
       const dir = join(this.artifactsRoot, name);
       const dirStat = await stat(dir).catch(() => null);
       if (!dirStat?.isDirectory()) continue;
-      const manifestPath = join(dir, "af-run-manifest.json");
+      const manifestPath = join(dir, "af-work-item.json");
       const fileStat = await stat(manifestPath).catch(() => null);
       if (!fileStat) continue;
       try {
         const text = await readFile(manifestPath, "utf8");
-        const manifest = parseAfRunManifest(text, "af-run-manifest.json");
+        const manifest = parseAfWorkItemManifest(text, "af-work-item.json");
         summaries.push({
-          requirement_id: manifest.requirement_id,
+          work_id: manifest.work_id,
           artifact_root: `artifacts/af/${name}`,
-          current_stage: manifest.current_stage,
-          approvals: manifest.approvals,
+          active_skill: manifest.active_skill,
+          skills: manifest.skills,
+          review_gates: manifest.review_gates,
+          verification: manifest.verification,
           updated_at: fileStat.mtime.toISOString()
         });
       } catch {
@@ -169,35 +173,18 @@ export class ArtifactRootStore {
     return summaries;
   }
 
-  async createRoot(reqId: string): Promise<{ requirement_id: string; artifact_root: string }> {
+  async createWorkItem(reqId: string): Promise<{ work_id: string; artifact_root: string }> {
     return await this.withCanonicalWriteLock(reqId, async () => {
       const rootDir = this.resolveRootDir(reqId);
-      const manifestPath = join(rootDir, "af-run-manifest.json");
+      const manifestPath = join(rootDir, "af-work-item.json");
       const existing = await stat(manifestPath).catch(() => null);
       if (existing) {
-        throw new ArtifactValidationError(409, `이미 존재하는 requirement_id 입니다: ${reqId}`);
+        throw new ArtifactValidationError(409, `이미 존재하는 work_id 입니다: ${reqId}`);
       }
       await mkdir(rootDir, { recursive: true });
-      const manifest: AfRunManifest = {
-        requirement_id: reqId,
-        artifact_root: `artifacts/af/${reqId}`,
-        current_stage: "analyze",
-        stages: {
-          analyze: { status: "pending", outputs: [] },
-          design: { status: "pending", outputs: [] },
-          build: { status: "pending", outputs: [] },
-          verify: { status: "pending", outputs: [] }
-        },
-        approvals: {
-          analysis_reviewed: false,
-          boundaries_approved: false,
-          runtime_contracts_approved: false,
-          stub_ready_for_followup: false
-        },
-        validation: { commands: [], last_result: "not_run" }
-      };
-      await writeFile(manifestPath, serializeAfRunManifest(manifest), "utf8");
-      return { requirement_id: reqId, artifact_root: manifest.artifact_root };
+      const manifest = createAfWorkItemManifest(reqId);
+      await writeFile(manifestPath, serializeAfWorkItemManifest(manifest), "utf8");
+      return { work_id: reqId, artifact_root: manifest.artifact_root };
     });
   }
 
@@ -253,44 +240,44 @@ export class ArtifactRootStore {
     });
   }
 
-  async readManifest(reqId: string): Promise<{ manifest: AfRunManifest; etag: string }> {
-    const result = await this.readArtifact(reqId, "af-run-manifest.json");
-    let manifest: AfRunManifest;
+  async readWorkItem(reqId: string): Promise<{ manifest: AfWorkItemManifest; etag: string }> {
+    const result = await this.readArtifact(reqId, "af-work-item.json");
+    let manifest: AfWorkItemManifest;
     try {
-      manifest = parseAfRunManifest(result.content);
+      manifest = parseAfWorkItemManifest(result.content);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      throw new ArtifactValidationError(422, `af-run-manifest.json 검증 실패: ${detail}`);
+      throw new ArtifactValidationError(422, `af-work-item.json 검증 실패: ${detail}`);
     }
-    if (manifest.requirement_id !== reqId) {
+    if (manifest.work_id !== reqId) {
       throw new ArtifactValidationError(
         422,
-        `af-run-manifest.json requirement_id가 artifact root와 일치하지 않습니다: ${manifest.requirement_id} != ${reqId}`
+        `af-work-item.json work_id가 artifact root와 일치하지 않습니다: ${manifest.work_id} != ${reqId}`
       );
     }
     const expectedRoot = `artifacts/af/${reqId}`;
     if (manifest.artifact_root !== expectedRoot) {
       throw new ArtifactValidationError(
         422,
-        `af-run-manifest.json artifact_root가 canonical 경로와 일치하지 않습니다: ${manifest.artifact_root} != ${expectedRoot}`
+        `af-work-item.json artifact_root가 canonical 경로와 일치하지 않습니다: ${manifest.artifact_root} != ${expectedRoot}`
       );
     }
     return { manifest, etag: result.etag };
   }
 
-  async writeManifest(
+  async writeWorkItem(
     reqId: string,
-    manifest: AfRunManifest,
+    manifest: AfWorkItemManifest,
     ifMatch?: string | null
   ): Promise<ArtifactWriteResult> {
-    return this.writeArtifact(reqId, "af-run-manifest.json", serializeAfRunManifest(manifest), ifMatch);
+    return this.writeArtifact(reqId, "af-work-item.json", serializeAfWorkItemManifest(manifest), ifMatch);
   }
 
   private assertReqId(reqId: string): void {
     if (typeof reqId !== "string" || !REQ_ID_PATTERN.test(reqId)) {
       throw new ArtifactValidationError(
         400,
-        "requirement_id 형식이 올바르지 않습니다. 소문자/숫자/하이픈/언더스코어만 허용됩니다."
+        "work_id 형식이 올바르지 않습니다. 소문자/숫자/하이픈/언더스코어만 허용됩니다."
       );
     }
   }

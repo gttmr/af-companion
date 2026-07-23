@@ -2,82 +2,47 @@
 
 ## Purpose
 
-검증에서 발견한 reuse feedback을 proposal로 기록하고 Catalog publication과 분리한다.
-
-## When to read
-
-실제 reusable Agent/Workflow/Tool entry, synthetic mock payload, registry gap이 발견된 경우에만 읽는다.
+Record verified reuse feedback without publishing Catalog entries.
 
 ## Decision criteria
 
-허용 proposal themes:
+Create `<artifact-root>/catalog-delta.yaml` only when verification found evidence for one of:
 
-- reusable Agent, Workflow, or Tool entry; runtime contract 차이는 그 entry의 검토 필드와 notes에 기록한다.
-- Agent, Workflow, or Tool entry 안의 deterministic synthetic `runtime_mock`
-- registration gap
-- Reuse Hub reviewer note
+- a reusable Agent, Workflow, or Tool entry;
+- a deterministic synthetic `runtime_mock` inside such an entry;
+- a registration gap;
+- a reviewer note for later Catalog publication.
 
-비슷한 이름만으로 reuse를 제안하지 않는다.
-
-responsibility, I/O, side effect, owner, version, security, runtime contract가 비교되어야 한다.
+Similar names are not evidence. Compare responsibility, I/O, side effect, owner, version, security, and runtime contract.
 
 ## Required evidence
 
-- candidate와 existing Catalog identifiers
-- responsibility/schema comparison
-- owner/version compatibility
-- auth/data/side-effect/timeout/retry/audit compatibility
-- reuse, publish proposal, project-only, excluded, unresolved decision
-- divergence와 follow-up
-- synthetic mock provenance
+- candidate and existing Catalog identifiers;
+- responsibility and schema comparison;
+- owner/version compatibility;
+- auth, data, side-effect, timeout, retry, and audit compatibility;
+- reuse, publish proposal, project-only, excluded, or unresolved decision;
+- divergence and follow-up;
+- synthetic mock provenance, when applicable.
 
-## Artifact implications
+## Boundary
 
-Stage Runner mode에서는 server가 다음 빈 template을 항상 생성하며 Skill이 직접 쓰지 않는다.
-
-```text
-<run-dir>/proposed-artifacts/catalog-delta.yaml (server-owned)
-```
-
-Standalone mode:
-
-```text
-<explicit-report-output>/catalog-delta.yaml
-```
-
-`catalog/*.yaml`을 직접 수정하지 않는다.
-
-Proposal 존재나 apply는 publication이 아니다.
-
-## Scaffold implications
-
-미래 Catalog ID가 이미 published된 것처럼 scaffold에 binding하지 않는다.
+Never modify `catalog/*.yaml` from this skill. A delta is review feedback, not publication. The workbench Catalog view is read-only.
 
 ## Verification
 
 ```bash
 git diff --name-only -- catalog
+node scripts/validate-artifacts.mjs <artifact-root>
 ```
 
-출력은 비어 있어야 한다.
-
-Proposal에서 secret, private endpoint, customer data, deploy, production logic을 검사한다.
+The first command must be empty. Inspect the proposal for secrets, private endpoints, customer data, deployment content, and production logic.
 
 ## Stop conditions
 
-- reuse compatibility가 증명되지 않음
-- publication approval이 필요함
-- direct Catalog edit가 필요함
-- proposal에 sensitive/private/production content가 있음
-
-## Official sources checked
-
-- `docs/workbench/taxonomy.md`
-- `docs/workbench/operating-model.md`
-- `packages/web/server/stageRunner.ts`
-- Current publish boundary: `POST /api/catalog/publish`
+Stop when reuse compatibility is unproven, publication authority is missing, a direct Catalog edit is requested, or sensitive/private content would enter the proposal.
 
 ## Checked date
 
-- Checked date: 2026-07-20
-- Catalog delta additions are Agent, Workflow, or Tool entries only and remain proposal-only feedback.
+- Checked date: 2026-07-23
+- Contract sources: Taxonomy, Operating Model, and read-only workbench Catalog projection

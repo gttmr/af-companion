@@ -61,14 +61,15 @@ Runnable은 approved local wiring만 포함하며 production endpoint, credentia
 - private/deployment/business output이 포함됨
 - source approval evidence가 없음
 
-## Official sources checked
+## Contract sources checked
 
-- `packages/web/server/artifactSyncRunApi.ts`
-- `packages/web/server/artifactSync.ts`
+- `schemas/scaffold-plan.schema.json`
+- `schemas/af-work-item.schema.json`
+- `scripts/adk-source/context.mjs`
 - `scripts/adk-source/file-builder.mjs`
 - `docs/workbench/operating-model.md`
 
 ## Checked date
 
-- Checked date: 2026-07-18
+- Checked date: 2026-07-23
 - Current Product note: `smoke` and `runnable` are the only serialized output modes.

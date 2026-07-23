@@ -1,52 +1,47 @@
-# Web Workbench Package
+# Web Companion Package
 
 ## Scope
 
-`packages/web` is the React/Vite workbench for strict Target Contract v2
-artifact roots, Stage Runner, Graph IR review, Catalog governance, Runtime
-Handoff, Verify, Run, and integrated Mock Lab.
+`packages/web` is the React/Vite live companion for Agent Factory work executed by external Codex CLI or VS Code sessions. It projects strict Target v2 Work Items, artifacts, Git changes, Hook activity, and editor handoff. Graph IR is its only canonical artifact edit.
 
-Asset terminology is owned by [Taxonomy](../../docs/workbench/taxonomy.md), and
-Workflow execution terminology by [Graph IR](../../docs/workbench/graph-ir.md).
+Asset meanings come from [Taxonomy](../../docs/workbench/taxonomy.md), Graph semantics from [Graph IR](../../docs/workbench/graph-ir.md), and ownership from [Operating Model](../../docs/workbench/operating-model.md).
 
 ## Structure
 
-- `src/routes`: route workbenches and router shell.
-- `src/layout`: workbench shell, stage shell, approval chips, and root switcher.
-- `src/state`: TanStack Query hooks and API client.
-- `src/analyzer`: strict artifact types, validation, review gates, Graph IR validation, and scaffold-plan derivation.
-- `src/components` and `src/design`: shared review, Graph IR, runtime-contract, and A2A protocol surfaces.
-- `src/catalog`: strict Catalog index, delta, versioning, pinning, and scaffold helpers.
-- `src/styles`: design tokens, primitives, feature, and route CSS layers.
-- `server`: Vite middleware for artifact roots, Stage Runner, Catalog, Runtime, collaboration, and Mock Lab APIs.
+- `src/routes`: home, four Work Skill screens, Connections, and read-only Assets.
+- `src/layout`: live workspace shell, Work Skill rail, and live activity/Git rail.
+- `src/workspace`: projection API types and query/SSE hooks.
+- `src/state`: query client, read-only Catalog, and Codex session hooks.
+- `src/analyzer`: strict Target v2 types, Work Item parser, Graph validation, and scaffold contracts.
+- `src/components`: Graph canvas/editor/inspector and shared badges.
+- `src/styles`: tokens, primitives, category visuals, Graph feature CSS, and the live route layout.
+- `server`: workspace projection, Work Item/Graph API, Codex bridge/facade, VS Code launcher, and read-only Catalog.
 
-## Local Rules
+## Local rules
 
-- Artifact root files under `artifacts/af/<req-id>/` are the canonical store; do not persist stage state to `localStorage`.
-- `analysis-result.json` must have `contract_version: "2.0"`. Artifact sync derives `asset-candidates.json` and `graph-ir.json` from it.
-- `asset_type` is only `agent`, `workflow`, or `tool`; visible category labels must match.
-- Graph IR uses the eight Target node kinds, edge `control` plus optional `channel`, and `parallel` or `loop` regions.
-- A standalone Agent or Tool graph uses `workflow_ref: null`.
-- A2A is an Agent binding or exposure with an A2A contract, never an asset category.
-- `manifest.approvals.*` is the gate source of truth. Do not recompute approval gates from candidate status in UI components.
-- Analyze and Design Stage Runner output is proposed-first; canonical artifacts change only after explicit apply.
-- `catalog/*.yaml` is not edited from ad hoc UI paths. Reuse Hub publish is the app write path for reviewed deltas.
+- `artifacts/af/<work-id>/af-work-item.json` is the lifecycle ledger; never persist lifecycle truth in browser storage.
+- The web app does not run Work Skills, change review decisions, generate source, execute runtime behavior, publish Catalog entries, stage, or commit.
+- Graph PUT is the sole artifact mutation. Require loopback, same-origin, current ETag, approved discovery, strict validation, and an explicit active target session.
+- Synchronize `analysis-result.json.graph` and `graph-ir.json`, then invalidate composition and downstream evidence.
+- Catalog exposes only Agent, Workflow, and Tool and is read-only.
+- Keep Hook activity metadata-only; do not persist prompts, transcripts, tool arguments, or outputs.
+- VS Code paths must be canonical, repository-contained, and server-derived.
+- Do not restore `/api/af`, stage routes, proposal/apply, legacy manifests, or server-owned lifecycle execution.
 
-## When Editing
+## When editing
 
-- Read `docs/visualization/design-system.md` before visual changes.
-- Route-level writes must go through existing state hooks or server APIs; do not bypass `artifactRootStore.ts` write allowlists.
-- Keep helper logic near its domain: analyzer invariants in `src/analyzer`, Catalog semantics in `src/catalog`, and API persistence in `server`.
-- If an enum or artifact shape changes, update schemas, validators, analyzer types, UI labels, templates, and docs together.
-- Do not broaden strict read boundaries to accept retired shapes.
+- Read [Design System](../../docs/visualization/design-system.md) before visible changes.
+- Keep strict shapes aligned across TypeScript, schemas, validators, templates, tests, and docs.
+- Re-read canonical files immediately before a Graph save; do not overwrite concurrent external edits.
+- Use fixed port `5173` and verify the exact workspace identity before reusing a server.
 
 ## Verification
 
 ```bash
 cd packages/web
+npm run test:contracts
+npm run test:companion
 npm run build
-npm run test:analyzer
-npm run dev -- --host 0.0.0.0 --port 5173 --strictPort
 ```
 
-UI changes also require fixed-port browser verification on `http://127.0.0.1:5173/`.
+Visible changes require browser verification and a screenshot at `http://127.0.0.1:5173/`.

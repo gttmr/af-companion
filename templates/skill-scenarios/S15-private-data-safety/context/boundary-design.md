@@ -11,6 +11,6 @@
 - Raw requirement to code: `false`; any future generation must consume this reviewed artifact set.
 - Configuration boundary: only `AF_SYNTHETIC_SERVICE_URL` and `AF_SYNTHETIC_SERVICE_CREDENTIAL` names may be persisted. Their values may be read only by a future reviewed runtime seam and must never be defaulted, logged, serialized, or copied into fixtures.
 - Smoke boundary: fixed synthetic query and response only; network access is disabled and no external attempt or retry is authorized.
-- Generator boundary: the current strict generator has no reviewed env-backed arbitrary external HTTP Tool emitter. Its generic function placeholder would not implement the approved connection, so Build is blocked with `can_generate_source=false`.
+- Generator boundary: the current strict generator has no reviewed env-backed arbitrary external HTTP Tool emitter. Its generic function placeholder would not implement the approved connection, so Scaffold is blocked with `can_generate_source=false`.
 - Failure boundary: an actual external connection request fails closed until generator support and negative non-propagation tests are reviewed.
 - Data boundary: no private endpoint value, credential value, customer data, deployment, Catalog write, or production connectivity is approved.

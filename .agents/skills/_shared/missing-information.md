@@ -38,7 +38,7 @@ Candidate closure may use `missing_information_resolution`, `resolved_missing_in
 - Preserve evidence, assumptions, contradictions, and missing information separately.
 - Do not mark a candidate approved while candidate `missing_information` is non-empty.
 - Keep unresolved Target decisions as `needs_info` rather than creating an unknown asset type.
-- In Stage Runner mode, resolve through the proposal and explicit apply path; never patch approval booleans directly.
+- Apply a resolution to the canonical artifact, reset any stale review gate, and record the resulting evidence in `af-work-item.json`. Never preserve approval for bytes the reviewer did not review.
 
 ## Scaffold implications
 
@@ -60,13 +60,13 @@ Stop when a hard-gate item remains, a reviewer answer has not been applied to th
 
 ## Official sources checked
 
-- [Operating Model approval gates](../../../docs/workbench/operating-model.md#3-승인-게이트-모델)
+- [Operating Model review decisions](../../../docs/workbench/operating-model.md#3-review-decisions)
 - [Taxonomy unresolved decisions](../../../docs/workbench/taxonomy.md#workflow-profile)
 - Strict v2 schema and validator: `schemas/analysis-result.schema.json`, `scripts/validate-artifacts.mjs`
 
 ## Checked date
 
-- Checked date: 2026-07-18
+- Checked date: 2026-07-23
 - Official sources: Agent Factory Operating Model, Taxonomy, and strict v2 schema
 - Installed package version: `google-adk 2.3.0`
 - Contract note: Soft-gate acceptance and candidate resolution fields do not replace review rationale.

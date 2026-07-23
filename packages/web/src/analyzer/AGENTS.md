@@ -3,7 +3,7 @@
 ## Scope
 
 This directory owns strict Target Contract v2 client semantics: asset taxonomy,
-Graph IR validation, review gates, scaffold-plan derivation, runtime contracts,
+Graph IR validation, Work Item lifecycle, scaffold-plan derivation, runtime contracts,
 A2A Agent boundaries, and artifact import validation.
 
 Target taxonomy is canonical in [Taxonomy](../../../../docs/workbench/taxonomy.md),
@@ -14,6 +14,7 @@ and Graph semantics in [Graph IR](../../../../docs/workbench/graph-ir.md).
 | Task | Files |
 | --- | --- |
 | Artifact and Graph IR types | `types.ts` |
+| Work Item lifecycle ledger | `afWorkItem.ts` |
 | Exact Target v2 validation | `targetContract.ts` |
 | Strict analysis import/read boundary | `analysisArtifactImport.ts`, `targetAnalysisResult.ts` (`parseTargetAnalysisResult`) |
 | Classification labels and taxonomy UI text | `classificationRules.ts` |
@@ -34,6 +35,7 @@ and Graph semantics in [Graph IR](../../../../docs/workbench/graph-ir.md).
 - A2A is valid only as an Agent binding or exposure linked to an A2A contract.
 - Read-boundary functions validate and return strict input unchanged; they must not repair, migrate, coerce, or backfill it.
 - Candidate-level missing information is a hard scaffold blocker; requirement-level missing information is reviewer-attested.
+- Work Item order is Discover review → Compose review → Scaffold complete → Verify. Review decisions require artifact hash plus external Codex session/turn provenance.
 - Keep enums aligned with schemas, validators, generator inputs, badges, templates, and analyzer tests.
 
 ## Anti-Patterns
@@ -42,6 +44,7 @@ and Graph semantics in [Graph IR](../../../../docs/workbench/graph-ir.md).
 - Do not infer A2A from local multi-step complexity.
 - Do not bypass `raw_requirement_to_code=false` or approved-artifact guards in derived scaffold plans.
 - Do not serialize derived Graph validation state into Graph IR.
+- Do not reintroduce stage labels, run manifests, or compatibility lifecycle fields.
 
 ## Verification
 

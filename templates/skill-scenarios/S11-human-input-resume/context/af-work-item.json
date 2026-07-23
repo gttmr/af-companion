@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "work_id": "req-s11-human-input-resume",
+  "artifact_root": "artifacts/af/req-s11-human-input-resume",
+  "active_skill": "af-scaffold-runtime",
+  "skills": {
+    "af-discover-assets": {
+      "status": "complete",
+      "input_revision": "requirement-v1",
+      "output_revision": "analysis-v1",
+      "output_refs": [
+        "analysis-result.json",
+        "normalized-requirement.json",
+        "asset-candidates.json"
+      ],
+      "blocker_refs": [],
+      "output_roots": [],
+      "started_at": "2026-07-23T00:00:00.000Z",
+      "updated_at": "2026-07-23T00:00:00.000Z",
+      "completed_at": "2026-07-23T00:00:00.000Z"
+    },
+    "af-compose-solution": {
+      "status": "complete",
+      "input_revision": "analysis-v1",
+      "output_revision": "composition-v1",
+      "output_refs": [
+        "analysis-result.json",
+        "graph-ir.json",
+        "boundary-design.md",
+        "scaffold-plan.json"
+      ],
+      "blocker_refs": [],
+      "output_roots": [],
+      "started_at": "2026-07-23T00:00:00.000Z",
+      "updated_at": "2026-07-23T00:00:00.000Z",
+      "completed_at": "2026-07-23T00:00:00.000Z"
+    },
+    "af-scaffold-runtime": {
+      "status": "active",
+      "input_revision": "composition-v1",
+      "output_revision": null,
+      "output_refs": [],
+      "blocker_refs": [],
+      "output_roots": [],
+      "started_at": "2026-07-23T00:00:00.000Z",
+      "updated_at": "2026-07-23T00:00:00.000Z",
+      "completed_at": null
+    },
+    "af-verify-runtime": {
+      "status": "not_started",
+      "input_revision": null,
+      "output_revision": null,
+      "output_refs": [],
+      "blocker_refs": [],
+      "output_roots": [],
+      "started_at": null,
+      "updated_at": "2026-07-23T00:00:00.000Z",
+      "completed_at": null
+    }
+  },
+  "review_gates": {
+    "discovery": {
+      "status": "approved",
+      "artifact_etag": "8f0e345dd1af9669f7ba848d979cf886e957360c3bb3c18e77e17c51d2d2b6f0",
+      "decided_at": "2026-07-23T00:00:00.000Z",
+      "session_id": "scenario-review",
+      "turn_id": "discover-review"
+    },
+    "composition": {
+      "status": "approved",
+      "artifact_etag": "8f0e345dd1af9669f7ba848d979cf886e957360c3bb3c18e77e17c51d2d2b6f0",
+      "decided_at": "2026-07-23T00:00:00.000Z",
+      "session_id": "scenario-review",
+      "turn_id": "compose-review"
+    }
+  },
+  "verification": {
+    "outcome": null,
+    "revision": null,
+    "report_ref": null
+  }
+}

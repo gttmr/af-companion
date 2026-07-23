@@ -2,51 +2,29 @@
 
 ## Scope
 
-State hooks wrap strict Target v2 filesystem-backed APIs with TanStack Query.
-They are the route layer's access point for artifact roots, manifest approvals,
-analysis, Graph IR, Catalog data, text artifacts, Stage Runner, verification,
-Runtime, and Mock Lab discovery.
+This directory holds the minimal shared TanStack Query configuration, read-only Catalog query, and Codex session query/mutations. Workspace and Work Item projection hooks live in `src/workspace`.
 
-Asset terminology is canonical in [Taxonomy](../../../../docs/workbench/taxonomy.md).
+## Where to look
 
-## Where To Look
-
-| Task | Files |
+| Task | File |
 | --- | --- |
-| HTTP wrapper | `apiClient.ts` |
-| Query client setup | `queryClient.ts` |
-| Artifact root and recent roots | `useArtifactRoot.ts`, `useRecentRoots.ts` |
-| Canonical analysis lifecycle | `useAnalysisArtifact.ts` |
-| Strict Graph IR derivation | `useGraphIR.ts` |
-| Derived artifact synchronization | `useArtifactSync.ts` |
-| Manifest approval gates | `useApprovalGate.ts` |
-| Stage Runner | `useStageRunner.ts`, `useStreamingProcess.ts` |
-| Catalog and publish | `useCatalog.ts`, `useCatalogDelta.ts`, `useCatalogPublish.ts` |
-| Runtime and Mock Lab | `useRuntimeChat.ts`, `useRuntimeA2a.ts`, `useMockLabDiscovery.ts` |
+| Query client | `queryClient.ts` |
+| Read-only Catalog | `useCatalog.ts` |
+| Codex session and editor workspace handoff | `useCodexSessions.ts` |
 
-## Local Rules
+## Local rules
 
-- `useAnalysisArtifact` reads and writes canonical `analysis-result.json`; the payload must satisfy exact `contract_version: "2.0"` validation.
-- `useGraphIR` validates and returns `analysis.graph` unchanged; it does not normalize or repair rejected Graphs.
-- Artifact sync derives `asset-candidates.json` and `graph-ir.json` from the canonical analysis aggregate.
-- `useCatalog` accepts only `agents`, `workflows`, and `tools` buckets.
-- A2A hooks operate on Agent protocol contracts and runtime tasks, not a separate asset category.
-- Invalidate and refetch after writes instead of mirroring hidden artifact copies.
-- `localStorage` is only for recent roots and comment author identity.
-- Gate toggles must go through `useApprovalGate`; route components should not patch manifest files directly.
-- Keep URL and query concerns in routes; hooks own data access and mutation shape.
-
-## Anti-Patterns
-
-- Do not broaden payload readers or repair rejected artifact shapes in hooks.
-- Do not persist analysis, scaffold plan, manifest, Graph IR, or step state in browser storage.
-- Do not recompute gate truth from asset status in hooks.
-- Do not add broad cache keys that conflate artifact roots.
+- Keep lifecycle and artifact truth in repository files, never localStorage.
+- Catalog is read-only and accepts exactly Agent, Workflow, and Tool buckets.
+- Codex session mutations target exact observed sessions; never auto-select the first live session.
+- Editor launch acceptance is not Hook/session connection success.
+- Keep query keys separated by workspace and Work Item identity.
+- Do not add wrappers for removed `/api/af`, stage, runtime, approval, or publish endpoints.
 
 ## Verification
 
 ```bash
 cd packages/web
-npm run test:analyzer
+npm run test:companion
 npm run build
 ```

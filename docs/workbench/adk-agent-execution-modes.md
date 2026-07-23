@@ -161,7 +161,7 @@ Runnable source generator는 다음 규칙을 따른다.
 
 ## UI And Review Rules
 
-Design/Build UI는 mode별 차이를 숨기면 안 된다.
+Compose/Scaffold projection은 mode별 차이를 숨기면 안 된다.
 
 - `single_turn`: "single turn", "현재 입력만 사용" 같은 짧은 표시.
 - `chat`: `agent_execution_mode`/`agent mode`로 명시하고 "session history 사용" helper copy 또는 review note를 보여준다.

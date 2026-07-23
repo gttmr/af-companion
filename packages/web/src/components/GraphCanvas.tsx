@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -7,6 +7,7 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  useStoreApi,
   type Connection,
   type Edge as ReactFlowEdge,
   type EdgeChange,
@@ -25,13 +26,36 @@ import type {
   NodeKind
 } from "../analyzer/types";
 import { graphAssetSubtype, graphEdgeId } from "../graph/graphDisplay";
-import type { CommentRecord, HighlightRecord } from "../state/useCollaboration";
+import { GraphElementEditor } from "./GraphElementEditor";
 import { GraphInspector } from "./GraphInspector";
 import { RegionOverlay } from "./graph/containerOverlay";
 import { edgeTypes } from "./graph/edgeTypes";
 import { layoutGraphIR, type GraphEdgeData, type GraphNodeData } from "./graph/layout";
 import { nodeTypes } from "./graph/nodeTypes";
 import { TARGET_NODE_KIND_OPTIONS, assetRefForNode, graphRegionLabel, isA2AProtocolBoundary } from "./graphElementEditorModel";
+
+interface GraphAnnotationComment {
+  anchor: {
+    kind: "node" | "edge" | "container" | "path" | "section";
+    node_id?: string;
+    edge_id?: string;
+    container_id?: string;
+    node_path?: string[];
+  };
+  author: string;
+  body_md: string;
+}
+
+interface GraphAnnotationHighlight {
+  kind: "path" | "node_group" | "edge_group" | "container_focus";
+  color_token: "agent" | "workflow" | "tool" | "a2a" | "neutral";
+  target: {
+    node_ids?: string[];
+    edge_ids?: string[];
+    container_id?: string;
+    node_path?: string[];
+  };
+}
 
 interface GraphCanvasProps {
   graphIR: GraphIR;
@@ -41,8 +65,8 @@ interface GraphCanvasProps {
   selection?: Selection;
   onSelectionChange?: (selection: Selection) => void;
   hideInspector?: boolean;
-  comments?: CommentRecord[];
-  highlights?: HighlightRecord[];
+  comments?: GraphAnnotationComment[];
+  highlights?: GraphAnnotationHighlight[];
   editable?: boolean;
   onSaveGraph?: (next: GraphIR) => void;
   onEditStateChange?: (state: GraphEditState | null) => void;
@@ -306,59 +330,75 @@ export function GraphCanvas({
         </div>
         <div className="graph-canvas-workspace">
           <ReactFlowProvider>
-            {editable ? (
-              <GraphEditToolbar
-                addKind={addKind}
-                addLabel={addLabel}
-                regionKind={regionKind}
-                editModeActive={editModeActive}
-                dirty={dirty}
-                saving={saving}
-                canSave={Boolean(onSaveGraph) && validation.length === 0}
-                connectMode={connectMode}
-                connectSourceId={connectSourceId}
-                hasSelection={Boolean(selection.nodeId || selection.edgeId)}
-                hasSelectedNode={Boolean(selection.nodeId)}
-                notice={notice}
-                validation={validation}
-                contextSelectionMode={contextSelectionMode}
-                contextSelectionCount={contextSelectedNodeIds.length}
-                stageRef={stageRef}
-                onAddKindChange={setAddKind}
-                onAddLabelChange={setAddLabel}
-                onRegionKindChange={setRegionKind}
-                onAddNode={addNode}
-                onAddRegion={addRegion}
-                onDelete={deleteSelection}
-                onSave={saveDraft}
-                onToggleConnect={() => {
-                  if (connectMode) { cancelConnectMode(); setNotice("Edge 연결을 취소했습니다."); }
-                  else { setConnectMode(true); setConnectSourceId(null); setNotice("시작 Node를 선택하세요."); }
-                }}
-                onToggleEdit={() => editModeActive ? cancelEditMode() : enterEditMode()}
-              />
-            ) : null}
-            <div ref={stageRef} className={`graph-canvas-stage${contextSelectionMode ? " graph-canvas-stage--cli-context" : ""}`}>
-              <GraphFlowStage
-                baseNodes={baseNodes}
-                baseEdges={baseEdges}
-                regionRects={layout.regionRects}
-                editModeActive={editModeActive}
-                selection={selection}
-                contextSelectionMode={contextSelectionMode}
-                contextSelectedNodeIds={contextSelectedNodeIds}
-                onConnect={createEdge}
-                onEdgeClick={handleEdgeInteraction}
-                onNodeClick={handleNodeInteraction}
-                onPaneClick={() => { if (!connectMode) setSelection({ nodeId: null, edgeId: null }); }}
-                onPositionCommit={(nodeId, position) => setPresentationPositions((current) => new Map(current).set(nodeId, position))}
-              />
-            </div>
+            <ReactFlowErrorPolicy>
+              {editable ? (
+                <GraphEditToolbar
+                  addKind={addKind}
+                  addLabel={addLabel}
+                  regionKind={regionKind}
+                  editModeActive={editModeActive}
+                  dirty={dirty}
+                  saving={saving}
+                  canSave={Boolean(onSaveGraph) && validation.length === 0}
+                  connectMode={connectMode}
+                  connectSourceId={connectSourceId}
+                  hasSelection={Boolean(selection.nodeId || selection.edgeId)}
+                  hasSelectedNode={Boolean(selection.nodeId)}
+                  notice={notice}
+                  validation={validation}
+                  contextSelectionMode={contextSelectionMode}
+                  contextSelectionCount={contextSelectedNodeIds.length}
+                  stageRef={stageRef}
+                  onAddKindChange={setAddKind}
+                  onAddLabelChange={setAddLabel}
+                  onRegionKindChange={setRegionKind}
+                  onAddNode={addNode}
+                  onAddRegion={addRegion}
+                  onDelete={deleteSelection}
+                  onSave={saveDraft}
+                  onToggleConnect={() => {
+                    if (connectMode) { cancelConnectMode(); setNotice("Edge 연결을 취소했습니다."); }
+                    else { setConnectMode(true); setConnectSourceId(null); setNotice("시작 Node를 선택하세요."); }
+                  }}
+                  onToggleEdit={() => editModeActive ? cancelEditMode() : enterEditMode()}
+                />
+              ) : null}
+              <div ref={stageRef} className={`graph-canvas-stage${contextSelectionMode ? " graph-canvas-stage--cli-context" : ""}`}>
+                <GraphFlowStage
+                  baseNodes={baseNodes}
+                  baseEdges={baseEdges}
+                  regionRects={layout.regionRects}
+                  editModeActive={editModeActive}
+                  selection={selection}
+                  contextSelectionMode={contextSelectionMode}
+                  contextSelectedNodeIds={contextSelectedNodeIds}
+                  onConnect={createEdge}
+                  onEdgeClick={handleEdgeInteraction}
+                  onNodeClick={handleNodeInteraction}
+                  onPaneClick={() => { if (!connectMode) setSelection({ nodeId: null, edgeId: null }); }}
+                  onPositionCommit={(nodeId, position) => setPresentationPositions((current) => new Map(current).set(nodeId, position))}
+                />
+              </div>
+            </ReactFlowErrorPolicy>
           </ReactFlowProvider>
         </div>
         {onContinue ? <div className="actions align-end graph-canvas-actions"><button type="button" className="primary" onClick={onContinue}>{continueLabel ?? "다음 단계"}</button></div> : null}
       </section>
-      {hideInspector ? null : (
+      {hideInspector ? null : editModeActive && draft ? (
+        <GraphElementEditor
+          editState={{
+            editModeActive,
+            draft,
+            selectedNode,
+            selectedEdge,
+            replaceNode,
+            replaceEdge,
+            replaceRegions,
+          }}
+          assetCandidates={assetCandidates}
+          onClose={() => setSelection({ nodeId: null, edgeId: null })}
+        />
+      ) : (
         <GraphInspector
           selectedNode={selectedNode}
           selectedEdge={selectedEdge}
@@ -453,6 +493,7 @@ function GraphFlowStage({ baseNodes, baseEdges, regionRects, editModeActive, sel
     <ReactFlow
       nodes={renderedNodes} edges={renderedEdges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} fitView
       nodesDraggable={editModeActive} nodesConnectable={editModeActive} elementsSelectable proOptions={{ hideAttribution: true }}
+      onError={reportReactFlowError}
       onConnect={handleConnect} onEdgesChange={handleEdgesChange} onNodesChange={handleNodesChange} onPaneClick={onPaneClick}
       onNodeClick={(_, node) => onNodeClick(node.id)} onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
       onNodeDragStop={(_, node) => { if (editModeActive) onPositionCommit(node.id, node.position); }}
@@ -461,6 +502,27 @@ function GraphFlowStage({ baseNodes, baseEdges, regionRects, editModeActive, sel
       <RegionOverlay rects={regionRects} />
     </ReactFlow>
   );
+}
+
+function ReactFlowErrorPolicy({ children }: { children: ReactNode }) {
+  const store = useStoreApi();
+  const [ready, setReady] = useState(false);
+
+  useLayoutEffect(() => {
+    const previous = store.getState().onError;
+    store.setState({ onError: reportReactFlowError });
+    setReady(true);
+    return () => store.setState({ onError: previous });
+  }, [store]);
+
+  return ready ? children : null;
+}
+
+function reportReactFlowError(code: string, message: string): void {
+  // React Flow 11 reports 002 on React 19 StrictMode's repeated memo calculation
+  // even though these type maps are module-level constants. Keep all real errors visible.
+  if (code === "002") return;
+  console.warn(`[React Flow ${code}] ${message}`);
 }
 
 function buildEditableNode(graph: GraphIR, kind: NodeKind, label: string, assets: AssetCandidate[]): { node: GraphNode | null; message: string } {
@@ -550,7 +612,7 @@ interface CollaborationMarks {
   nodeHighlightCounts: Map<string, number>; edgeHighlightCounts: Map<string, number>; edgeHighlightColors: Map<string, string>;
 }
 
-const HIGHLIGHT_COLORS: Partial<Record<HighlightRecord["color_token"], string>> = {
+const HIGHLIGHT_COLORS: Partial<Record<GraphAnnotationHighlight["color_token"], string>> = {
   agent: "var(--cat-agent-line)",
   workflow: "var(--cat-workflow-line)",
   tool: "var(--cat-tool-line)",
@@ -558,7 +620,11 @@ const HIGHLIGHT_COLORS: Partial<Record<HighlightRecord["color_token"], string>> 
   neutral: "var(--line-strong)"
 };
 
-function buildCollaborationMarks(graph: GraphIR, comments: CommentRecord[], highlights: HighlightRecord[]): CollaborationMarks {
+function buildCollaborationMarks(
+  graph: GraphIR,
+  comments: GraphAnnotationComment[],
+  highlights: GraphAnnotationHighlight[],
+): CollaborationMarks {
   const marks: CollaborationMarks = { nodeCommentCounts: new Map(), edgeCommentCounts: new Map(), nodeCommentTooltips: new Map(), edgeCommentTooltips: new Map(), nodeHighlightCounts: new Map(), edgeHighlightCounts: new Map(), edgeHighlightColors: new Map() };
   const edgeByPair = new Map(graph.edges.map((edge) => [`${edge.from}->${edge.to}`, graphEdgeId(edge, 0)]));
   const increment = (map: Map<string, number>, id: string | undefined) => { if (id) map.set(id, (map.get(id) ?? 0) + 1); };

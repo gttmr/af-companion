@@ -210,7 +210,7 @@ workflow_profile:
 
 ## 지원하지 않는 입력
 
-strict v2 read boundary는 legacy 전용 field, 제거된 category, 버전 없는 root를 변환하거나 보정하지 않고 거부한다. `module_category`, `adapter_kind`, `agent_kind`, `workflow_kind`, `runtime_binding`, `legacy_recommended_type`과 `asset_type: remote_a2a`는 지원하지 않는다. 입력을 수동 mapping하거나 load-time projection하지 말고 현재 Analyze/Design 경로에서 v2 artifact를 다시 생성한다.
+strict v2 read boundary는 legacy 전용 field, 제거된 category, 버전 없는 root를 변환하거나 보정하지 않고 거부한다. `module_category`, `adapter_kind`, `agent_kind`, `workflow_kind`, `runtime_binding`, `legacy_recommended_type`과 `asset_type: remote_a2a`는 지원하지 않는다. 입력을 수동 mapping하거나 load-time projection하지 말고 외부 Codex의 Discover/Compose Work Skill에서 v2 artifact를 다시 생성한다.
 
 ## Current source locators
 

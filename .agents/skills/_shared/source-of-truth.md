@@ -43,7 +43,7 @@ Do not present inference as verification. A handbook locator is a navigation aid
 ## Artifact implications
 
 - Standalone design notes outside validators may use Target vocabulary.
-- New Stage Runner proposals and canonical artifacts write only strict Target v2 fields from [target-contract-v2.md](target-contract-v2.md).
+- Canonical Work Item artifacts write only strict Target v2 fields from [target-contract-v2.md](target-contract-v2.md).
 - Reject pre-v2 artifact shapes; there is no read fallback or projection path.
 - Record unrepresentable or ambiguous Target data as a Blocker; do not invent an enum or selector.
 
@@ -68,7 +68,7 @@ For Python surface claims, use `.agent-factory/runtime/.venv/bin/python` and ins
 
 Stop and report a Blocker when:
 
-- the artifact target or operating mode is ambiguous;
+- the repository, Work Item root, or artifact target is ambiguous;
 - current source and schema disagree on a load-bearing field;
 - an exact ADK symbol or signature was not verified in the installed package;
 - a Target concept cannot be represented without loss in the strict v2 contract;
@@ -84,7 +84,7 @@ Stop and report a Blocker when:
 
 ## Checked date
 
-- Checked date: 2026-07-20
+- Checked date: 2026-07-23
 - Official sources: Agent Factory active docs and `https://adk.dev/`
 - Installed package version: `google-adk 2.3.0`
 - Contract note: Canonical skills read and write strict Target Contract v2 only.

@@ -10,14 +10,10 @@
      base       — element resets / defaults
      primitives — .ui-* and shared structural primitives
      components — cross-screen widgets (category badges, stripes, affinity)
-     features   — screen-specific blocks (analysis brief, graph canvas, …)
-     router     — route shell + per-route styles
+     features   — reusable operational blocks such as the Graph canvas
+     router     — live companion workspace
      utilities  — single-purpose overrides (highest priority)
 
-   Migration note: stylesheets not yet moved into a layer are imported
-   unlayered below. Unlayered rules outrank every layer, which matches
-   their previous "loaded last" precedence, so partial migration stays
-   visually stable.
    ===================================================================== */
 
 @layer tokens, base, primitives, components, features, router, utilities;
@@ -26,20 +22,5 @@
 @import "./base.css" layer(base);
 @import "./primitives.css" layer(primitives);
 @import "./category.css" layer(components);
-@import "./features/analysis-brief.css" layer(features);
 @import "./features/graph.css" layer(features);
-
-/* route shell + per-route styles */
-@import "./router/shell.css" layer(router);
-@import "./router/design.css" layer(router);
-@import "./router/comments.css" layer(router);
-@import "./router/build-verify.css" layer(router);
-@import "./router/catalog.css" layer(router);
-@import "./router/mock-lab.css" layer(router);
-@import "./router/modal-drawer.css" layer(router);
-@import "./router/codex-sessions.css" layer(router);
-@import "./router/runtime-contract.css" layer(router);
-@import "./router/a2a-contract.css" layer(router);
-@import "./router/analyze-progress.css" layer(router);
-@import "./router/stage-runner.css" layer(router);
-@import "./router/stage-shell.css" layer(router);
+@import "./router/live-workbench.css" layer(router);

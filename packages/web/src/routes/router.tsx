@@ -1,103 +1,36 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { WorkbenchLayout } from "../layout/WorkbenchLayout";
-import { Panel } from "../ui/primitives";
 
-const LandingPage = lazy(() => import("./LandingPage"));
-const AnalyzeWorkbench = lazy(() => import("./AnalyzeWorkbench"));
-const DesignWorkbench = lazy(() => import("./DesignWorkbench"));
-const BuildWorkbench = lazy(() => import("./BuildWorkbench"));
-const VerifyWorkbench = lazy(() => import("./VerifyWorkbench"));
-const RunSandbox = lazy(() => import("./RunSandbox"));
-const ReuseHubPage = lazy(() => import("./ReuseHubPage"));
-const MockLabPage = lazy(() => import("./MockLabPage"));
-const CodexSessionsPage = lazy(() => import("./CodexSessionsPage"));
+import { LiveWorkbenchLayout } from "../layout/LiveWorkbenchLayout";
+
+const WorkspaceHome = lazy(() => import("./WorkspaceHome"));
+const DiscoverWorkspace = lazy(() => import("./work/DiscoverWorkspace"));
+const ComposeWorkspace = lazy(() => import("./work/ComposeWorkspace"));
+const ScaffoldWorkspace = lazy(() => import("./work/ScaffoldWorkspace"));
+const VerifyWorkspace = lazy(() => import("./work/VerifyWorkspace"));
+const ConnectionsPage = lazy(() => import("./ConnectionsPage"));
+const AssetsPage = lazy(() => import("./AssetsPage"));
 
 function PageFallback() {
-  return (
-    <Panel>
-      <p className="af-landing-message">화면을 불러오는 중…</p>
-    </Panel>
-  );
+  return <div className="route-loading"><i /><span>Workspace projection을 여는 중…</span></div>;
+}
+
+function Page({ children }: { children: React.ReactNode }) {
+  return <LiveWorkbenchLayout>{children}</LiveWorkbenchLayout>;
 }
 
 export function AppRouter() {
   return (
     <Suspense fallback={<PageFallback />}>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <WorkbenchLayout>
-              <LandingPage />
-            </WorkbenchLayout>
-          }
-        />
-        <Route
-          path="/catalog"
-          element={
-            <WorkbenchLayout>
-              <ReuseHubPage />
-            </WorkbenchLayout>
-          }
-        />
-        <Route
-          path="/mock-lab"
-          element={
-            <WorkbenchLayout>
-              <MockLabPage />
-            </WorkbenchLayout>
-          }
-        />
-        <Route
-          path="/sessions"
-          element={
-            <WorkbenchLayout>
-              <CodexSessionsPage />
-            </WorkbenchLayout>
-          }
-        />
-        <Route
-          path="/af/:reqId/analyze"
-          element={
-            <WorkbenchLayout>
-              <AnalyzeWorkbench />
-            </WorkbenchLayout>
-          }
-        />
-        <Route
-          path="/af/:reqId/design"
-          element={
-            <WorkbenchLayout>
-              <DesignWorkbench />
-            </WorkbenchLayout>
-          }
-        />
-        <Route
-          path="/af/:reqId/build"
-          element={
-            <WorkbenchLayout>
-              <BuildWorkbench />
-            </WorkbenchLayout>
-          }
-        />
-        <Route
-          path="/af/:reqId/verify"
-          element={
-            <WorkbenchLayout>
-              <VerifyWorkbench />
-            </WorkbenchLayout>
-          }
-        />
-        <Route
-          path="/af/:reqId/run"
-          element={
-            <WorkbenchLayout>
-              <RunSandbox />
-            </WorkbenchLayout>
-          }
-        />
-        <Route path="/af/:reqId" element={<Navigate to="analyze" replace />} />
+        <Route path="/" element={<Page><WorkspaceHome /></Page>} />
+        <Route path="/work/:workId/discover" element={<Page><DiscoverWorkspace /></Page>} />
+        <Route path="/work/:workId/compose" element={<Page><ComposeWorkspace /></Page>} />
+        <Route path="/work/:workId/scaffold" element={<Page><ScaffoldWorkspace /></Page>} />
+        <Route path="/work/:workId/verify" element={<Page><VerifyWorkspace /></Page>} />
+        <Route path="/work/:workId" element={<Navigate to="discover" replace />} />
+        <Route path="/connections" element={<Page><ConnectionsPage /></Page>} />
+        <Route path="/assets" element={<Page><AssetsPage /></Page>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

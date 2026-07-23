@@ -1,89 +1,62 @@
 # CLAUDE.md
 
-This file guides Claude Code when working in the Agent Factory repository.
+This file guides Claude Code in the Agent Factory Companion repository.
 
-## Repository Scope
+## Product boundary
 
-Agent Factory is a local-first workbench that turns raw requirements into reviewed planning artifacts and a review-gated ADK Runtime Handoff. Runtime Handoff consumes approved artifacts; raw requirements do not directly generate code. The workbench and its generated bundles are local review and verification surfaces, not production deployment.
+External coding agents perform the Agent Factory lifecycle and write canonical artifacts/source. The web app is a local live projection with one canonical edit surface: Graph IR. The four Work Skills are `af-discover-assets`, `af-compose-solution`, `af-scaffold-runtime`, and `af-verify-runtime`; `af-workflow` routes lifecycle requests without writing artifacts.
 
-Treat `.agents/skills`, `packages/web`, `schemas`, `templates`, `catalog`, and `docs` as the active repository source trees. Do not add private endpoints, credentials, real customer data, internal deployment scripts, or organization-specific runtime code.
+Raw requirements never go directly to code. Runtime Handoff and generated source consume an explicitly approved composition and remain local review material, not production deployment.
 
-## Required Reading Order
+## Required reading
 
-Before non-trivial work:
+1. `AGENTS.md` and the nearest child `AGENTS.md`.
+2. [docs/README.md](docs/README.md).
+3. [docs/handbook/README.md](docs/handbook/README.md) before relying on a route, API, artifact producer, or source locator.
+4. The canonical owner for the decision: [Taxonomy](docs/workbench/taxonomy.md), [Graph IR](docs/workbench/graph-ir.md), [Operating Model](docs/workbench/operating-model.md), or [Codex Companion](docs/workbench/cli-companion.md).
 
-1. Read `AGENTS.md` for repository-wide working rules and the nearest child `AGENTS.md` for the tree being edited.
-2. Read `docs/README.md` for the progressive active-documentation path.
-3. Read `docs/handbook/README.md` before relying on a route, symbol, state hook, server handler, artifact producer, or consumer.
-4. Open the current source behind every Handbook locator before using it. Source is the final authority for Current Implementation behavior.
+Source is final authority for Current Implementation. Keep Target Contract, observed implementation, and blockers distinct.
 
-## Canonical References
+## Current implementation
 
-| Question | Canonical source |
-| --- | --- |
-| Concept and asset classification | [Taxonomy](docs/workbench/taxonomy.md) |
-| Workflow Graph nodes, edges, invocation relationships, and display | [Graph IR](docs/workbench/graph-ir.md) |
-| Stages, approvals, artifact flow, Catalog governance, and verification | [Operating Model](docs/workbench/operating-model.md) |
-| Current behavior and source location | [Handbook](docs/handbook/README.md) |
-| Target Contract versus Current Implementation gap | [Taxonomy vNext Migration Status](docs/migration/taxonomy-vnext-status.md) |
+- `artifacts/af/<work-id>/af-work-item.json` is the lifecycle ledger.
+- `packages/web/src/routes` contains the home, four Work Skill projections, Connections, and read-only Assets screens.
+- `packages/web/server` exposes workspace projection, Work Item/Graph, Codex companion, and read-only Catalog middleware.
+- External Codex writes all canonical content except browser Graph saves.
+- The browser never stages, commits, publishes Catalog entries, starts a Codex turn, or edits arbitrary source.
+- Stage Runner, `/api/af`, `af-run-manifest.json`, proposal/apply, web analyzer execution, and local Run UI are unsupported.
 
-Do not redefine taxonomy or Graph IR in this file. If documentation and source differ, describe **Target Contract** and **Current Implementation** separately and record the gap through the migration status.
-
-## Common Commands
-
-The web package is the primary buildable artifact. Run these commands from `packages/web`:
+## Commands
 
 ```bash
 cd packages/web
-npm install              # first-time setup or dependency changes
-npm run build            # tsc --noEmit && vite build; required verification
-npm run preview          # preview the built bundle
+npm install
+npm run test:contracts
+npm run test:companion
+npm run build
 ```
 
-For manual development, keep the fixed Agent Factory port:
-
 ```bash
-cd packages/web
-npm run dev -- --host 0.0.0.0 --port 5173 --strictPort
-```
-
-Run the artifact validator from the repository root:
-
-```bash
+node scripts/validate-skills.mjs
 node scripts/validate-artifacts.mjs
-node scripts/validate-artifacts.mjs path/to/artifacts
 ```
 
-The validator checks the strict Target Contract v2 artifact contracts.
+Start the bridge and fixed-port UI separately:
 
-## Current Implementation
+```bash
+cd packages/web && npm run dev:companion-bridge
+./scripts/start-manual-web-test.sh
+```
 
-The route layer starts under `packages/web/src/routes`, server middleware and API behavior live under `packages/web/server`, and client query and mutation hooks live under `packages/web/src/state`. Use the Handbook stage pages for current behavior, artifacts, calls, and verified symbols instead of repeating that detail here.
+Use only `http://127.0.0.1:5173/` for manual verification.
 
-The implementation serializes and consumes strict Target Contract v2 only. Asset categories are Agent, Workflow, and Tool; Graph IR uses the canonical Target node/edge contract; Catalog files are `agents.yaml`, `workflows.yaml`, and `tools.yaml`. Legacy-only fields, roots, file names, Catalog buckets, normalization, and lowering projection are unsupported. The skill tree is `af-workflow` plus four canonical Work Skills with no former-stage shims. Follow [.agents/skills/AGENTS.md](.agents/skills/AGENTS.md) and [Skills vNext Migration Status](docs/migration/skill-vnext-status.md).
+## Editing and verification
 
-The current workbench routes and servers remain under the paths above. Detailed Analyze, Design, Build, Verify, Catalog, local runtime, and Mock Lab behavior belongs in the Handbook and [Operating Model](docs/workbench/operating-model.md), not in this root guide.
-
-## Session Environment Handoff
-
-Some Claude Code context can live only in a machine's `~/.claude/**`, including session memory, plans, permissions, and MCP or plugin definitions. If `docs/handoff/claude-home/README.md` exists in the current worktree, use it to restore a synchronized snapshot on a new machine and follow its documented prerequisites.
-
-The snapshot is a mirror, not the source of truth; live files remain under each machine's `~/.claude/**`. Treat `docs/handoff/claude-home/**` as session-environment material, exclude it from product documentation sweeps, and never commit secrets into it. The directory may be absent or intentionally deleted in a current worktree.
-
-## Editing Rules
-
-- Keep edits surgical and limited to the requested behavior.
-- Edit `.agents/skills` only for an explicit skill, DLC workflow, or skill-sync task.
-- Before source edits, follow the documentation-impact and decision-log rules in [Operating Model](docs/workbench/operating-model.md).
-- Preserve natural Korean UI copy unless the task explicitly changes the language.
-- Before visible UI changes, read `docs/visualization/design-system.md`, run the fixed-port development server, and verify the actual screen with a screenshot.
-- Keep generators framework- and runtime-neutral; Workflow-specific labels, aliases, prompts, and business terms must come from reviewed artifacts or Catalog/mock contracts rather than generator literals.
-- Do not use archive material or `docs/handoff/claude-home/**` as current product authority.
-
-## Verification
-
-- After TypeScript, React, analyzer, Stage Runner, Runtime Handoff, or web behavior changes, run `cd packages/web && npm run build`.
-- For artifact, schema, Catalog projection, or validator-sensitive changes, run `node scripts/validate-artifacts.mjs` from the repository root.
-- For documentation-only work, run `git diff --check`, verify relative links against the complete intended documentation set, and confirm the edited-file inventory.
-- For browser verification, follow the WSL DevTools gate and fixed `5173` reachability rules in `AGENTS.md`; never claim a screenshot without a reachable debug endpoint and an actual capture.
-- Do not report completion without observable evidence. State what was not verified and why.
+- Keep edits surgical and preserve unrelated dirty work.
+- Edit `.agents/skills` only for an explicit skill/lifecycle request.
+- Keep Agent, Workflow, and Tool as the only asset categories; A2A remains an Agent protocol boundary.
+- Keep generators neutral; domain behavior belongs in reviewed artifacts.
+- Before visible UI changes, read [Design System](docs/visualization/design-system.md), verify the real screen, and capture a screenshot.
+- Schema/interface/UX changes require active docs and a dated `docs/decision-log.md` entry.
+- Do not claim connection from bridge health or editor launch alone. Require a fresh Hook-observed prompt and current state receipt.
+- Never add secrets, private endpoints, real customer data, deployment scripts, or organization-specific production logic.

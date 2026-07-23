@@ -23,9 +23,9 @@ uvicorn serve_app:a2a_app --host localhost --port 8001
 
 # 3) generate the runnable bundle from this scenario and run it; the generated
 #    RemoteA2aAgent (agent_card = the mock card URL) calls the mock and returns
-#    its result through the graph. (Generate via the workbench Build step, or
-#    scripts/generate-adk-source.mjs against an artifact root seeded from this
-#    scenario, then run with adk api_server / InMemoryRunner.)
+#    its result through the graph. (Use external Codex with af-scaffold-runtime,
+#    or run scripts/generate-adk-source.mjs against an approved Work Item rooted
+#    at this scenario, then use adk api_server / InMemoryRunner.)
 ```
 
 The generator only emits the remote node when the A2A contract is approved and has

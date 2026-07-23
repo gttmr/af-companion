@@ -70,7 +70,7 @@
     "contradictions": [],
     "assumptions": [
       "All requests, operation IDs, decisions, state, and audit values are fixed synthetic test data.",
-      "Design approval records intended callback behavior but does not assert that runnable callback lowering exists."
+      "Composition review records intended callback behavior but does not assert that runnable callback lowering exists."
     ]
   },
   "assetCandidates": [

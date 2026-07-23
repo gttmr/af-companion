@@ -12,6 +12,9 @@ import {
   targetGraph,
   targetRequirement,
   targetRuntimeContract,
+  targetWorkItem,
+  refreshCompositionReviewEtag,
+  sha256File,
   writeJson
 } from "./fixtures.mjs";
 
@@ -41,6 +44,7 @@ test("generator consumes strict Target-only v2 artifacts without compatibility p
 
 test("generator rejects removed artifact filenames instead of ignoring them", () => {
   for (const [name, replacement, value] of [
+    ["af-run-manifest.json", "af-work-item.json", {}],
     ["module-candidates.json", "asset-candidates.json", []],
     ["process-flow.json", "graph-ir.json", {}],
     ["commonization-notes.json", "analysis-result.json", {}]
@@ -59,34 +63,41 @@ test("generator rejects removed artifact filenames instead of ignoring them", ()
   }
 });
 
-test("generator requires a complete run manifest instead of backfilling approval state", () => {
+test("generator requires a complete Work Item instead of backfilling lifecycle state", () => {
   const artifactRoot = mkdtempSync(join(tmpdir(), "af-target-manifest-"));
   try {
     writeTargetOnlyFixture(artifactRoot);
-    writeJson(join(artifactRoot, "af-run-manifest.json"), {
-      requirement_id: "req-target-only",
-      approvals: { analysis_reviewed: true, boundaries_approved: true, runtime_contracts_approved: true },
-      stages: { design: { status: "complete" } }
+    writeJson(join(artifactRoot, "af-work-item.json"), {
+      schema_version: 1,
+      work_id: "req-target-only"
     });
-    assert.throws(() => loadArtifactContext(artifactRoot), /af-run-manifest\.json\.artifact_root|af-run-manifest\.json\.current_stage/);
+    assert.throws(() => loadArtifactContext(artifactRoot), /af-work-item\.json.*(?:artifact_root|active_skill|skills)/);
 
-    rmSync(join(artifactRoot, "af-run-manifest.json"));
-    assert.throws(() => loadArtifactContext(artifactRoot), /Missing required artifact: .*af-run-manifest\.json/);
+    rmSync(join(artifactRoot, "af-work-item.json"));
+    assert.throws(() => loadArtifactContext(artifactRoot), /Missing required artifact: .*af-work-item\.json/);
   } finally {
     rmSync(artifactRoot, { recursive: true, force: true });
   }
 });
 
-test("generator rejects a run manifest that skips the approval hierarchy", () => {
+test("generator rejects a Work Item that skips the review hierarchy", () => {
   const artifactRoot = mkdtempSync(join(tmpdir(), "af-target-manifest-hierarchy-"));
   try {
     writeTargetOnlyFixture(artifactRoot);
-    const manifestPath = join(artifactRoot, "af-run-manifest.json");
+    const manifestPath = join(artifactRoot, "af-work-item.json");
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-    manifest.approvals.boundaries_approved = false;
-    manifest.approvals.runtime_contracts_approved = true;
+    manifest.review_gates.discovery = {
+      status: "pending",
+      artifact_etag: null,
+      decided_at: null,
+      session_id: null,
+      turn_id: null
+    };
     writeJson(manifestPath, manifest);
-    assert.throws(() => loadArtifactContext(artifactRoot), /boundaries_approved.*true/);
+    assert.throws(
+      () => loadArtifactContext(artifactRoot),
+      /review_gates\.discovery\.status must equal "approved"|discovery review must be approved/
+    );
   } finally {
     rmSync(artifactRoot, { recursive: true, force: true });
   }
@@ -115,10 +126,29 @@ test("generator rejects stdio MCP instead of emitting it as streamable HTTP", ()
     plan.runtime_contracts = [structuredClone(contract)];
     writeJson(analysisPath, analysis);
     writeJson(planPath, plan);
+    refreshCompositionReviewEtag(artifactRoot);
 
     assert.throws(
       () => loadArtifactContext(artifactRoot),
       /unsupported MCP transport stdio.*tool\.lookup.*will not emit stdio as HTTP/i
+    );
+  } finally {
+    rmSync(artifactRoot, { recursive: true, force: true });
+  }
+});
+
+test("generator rejects a stale composition review after the approved artifact changes", () => {
+  const artifactRoot = mkdtempSync(join(tmpdir(), "af-target-stale-review-"));
+  try {
+    writeTargetOnlyFixture(artifactRoot);
+    const analysisPath = join(artifactRoot, "analysis-result.json");
+    const analysis = JSON.parse(readFileSync(analysisPath, "utf8"));
+    analysis.normalizedRequirement.title = "Changed after approval";
+    writeJson(analysisPath, analysis);
+
+    assert.throws(
+      () => loadArtifactContext(artifactRoot),
+      /composition review does not match current analysis-result\.json bytes/
     );
   } finally {
     rmSync(artifactRoot, { recursive: true, force: true });
@@ -170,22 +200,5 @@ function writeTargetOnlyFixture(root) {
     manifest: { catalog_bound_assets: [], new_code_required: [] },
     validation: { can_generate_source: true, blockers: [], warnings: [] }
   });
-  writeJson(join(root, "af-run-manifest.json"), {
-    requirement_id: requirement.id,
-    artifact_root: `artifacts/af/${requirement.id}`,
-    current_stage: "build",
-    stages: {
-      analyze: { status: "complete", outputs: ["analysis-result.json"] },
-      design: { status: "complete", outputs: ["scaffold-plan.json"] },
-      build: { status: "pending", outputs: [] },
-      verify: { status: "pending", outputs: [] }
-    },
-    approvals: {
-      analysis_reviewed: true,
-      boundaries_approved: true,
-      runtime_contracts_approved: true,
-      stub_ready_for_followup: false
-    },
-    validation: { commands: [], last_result: "not_run" }
-  });
+  writeJson(join(root, "af-work-item.json"), targetWorkItem(requirement.id, {}, sha256File(join(root, "analysis-result.json"))));
 }

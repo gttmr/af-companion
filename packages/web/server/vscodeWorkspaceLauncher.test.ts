@@ -17,6 +17,7 @@ test("probes a trusted host executable once per cache window and launches with f
   const logPath = join(base, "code-argv.jsonl");
   await mkdir(repoRoot);
   await mkdir(binDir);
+  await writeFile(join(repoRoot, "agent.py"), "print('hello')\n", "utf8");
   const executable = join(binDir, "code");
   await writeFile(executable, `#!${process.execPath}\n`
     + `const { appendFileSync } = require("node:fs");\n`
@@ -56,13 +57,23 @@ test("probes a trusted host executable once per cache window and launches with f
   const receipt = await launcher.launch();
   assert.equal(receipt.status, "accepted");
   assert.equal(receipt.workspace_path, repoRoot);
+  const fileReceipt = await launcher.openFile("agent.py", 7);
+  assert.equal(fileReceipt.mode, "file");
+  const diffReceipt = await launcher.openDiff("agent.py");
+  assert.equal(diffReceipt.mode, "diff");
   const invocations = (await readFile(logPath, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
-  assert.deepEqual(invocations, [
+  assert.deepEqual(invocations.slice(0, 3), [
     ["--version"],
     ["--list-extensions", "--show-versions"],
     ["--new-window", repoRoot],
   ]);
+  assert.deepEqual(invocations[3], ["--reuse-window", "--goto", join(repoRoot, "agent.py") + ":7"]);
+  assert.equal(invocations[4][0], "--reuse-window");
+  assert.equal(invocations[4][1], "--diff");
+  assert.match(invocations[4][2], /\.agent-factory\/editor-diffs\/.*\.HEAD\.agent\.py$/);
+  assert.equal(invocations[4][3], join(repoRoot, "agent.py"));
   await assert.rejects(launcher.launch(), /cooling down/);
+  await assert.rejects(launcher.openFile("../outside.py"), /Workspace 밖/);
 });
 
 test("rejects a code executable contained inside the repository", async (t) => {

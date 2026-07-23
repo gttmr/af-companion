@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "work_id": "req-001",
+  "artifact_root": "artifacts/af/req-001",
+  "active_skill": null,
+  "skills": {
+    "af-discover-assets": {
+      "status": "complete",
+      "input_revision": "requirement-v1",
+      "output_revision": "analysis-v1",
+      "output_refs": ["analysis-result.json", "asset-candidates.json"],
+      "blocker_refs": [],
+      "output_roots": [],
+      "started_at": "2026-07-23T00:00:00.000Z",
+      "updated_at": "2026-07-23T00:00:00.000Z",
+      "completed_at": "2026-07-23T00:00:00.000Z"
+    },
+    "af-compose-solution": {
+      "status": "complete",
+      "input_revision": "analysis-v1",
+      "output_revision": "composition-v1",
+      "output_refs": ["analysis-result.json", "graph-ir.json", "scaffold-plan.json"],
+      "blocker_refs": [],
+      "output_roots": [],
+      "started_at": "2026-07-23T00:00:00.000Z",
+      "updated_at": "2026-07-23T00:00:00.000Z",
+      "completed_at": "2026-07-23T00:00:00.000Z"
+    },
+    "af-scaffold-runtime": {
+      "status": "not_started",
+      "input_revision": null,
+      "output_revision": null,
+      "output_refs": [],
+      "blocker_refs": [],
+      "output_roots": [],
+      "started_at": null,
+      "updated_at": "2026-07-23T00:00:00.000Z",
+      "completed_at": null
+    },
+    "af-verify-runtime": {
+      "status": "not_started",
+      "input_revision": null,
+      "output_revision": null,
+      "output_refs": [],
+      "blocker_refs": [],
+      "output_roots": [],
+      "started_at": null,
+      "updated_at": "2026-07-23T00:00:00.000Z",
+      "completed_at": null
+    }
+  },
+  "review_gates": {
+    "discovery": {
+      "status": "approved",
+      "artifact_etag": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "decided_at": "2026-07-23T00:00:00.000Z",
+      "session_id": "review-session",
+      "turn_id": "discover-review-turn"
+    },
+    "composition": {
+      "status": "approved",
+      "artifact_etag": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "decided_at": "2026-07-23T00:00:00.000Z",
+      "session_id": "review-session",
+      "turn_id": "compose-review-turn"
+    }
+  },
+  "verification": {
+    "outcome": null,
+    "revision": null,
+    "report_ref": null
+  }
+}

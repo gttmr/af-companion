@@ -1,6 +1,8 @@
-# brief 17 — A2A UI error surfacing cleanup
+# Retired brief 17 — A2A UI error surfacing cleanup
 
-상태: **대기**.
+> 2026-07-23 hard cutover로 대상 A2A import/runtime UI가 제거되어 이 항목은 폐기됐다. 현재 화면 계약은 [CLI Companion](../cli-companion.md)과 [Operating Model](../operating-model.md)을 따른다. 아래 내용은 구현 지시가 아닌 역사적 문제 기록이다.
+
+상태: **폐기됨**.
 
 `req-page-recommendation-a2a-consumer`를 화면에서 생성하고 local A2A provider를 import하는 동안 기능 흐름과 별개로 발견한 UI/console 잔무다.
 이 브리프는 UI noise/detail cleanup만 다룬다. A2A `input-required`는 interactive task state이고, plain ADK Web text chat을 통한 full remote HITL resume bridge는 아직 검증되지 않았으므로 별도 후속으로 둔다.

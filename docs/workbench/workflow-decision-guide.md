@@ -21,7 +21,7 @@ Workflow 판단은 세 질문을 분리한다.
 - 독립 입출력·실패·관찰 경계가 있다.
 - 재사용·버전·Owner 또는 승인 단위로 검토할 가치가 있다.
 
-단일 Agent가 여러 Tool을 사용할 뿐 흐름 책임이 독립적이지 않으면 Workflow를 만들지 않는다. Workflow 자산이 아니라면 [후보 탐색 순서](./analysis-guide.md#후보-탐색-순서)로 돌아간다.
+단일 Agent가 여러 Tool을 사용할 뿐 흐름 책임이 독립적이지 않으면 Workflow를 만들지 않는다. Workflow 자산이 아니라면 [Discovery Guide](./analysis-guide.md)로 돌아간다.
 
 ## 2. Representation
 
@@ -122,20 +122,20 @@ flowchart TD
 
 `AssetCandidate.asset_type: workflow`은 non-null `workflow_profile`을 요구하고 `binding`, `connection`, `exposure`는 `null`이어야 한다. Graph root `workflow_ref`와 Subworkflow Node `workflow_ref`는 실제 Workflow 후보를 참조해야 한다.
 
-Design Stage Runner는 `af-compose-solution`을 사용해 proposed `analysis-result.json`과 `boundary-design.md`를 만들며 `analysis_reviewed=true` gate가 필요하다. strict Graph와 candidate contract가 유효하지 않으면 proposal apply 또는 scaffold readiness가 성립하지 않는다.
+외부 Codex의 `af-compose-solution`은 approved discovery에서 canonical `analysis-result.json`, `graph-ir.json`, `boundary-design.md`, `scaffold-plan.json`을 갱신한다. strict Graph와 candidate contract가 유효하지 않으면 composition review 또는 Scaffold Readiness가 성립하지 않는다.
 
 현재 generator는 Graph root의 `workflow_ref`가 가리키는 owning Workflow Profile만 보고 runnable mode를 선택한다. `graph`는 acyclic static Graph Workflow로, `dynamic`은 dynamic node를 포함한 Workflow로 생성한다. `unresolved`, dynamic-only child/edge, routed cycle이 `graph`와 함께 들어오면 mode를 바꾸지 않고 오류로 중단한다. standalone Graph(`workflow_ref: null`)은 static `graph`로 취급한다.
 
 ### Source locators
 
-2026-07-19 현재 working tree에서 다음을 재확인했다.
+2026-07-23 현재 working tree에서 다음을 재확인했다.
 
 | 행동 | Path | Stable symbol |
 | --- | --- | --- |
 | Workflow profile과 Graph refs | `packages/web/src/analyzer/types.ts` | `WorkflowProfile`, `GraphIR`, `GraphNode` |
 | 자산별 strict 제약 | `packages/web/src/analyzer/targetContract.ts` | `validateWorkflowProfile`, `validateGraph` |
 | Graph strict validation | `packages/web/src/analyzer/graphValidation.ts` | `validateGraphIR` |
-| Subworkflow insert/prune | `packages/web/src/analyzer/nestedWorkflowInsert.ts` | `insertCatalogWorkflowNode`, `pruneDetachedCatalogWorkflowCandidates` |
-| Design Stage Runner | `packages/web/server/stageRunner.ts` | `STAGE_DEFINITIONS.design`, `assertDesignReady` |
+| Work Item과 review gate | `packages/web/src/analyzer/afWorkItem.ts` | `parseAfWorkItemManifest`, `assertLifecycle` |
+| Graph-only web write | `packages/web/server/workItemApi.ts` | `saveGraph`, `invalidateAfterGraphChange` |
 | Workflow JSON Schema | `schemas/asset-candidate.schema.json` | `workflowProfile`, `allOf` Workflow 제약 |
 | ADK representation 선택 | `scripts/adk-source/graph/dynamic.mjs` | `runnableWorkflowRepresentation`, `assertStaticGraphRepresentationSupported` |

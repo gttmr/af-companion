@@ -57,7 +57,13 @@ async function runScript(script, cwd, input = "") {
 test("project and plugin hooks expose the same events through thin adapter bootstraps", async () => {
   const project = JSON.parse(await readFile(PROJECT_HOOKS, "utf8"));
   const plugin = JSON.parse(await readFile(PLUGIN_HOOKS, "utf8"));
-  assert.deepEqual(Object.keys(project.hooks).sort(), ["SessionStart", "UserPromptSubmit"]);
+  assert.deepEqual(Object.keys(project.hooks).sort(), [
+    "PostToolUse",
+    "PreToolUse",
+    "SessionStart",
+    "Stop",
+    "UserPromptSubmit",
+  ]);
   assert.deepEqual(Object.keys(plugin.hooks).sort(), Object.keys(project.hooks).sort());
   for (const event of Object.values(project.hooks)) {
     const command = event[0].hooks[0].command;
@@ -163,6 +169,63 @@ test("adapter discovers the nearest endpoint and prints only successful broker h
     permission_mode: input.permission_mode,
     prompt: input.prompt,
   });
+});
+
+test("tool lifecycle hooks forward metadata only and never tool arguments or output", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "af-codex-tool-hook-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const token = "m".repeat(43);
+  const received = [];
+  const broker = createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    received.push(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+    response.statusCode = 204;
+    response.end();
+  });
+  await new Promise((resolve, reject) => {
+    broker.once("error", reject);
+    broker.listen(0, "127.0.0.1", resolve);
+  });
+  t.after(() => new Promise((resolve) => broker.close(resolve)));
+  const address = broker.address();
+  assert.notEqual(typeof address, "string");
+  const endpointPath = join(root, ".agent-factory", "codex-bridge", "v1", "endpoint.json");
+  await mkdir(dirname(endpointPath), { recursive: true });
+  await writeFile(endpointPath, JSON.stringify({
+    schema_version: 1,
+    url: `http://127.0.0.1:${address.port}`,
+    token,
+  }));
+
+  const result = await runAdapter(root, {
+    session_id: "session-tool",
+    turn_id: "turn-tool",
+    transcript_path: "/private/transcript.jsonl",
+    cwd: root,
+    hook_event_name: "PostToolUse",
+    model: "gpt-5.6",
+    permission_mode: "default",
+    tool_name: "apply_patch",
+    tool_input: { patch: "PRIVATE PATCH" },
+    tool_response: "PRIVATE OUTPUT",
+  });
+  assert.deepEqual({ code: result.code, stdout: result.stdout, stderr: result.stderr }, {
+    code: 0,
+    stdout: "",
+    stderr: "",
+  });
+  assert.deepEqual(received, [{
+    session_id: "session-tool",
+    turn_id: "turn-tool",
+    transcript_path: "/private/transcript.jsonl",
+    cwd: root,
+    hook_event_name: "PostToolUse",
+    model: "gpt-5.6",
+    permission_mode: "default",
+    tool_name: "apply_patch",
+  }]);
+  assert.doesNotMatch(JSON.stringify(received), /PRIVATE/);
 });
 
 test("adapter fails open without stdout for config, input, and network failures", async (t) => {

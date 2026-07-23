@@ -20,11 +20,11 @@
 
 - The generic runnable generator has no lowering implementation for `control.kind: callback` and deliberately fails closed.
 - `scaffold-plan.json` therefore keeps the requested `output_mode: runnable` but records `validation.can_generate_source: false` with explicit blockers.
-- `af-run-manifest.json` records Analyze and Design complete, Build blocked, and `stub_ready_for_followup: false`.
+- `af-work-item.json` records approved Discover/Compose and blocked `af-scaffold-runtime`.
 - No runtime stub, implementation handoff, local prototype, runnable command, or callback support claim is approved by this scenario.
 
 ## Stop And Reopen Behavior
 
 - `af-scaffold-runtime` must stop before source generation when it reads the scaffold blocker.
 - Do not change the callback edge to `next`, switch to `smoke`, write a custom callback prototype, or alter approvals to force generation.
-- Reopen Build only after the generic generator implements and runtime-verifies runner-wide `before_tool` Continue/Override, pre-Tool short-circuit, fail-closed errors, state writes, and redacted audit behavior. Re-derive and review the scaffold plan at that time.
+- Reopen Scaffold only after the generic generator implements and runtime-verifies runner-wide `before_tool` Continue/Override, pre-Tool short-circuit, fail-closed errors, state writes, and redacted audit behavior. Re-derive and review the scaffold plan at that time.

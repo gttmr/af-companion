@@ -5,6 +5,7 @@ import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import type {
   CodexBridgeCapabilities,
   CodexBridgeSnapshot,
+  CodexActivity,
   CodexSession,
   ContextDelivery,
   SelectionBundleV1,
@@ -17,6 +18,7 @@ export const CODEX_BRIDGE_ENDPOINT_FILE = "endpoint.json";
 export const DEFAULT_CODEX_SESSION_TTL_MS = 30 * 60 * 1_000;
 export const MAX_CODEX_CONTEXT_CHARS = 8_000;
 export const MAX_CODEX_PROMPT_RECEIPTS = 512;
+export const MAX_CODEX_ACTIVITIES = 512;
 export const PROMPT_RECOVERY_SOURCE = "prompt_recovery";
 
 const PERMISSION_MODES = new Set(["default", "acceptEdits", "plan", "dontAsk", "bypassPermissions"]);
@@ -40,7 +42,7 @@ const CONTROL_KINDS = new Set([
 const CHANNELS = new Set(["event", "state", "artifact"]);
 const ASSET_TYPES = new Set(["agent", "workflow", "tool"]);
 const SESSION_STATUSES = new Set(["active", "stale"]);
-const SESSION_LAST_EVENTS = new Set(["session_start", "prompt_submit"]);
+const SESSION_LAST_EVENTS = new Set(["session_start", "prompt_submit", "tool_start", "tool_end", "turn_stop"]);
 const DELIVERY_STATUSES = new Set(["queued", "consumed", "expired", "canceled", "failed"]);
 
 interface PromptReceipt {
@@ -54,6 +56,7 @@ interface PersistedBridgeState {
   sessions: CodexSession[];
   deliveries: ContextDelivery[];
   prompt_receipts: PromptReceipt[];
+  activities: CodexActivity[];
 }
 
 export interface CodexBridgeEndpoint {
@@ -87,7 +90,28 @@ export interface UserPromptSubmitHookInput {
   prompt: string;
 }
 
-export type CodexHookInput = SessionStartHookInput | UserPromptSubmitHookInput;
+export interface ToolUseHookInput {
+  session_id: string;
+  turn_id: string;
+  transcript_path: string | null;
+  cwd: string;
+  hook_event_name: "PreToolUse" | "PostToolUse";
+  model: string;
+  permission_mode: string;
+  tool_name: string;
+}
+
+export interface StopHookInput {
+  session_id: string;
+  turn_id: string;
+  transcript_path: string | null;
+  cwd: string;
+  hook_event_name: "Stop";
+  model: string;
+  permission_mode: string;
+}
+
+export type CodexHookInput = SessionStartHookInput | UserPromptSubmitHookInput | ToolUseHookInput | StopHookInput;
 
 export interface CreateDeliveryInput {
   target_session_id: string;
@@ -304,6 +328,28 @@ function normalizePersistedState(value: unknown): PersistedBridgeState {
     deduplicatedReceipts.set(promptReceiptKey(normalized.session_id, normalized.turn_id), normalized);
   }
 
+  const rawActivities = state.activities === undefined ? [] : state.activities;
+  if (!Array.isArray(rawActivities)) throw new Error("Invalid Codex Bridge activity history");
+  const activities = rawActivities.map((raw, index): CodexActivity => {
+    const activity = requireObject(raw, `bridge state.activities[${index}]`);
+    return {
+      activity_id: requireString(activity.activity_id, `bridge state.activities[${index}].activity_id`, { max: 256 }),
+      session_id: requireString(activity.session_id, `bridge state.activities[${index}].session_id`, { max: 256 }),
+      turn_id: activity.turn_id === null
+        ? null
+        : requireString(activity.turn_id, `bridge state.activities[${index}].turn_id`, { max: 256 }),
+      event: requireEnum(
+        activity.event,
+        `bridge state.activities[${index}].event`,
+        SESSION_LAST_EVENTS,
+      ) as CodexActivity["event"],
+      tool_name: activity.tool_name === null
+        ? null
+        : requireString(activity.tool_name, `bridge state.activities[${index}].tool_name`, { max: 256 }),
+      at: requireIsoDate(activity.at, `bridge state.activities[${index}].at`),
+    };
+  });
+
   return {
     schema_version: CODEX_BRIDGE_SCHEMA_VERSION,
     sessions,
@@ -311,6 +357,7 @@ function normalizePersistedState(value: unknown): PersistedBridgeState {
     prompt_receipts: [...deduplicatedReceipts.values()]
       .sort((left, right) => Date.parse(left.received_at) - Date.parse(right.received_at))
       .slice(-MAX_CODEX_PROMPT_RECEIPTS),
+    activities: activities.slice(-MAX_CODEX_ACTIVITIES),
   };
 }
 
@@ -347,7 +394,24 @@ export function validateCodexHookInput(value: unknown): CodexHookInput {
     if (input.agent_type !== undefined) normalized.agent_type = requireString(input.agent_type, "agent_type", { max: 256 });
     return normalized;
   }
-  throw new CodexBridgeValidationError("hook_event_name must be SessionStart or UserPromptSubmit");
+  if (eventName === "PreToolUse" || eventName === "PostToolUse") {
+    return {
+      ...common,
+      hook_event_name: eventName,
+      turn_id: requireString(input.turn_id, "turn_id", { max: 256 }),
+      tool_name: requireString(input.tool_name, "tool_name", { max: 256 }),
+    };
+  }
+  if (eventName === "Stop") {
+    return {
+      ...common,
+      hook_event_name: "Stop",
+      turn_id: requireString(input.turn_id, "turn_id", { max: 256 }),
+    };
+  }
+  throw new CodexBridgeValidationError(
+    "hook_event_name must be SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, or Stop",
+  );
 }
 
 export function validateSelectionBundle(value: unknown): SelectionBundleV1 {
@@ -569,7 +633,13 @@ export class CodexBridgeStore {
       state = normalizePersistedState(JSON.parse(await readFile(statePath, "utf8")));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      state = { schema_version: CODEX_BRIDGE_SCHEMA_VERSION, sessions: [], deliveries: [], prompt_receipts: [] };
+      state = {
+        schema_version: CODEX_BRIDGE_SCHEMA_VERSION,
+        sessions: [],
+        deliveries: [],
+        prompt_receipts: [],
+        activities: [],
+      };
       await atomicWriteJson(statePath, state);
     }
     const store = new CodexBridgeStore(canonicalRoot, state, options);
@@ -639,6 +709,54 @@ export class CodexBridgeStore {
             default_target: false,
           });
         }
+        this.#recordActivity({
+          event: "session_start",
+          sessionId: input.session_id,
+          turnId: null,
+          toolName: null,
+          at: now,
+        });
+      });
+      return null;
+    }
+
+    if (input.hook_event_name === "PreToolUse" || input.hook_event_name === "PostToolUse" || input.hook_event_name === "Stop") {
+      await this.#mutate((now) => {
+        const event = input.hook_event_name === "PreToolUse"
+          ? "tool_start"
+          : input.hook_event_name === "PostToolUse" ? "tool_end" : "turn_stop";
+        let session = this.#state.sessions.find((candidate) => candidate.session_id === input.session_id);
+        if (!session) {
+          session = {
+            session_id: input.session_id,
+            cwd,
+            model: input.model,
+            permission_mode: input.permission_mode,
+            source: PROMPT_RECOVERY_SOURCE,
+            started_at: now,
+            last_seen_at: now,
+            last_event: event,
+            last_turn_id: input.turn_id,
+            status: "active",
+            alias: null,
+            default_target: false,
+          };
+          this.#state.sessions.push(session);
+        }
+        session.cwd = cwd;
+        session.model = input.model;
+        session.permission_mode = input.permission_mode;
+        session.last_seen_at = now;
+        session.last_event = event;
+        session.last_turn_id = input.turn_id;
+        session.status = "active";
+        this.#recordActivity({
+          event,
+          sessionId: input.session_id,
+          turnId: input.turn_id,
+          toolName: input.hook_event_name === "Stop" ? null : input.tool_name,
+          at: now,
+        });
       });
       return null;
     }
@@ -669,6 +787,13 @@ export class CodexBridgeStore {
       session.last_event = "prompt_submit";
       session.last_turn_id = input.turn_id;
       session.status = "active";
+      this.#recordActivity({
+        event: "prompt_submit",
+        sessionId: input.session_id,
+        turnId: input.turn_id,
+        toolName: null,
+        at: now,
+      });
 
       const receiptKey = promptReceiptKey(input.session_id, input.turn_id);
       if (this.#state.prompt_receipts.some((receipt) => promptReceiptKey(receipt.session_id, receipt.turn_id) === receiptKey)) {
@@ -771,6 +896,7 @@ export class CodexBridgeStore {
       capabilities: this.capabilities(),
       sessions: clone(this.#state.sessions),
       deliveries: clone(this.#state.deliveries),
+      activities: clone(this.#state.activities),
     };
   }
 
@@ -819,5 +945,25 @@ export class CodexBridgeStore {
     if (this.#state.prompt_receipts.length > MAX_CODEX_PROMPT_RECEIPTS) {
       this.#state.prompt_receipts.splice(0, this.#state.prompt_receipts.length - MAX_CODEX_PROMPT_RECEIPTS);
     }
+    if (this.#state.activities.length > MAX_CODEX_ACTIVITIES) {
+      this.#state.activities.splice(0, this.#state.activities.length - MAX_CODEX_ACTIVITIES);
+    }
+  }
+
+  #recordActivity(input: {
+    event: CodexActivity["event"];
+    sessionId: string;
+    turnId: string | null;
+    toolName: string | null;
+    at: string;
+  }): void {
+    this.#state.activities.push({
+      activity_id: randomUUID(),
+      session_id: input.sessionId,
+      turn_id: input.turnId,
+      event: input.event,
+      tool_name: input.toolName,
+      at: input.at,
+    });
   }
 }

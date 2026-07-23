@@ -1,5 +1,5 @@
 {
-  "description": "Register this Worktree's Codex sessions and attach explicitly queued Agent Factory context to the next prompt.",
+  "description": "Project external Codex session and tool lifecycle metadata, and attach explicitly queued Agent Factory context to the next prompt.",
   "hooks": {
     "SessionStart": [
       {
@@ -22,6 +22,41 @@
             "command": "node \"$(git rev-parse --show-toplevel)/scripts/af-codex-hook.mjs\"",
             "timeout": 1,
             "statusMessage": "Agent Factory Context 확인"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/af-codex-hook.mjs\"",
+            "timeout": 1
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/af-codex-hook.mjs\"",
+            "timeout": 1
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/af-codex-hook.mjs\"",
+            "timeout": 1
           }
         ]
       }

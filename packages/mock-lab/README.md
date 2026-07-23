@@ -1,10 +1,10 @@
 # Agent Factory Mock Lab
 
-Mock Lab defines, saves, runs, and tests synthetic MCP stdio mock servers from `MockSpec` files. The default user-facing surface is now the main workbench route `http://127.0.0.1:5173/mock-lab`; this standalone package app remains useful for isolated Mock Lab development.
+Mock Lab defines, saves, runs, and tests synthetic MCP stdio mock servers from `MockSpec` files. It is a standalone development app at `http://127.0.0.1:5176/`; Agent Factory Companion does not embed or proxy its UI.
 
 These mocks are local MCP test doubles for Tool assets defined by [Taxonomy](../../docs/workbench/taxonomy.md). Catalog prefill is selected with the `tool` query key.
 
-Running mocks are also re-exposed over network MCP (Streamable HTTP) at `/api/mock-lab/mcp/<key>`, with discovery at `/api/mock-lab/mcp-discovery`, so a generated runnable ADK bundle's Tool connection can call them live. See `docs/mock-lab/local-mcp-mock-lab.md`.
+Running mocks are also re-exposed by the standalone package over network MCP (Streamable HTTP) at `/api/mock-lab/mcp/<key>`, with discovery at `/api/mock-lab/mcp-discovery`, so a generated runnable ADK bundle's Tool connection can call them live. See `docs/mock-lab/local-mcp-mock-lab.md`.
 
 ## Run
 
@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:5176/` for the standalone development app. Use `http://127.0.0.1:5173/mock-lab` for the integrated workbench shell.
+Open `http://127.0.0.1:5176/` for the standalone development app. The Companion on port 5173 exposes no Mock Lab route or API.
 
 ## Guardrails
 

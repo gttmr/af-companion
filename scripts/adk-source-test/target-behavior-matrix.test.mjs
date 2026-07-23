@@ -23,6 +23,7 @@ import {
   targetGraph,
   targetRequirement,
   targetRuntimeContract,
+  refreshCompositionReviewEtag,
   writeTargetArtifacts
 } from "./fixtures.mjs";
 
@@ -1009,6 +1010,7 @@ function writeTargetArtifactsFromObjects(root, analysis, plan) {
   });
   writeFileSync(join(root, "analysis-result.json"), `${JSON.stringify(analysis, null, 2)}\n`);
   writeFileSync(join(root, "scaffold-plan.json"), `${JSON.stringify(plan, null, 2)}\n`);
+  refreshCompositionReviewEtag(root);
 }
 
 function generated(outputRoot) {

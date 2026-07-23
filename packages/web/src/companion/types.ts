@@ -54,7 +54,21 @@ export interface SelectionBundleV1 {
 
 export type CodexSessionStatus = "active" | "stale";
 
-export type CodexSessionLastEvent = "session_start" | "prompt_submit";
+export type CodexSessionLastEvent =
+  | "session_start"
+  | "prompt_submit"
+  | "tool_start"
+  | "tool_end"
+  | "turn_stop";
+
+export interface CodexActivity {
+  activity_id: string;
+  session_id: string;
+  turn_id: string | null;
+  event: CodexSessionLastEvent;
+  tool_name: string | null;
+  at: string;
+}
 
 export interface CodexSession {
   session_id: string;
@@ -105,6 +119,7 @@ export interface CodexBridgeSnapshot {
   capabilities: CodexBridgeCapabilities;
   sessions: CodexSession[];
   deliveries: ContextDelivery[];
+  activities: CodexActivity[];
 }
 
 export interface CodexWorkspaceDescriptor {
