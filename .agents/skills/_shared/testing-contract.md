@@ -110,7 +110,7 @@ Stop before claiming completion when any required command was not run, evidence 
 
 - Plan-driven lifecycle work order §§5-13 and 15-20
 - Codex skill-creator guidance recorded in [r2-official-sources.md](../../../tests/skills/evidence/research/r2-official-sources.md)
-- [Operating Model verification expectations](../../../docs/workbench/operating-model.md#9-검증-기대)
+- [Operating Model verification and rollback ownership](../../../docs/workbench/operating-model.md#10-verification-and-rollback-ownership)
 
 ## Checked date
 
