@@ -284,7 +284,7 @@ export function buildDraftSpecPrompt(input: { mockId: string; userPrompt: string
     `Required server_name: ${input.mockId}-mcp`,
     "Required protocol: mcp_stdio",
     "Required description: a short string.",
-    "Required source object: { prefill_from_catalog: false, catalog_entry_name: null, catalog_file: null }.",
+    "Required source object: { prefill_from_catalog: false, catalog_asset_id: null, catalog_asset_version: null, catalog_entry_name: null, catalog_file: null }.",
     "",
     "Guardrails must all be true:",
     "- synthetic_only",
@@ -314,6 +314,8 @@ export function buildDraftSpecPrompt(input: { mockId: string; userPrompt: string
         description: "Synthetic local MCP mock server.",
         source: {
           prefill_from_catalog: false,
+          catalog_asset_id: null,
+          catalog_asset_version: null,
           catalog_entry_name: null,
           catalog_file: null
         },

@@ -23,6 +23,11 @@
       "type": "object",
       "properties": {
         "prefill_from_catalog": { "type": "boolean" },
+        "catalog_asset_id": { "type": ["string", "null"] },
+        "catalog_asset_version": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
         "catalog_entry_name": { "type": ["string", "null"] },
         "catalog_file": { "type": ["string", "null"] }
       },

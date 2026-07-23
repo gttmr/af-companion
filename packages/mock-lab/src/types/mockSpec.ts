@@ -47,6 +47,7 @@ export interface MockSpecGuardrails {
 export interface MockSpecSource {
   prefill_from_catalog?: boolean;
   catalog_asset_id?: string | null;
+  catalog_asset_version?: number | null;
   catalog_entry_name?: string | null;
   catalog_file?: string | null;
 }
@@ -63,6 +64,7 @@ export interface MockSpec {
 
 export interface CatalogPrefillEntry {
   asset_id: string;
+  version: number;
   name: string;
   asset_type: "tool";
   capability_tags: string[];
@@ -164,6 +166,8 @@ export function createEmptyMockSpec(mockId = "mock-lab-demo"): MockSpec {
     description: "Synthetic local MCP mock server.",
     source: {
       prefill_from_catalog: false,
+      catalog_asset_id: null,
+      catalog_asset_version: null,
       catalog_entry_name: null,
       catalog_file: null
     },

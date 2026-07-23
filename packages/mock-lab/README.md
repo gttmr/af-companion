@@ -17,7 +17,9 @@ Open `http://127.0.0.1:5176/` for the standalone development app. The Companion 
 
 ## Guardrails
 
-- `catalog/tools.yaml` is the only read-only Catalog prefill input. Missing or malformed Tool contracts fail closed.
+- `catalog/asset-registry.json` is the only read-only prefill input. The shared Registry core validates the snapshot, and missing or malformed Registry data fails closed.
+- Prefill includes only the latest published Tool version whose binding is MCP over stdio and whose contract is `mock_ready` or has a non-empty `runtime_mock`; Agent, Workflow, and A2A assets are excluded.
+- Prefilled `MockSpec.source` records the Registry file, asset ID, and exact asset version while preserving all synthetic-only safety guardrails.
 - Canonical specs are saved at `artifacts/mock-lab/<mock-id>/mock-spec.json`.
 - Codex draft output is stored separately at `artifacts/mock-lab/<mock-id>/drafts/<draft-id>/draft-spec.json` and must be explicitly loaded into the editor before saving.
 - Server start uses the saved `mock-spec.json`; it does not require generated project files.
