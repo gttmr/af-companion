@@ -10,8 +10,10 @@ import {
   CodexBridgeValidationError,
   type CodexBridgeEndpoint,
   type CodexBridgeStoreOptions,
+  validateAttachSessionInput,
   validateCodexHookInput,
   validateCreateDeliveryInput,
+  validateCreatePlanHandoffInput,
   validateSessionPreferencesInput,
 } from "./codexBridgeStore.ts";
 
@@ -160,6 +162,14 @@ async function route(
   }
   if (request.method === "POST" && url.pathname === "/v1/deliveries") {
     json(response, 201, await store.createDelivery(validateCreateDeliveryInput(postBody)));
+    return;
+  }
+  if (request.method === "POST" && url.pathname === "/v1/handoffs") {
+    json(response, 201, await store.createPlanHandoff(validateCreatePlanHandoffInput(postBody)));
+    return;
+  }
+  if (request.method === "POST" && url.pathname === "/v1/sessions/attach") {
+    json(response, 200, await store.attachSession(validateAttachSessionInput(postBody)));
     return;
   }
   const preferencesMatch = request.method === "POST"

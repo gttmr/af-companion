@@ -20,6 +20,9 @@ const repoRoot = await mkdtemp(join(tmpdir(), "af-codex-companion-api-"));
 const outsideRoot = await mkdtemp(join(tmpdir(), "af-codex-companion-outside-"));
 const reqId = "req-companion";
 const artifactPath = join(repoRoot, "artifacts/af", reqId, "analysis-result.json");
+const discoveryRevision = "a".repeat(64);
+const decisionRevision = "b".repeat(64);
+const planHash = "c".repeat(64);
 
 await mkdir(dirname(artifactPath), { recursive: true });
 const canonicalArtifact = await readFile(fixturePath, "utf8");
@@ -113,6 +116,114 @@ try {
     body: JSON.stringify({ alias: "blocked" }),
   });
   assert.equal(preferencesResponse.status, 415);
+
+  await bridge.store.handleHook({
+    session_id: "session-plan",
+    transcript_path: null,
+    cwd: repoRoot,
+    hook_event_name: "SessionStart",
+    model: "gpt-test",
+    permission_mode: "plan",
+    source: "startup",
+  });
+  await bridge.store.handleHook({
+    session_id: "session-plan",
+    turn_id: "turn-plan",
+    transcript_path: null,
+    cwd: repoRoot,
+    hook_event_name: "UserPromptSubmit",
+    model: "gpt-test",
+    permission_mode: "plan",
+    prompt: "private Plan prompt",
+  });
+  let handoffResponse = await post("/handoffs", {
+    work_id: "work-plan-facade",
+    from_session_id: "session-plan",
+    from_turn_id: "turn-plan",
+    discovery_revision: discoveryRevision,
+    decision_revision: decisionRevision,
+    plan_hash: planHash,
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+    unexpected: true,
+  });
+  assert.equal(handoffResponse.status, 400);
+  assert.equal((await handoffResponse.json()).code, "invalid_request");
+  handoffResponse = await post("/handoffs", {
+    work_id: "work-plan-facade",
+    from_session_id: "session-plan",
+    from_turn_id: "turn-plan",
+    discovery_revision: discoveryRevision,
+    decision_revision: decisionRevision,
+    plan_hash: planHash,
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+  });
+  assert.equal(handoffResponse.status, 201);
+  const createdHandoff = await handoffResponse.json();
+  assert.equal(createdHandoff.handoff.work_id, "work-plan-facade");
+  assert.match(createdHandoff.marker, /^\[AF_PLAN_HANDOFF\]$/m);
+
+  await bridge.store.handleHook({
+    session_id: "session-materialize",
+    transcript_path: null,
+    cwd: repoRoot,
+    hook_event_name: "SessionStart",
+    model: "gpt-test",
+    permission_mode: "default",
+    source: "startup",
+  });
+  const claimed = await bridge.store.handleHook({
+    session_id: "session-materialize",
+    turn_id: "turn-materialize",
+    transcript_path: null,
+    cwd: repoRoot,
+    hook_event_name: "UserPromptSubmit",
+    model: "gpt-test",
+    permission_mode: "default",
+    prompt: `Implement the approved plan.\n${createdHandoff.marker}`,
+  });
+  assert.match(claimed?.hookSpecificOutput.additionalContext ?? "", /work-plan-facade/);
+
+  await bridge.store.handleHook({
+    session_id: "session-manual",
+    transcript_path: null,
+    cwd: repoRoot,
+    hook_event_name: "SessionStart",
+    model: "gpt-test",
+    permission_mode: "default",
+    source: "startup",
+  });
+  let attachResponse = await post("/sessions/attach", {
+    session_id: "session-manual",
+    work_id: "work-manual-facade",
+    role: "materialization",
+    select_first_active: true,
+  });
+  assert.equal(attachResponse.status, 400);
+  attachResponse = await post("/sessions/attach", {
+    session_id: "session-manual",
+    work_id: "work-manual-facade",
+    role: "materialization",
+  });
+  assert.equal(attachResponse.status, 200);
+  assert.equal((await attachResponse.json()).session_id, "session-manual");
+
+  const handoffSnapshot = await (await fetch(`${origin}/snapshot`)).json();
+  assert.equal(handoffSnapshot.capabilities.fresh_session_handoff, true);
+  assert.equal(handoffSnapshot.capabilities.automatic_fresh_context, false);
+  assert.equal(handoffSnapshot.handoffs[0].status, "claimed");
+  assert.equal(handoffSnapshot.handoffs[0].claimed_by_session_id, "session-materialize");
+  assert.equal(
+    handoffSnapshot.sessions.find((session: { session_id: string }) => session.session_id === "session-plan").role,
+    "plan",
+  );
+  assert.equal(
+    handoffSnapshot.sessions.find((session: { session_id: string }) => session.session_id === "session-materialize").role,
+    "materialization",
+  );
+  assert.equal(
+    handoffSnapshot.sessions.find((session: { session_id: string }) => session.session_id === "session-manual").work_id,
+    "work-manual-facade",
+  );
 
   let launchResponse = await post("/launch-vscode", {});
   assert.equal(launchResponse.status, 202);
@@ -229,7 +340,10 @@ try {
   assert.equal(unavailableResponse.status, 200);
   const unavailable = await unavailableResponse.json();
   assert.equal(unavailable.capabilities.bridge_available, false);
+  assert.equal(unavailable.capabilities.fresh_session_handoff, false);
+  assert.equal(unavailable.capabilities.automatic_fresh_context, false);
   assert.deepEqual(unavailable.sessions, []);
+  assert.deepEqual(unavailable.handoffs, []);
   assert.equal(unavailable.workspace.canonical_path, repoRoot);
   assert.equal(unavailable.editor.launch_supported, true);
 

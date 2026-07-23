@@ -61,12 +61,17 @@ export type CodexSessionLastEvent =
   | "tool_end"
   | "turn_stop";
 
+export type CodexActivityEvent = CodexSessionLastEvent | "session_handoff";
+export type CodexSessionRole = "unassigned" | "plan" | "materialization";
+
 export interface CodexActivity {
   activity_id: string;
   session_id: string;
   turn_id: string | null;
-  event: CodexSessionLastEvent;
+  event: CodexActivityEvent;
   tool_name: string | null;
+  work_id: string | null;
+  handoff_id: string | null;
   at: string;
 }
 
@@ -83,6 +88,28 @@ export interface CodexSession {
   status: CodexSessionStatus;
   alias: string | null;
   default_target: boolean;
+  work_id: string | null;
+  role: CodexSessionRole;
+}
+
+export type PlanHandoffStatus = "pending" | "claimed" | "expired" | "superseded";
+
+export interface PlanHandoff {
+  handoff_id: string;
+  work_id: string;
+  from_session_id: string;
+  from_turn_id: string;
+  discovery_revision: string;
+  decision_revision: string;
+  plan_hash: string;
+  marker_digest: string;
+  target_skill: "af-discover-assets.materialize";
+  status: PlanHandoffStatus;
+  created_at: string;
+  expires_at: string;
+  claimed_by_session_id: string | null;
+  claimed_by_turn_id: string | null;
+  claimed_at: string | null;
 }
 
 export type DeliveryStatus = "queued" | "consumed" | "expired" | "canceled" | "failed";
@@ -112,6 +139,8 @@ export interface CodexBridgeCapabilities {
   mcp_context_pull: boolean;
   direct_turn_start: boolean;
   inflight_steer: boolean;
+  fresh_session_handoff: boolean;
+  automatic_fresh_context: boolean;
 }
 
 export interface CodexBridgeSnapshot {
@@ -119,6 +148,7 @@ export interface CodexBridgeSnapshot {
   capabilities: CodexBridgeCapabilities;
   sessions: CodexSession[];
   deliveries: ContextDelivery[];
+  handoffs: PlanHandoff[];
   activities: CodexActivity[];
 }
 
