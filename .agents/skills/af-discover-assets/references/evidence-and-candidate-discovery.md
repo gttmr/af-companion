@@ -3,136 +3,246 @@
 ## Contents
 
 - [Purpose](#purpose)
-- [When to read](#when-to-read)
-- [Decision criteria](#decision-criteria)
-- [Required evidence](#required-evidence)
-- [Artifact implications](#artifact-implications)
-- [Scaffold implications](#scaffold-implications)
+- [Phase A write boundary](#phase-a-write-boundary)
+- [Explore first](#explore-first)
+- [Progressive Registry disclosure](#progressive-registry-disclosure)
+- [Deterministic search and match grades](#deterministic-search-and-match-grades)
+- [Evidence and candidate boundaries](#evidence-and-candidate-boundaries)
+- [Required user decisions](#required-user-decisions)
+- [Planning subagent](#planning-subagent)
+- [Re-entry from Compose](#re-entry-from-compose)
 - [Verification](#verification)
 - [Stop conditions](#stop-conditions)
-- [Official sources checked](#official-sources-checked)
+- [Sources checked](#sources-checked)
 - [Checked date](#checked-date)
 
 ## Purpose
 
-요구사항에서 사실을 먼저 추출하고, 다섯 판별 질문으로 Agent·Workflow·Tool 후보와 비자산 항목을 분리한다.
+Guide non-mutating Phase A exploration from requirement evidence through deterministic Asset Registry comparison and explicit user choices. Phase A ends with a Discovery Decision Plan; it does not materialize repository artifacts.
 
-## When to read
+## Phase A write boundary
 
-모든 discovery 작업에서 후보를 작성하기 전에 읽는다.
+Phase A runs only in actual Codex Plan Mode. Confirm mode from the active collaboration-mode signal; do not infer it from the prompt or an internal plan.
 
-## Decision criteria
+During Phase A:
 
-### Evidence 분리
+- do not initialize or update a Work Item;
+- do not write discovery, decision, candidate, Registry, Graph, or source files;
+- do not mutate a Registry draft or publication state;
+- do not use a planning subagent to perform writes;
+- if Plan Mode cannot be verified, stop before all repository-tracked writes.
 
-다음 네 묶음을 섞지 않는다.
+Read-only repository and CLI inspection is allowed. The Plan response itself may carry decisions and a handoff marker because it is conversation output, not a tracked artifact.
 
-| 묶음 | 기록 기준 |
+## Explore first
+
+Before the first user question, inspect enough current evidence to avoid asking for repository facts:
+
+1. explicit Work Item, raw requirement, attachments, and any Compose `return_to_discover` record;
+2. Registry L0 search results and snapshot revision;
+3. L1 cards for only the strongest matches;
+4. L2 contracts for only final comparison candidates;
+5. relevant Handbook stage, register, and locator;
+6. current schema/source/usage evidence reached from those locators.
+
+Keep the evidence bundle bounded:
+
+```yaml
+task: one discovery question
+evidence_refs: []
+catalog_candidates: []
+handbook_refs: []
+source_locators: []
+open_questions: []
+required_output_schema: concise findings/options
+```
+
+Handbook locators are navigation only. Reopen current source before treating a locator as evidence.
+
+## Progressive Registry disclosure
+
+Use the actual `asset` command group from `scripts/af.mjs`.
+
+### L0 — deterministic Registry search
+
+```bash
+node scripts/af.mjs asset search [filters] [--root PATH|--registry PATH]
+```
+
+Search accepts current filters including:
+
+```text
+--text
+--type agent|workflow|tool
+--required-input name:type[:required|optional]
+--required-output name:type[:required|optional]
+--side-effect-class none|read_only|write|external_action
+--domain-scope domain_specific|cross_domain|domain_neutral
+--business-domain
+--owner
+--binding-kind function|mcp|built_in|a2a|unresolved|none
+--exposure-protocol a2a|none
+--runtime-requirement
+--include-deprecated
+--limit
+```
+
+Use evidence-backed hard filters first. Add `--text` for lexical/tag ranking after structural constraints; do not use semantic similarity to bypass an incompatible I/O, side-effect, security, binding, or runtime boundary.
+
+### L1 — compact Asset card
+
+Read only top candidates:
+
+```bash
+node scripts/af.mjs asset get <asset-id>@<version> --level 1 [--root PATH|--registry PATH]
+```
+
+L1 should be sufficient for responsibility, version/status, I/O summary, side effect, domain, owner, runtime, binding/exposure, and source/Handbook refs.
+
+### L2 — full contract
+
+Read only finalists:
+
+```bash
+node scripts/af.mjs asset get <asset-id>@<version> --level 2 [--root PATH|--registry PATH]
+```
+
+Use exact comparisons and usage evidence where they can change the decision:
+
+```bash
+node scripts/af.mjs asset compare <asset-id> <from-version> <to-version> [--root PATH|--registry PATH]
+node scripts/af.mjs asset usage <asset-id>@<version> [--root PATH|--registry PATH]
+```
+
+Never send the full Registry or every L2 contract to the planner or a subagent.
+
+## Deterministic search and match grades
+
+Apply this order:
+
+```text
+hard filters
+  -> structural compatibility
+  -> lexical/tag ranking
+  -> optional semantic ranking
+  -> model explanation of bounded finalists
+  -> explicit user selection
+```
+
+Grade each considered candidate using only current evidence:
+
+| Grade | Meaning |
 | --- | --- |
-| Evidence | 사용자 문장, 제공 파일, 현재 소스에서 직접 확인됨 |
-| Assumption | Evidence를 바탕으로 한 추론이며 검토가 필요함 |
-| Contradiction | 둘 이상의 근거가 서로 양립하지 않음 |
-| Missing Information | 후보·계약·위험 판단에 답이 필요함 |
+| `exact` | Required responsibility and contract match without a contract change. |
+| `compatible` | Required contract can be used as-is despite non-load-bearing differences. |
+| `partial` | Some responsibility is reusable, but a new version, composition, or contract delta is required. |
+| `none` | No acceptable candidate remains after hard filters and structural comparison. |
 
-Evidence에는 source와 locator를 남긴다.
+For every required capability, preserve:
 
-Assumption을 Evidence 문장으로 바꾸지 않는다.
+- search text and hard filters;
+- Registry snapshot revision;
+- Asset IDs and exact versions considered;
+- match grade and deterministic compatibility facts;
+- rejection reasons and deprecated-version warning, if any;
+- recommended disposition and rationale;
+- selected disposition, user provenance, and reason.
 
-### 다섯 판별 질문
+The model explains matches; it does not search from memory, auto-select an Asset, or auto-publish.
 
-1. 독립적인 판단 책임이 있는가? 있으면 Agent 후보를 검토한다.
-2. 둘 이상의 실행 단위 흐름을 소유하는가? 있으면 Workflow 후보를 검토한다.
-3. 구조화된 호출 기능인가? 있으면 Tool 후보를 검토한다.
-4. 호출 기능이 아닌 데이터·문서·시스템인가? Resource 또는 Dependency로 기록한다.
-5. 한 Workflow 내부의 private 결정 단계인가? Function Node 관계 Hint로만 남긴다.
+## Evidence and candidate boundaries
 
-### Workflow gate
+Keep four evidence classes separate:
 
-단일 Agent, 단일 Tool, Agent-selected Tool, 독립 Tool 등록은 Workflow 없이 끝날 수 있다.
+| Class | Rule |
+| --- | --- |
+| Evidence | Directly observed user statement, file, Registry result, source, schema, or usage record with locator. |
+| Assumption | Evidence-backed inference requiring review. Never restate it as observed fact. |
+| Contradiction | Two or more sources cannot all be true. Preserve both and request a decision if material. |
+| Missing Information | A question whose answer affects requirement, candidate, contract, risk, or decision. |
 
-순서·분기·반복·합류·pause/resume의 소유 책임이 있을 때만 Workflow 후보를 만든다.
+Classify only responsibilities:
 
-### 후보 record
+1. independent interpretation/judgment responsibility suggests an Agent candidate;
+2. owned ordering, branching, parallelism, iteration, Human Input, pause/resume, or termination suggests a Workflow candidate;
+3. a callable structured function with a defined result/error boundary suggests a Tool candidate;
+4. data, documents, knowledge, systems, endpoints, and non-callable interfaces are Resources or Dependencies;
+5. a private deterministic step inside one Workflow remains a Function Node hint, not an Asset candidate.
 
-각 후보에 다음을 작성한다.
+Do not create a Workflow merely because prose lists multiple steps. Each candidate needs a stable identity, responsibility evidence, I/O and error boundary, side effect, domain scope, owner, reuse evidence, risk/data policy, confidence/rationale, and candidate-level Missing Information.
 
-- stable candidate id와 source requirement id
-- Target asset type
-- responsibility와 Evidence locator
-- input/output와 error boundary
-- side effect와 risk signals
-- Domain Scope와 Owner 후보
-- Reuse 후보와 비교 필요 항목
-- candidate-level Missing Information
-- Resource, Dependency, 다른 후보와의 관계 Hint
+Resources and Dependencies stay in separate Plan sections and later evidence/summary projections. They never enter `assetCandidates`.
 
-## Required evidence
+## Required user decisions
 
-정규화 요구에는 최소 다음을 보존한다.
+After exploration, use `request_user_input` in small groups for decisions the repository cannot answer. Each question provides evidence, distinct options, consequences, and a recommendation when justified. There are no defaults for required decisions.
 
-- stable requirement id와 raw text
-- requester/team/role, 알려진 경우에만
-- business goal과 current process
-- inputs, outputs, systems
-- risk signals
-- contradictions와 missing information
-- status와 확인 날짜
+The complete decision set covers:
 
-Evidence summary에는 다음을 분리한다.
+- goal and measurable success;
+- one of `single_agent`, `agent_delegation`, `explicit_workflow`, `hybrid`;
+- Root Executable type, exact Asset ref, and exact version;
+- one disposition for every required Asset/capability: `reuse_exact`, `reuse_new_version`, `compose_existing`, `create_project_draft`, `create_publish_candidate`, `defer`, or `exclude`;
+- project-only versus publish-candidate intent for creation;
+- applicable Human Input/approval/resume contract;
+- applicable local versus Remote A2A boundary;
+- applicable side-effect, authentication, authorization, and audit choices.
 
-- requested goal
-- business-domain hint
-- user role
-- input/output data
-- systems mentioned
-- decisions implied
-- risks
-- missing information
-- contradictions
-- assumptions
+“추천대로 진행” explicitly selects the recommendations visible in that question. Preserve the accepted option set and current session/turn as user provenance. A missing response leaves the decision open; it does not select the recommendation.
 
-## Artifact implications
+Required decisions may be marked resolved only when `selected_by` is `user` and selection reason plus session/turn provenance are available. Keep candidate/contract Missing Information as a hard gate even if broader requirement uncertainty was accepted.
 
-- requirement-level unknown은 soft gate로 남길 수 있다.
-- candidate/contract-level unknown은 hard gate이며 approved 후보로 넘기지 않는다.
-- top-level candidate는 Agent, Workflow, Tool뿐이다.
-- Resource와 Dependency는 별도 record다.
-- 관계는 Hint이며 Graph topology가 아니다.
-- Runtime Pattern은 Hint이며 Compose contract가 아니다.
+## Planning subagent
 
-## Scaffold implications
+Use at most the narrow assistance justified by complexity. Suitable isolated roles are requirement evidence scout, Registry match scout, architecture-option analyst, or runtime-risk analyst.
 
-이 단계는 scaffold를 만들지 않는다.
+The subagent receives a bounded evidence bundle, not the whole repository or Registry. It returns facts, uncertainty, and options only. The main planner verifies its material claims, asks the user, captures the deliverable, and closes the subagent. Subagent use never implies `agent_delegation` or another runtime strategy.
 
-후속 Scaffold가 필요한 정보는 질문으로 남기되 endpoint, auth value, API class, callback hook, Agent Card를 추측하지 않는다.
+## Re-entry from Compose
+
+On `return_to_discover`, preserve and inspect:
+
+- triggering composition revision;
+- missing capability;
+- failed Asset refs;
+- required contract delta;
+- Graph impact;
+- recommended search criteria;
+- open decision ID.
+
+Refresh the Registry snapshot and repeat Explore-first only for affected capabilities and decisions. Reconfirm existing decisions that the new evidence invalidates; do not silently carry them forward or silently replace them. Preserve the previous discovery cycle for history and propose a new superseding cycle.
+
+Do not edit or merge the prior Graph in Discover. Graph conflict resolution belongs to Compose after the new discovery revision is approved.
 
 ## Verification
 
-모든 후보가 Evidence locator, responsibility, I/O, risk, missing-information 상태를 갖는지 점검한다.
+Before completing Phase A, verify in conversation that:
 
-strict v2 JSON을 작성했다면 다음을 실행한다.
+- actual Plan Mode was observed;
+- no repository-tracked file changed because of Phase A;
+- Registry search preceded Asset questions;
+- only bounded L0/L1/L2 context was read;
+- every required decision has explicit user provenance;
+- every required capability has one exact disposition;
+- Resources/Dependencies remain outside the candidate list;
+- no Graph topology or runtime source was finalized.
 
-```bash
-node scripts/validate-artifacts.mjs <artifact-root-or-proposed-dir>
-```
+Phase B performs artifact and Work Item validation; Phase A does not claim those writes or checks.
 
 ## Stop conditions
 
-- source와 inference를 구분할 수 없음
-- 책임 근거 없이 asset type을 선택해야 함
-- Resource/Dependency를 Tool로 위장해야 함
-- Workflow control 책임이 없음
-- candidate hard gate를 assumption으로 숨겨야 함
-- Runtime Pattern을 확정해야만 후보를 작성할 수 있음
+Stop when Plan Mode is absent or unverified, the Work Item or requirement is ambiguous, exploration cannot access material evidence, deterministic compatibility cannot be established, a required decision is unanswered, a hard gate would be hidden as an assumption, a Resource/Dependency would have to masquerade as an Asset, or the next action would write a repository-tracked file.
 
-## Official sources checked
+## Sources checked
 
+- `schemas/af-work-item.schema.json`
+- `scripts/af.mjs`
+- `packages/agent-factory-core/src/assetRegistry.ts`
 - `docs/workbench/taxonomy.md`
-- `docs/workbench/analysis-guide.md`
-- `docs/workbench/workflow-decision-guide.md`
-- `schemas/analysis-result.schema.json`
+- `docs/workbench/graph-ir.md`
+- `docs/migration/plan-discovery-asset-registry-status.md`
 
 ## Checked date
 
-- Checked date: 2026-07-18
-- Contract note: `assetCandidates` serializes only Agent, Workflow, and Tool classifications.
+- Checked date: 2026-07-24
+- Contract note: Phase A is Plan Mode only, deterministic Registry exploration precedes questions, and every required Asset disposition is an explicit user decision.
