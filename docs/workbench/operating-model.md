@@ -1,31 +1,45 @@
 # Agent Factory Operating Model
 
-Agent Factory work executes in an external Codex CLI or VS Code session. The web product is a live companion: it projects repository state and provides a shared Graph IR editor, but it does not run lifecycle stages.
+Agent Factory work executes in an external Codex CLI or VS Code session. The web product is a live companion: it projects repository state and exposes only two bounded canonical write surfaces, Graph IR and the Asset Registry. It does not run lifecycle stages, generate source, or execute runtime verification.
 
-## 1. Canonical lifecycle
+## 1. Re-entrant lifecycle
 
 ```text
-raw requirement
-  -> af-discover-assets
-  -> explicit discovery review
-  -> af-compose-solution
-  -> explicit composition review
-  -> af-scaffold-runtime
-  -> af-verify-runtime
+Discover Phase A in Plan mode (conversation only)
+  -> explicit user decisions
+  -> fresh-session Discover materialization
+  -> discovery review
+  -> Compose
+       <-> Return-to-Discover when Asset evidence is insufficient
+  -> composition review
+  -> Scaffold
+  -> Verify
+       -> Discover, Compose, or Scaffold according to failure ownership
 ```
 
-`af-workflow` inspects state and routes to the earliest missing or stale step. It does not write artifacts.
+`af-workflow` inspects current revisions, gates, invalidations, cycles, handoffs, and evidence before routing. It does not simply select the next item in a fixed sequence and does not write artifacts.
 
-| Work Skill | Responsibility | Required predecessor | Durable output |
+| Work Skill | Responsibility | Current gate | Durable output |
 | --- | --- | --- | --- |
-| `af-discover-assets` | evidence, normalized requirement, Agent·Workflow·Tool candidates, dependencies, risks, Missing Information | explicit requirement and Work Item | analysis aggregate/splits, summary, Work Item evidence |
-| `af-compose-solution` | standalone/Workflow decision, Graph IR, bindings, invocation control, runtime/A2A contracts, scaffold readiness | approved discovery | coherent Graph/contracts, boundary design, scaffold plan |
-| `af-scaffold-runtime` | approved composition to ADK source or Runtime Handoff | approved composition | source output roots and implementation handoff |
-| `af-verify-runtime` | current artifact/code/runtime/behavior proof | complete scaffold for runtime claims | validation report, outcome, optional Catalog delta |
+| `af-discover-assets` | Plan conversation, evidence, Registry search, user decisions, normalized requirement, Agent·Workflow·Tool candidates | explicit requirement; Plan mode for Phase A | decision plan, analysis aggregate/splits, discovery cycle/revision |
+| `af-compose-solution` | control strategy, Root Executable, Graph IR, Asset dispositions, bindings, runtime contracts, readiness | current approved discovery revision | composition cycle/revision, Graph/contracts, boundary design, scaffold plan |
+| `af-scaffold-runtime` | exact approved composition and Asset versions to ADK source or Runtime Handoff | current approved composition revision | source roots, manifest, implementation handoff |
+| `af-verify-runtime` | current artifact/code/runtime/behavior proof | claim-matched current scaffold evidence | validation report, evidence, outcome |
 
-Raw requirement to code is forbidden. A Work Skill may stop at `waiting_for_input`, `waiting_for_review`, `blocked`, or `failed`; completion is not inferred from file presence.
+Raw requirement to code is forbidden. A Work Skill may stop at `waiting_for_input`, `waiting_for_review`, `blocked`, or `failed`. Earlier cycle artifacts remain history; a new revision supersedes them instead of deleting them.
 
-## 2. Work Item ledger
+## 2. Discover Plan and materialization
+
+Discover has two distinct execution phases.
+
+1. Phase A runs in actual Codex Plan mode. It may inspect the repository, Handbook, and bounded Registry results, use a bounded planning subagent, and ask the user questions. It must not write tracked repository artifacts.
+2. Required decisions remain open until the user selects an option. A recommendation is evidence, not consent; the model never fills `selected_by: "user"` by itself.
+3. The final Phase A output is a Discovery Decision Plan and an explicit handoff marker, not source code or a final Graph.
+4. Phase B runs in a fresh session, claims the exact handoff, reopens current source, verifies revisions and decisions, and materializes Work Item v2 artifacts.
+
+Repository and Registry evidence must be checked before asking the user a question they can answer. Solution Control Strategy (`single_agent`, `agent_delegation`, `explicit_workflow`, or `hybrid`) and Root Executable (exact Agent or Workflow Asset/version) are separate decisions. `hybrid` is never a default inferred from Graph shape.
+
+## 3. Work Item v2 ledger
 
 Every lifecycle has one explicit root:
 
@@ -33,135 +47,102 @@ Every lifecycle has one explicit root:
 artifacts/af/<work-id>/
 ```
 
-`af-work-item.json` is the lifecycle source of truth. It stores:
+`af-work-item.json` with `schema_version: 2` is the lifecycle source of truth. It stores:
 
-- exactly four Work Skill states;
-- `active_skill`;
-- input/output revisions and output refs/roots;
-- blocker refs and timestamps;
-- discovery and composition review gates;
-- verification outcome, revision, and report ref.
+- primary `work_id`, monotonically increasing `ledger_revision`, and UI/routing `focus_skill`;
+- zero or more `active_runs`, including session and role, rather than overloading focus as execution state;
+- four Work Skill states with input/output revisions, output refs/roots, blockers, and timestamps;
+- content-addressed revisions for requirement, decisions, Asset decisions, discovery, Registry snapshot, Graph, Root Executable, runtime contracts, composition, scaffold, and verification;
+- append-preserved discovery/composition cycles and structured Return-to-Discover records;
+- required user decisions and per-Asset dispositions;
+- Solution Control Strategy and exact Root Executable;
+- revision-bound review gates, invalidations, verification evidence, and session handoffs.
 
-Allowed skill statuses are `not_started`, `active`, `waiting_for_input`, `waiting_for_review`, `complete`, `blocked`, and `failed`.
+Allowed skill statuses are `not_started`, `active`, `waiting_for_input`, `waiting_for_review`, `complete`, `blocked`, `failed`, and `stale`. A revision includes sorted repository-relative subjects, each SHA-256, and the exact Registry revision when applicable. Missing fields, v1 manifests, ambiguous refs, and digest drift are rejected rather than migrated or backfilled.
 
-Lifecycle order is strict:
+## 4. Decisions and review gates
 
-- Compose cannot start before approved, complete Discover.
-- Scaffold cannot start before approved, complete Compose.
-- Verify cannot start before complete Scaffold.
-- Verify may be complete only when verification outcome is `passed`.
+Required decision records expose options, evidence, and an optional recommendation. Resolution requires a selected option/disposition, `selected_by: "user"`, a reason, and session/turn provenance. “추천대로 진행” is an explicit user selection only when it clearly refers to the displayed option set.
 
-No reader backfills missing fields or accepts a previous lifecycle manifest.
+Review is also a human decision, not validator output or skill self-approval.
 
-## 3. Review decisions
+- Discovery approval binds exact requirement, decision, Asset decision, discovery, and Registry snapshot revisions plus the artifact ETag.
+- Composition approval binds exact discovery, Graph, Root Executable, runtime contract, and composition revisions plus the artifact ETag.
 
-Review is a human decision, not validator output or skill self-approval.
+When an input changes, the prior binding is retained but marked `stale`; affected downstream skill/evidence records are also stale. Validators, file presence, Graph save, bridge health, or successful generation never create approval.
 
-There are two gates:
+## 5. Asset Registry
 
-- `review_gates.discovery` protects Compose;
-- `review_gates.composition` protects Scaffold.
+`catalog/asset-registry.json` is the one canonical Registry document. `packages/agent-factory-core/src/assetRegistry.ts` owns strict parsing, contract hashes, deterministic search, lifecycle transitions, locking, revision comparison, and atomic replacement. The web API and `scripts/af.mjs asset ...` use this same service.
 
-A decision must record `approved` or `changes_requested`, the SHA-256 of the reviewed canonical `analysis-result.json` bytes, decision time, and the external Codex session/turn in which the user made the decision. If provenance is unavailable, the gate remains pending.
+Registry invariants:
 
-Changing relevant canonical bytes makes previous review stale. Discovery changes invalidate both gates and downstream work. Composition/Graph changes invalidate composition approval, Scaffold, Verify, and verification outcome.
+- Agent, Workflow, and Tool are the only asset types. A2A is an Agent binding/exposure.
+- Records are addressed by exact `asset_id@version`; statuses are `draft`, `reviewed`, `published`, and `deprecated`.
+- Search applies deterministic type/I/O/side-effect/domain/owner/binding/runtime filters and returns compatibility facts, rejection reasons, match grade, and a bounded result set.
+- Progressive disclosure uses L0 identity/summary cards, L1 operational contracts/usage, and L2 full contract/lifecycle details. A model does not receive or rank the full Registry.
+- Draft create/update requires the expected Registry revision. Review, publish, and deprecate require explicit decision records; publish also requires owner/domain/reuse confirmation.
+- Published contract bytes are immutable. A changed contract becomes a new draft version. Published dependencies must point to exact published versions.
+- Web and CLI never bypass the service with direct JSON edits. Revision conflicts require re-read and renewed user review, not blind retry.
 
-The web app displays gates but never approves them.
+Registry search does not select a reuse outcome. Each required Asset receives exactly one user disposition such as `reuse_exact`, `reuse_new_version`, `compose_existing`, `create_project_draft`, `create_publish_candidate`, `defer`, or `exclude`.
 
-## 4. Write ownership
+## 6. Write ownership
 
 | Content | Writer |
 | --- | --- |
-| requirements, candidates, contracts, summaries, source, handoff, reports | matching external-Codex Work Skill |
-| Work Item skill status/evidence | executing external Codex session |
-| review gate decision | external Codex session after explicit user/reviewer decision |
-| Graph IR | Compose skill or web Graph editor |
-| Catalog seeds | separate reviewed repository change |
-| activity/Git/file projection | workbench metadata projection |
+| requirement, candidates, contracts, summaries, Work Item state, source, handoff, reports | matching external-Codex Work Skill |
+| Work Item review decision | external Codex session after explicit reviewer decision |
+| Graph IR | Compose skill or guarded web Graph editor |
+| Asset Registry | shared service through guarded Web/CLI after explicit decision and revision check |
+| activity/Git/file projection and bridge state | bounded workbench metadata stores |
 
-The app does not expose arbitrary artifact PUT, source edit, stage/commit, runtime execution, or Catalog publication.
+The app does not expose arbitrary artifact PUT, source edit, stage/commit, Work Item approval mutation, runtime execution, or model-owned publication.
 
-## 5. Graph collaboration
+## 7. Graph collaboration and re-entry
 
-Graph IR is the only shared browser edit surface. `PUT /api/work-items/:workId/graph` requires:
+`PUT /api/work-items/:workId/graph` requires loopback, same origin, current `If-Match`, approved discovery, strict Target v2 Graph validation, and one explicitly selected active Codex session.
 
-- loopback and same-origin request;
-- current `If-Match` for `analysis-result.json`;
-- approved discovery;
-- strict Target v2 Graph validation;
-- one explicitly selected active Codex session.
+The server synchronizes `analysis-result.json.graph` and `graph-ir.json`, creates a new composition cycle/revision, preserves superseded cycles, marks affected composition/Scaffold/Verify evidence stale, records invalidations, and queues compact `graph_change` context to the exact session. A delivery failure is surfaced separately and does not roll back an already committed Graph save.
 
-The server updates `analysis-result.json.graph` and `graph-ir.json`, resets stale composition/downstream state in `af-work-item.json`, and queues a `graph_change` context delivery for the exact session. A queue failure returns accepted-with-warning because canonical Graph save already occurred; the UI must surface that distinction.
+Compose creates a structured Return-to-Discover when an Asset capability or contract is missing. A new Discover cycle searches the current Registry and gathers new decisions. After approval, Compose receives the new discovery revision and previous composition diff; it does not auto-merge or silently reuse the old Graph.
 
-The external session re-reads canonical files before continuing. It must not overwrite a browser change from an older in-memory Graph.
+## 8. Fresh-session handoff
 
-## 6. Artifact contract
+The local bridge can create a pending Plan handoff only from a known active Plan-mode session and its exact latest turn. It returns one signed marker containing Work Item, handoff, discovery and decision revisions, Plan hash, target, and claim token.
 
-`analysis-result.json` uses strict `contract_version: "2.0"` and owns `normalizedRequirement`, `evidence`, `assetCandidates`, `a2aContracts`, `runtimeContracts`, and `graph`.
+The first prompt in a distinct fresh session claims only one exact, unexpired marker. Claim is consume-once, rejects the source session and mismatched/ambiguous/subagent prompts, and assigns Plan/materialization roles to the two sessions. Hook failure remains fail-open for ordinary Codex usage. If marker carriage fails, `/connections` and `node scripts/af.mjs work attach-session ...` provide explicit named-session attachment; neither path selects the first active session.
 
-Canonical split/output names are:
+## 9. Scaffold and Runtime Handoff
 
-- `normalized-requirement.json`
-- `asset-candidates.json`
-- `graph-ir.json`
-- `analysis-summary.md`
-- `boundary-design.md`
-- `scaffold-plan.json`
-- `runtime-stub/`
-- `implementation-handoff.md`
-- `validation-report.md`
-- `catalog-delta.yaml`, only when verified reuse feedback exists
-
-Agent, Workflow, and Tool are the only top-level asset types. A2A is an Agent binding/exposure. Tool Invocation Control is Workflow or Agent. Full meanings live in [Taxonomy](taxonomy.md) and [Graph IR](graph-ir.md).
-
-## 7. Scaffold and Runtime Handoff
-
-Scaffold consumes current approved artifacts, a reviewed scaffold plan with `raw_requirement_to_code=false`, explicit output mode, and explicit source roots.
+Scaffold consumes current approved revisions, resolved required decisions, an explicit Root Executable, an approved scaffold plan with `raw_requirement_to_code=false`, and explicit output roots.
 
 - `smoke` creates importable review structure and explicit TODO seams.
-- `runnable` adds reviewed synthetic/local behavior for agreed scenarios.
+- `runnable` adds only reviewed synthetic/local behavior for agreed scenarios.
 
-Neither mode implies production integration or deployment. Source writes remain within approved roots; private endpoints, credentials, real customer data, deploy scripts, and organization-specific production logic are forbidden.
+The generator recomputes decision, Asset decision, and Root revision hashes; resolves exact Registry versions at the bound Registry revision; rejects duplicate/version/staleness drift; and preserves project-only Assets separately. Local exact reuse requires one reviewed `python:module#symbol` source reference and imports that object/callable instead of regenerating it. MCP and Remote A2A reuse follows reviewed bindings.
 
-Scaffold는 Work Item에 사용자가 확정한 Solution Control Strategy와 Root Executable을 보존한다. 설치된 `google-adk 2.3.0` 계약에 맞춰 Workflow Root는 `google.adk.workflow.Workflow`, Agent Root는 선택된 `BaseAgent` object로 생성하고, ADK가 요구하는 `root_agent` symbol은 그 exact object를 가리킨다. 생성 manifest에는 asset ref/version, decision ID, strategy와 generated symbol을 함께 기록한다. Strategy, Graph owner/profile, Root Type이 충돌하면 Compose로 되돌아가야 하며 Scaffold가 자동으로 Root나 전략을 바꾸지 않는다.
+Solution strategy and Root type must agree with Graph ownership. With installed `google-adk 2.3.0`, a Workflow Root is a `google.adk.workflow.Workflow`; an Agent Root is the selected `BaseAgent` object, and generated `root_agent` points to that exact object. Scaffold never changes the strategy or Root to make generation pass.
 
-각 scaffold Asset은 exactly one resolved user `asset_decision`을 가져야 한다. Scaffold는 현재 Decision·Asset Decision·Root Executable JSON이 승인 Gate에 묶인 revision subject hash와 같은지도 다시 계산한다. `reuse_exact`/`reuse_new_version`/`create_publish_candidate`는 Work Item이 묶은 current Registry revision에서 exact Asset version과 contract projection을 다시 확인한다. Local Agent·Workflow·function Tool의 `reuse_exact`은 exactly one `python:module#symbol` executable `source_ref`를 요구하고 그 reviewed object/callable을 import한다. Source ref가 없는 published contract를 새 `LlmAgent`로 재생성하지 않는다. MCP Tool과 Remote A2A Agent는 reviewed binding을 runtime adapter로 연결한다. `reuse_new_version`과 `create_publish_candidate`는 draft/reviewed version만 구현하며 published version은 불변이다.
+Neither output mode implies production integration or deployment. Private endpoints, credentials, real customer data, deploy scripts, and organization-specific production logic remain forbidden.
 
-`create_project_draft`와 `compose_existing`의 결과 Asset은 Registry ref를 가질 수 없고 project-local version 1로 구분한다. 현재 generator에서 `compose_existing`은 선택된 project Workflow Root여야 하고, 최소 두 개의 exact published/deprecated component Registry ref를 보존하며, 각 component가 scaffold의 `reuse_exact` binding으로 포함되어야 한다. Graph는 그 imported Agent·Workflow object와 Tool callable 또는 reviewed MCP/A2A binding을 조합하고 deprecated component를 경고한다. Agent `available_tools`의 local Python Tool도 exact callable을 import하며 누락하거나 새 stub으로 바꾸지 않는다. 같은 Registry version을 둘 이상의 candidate가 중복 binding하거나 Root version과 Asset decision version이 다르면 생성 전에 중단한다. Generated `workflow_manifest.json`은 `asset_registry_revision`과 각 `asset_bindings`의 disposition, source, generation action, Registry/component ref, executable source ref와 경고를 보존한다.
+## 10. Verification and rollback ownership
 
-## 8. Verification
+Verification maps each claim to fresh evidence at five levels: skill structure, artifact contract, code correctness, runtime integration, and behavior evaluation. Reports record revision, environment, exact command/cwd, scenario/input, exit code, observed output, failure/skip cause, and residual uncertainty.
 
-Verification maps each claim to fresh evidence:
+Outcomes are `passed`, `failed`, `unverified`, or `stale`. Verify can be complete only with `passed`. A structure/Asset failure routes to Discover, Graph/control/contract failure to Compose, generation failure to Scaffold, and behavior-quality failure to the evidence-owning Discover or Compose decision. Verify does not create `catalog-delta.yaml`; Registry publication is a separate explicitly authorized service/CLI mutation followed by invalidation and re-verification as needed.
 
-1. Skill structure.
-2. Artifact contract.
-3. Code correctness.
-4. Runtime integration.
-5. Behavior evaluation.
-
-Commands are chosen by claim, not a web-server allow-list. The report preserves revision, environment, exact command/cwd, input scenario, exit code, concise observed output, failure/skip cause, and residual uncertainty.
-
-Outcomes are:
-
-- `passed`: every required claim has fresh sufficient evidence;
-- `failed`: a required claim is disproved;
-- `unverified`: required evidence could not be obtained.
-
-Catalog feedback may be written to `catalog-delta.yaml`, but Work Skills never edit `catalog/*.yaml`. The web Assets screen is read-only.
-
-## 9. Live companion APIs
-
-Only four API families are current:
+## 11. Current routes and APIs
 
 | Prefix | Purpose | Mutation |
 | --- | --- | --- |
 | `/api/workspace` | identity, live snapshot, Git changes/diff, SSE, VS Code open | contained editor open only |
 | `/api/work-items` | Work Item/artifact projection | Graph GET/PUT only |
-| `/api/codex-companion` | observed sessions and exact next-prompt queue | interaction state only |
-| `/api/catalog` | Catalog projection | none |
+| `/api/codex-companion` | sessions, Plan handoffs, explicit attach, exact next-prompt queue | bounded interaction state only |
+| `/api/asset-registry` | L0/L1/L2, search, usage, compare, validate, lifecycle | guarded Registry mutations |
 
-The app routes are `/`, `/work/:workId/discover`, `/compose`, `/scaffold`, `/verify`, `/connections`, and `/assets`.
+Routes are `/`, `/work/:workId/discover`, `/compose`, `/scaffold`, `/verify`, `/connections`, and `/assets`. Stage routes, `/api/af`, `/api/catalog`, proposal/apply, old manifest parsers, legacy imports, and compatibility aliases are unsupported.
 
-## 10. Documentation impact
+## 12. Documentation impact
 
-Any change to lifecycle state, review provenance, artifact/interface shape, API mutation, or visible screen contract updates this document, the Handbook, relevant schema/validator docs, and `docs/decision-log.md` in the same change set. Source remains final authority.
+Any change to lifecycle state, decision provenance, Registry contract, review binding, artifact/interface shape, API mutation, or visible screen contract updates this document, the Handbook, relevant schema/validator docs, and `docs/decision-log.md` in the same change set. Source remains final authority.

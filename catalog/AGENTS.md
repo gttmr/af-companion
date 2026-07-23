@@ -1,44 +1,41 @@
-# Seed Catalogs
+# Asset Registry
 
 ## Scope
 
-`catalog` contains versioned seed contracts for reusable Agent, Workflow, and
-Tool assets, plus domain owners, risk gates, and detailed contract bodies under
-`catalog/contracts`.
+`catalog` contains the canonical versioned Asset Registry plus supporting domain
+owner and risk-gate reference data. The Registry stores only reusable Agent,
+Workflow, and Tool contracts.
 
 Asset meanings are canonical in [Taxonomy](../docs/workbench/taxonomy.md).
 
 ## Structure
 
-- `agents.yaml`: Agent assets, including optional A2A binding or exposure.
-- `workflows.yaml`: Workflow assets and their workflow profiles.
-- `tools.yaml`: Tool assets, including Function, MCP, or built-in bindings.
+- `asset-registry.json`: strict Registry schema version 1 with immutable published versions and lifecycle decision evidence.
 - `domain-owners.yaml`: ownership hints.
 - `risk-gates.yaml`: risk signals used by candidates and review.
-- `contracts/*`: detailed protocol contract bodies.
 
 ## Local Rules
 
-- Catalog reads and publication use only the `agents`, `workflows`, and `tools` buckets.
-- Every row must use strict Target fields such as `asset_id`, `asset_type`, `domain_scope`, `owner`, `reuse_status`, `binding`, and `connection`.
+- Web and `scripts/af.mjs asset ...` must use `packages/agent-factory-core/src/assetRegistry.ts`; do not add a second parser or writer.
+- Every record must use strict fields such as `asset_id`, exact `version`, `status`, `contract_hash`, lifecycle decisions, `asset_type`, I/O, `domain_scope`, `owner`, `reuse_status`, binding, and connection.
 - Seed entries are runtime-oriented contracts, not production integrations.
 - `runtime_mock` payloads must be deterministic synthetic local smoke data.
-- Human PR seed edits are allowed, but app writes must go through Reuse Hub publish from reviewed `catalog-delta.yaml`.
-- Keep fields aligned with schemas, analyzer types, publish validation, and UI.
+- Draft writes require the exact Registry revision; review, publish, and deprecate require explicit user decision evidence. Published contract bytes are immutable.
+- Keep fields aligned with the shared Registry core, CLI, API, generator bindings, Mock Lab prefill, and UI.
 - Risk signals should line up with `risk-gates.yaml`.
 
 ## Anti-Patterns
 
-- Do not create another Catalog bucket or project one asset type into another.
-- Do not treat A2A as a Catalog category; it is an Agent protocol boundary.
+- Do not restore YAML asset buckets, `catalog-delta.yaml`, or direct file-edit publication.
+- Do not create another Registry asset type or project one asset type into another.
+- Do not treat A2A as a Registry category; it is an Agent protocol boundary.
 - Do not add private endpoints, credentials, deployment scripts, real customer data, or organization-specific business logic.
 - Do not repurpose Catalog entries as reviewer approval records; approval lives in artifact roots.
 
 ## Verification
 
 ```bash
+node scripts/af-cli.test.mjs
 node scripts/validate-artifacts.mjs
-cd packages/web && npm run test:analyzer
+cd packages/web && npm run test:contracts && npm run test:companion
 ```
-
-Review YAML diffs carefully because publish can canonicalize formatting.

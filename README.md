@@ -1,15 +1,15 @@
 # Agent Factory Companion
 
-Agent Factory Companion is a local web projection for Agent Factory work performed in an external Codex CLI or VS Code Codex session. Codex edits the repository and canonical artifacts; the web app makes that work visible in real time and provides one shared edit surface for Graph IR.
+Agent Factory Companion is a local web projection for Agent Factory work performed in an external Codex CLI or VS Code Codex session. Codex edits Work Item artifacts and source; the web app makes that work visible in real time and provides bounded edit surfaces for Graph IR and the versioned Asset Registry.
 
-The lifecycle is expressed by four Work Skills, not web-run stages:
+The lifecycle is expressed by four re-entrant Work Skills, not web-run stages:
 
 1. `af-discover-assets` — requirement evidence and Agent·Workflow·Tool candidates.
 2. `af-compose-solution` — standalone/Workflow decision, Graph IR, bindings, and runtime contracts.
 3. `af-scaffold-runtime` — approved composition to ADK source or Runtime Handoff.
 4. `af-verify-runtime` — fresh artifact, code, runtime, and behavior evidence.
 
-`af-workflow` is the read-only router for starting or resuming this sequence. Raw requirements never go directly to source generation.
+`af-workflow` is the read-only router for starting, resuming, or returning to the evidence-owning skill. Raw requirements never go directly to source generation.
 
 ## Work ownership
 
@@ -17,9 +17,9 @@ The lifecycle is expressed by four Work Skills, not web-run stages:
 | --- | --- |
 | Canonical artifacts, source, handoff, validation report | external Codex CLI or VS Code session |
 | Work Skill state and explicit review provenance | executing external Codex session in `af-work-item.json` |
-| Graph IR | Compose skill or web Graph editor |
+| Graph IR | Compose skill or guarded web Graph editor |
+| Versioned Asset Registry | shared Registry core through Web or `scripts/af.mjs asset ...` |
 | Activity, files, Git changes, diffs, session state | web projection, read-only |
-| Catalog seed publication | separate reviewed repository workflow |
 
 The canonical root is `artifacts/af/<work-id>/`. Its lifecycle ledger is `af-work-item.json`; old stage manifests, run directories, proposal/apply flows, and `/api/af` are not supported.
 
@@ -27,15 +27,15 @@ The canonical root is `artifacts/af/<work-id>/`. Its lifecycle ledger is `af-wor
 
 The app routes are:
 
-- `/` — Work Item index and four-skill lifecycle map;
+- `/` — Work Item index and revisioned lifecycle map;
 - `/work/:workId/discover` — evidence and candidate projection;
 - `/work/:workId/compose` — Graph IR review and the only browser artifact editor;
 - `/work/:workId/scaffold` — generated source, handoff, and Git diff projection;
 - `/work/:workId/verify` — five-level evidence projection;
 - `/connections` — Hook-observed Codex sessions and delivery state;
-- `/assets` — read-only Agent·Workflow·Tool Catalog.
+- `/assets` — Agent·Workflow·Tool Registry browse, search, version, usage, draft, review, publish, and deprecate operations.
 
-Graph saves require the latest ETag, an approved Discover result, same-origin loopback access, and an explicit active Codex session target. Saving synchronizes embedded and split Graph IR, resets stale composition/downstream state, and queues metadata about the change to that exact session.
+Graph saves require the latest ETag, an approved Discover result, same-origin loopback access, and an explicit active Codex session target. Saving synchronizes embedded and split Graph IR, preserves prior cycle history, marks affected composition/downstream evidence stale, and queues metadata about the change to that exact session. Registry mutations require the current Registry revision and explicit lifecycle decisions; published versions are immutable.
 
 ## Codex connection
 

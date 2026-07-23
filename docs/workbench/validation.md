@@ -18,7 +18,7 @@ Every claim records revision, environment, command/cwd, input, exit code, observ
 - `failed`: at least one required claim is disproved.
 - `unverified`: required evidence cannot be obtained.
 
-`af-work-item.json` may mark Verify complete only with `verification.outcome: "passed"`. Discovery/composition review is never created by verification.
+`af-work-item.json` may mark Verify complete only with `verification.outcome: "passed"`. Discovery/composition review is never created by verification. A changed Registry, Graph, Root, contract, or scaffold revision makes claim-dependent evidence stale.
 
 Common commands include:
 
@@ -26,6 +26,7 @@ Common commands include:
 node scripts/validate-skills.mjs
 node scripts/validate-artifacts.mjs <artifact-root>
 node scripts/validate-generated-runtime.mjs <artifact-root>
+node scripts/af-cli.test.mjs
 cd packages/web && npm run test:contracts
 cd packages/web && npm run test:companion
 cd packages/web && npm run build

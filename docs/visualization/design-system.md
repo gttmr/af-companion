@@ -33,16 +33,19 @@ Work Item을 선택하지 않은 `/`에서는 왼쪽 rail 없이 lifecycle map�
 
 - normalized requirement와 evidence를 먼저 표시한다.
 - Candidate register는 Agent·Workflow·Tool을 한 표에서 비교한다.
+- Solution Control Strategy, Root Executable, Discovery cycle과 required Decision/Asset Decision을 별도 운영 register로 표시한다.
+- Plan Session과 Materialization Session, handoff 상태를 같은 Work Item 안에서 연결해 보여 준다.
 - dependency와 Missing Information은 별도 register로 분리한다.
 - 수정 action은 제공하지 않고 VS Code에서 canonical artifact 열기만 제공한다.
 
 ### Compose
 
 - Graph IR이 주 작업면이다.
+- 현재 Strategy, Root Executable, Registry revision, Asset disposition을 Graph보다 먼저 확인할 수 있어야 한다.
 - Discovery와 Composition review gate를 함께 표시하되 웹에서 결정하지 않는다.
 - 명시적 active Codex session을 선택해야 Graph save가 가능하다.
 - Graph edit mode에서 `GraphElementEditor`가 Canvas 옆에 표시된다.
-- save 후 composition/downstream evidence가 stale 상태로 바뀐다는 점을 작업면 안에서 알린다.
+- Return-to-Discover와 active invalidation을 보여 주고, save 후 composition/downstream evidence가 stale 상태로 바뀐다는 점을 작업면 안에서 알린다.
 
 ### Scaffold
 
@@ -58,9 +61,9 @@ Work Item을 선택하지 않은 `/`에서는 왼쪽 rail 없이 lifecycle map�
 
 ## Connections와 Assets
 
-Connections는 Bridge health, Hook observation, VS Code capability, observed sessions, queued next-prompt delivery를 구분한다. Editor launch accepted와 Codex connected를 같은 성공으로 표시하지 않는다.
+Connections는 Bridge health, Hook observation, VS Code capability, observed sessions, Plan handoff, explicit session attach, queued next-prompt delivery를 구분한다. Work Item, role, cwd, last seen을 함께 표시하고 Editor launch accepted와 Codex connected를 같은 성공으로 표시하지 않는다.
 
-Assets는 Agent·Workflow·Tool Catalog를 읽기 전용 register로 표시한다. publish, pin, proposal edit action은 제공하지 않는다. A2A는 Agent의 protocol binding/exposure이며 네 번째 category가 아니다.
+Assets는 Agent·Workflow·Tool Registry를 dense register로 표시한다. L0 목록에서 L1 operational detail과 L2 full contract로 점진적으로 열고, deterministic search evidence, exact versions, usage, version compare를 제공한다. Draft create/update와 review/publish/deprecate는 current Registry revision, strict validation, 명시적 사용자 Decision을 요구한다. Published contract는 편집하지 않는다. A2A는 Agent의 protocol binding/exposure이며 네 번째 category가 아니다.
 
 ## Live rail
 
@@ -136,6 +139,7 @@ Graph save는 현재 `analysis-result.json.graph`과 `graph-ir.json`을 동기�
 | Connections/Assets | `packages/web/src/routes/ConnectionsPage.tsx`, `AssetsPage.tsx` |
 | Graph canvas/editor | `packages/web/src/components/GraphCanvas.tsx`, `GraphElementEditor.tsx` |
 | Graph write client | `packages/web/src/workspace/api.ts` |
+| Registry client/editor | `packages/web/src/registry/assetRegistryClient.ts`, `registryDraft.ts` |
 | styles | `packages/web/src/styles/index.css`, `features/graph.css`, `router/live-workbench.css` |
 
 ## Verification

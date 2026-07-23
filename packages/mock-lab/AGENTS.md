@@ -46,5 +46,5 @@ npm run build
 ```
 
 Standalone development and browser testing use fixed port 5176. The Companion
-on 5173 provides only a read-only Tool Catalog projection and does not mount
-Mock Lab routes or APIs.
+on 5173 owns Registry lifecycle operations but does not mount Mock Lab routes or
+APIs. Mock Lab itself remains a read-only Registry consumer.

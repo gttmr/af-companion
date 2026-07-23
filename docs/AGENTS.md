@@ -11,7 +11,7 @@
 1. `docs/README.md`: 사람과 coding agent의 기본 읽기 경로
 2. `docs/workbench/taxonomy.md`, `docs/workbench/graph-ir.md`, `docs/workbench/operating-model.md`: 자산 분류, Graph 표현, Work Skill lifecycle의 canonical 문서
 3. `docs/handbook/**`: 저장소 행동과 최신 source locator를 연결하는 지도
-4. `docs/migration/taxonomy-vnext-status.md`: strict cutover 결과와 지원하지 않는 과거 입력
+4. `docs/migration/taxonomy-vnext-status.md`와 `docs/migration/plan-discovery-asset-registry-status.md`: strict cutover, revisioned lifecycle, Asset Registry 이행 상태
 5. review, validation, Mock Lab, visualization, architecture reference 같은 보조 문서
 
 보조 문서는 canonical 정의를 반복하거나 별도 enum을 만들지 않는다. Handbook locator가 가리키는 행동은 현재 저장소 소스에서 다시 확인하며, 문서의 locator만으로 구현 사실을 단정하지 않는다.

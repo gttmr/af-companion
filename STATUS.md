@@ -1,6 +1,6 @@
 # STATUS — Agent Factory Companion
 
-Last updated: 2026-07-23 (KST).
+Last updated: 2026-07-24 (KST).
 
 This is a branch-neutral product status. Check the live checkout separately:
 
@@ -13,10 +13,10 @@ git rev-parse --short HEAD
 ## Current implementation
 
 - The web product is an external-Codex-first live companion. It no longer runs Analyze, Design, Build, or Verify stages.
-- The lifecycle ledger is strict `artifacts/af/<work-id>/af-work-item.json` with exactly four Work Skills, two explicit review gates, and a verification outcome.
+- The lifecycle ledger is strict `artifacts/af/<work-id>/af-work-item.json` v2 with four Work Skills, revision-bound review gates, re-entrant discovery/composition cycles, decisions, invalidations, and session handoffs.
 - External Codex owns canonical artifacts and source. The web app projects Work Items, files, Git status/diffs, Hook activity, and session state.
-- Graph IR is the only browser-writeable artifact. Its write path is loopback/same-origin, ETag guarded, strict-v2 validated, and tied to one explicitly selected active Codex session.
-- Catalog is read-only in the app and exposes only Agent, Workflow, and Tool.
+- Browser canonical writes are limited to Graph IR and the Asset Registry. Both are loopback/same-origin, revision guarded, and strictly validated; Graph writes also target one explicit active Codex session.
+- `catalog/asset-registry.json` versions Agent, Workflow, and Tool contracts. Draft/review/publish/deprecate transitions use explicit decisions, and published versions are immutable.
 - Project/plugin Hooks cover `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, and `Stop`. Persisted activity is metadata-only.
 - VS Code actions open the canonical workspace, a contained file, or a generated local diff. They do not claim IDE-thread creation or selection.
 - Old Stage Runner APIs, stage routes, server analyzer/build/verify primitives, proposal/apply artifacts, and `af-run-manifest.json` are removed.
@@ -31,7 +31,7 @@ Vite registers only these product API families:
 - `/api/workspace` — identity, snapshot, Git diff, SSE, and contained VS Code open;
 - `/api/work-items` — read-only Work Item/files plus Graph GET/PUT;
 - `/api/codex-companion` — sessions and exact next-prompt deliveries;
-- `/api/catalog` — read-only Catalog projection.
+- `/api/asset-registry` — progressive Registry reads/search and guarded lifecycle mutations.
 
 ## Verification posture
 

@@ -31,9 +31,9 @@ Do not duplicate or redefine a canonical taxonomy or Graph enum in this file. Li
 
 ## Current Implementation Contract
 
-External Codex and the four Work Skills write strict Target Contract v2 fields such as `asset_type`, `binding`, `workflow_profile`, `domain_scope`, `owner`, `reuse_status`, asset refs, and `invocation_control`. `af-work-item.json` is the lifecycle ledger. The web app projects repository state and writes only Graph IR; Stage Runner, `/api/af`, proposal/apply artifacts, and `af-run-manifest.json` are unsupported.
+External Codex and the four Work Skills write strict Target Contract v2 fields such as `asset_type`, `binding`, `workflow_profile`, `domain_scope`, `owner`, `reuse_status`, asset refs, and `invocation_control`. `af-work-item.json` v2 is the revisioned, re-entrant lifecycle ledger. The web app projects repository state; its only canonical writes are guarded Graph IR and Asset Registry mutations. Stage Runner, `/api/af`, proposal/apply artifacts, and `af-run-manifest.json` are unsupported.
 
-Graph IR uses the canonical Target node/edge envelope. Catalog reads use `agents.yaml`, `workflows.yaml`, and `tools.yaml`; publication is a separate reviewed repository workflow, not an app mutation. Adapter and Remote A2A are not asset categories or Catalog buckets. A2A remains a protocol binding for Agent assets. The skill tree is `af-workflow` plus four canonical Work Skills with no former-stage shims.
+Graph IR uses the canonical Target node/edge envelope. The canonical Asset Registry is `catalog/asset-registry.json`; Web and `scripts/af.mjs asset ...` share its strict core service, revision checks, and immutable published versions. Registry review, publication, and deprecation require explicit user decision evidence. Adapter and Remote A2A are not asset categories or Registry buckets. A2A remains a protocol binding for Agent assets. The skill tree is `af-workflow` plus four canonical Work Skills with no former-stage shims.
 
 ## Local AGENTS.md Hierarchy
 
@@ -125,7 +125,7 @@ Git worktrees created for isolated slices must be cleaned up after their work la
 - Keep changes scoped to the requested behavior. Do not add unrelated abstractions, configuration, or extensibility.
 - Keep Target Contract wording and Current Implementation behavior visibly separate.
 - Runtime Handoff and scaffold generation consume approved artifacts, never raw requirements or unreviewed discovery output.
-- Follow [Operating Model](docs/workbench/operating-model.md) for Catalog publication; the web Catalog is read-only and Work Skills do not edit `catalog/*.yaml`.
+- Follow [Operating Model](docs/workbench/operating-model.md) for Asset Registry lifecycle. Work Skills do not edit Registry bytes directly; use the shared revision-checked service or CLI only after explicit authorization for the exact Asset/version and decision.
 - Do not solve generated behavior by hard-coding domain terms, route aliases, product names, scenario names, or Workflow-specific literals into a generator. Generator defaults must stay framework- and runtime-neutral; behavior-specific choices belong in reviewed artifacts or Catalog/mock contracts.
 - Preserve Korean workbench UI copy unless the task explicitly changes the language.
 - Before a visual change, read `docs/visualization/design-system.md`; verify the result in the real screen and capture a screenshot before reporting completion.
