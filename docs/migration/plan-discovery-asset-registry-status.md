@@ -164,6 +164,9 @@ the marker automatically; marker carriage is an explicit user/session action.
 - Published versions are immutable and published dependencies must resolve to
   exact published versions.
 - Web API, root CLI, generator, and Mock Lab prefill all use the shared core.
+- A synthetic 1,200-Asset Registry probe considered every active Asset while
+  returning only 20 L0 evidence rows and 8 results (22,490 JSON bytes); L1 and
+  L2 details remained separate explicit reads.
 
 ## Phase 5 — Registry and lifecycle UI evidence
 
@@ -191,6 +194,10 @@ the marker automatically; marker carriage is an explicit user/session action.
 - Scaffold and Verify enforce exact revisions/Assets and route failures by
   evidence ownership. Verify no longer creates a Catalog delta.
 - All five skills pass the skill-creator validator and repository skill validator.
+- Four no-answer-leakage fresh-context forward tests selected the correct owner
+  and behavior for non-Plan Discover, Compose Return-to-Discover, missing
+  `reuse_exact` source, and stale Verify evidence. Each agent was read-only and
+  closed immediately after its result was captured.
 
 ## Phase 7 — Scaffold alignment evidence
 
@@ -234,20 +241,29 @@ Current generator behavior now validates and preserves both decision axes.
 ## Phase 9 — legacy and documentation evidence
 
 - YAML asset buckets, `/api/catalog`, the old Catalog adapter/query/parser/seed
-  code, direct Catalog-delta write allowance, and YAML dependencies are removed.
+  code, browser artifact importer/approval helpers, direct Catalog-delta write
+  allowance, and YAML dependencies are removed.
 - Rejection tests keep those paths absent; no compatibility parser or alias was
   added.
 - Active contributor contracts, Operating Model, taxonomy locators, Companion,
   security/review/validation guides, design system, Mock Lab guide, root status,
   and source-backed Handbook now point at current source.
 
-## Next proof gates
+## Final verification evidence
 
-1. Run fresh-context, no-answer-leakage forward tests against all changed Work
-   Skill routing/gates and close every subagent.
-2. Run the bounded 128k-local-model scenario and record prompt/context size plus
-   the L0/L1/L2 reduction evidence.
-3. Rerun all root, Web, Mock Lab, skill, artifact, CLI, generator, and browser
-   verification gates from the final tree.
-4. Complete the legacy/source-locator audit and final Work Order report without
-   pushing the branch.
+The final implementation tree passed:
+
+- skill-creator quick validation for all five skills and
+  `validate-skills.mjs` (`errors=0`, `warnings=0`);
+- root artifact validation, five CLI tests, and sixteen Registry core tests;
+- Web contract/generator tests (`22 + 82`), companion tests (`32`), Hook tests
+  (`5`), and production build;
+- Mock Lab package tests, network MCP bridge tests (`2`), and production build;
+- runnable S07 A2A consumer generation into a temporary output root, Python
+  compile, generated pytest (`4 passed`), and source artifact validation;
+- fixed-port browser inspection and screenshots for Discover, Compose, and
+  Connections, including 760 px overflow and zero console warning/error checks.
+
+Remaining completion work is administrative only: rerun documentation link and
+clean-status checks, perform the final subagent lifecycle sweep, and deliver the
+Work Order report without a remote push.
