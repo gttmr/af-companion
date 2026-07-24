@@ -451,7 +451,7 @@ async function companionContinue(args) {
   const receipt = await bridgePost(
     endpoint,
     `/v1/handoffs/${encodedHandoff}/continue`,
-    {},
+    { confirmation: "CONTINUE_COMPANION_HANDOFF" },
     "Codex Bridge handoff continuation request failed",
   );
   const validated = validatedContinueReceipt(receipt, options.handoffId);
@@ -472,7 +472,12 @@ async function companionReset(args) {
   requirePositionals(positionals, 0, "companion reset --confirm [--root PATH]");
   if (!options.confirm) usage("companion reset requires --confirm");
   const endpoint = await readCompanionEndpoint(rootFrom(options));
-  const result = await bridgePost(endpoint, "/v1/state/reset", {}, "Codex Bridge state reset failed");
+  const result = await bridgePost(
+    endpoint,
+    "/v1/state/reset",
+    { confirmation: "RESET_COMPANION_STATE_V2" },
+    "Codex Bridge state reset failed",
+  );
   return redactSecret(result, endpoint.token);
 }
 

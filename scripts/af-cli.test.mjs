@@ -549,7 +549,11 @@ test("companion continue names one handoff and launches only the Bridge-returned
     "companion", "continue", "--handoff", "handoff-cli", "--root", root,
   ], { env: fake.env });
   assert.equal(result.code, 0, result.stderr);
-  assert.deepEqual(received, { method: "POST", url: "/v1/handoffs/handoff-cli/continue", body: {} });
+  assert.deepEqual(received, {
+    method: "POST",
+    url: "/v1/handoffs/handoff-cli/continue",
+    body: { confirmation: "CONTINUE_COMPANION_HANDOFF" },
+  });
   assert.deepEqual(result.output.command, ["codex", "[handoff-capsule]"]);
   assert.equal(result.stdout.includes(capsule), false);
   assert.deepEqual(await readLaunches(fake.capture), [{
@@ -564,7 +568,13 @@ test("companion reset is explicit and no companion command auto-selects scope", 
   const root = await tempRepository(t);
   let resetCount = 0;
   const bridge = createServer(async (request, response) => {
-    if (request.method === "POST" && request.url === "/v1/state/reset") resetCount += 1;
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : null;
+    if (request.method === "POST" && request.url === "/v1/state/reset") {
+      assert.deepEqual(body, { confirmation: "RESET_COMPANION_STATE_V2" });
+      resetCount += 1;
+    }
     response.statusCode = 200;
     response.setHeader("content-type", "application/json");
     response.end(JSON.stringify({ reset: true, schema_version: 2 }));
