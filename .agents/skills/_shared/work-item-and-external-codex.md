@@ -4,6 +4,8 @@
 
 Define the schema-version-2 lifecycle ledger, session/run continuity, write ownership, revision-bound reviews, and re-entrant handoffs for Agent Factory work performed by an external Codex CLI or VS Code session.
 
+Use the sibling canonical references `companion-session-participation.md`, `fresh-context-handoff.md`, and `session-and-work-item-provenance.md` for enrollment, exact-scope, Plan-hash, and provenance gates. This reference describes the Work Item projection and does not make an ordinary session a lifecycle actor.
+
 ## Canonical identity
 
 Use one explicit root and ledger:
@@ -104,7 +106,7 @@ A fresh materialization session must present an exact marker on its first prompt
 
 The Bridge's observed handoff and the Work Item's durable `session_handoffs` are related evidence, not interchangeable shapes. Re-read both plus the approved Plan before writing. Bridge health alone does not prove first-prompt delivery or claim.
 
-If automatic claim is unavailable, explicitly attach the known session; never attach the first active session by guesswork.
+If automatic claim is unavailable, follow the fallback order in `fresh-context-handoff.md`. Exact attachment must be confirmed from current Companion state; never attach the first active session by guesswork.
 
 ## Ownership and web write boundary
 

@@ -13,6 +13,7 @@ Verify what the current Work Item revision actually preserves and does. Separate
 ## Preconditions
 
 - exact repository, Work Item, claims, current Git state, environment, and evidence roots are identified;
+- current `companion_active` participation, active unexpired lease, canonical cwd, and exact `workspace_id`, `application_id`, `work_id`, `role: materialization` attachment are proven;
 - current discovery/composition gates and their bound revisions are known;
 - Scaffold is complete and current for generated-source or runtime claims;
 - target output roots, Registry path/revision, and required local dependencies/mocks are known;
@@ -25,9 +26,13 @@ A focused structural/artifact audit may run before Scaffold, but it cannot compl
 1. [Source of Truth](../_shared/source-of-truth.md)
 2. [Lifecycle Invariants](../_shared/lifecycle-invariants.md)
 3. [Work Item and External Codex](../_shared/work-item-and-external-codex.md)
-4. [Testing Contract](../_shared/testing-contract.md)
-5. [Verification Commands](references/verification-commands.md)
-6. [Verification Report](references/verification-report.md)
+4. [Companion Session Participation](../_shared/companion-session-participation.md)
+5. [Decision Input Adapter](../_shared/decision-input-adapter.md)
+6. [Fresh-context Handoff](../_shared/fresh-context-handoff.md)
+7. [Session and Work Item Provenance](../_shared/session-and-work-item-provenance.md)
+8. [Testing Contract](../_shared/testing-contract.md)
+9. [Verification Commands](references/verification-commands.md)
+10. [Verification Report](references/verification-report.md)
 
 Read [Runtime Validation Checks](references/runtime-validation-checks.md) for runtime claims, [Registry Publication and Reuse Evidence](references/registry-publication.md) for Registry-state or publication claims, and [Target Contract v2](../_shared/target-contract-v2.md) for artifact-contract judgments.
 
@@ -52,21 +57,23 @@ For a full Verify result, prove:
 - **Registry freshness:** the loaded Registry revision equals current `revisions.catalog_snapshot` and every applicable current revision; every exact record still has the approved type, status, contract projection/hash, version, and source/protocol binding.
 - **Current lifecycle:** discovery and composition gate bindings equal their current top-level revisions and current artifact bytes; Graph, Root Executable, runtime-contract, composition, and Scaffold revisions are not stale or invalidated.
 - **Fresh-session continuity:** when a Plan-to-materialization handoff is claimed, verify the exact Work Item, discovery/decision revisions, plan/marker digest, target skill, expiry, unique claim session/turn/time, cwd/session attachment, and first-prompt claim evidence. Absence or ambiguity is not a successful handoff claim.
+- **Scope and provenance:** every durable claim and evidence ref identifies the eligible Companion participant, application/workspace/work/materialization scope, lease observation, canonical cwd, session/turn, tested revisions, and evidence time. Ordinary-session output is not imported automatically.
 
 ## Procedure
 
-1. Re-read the current Work Item, canonical artifacts, generated roots/manifest, Registry snapshot, and Git state; identify the exact claims and revision under test.
-2. Mark a Verify run in `active_runs` with the current input revision without overwriting other active runs or evidence.
+1. Re-read current Companion participation/lease/scope, the Work Item, canonical artifacts, generated roots/manifest, Registry snapshot, and Git state; identify the exact claims and revision under test.
+2. Mark a Verify run in `active_runs` only for the enrolled exact-scope materialization session with the current input revision, without overwriting other active runs or evidence.
 3. Turn each claim into the minimum sufficient evidence level, command, scenario, and expected invariant.
 4. Validate the Work Item/artifacts and independently inspect the required integrity proofs above.
 5. Record baseline behavior before fixing a verification-discovered issue unless the user separately authorized implementation.
 6. Execute fresh commands directly in the repository/runtime environment. There is no server command allow-list.
-7. Preserve exact cwd, Git state/revision, Work Item and Registry revisions, environment facts, command, exit code, concise output, and timestamps.
-8. Classify failures by owning surface: Asset/search/decision to Discover; Graph/root/runtime contract to Compose; source generation to Scaffold; runtime/environment, test, session continuity, or evidence gap to the corresponding owner. Do not stack speculative fixes.
-9. Re-run only after a concrete correction and retain both failure and post-fix evidence.
-10. Write `<artifact-root>/validation-report.md` using [Verification Report](references/verification-report.md).
-11. Do not create `catalog-delta.yaml`. For reusable-Asset or publication findings, record the exact Registry ref/status/revision and follow [Registry Publication and Reuse Evidence](references/registry-publication.md).
-12. Set `verification.outcome` to `passed`, `failed`, `unverified`, or `stale`, record the current verification revision/report/evidence refs/time, and update Verify status consistently.
+7. Preserve exact application/workspace/work scope, participation/lease observation, session/turn, cwd, Git state/revision, Work Item and Registry revisions, environment facts, command, exit code, concise output, and timestamps.
+8. Never auto-import commands, observations, approvals, or evidence from an ordinary, stale, revoked, expired, wrong-role, or scope-mismatched session. Label explicitly cited external observations `unverified` and reproduce them under eligible provenance before using them for `passed`.
+9. Classify failures by owning surface: Asset/search/decision to Discover; Graph/root/runtime contract to Compose; source generation to Scaffold; runtime/environment, test, session continuity, or evidence gap to the corresponding owner. Do not stack speculative fixes.
+10. Re-run only after a concrete correction and retain both failure and post-fix evidence.
+11. Write `<artifact-root>/validation-report.md` using [Verification Report](references/verification-report.md).
+12. Do not create `catalog-delta.yaml`. For reusable-Asset or publication findings, record the exact Registry ref/status/revision and follow [Registry Publication and Reuse Evidence](references/registry-publication.md).
+13. Set `verification.outcome` to `passed`, `failed`, `unverified`, or `stale`, record the current verification revision/report/evidence refs/time, and update Verify status consistently.
 
 ## Outcome rules
 
@@ -85,11 +92,11 @@ Normal Verify writes are limited to `af-work-item.json`, `validation-report.md`,
 
 ## Verification of verification
 
-Before finalizing, confirm every final claim maps to fresh evidence, all failures/skips/stale facts affect the outcome, tested revisions match the current Work Item/Registry/generated tree, exact Asset refs are not duplicated or regenerated, handoff claims are uniquely attributable, publication was not inferred, and sensitive output is absent.
+Before finalizing, confirm every final claim maps to fresh eligible-session evidence, all failures/skips/stale facts affect the outcome, tested revisions match the current Work Item/Registry/generated tree, exact Asset refs are not duplicated or regenerated, scope and handoff claims are uniquely attributable, ordinary-session evidence was not auto-imported, publication was not inferred, and sensitive output is absent.
 
 ## Stop conditions
 
-Stop when target/revision is ambiguous, a predecessor or Registry snapshot is stale, required decision/binding/handoff evidence is absent, a command would be destructive or expose private data, the environment cannot support the claim, a source/Registry mutation lacks authorization, or evidence is insufficient for the requested conclusion.
+Stop when participation, lease, application/workspace/work/materialization scope, session/turn, target, or revision is ambiguous; a predecessor or Registry snapshot is stale; required decision/binding/handoff evidence is absent; only ordinary-session evidence exists; a command would be destructive or expose private data; the environment cannot support the claim; a source/Registry mutation lacks authorization; or evidence is insufficient for the requested conclusion.
 
 ## Completion report
 

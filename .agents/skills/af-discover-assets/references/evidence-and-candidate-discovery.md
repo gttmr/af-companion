@@ -175,7 +175,7 @@ Resources and Dependencies stay in separate Plan sections and later evidence/sum
 
 ## Required user decisions
 
-After exploration, use `request_user_input` in small groups for decisions the repository cannot answer. Each question provides evidence, distinct options, consequences, and a recommendation when justified. There are no defaults for required decisions.
+After exploration, use the [Decision Input Adapter](../../_shared/decision-input-adapter.md) for decisions the repository cannot answer. Detect `request_user_input` from the tools actually callable in the current turn and use it only when present; otherwise render the same decision conversationally. Ask exactly one question per turn with the same decision ID/revision, options, evidence, consequences, and recommendation semantics. The conversational path reports `waiting_for_input` and stops without materialization or Compose work. There are no defaults or assumptions for required decisions.
 
 The complete decision set covers:
 
@@ -188,7 +188,7 @@ The complete decision set covers:
 - applicable local versus Remote A2A boundary;
 - applicable side-effect, authentication, authorization, and audit choices.
 
-“추천대로 진행” explicitly selects the recommendations visible in that question. Preserve the accepted option set and current session/turn as user provenance. A missing response leaves the decision open; it does not select the recommendation.
+“추천대로 진행” explicitly selects only the recommendation visible for that matching decision and recommendation revision. It does not resolve a hard, credential, deployment, security, or irreversible gate. Preserve the accepted option and current enrolled session/turn as user provenance. A missing, ambiguous, or conditional response leaves the decision open and requires a normalized one-question confirmation on another stopped turn.
 
 Required decisions may be marked resolved only when `selected_by` is `user` and selection reason plus session/turn provenance are available. Keep candidate/contract Missing Information as a hard gate even if broader requirement uncertainty was accepted.
 

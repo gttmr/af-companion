@@ -32,6 +32,7 @@ Owning skill/action when not passed
 # Validation Report
 
 ## Scope and Current Revisions
+## Companion Participation and Operation Provenance
 ## Review Gates and Decision Preservation
 ## Root Executable and Generated Symbol
 ## Exact Asset Bindings and Registry Freshness
@@ -65,9 +66,11 @@ Record Solution Control Strategy and Root Executable separately. Prove that mani
 
 ## Revision and handoff record
 
-Record current top-level discovery, Graph, Root Executable, runtime-contract, composition, Scaffold, verification, and Catalog-snapshot revision digests, plus gate binding results.
+Record current top-level discovery, Graph, Root Executable, runtime-contract, composition, Scaffold, verification, and Catalog-snapshot revision digests, plus gate binding results. Record `workspace_id`, `application_id`, `work_id`, materialization role, participation/lease observation, canonical cwd, session/turn, and evidence time without copying any token or capsule.
 
-When fresh-session materialization was selected or claimed, record the exact `handoff_id`, Work Item, discovery/decision revisions, plan/marker digest result, target skill, expiry, status, claim session/turn/time, cwd/session attachment, first-prompt evidence, and duplicate-claim check. If no such claim was made, say `not_applicable`; do not imply success from an empty record.
+When fresh-session materialization was selected or claimed, record the exact `handoff_id`, application/workspace/Work Item, discovery/decision revisions, Plan-body and separate capsule/marker digest result, target skill, expiry, status, claim session/turn/time, cwd/session attachment, transport capability, first-prompt evidence, and duplicate-claim check. If no such claim was made, say `not_applicable`; do not imply success from an empty record or built-in carriage.
+
+Do not auto-import evidence from an ordinary, stale, revoked, expired, wrong-role, or scope-mismatched session. Explicit external observations remain `unverified` until reproduced by an eligible participant.
 
 ## Registry publication record
 

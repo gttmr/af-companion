@@ -8,7 +8,7 @@ description: >-
 
 ## Purpose
 
-Bind one explicit repository, Work Item, and external Codex session, then select exactly one of the four canonical Work Skills:
+Bind one explicit application, workspace, repository, Work Item, and currently enrolled Companion session, then select exactly one of the four canonical Work Skills:
 
 ```text
 af-discover-assets
@@ -26,23 +26,29 @@ The router may inspect state, establish the supported session binding, and recor
 1. [Source of Truth](../_shared/source-of-truth.md)
 2. [Lifecycle Invariants](../_shared/lifecycle-invariants.md)
 3. [Work Item and External Codex](../_shared/work-item-and-external-codex.md)
-4. [Missing Information](../_shared/missing-information.md), when a decision or contract is open
+4. [Companion Session Participation](../_shared/companion-session-participation.md)
+5. [Decision Input Adapter](../_shared/decision-input-adapter.md)
+6. [Fresh-context Handoff](../_shared/fresh-context-handoff.md)
+7. [Session and Work Item Provenance](../_shared/session-and-work-item-provenance.md)
+8. [Missing Information](../_shared/missing-information.md), when a decision or contract is open
 
 Read the selected Work Skill in full before executing it.
 
 ## Identity and mode gate
 
-1. Confirm the canonical repository root and one explicit `work_id`; never choose the newest directory or first active session.
-2. Validate `<artifact-root>/af-work-item.json` against the current schema and reconcile its refs with current files, Registry revision, Git state, and Bridge receipts.
-3. Bind the current session to that Work Item and its role. The supported fallback command is:
+1. Confirm the canonical repository root plus exact `workspace_id`, `application_id`, and `work_id`; never choose the newest directory, sole pending candidate, default target, or first active session.
+2. Require current `companion_active` participation, active status, an unexpired matching lease, canonical cwd digest, and exact application/workspace/work/role attachment. An ordinary session may inspect and report, but it cannot become a lifecycle actor or create durable evidence.
+3. Validate `<artifact-root>/af-work-item.json` against the current schema and reconcile its refs with current files, Registry revision, Git state, Companion scope, and Bridge receipts.
+4. When explicit attachment is needed, name the exact session and confirm the resulting Companion state. The currently implemented fallback command may be:
 
    ```bash
    node scripts/af.mjs work attach-session --session <session-id> --work-id <work-id> --role <plan|materialization> [--root <path>]
    ```
 
-4. Use `focus_skill` for the user's current Work Skill surface. Use `active_runs` for live actors and preserve unrelated runs.
-5. Before Discover Phase A, verify that the current collaboration mode is Plan. If Plan Mode cannot be confirmed, make no repository or Work Item write, explain how the user can switch modes in the installed Codex surface, and stop. Do not assume the agent can change modes.
-6. Discover materialization runs in Default/Coding mode from an approved Discovery Decision Plan; do not require Plan Mode for Phase B.
+   The command request is not attachment proof. Re-read the exact application/workspace/work/role state before proceeding.
+5. Use `focus_skill` for the user's current Work Skill surface. Add `active_runs` only for enrolled lifecycle actors and preserve unrelated runs.
+6. Before Discover Phase A, verify both `role: plan` and actual Plan collaboration mode. If either cannot be confirmed, make no repository or Work Item write, explain the required enrollment/mode transition, and stop. Do not assume the agent can change modes.
+7. Discover Phase B, Compose, Scaffold, and Verify durable work require `role: materialization` in the exact scope. Default/Coding mode alone is insufficient.
 
 If the Work Item does not exist, initialize it only for an explicit valid ID and only outside non-mutating Discover Phase A:
 
@@ -62,7 +68,8 @@ Read all of these before choosing a route:
 - discovery and composition gate status plus exact revision bindings;
 - active `invalidations`, artifact refs, generated roots, and verification outcome;
 - pending, claimed, expired, or superseded `session_handoffs`;
-- actual canonical files, Asset Registry snapshot, Bridge session/turn receipts, and Git state.
+- open and resolved decision refs plus the displayed recommendation revision;
+- actual canonical files, Asset Registry snapshot, Companion participation/lease/scope, Bridge session/turn receipts, and Git state.
 
 Artifact presence is not approval. `complete` is not current when its input/output revision no longer matches the current subjects. A stale gate or downstream state cannot authorize a transition.
 
@@ -72,7 +79,7 @@ Artifact presence is not approval. `complete` is not current when its input/outp
 | --- | --- |
 | initial requirement or invalidated Asset/decision evidence needs exploration | `af-discover-assets` Phase A in confirmed Plan Mode |
 | approved Plan must be written, or a valid fresh-session handoff was claimed | `af-discover-assets` Phase B materialization |
-| required decision or Asset disposition is open | owning `af-discover-assets` cycle; wait for explicit user input |
+| required decision or Asset disposition is open | owning skill; use the Decision Input Adapter for one question, then stop `waiting_for_input` |
 | Discover output exists but discovery review is pending/changes requested/stale | `af-discover-assets` |
 | current discovery gate is approved and composition is absent/stale | `af-compose-solution` |
 | Compose records `return_to_discover` for missing capability, contract delta, root-strategy reconsideration, Human Input, remote boundary, owner, or security evidence | start a new `af-discover-assets` cycle with trigger `return_to_discover` |
@@ -88,17 +95,18 @@ Artifact presence is not approval. `complete` is not current when its input/outp
 
 ## Plan-to-materialization handoff
 
-The Plan output must carry one machine-readable marker for one pending handoff with the same `work_id`, discovery revision, decision revision, Plan hash, and target `af-discover-assets.materialize`. The Work Item handoff record follows `schemas/af-work-item.schema.json`; the Bridge owns marker creation and exact first-prompt claim behavior.
+The canonical Plan body excludes every Companion capsule. Its Companion `plan_body_hash` equals the Work Item handoff `plan_hash`. Bind one handoff to exact application/workspace/work, source session/turn, discovery and decision revisions, target, expiry, and separate capsule/marker digest as defined in [Fresh-context Handoff](../_shared/fresh-context-handoff.md).
 
 On a fresh session:
 
-1. require one unexpired pending handoff and an exact marker digest/field match;
-2. reject a same-source-session claim, wrong cwd/work item, stale revisions, changed Plan hash, ambiguous pending records, or duplicate claim;
-3. require the first-prompt Bridge receipt to show the new session and turn;
-4. accept materialization only after the handoff is `claimed` with complete claim provenance and the session is bound to the same Work Item;
-5. re-read current Plan, decisions, Work Item, and Registry revision before writing.
+1. require current Companion enrollment with exact materialization scope;
+2. require one explicitly identified unexpired handoff and exact capsule/marker, scope, target, expiry, revision, and Plan-body-hash matches;
+3. reject a same-source-session claim, wrong application/workspace/cwd/Work Item, stale revisions, changed Plan hash, ambiguous candidates, or duplicate claim;
+4. require the first-prompt Bridge receipt to show the new session and turn;
+5. accept materialization only after the handoff is `claimed` with complete claim provenance and exact attachment;
+6. re-read current Plan, open/resolved decisions, recommendation revision, Work Item, and Registry revision before writing.
 
-Bridge health alone is not continuity evidence. If automatic claim is unavailable or the marker is missing, use explicit session attachment with `work attach-session`; do not guess a session or claim that the Plan was transferred automatically.
+Built-in fresh-context carriage is `unverified` by default. Use Companion Continue, then Copy Capsule, then exact confirmed attach. Bridge health or attachment intent alone is not continuity evidence, and no fallback may auto-claim one pending candidate or first session.
 
 ## Invalidation and re-entry
 
@@ -106,11 +114,14 @@ When an input subject changes, append an invalidation from the discovering skill
 
 Compose → Discover creates a new discovery cycle that supersedes, but does not delete, the previous cycle. After the new discovery revision is explicitly approved, Compose receives the new Asset versions/dispositions, decisions, root strategy, previous composition diff, and open conflicts. Never auto-merge the previous Graph.
 
+Return-to-Discover preserves the exact application/workspace/work scope, artifact root, open and resolved decision refs, and recommendation revision. The next Plan and materialization actors must separately satisfy their role and attachment gates.
+
 ## Handoff
 
 Before invoking the selected skill, state:
 
-- repository root, Work Item root, `ledger_revision`, and current Registry revision;
+- application/workspace/work scope, repository root, Work Item root, `ledger_revision`, and current Registry revision;
+- Companion participation, role, lease freshness, session/turn, and canonical cwd evidence;
 - selected skill, phase/run role, and evidence-owned reason;
 - current revision inputs and satisfied gate;
 - open decisions, invalidations, blockers, or handoff status;
@@ -118,7 +129,7 @@ Before invoking the selected skill, state:
 
 ## Stop conditions
 
-Stop when identity or mode is ambiguous, Work Item validation fails, a required decision lacks explicit user selection, a gate binding differs from current revisions, a handoff cannot be uniquely and exactly claimed, actual files contradict state, a requested transition skips approval, or continuing would require an unsupported CLI command, legacy parser, compatibility projection, or router-owned Work Skill output.
+Stop when participation, lease, application/workspace/work/role attachment, identity, or mode is ambiguous; Work Item validation fails; a required decision lacks explicit user selection; a gate binding differs from current revisions; a handoff cannot be explicitly and exactly claimed; actual files contradict state; a requested transition skips approval; or continuing would require an unsupported CLI command, legacy parser, compatibility projection, or router-owned Work Skill output.
 
 ## Router verification
 

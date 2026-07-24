@@ -50,7 +50,7 @@ result-summary.md
 
 Record tool/version, model and fallback, commit, working directory, operating mode, selected references, exact commands, exit codes, bounded output, artifacts created, forbidden outcomes, residual uncertainty, and final pass/fail rationale.
 
-For Plan/handoff runs, also record confirmed collaboration mode, repository-tracked write inventory, Plan hash/marker metadata, source and claimed session/turn IDs, exact Work Item, first-prompt receipt, claim status, and fallback path. Redact Bridge tokens.
+For Plan/handoff runs, also record confirmed Companion participation/lease, application/workspace/work/role scope, collaboration mode, repository-tracked write inventory, canonical Plan-body hash and separate capsule/marker metadata, source and claimed session/turn IDs, first-prompt receipt, claim status, observed transport capability, and fallback path. Redact Bridge tokens and capsules.
 
 For Asset Registry runs, record the query, progressive-disclosure level, Registry revision before/after, expected revision, match grade/evidence, exact Asset version/status, user decision provenance, and conflict result.
 
@@ -93,8 +93,10 @@ The re-entrant lifecycle suite must additionally cover:
 
 - non-Plan Discover Phase A stops without repository/Work Item writes;
 - exploration precedes user questions and a required decision never defaults;
-- explicit “use the recommendation” records user provenance;
+- structured and conversational input ask exactly one question per turn and normalize to the same Decision Record semantics;
+- explicit “use the recommendation” records user provenance only for the displayed matching revision and is rejected for hard, credential, deployment, security, and irreversible gates;
 - Plan marker → fresh session → exact same Work Item claim, plus missing marker, mismatched hash, ambiguity, expiry, resume, and duplicate-claim rejection;
+- ordinary, stale, expired, revoked, wrong-role, and scope-mismatched sessions cannot become lifecycle actors or contribute auto-imported Verify evidence;
 - `focus_skill` plus concurrent `active_runs` with no single-stage shortcut;
 - Compose `return_to_discover`, superseded history, downstream staleness, new approval, Compose re-entry, and no automatic Graph merge;
 - failure ownership routes Asset/requirement, composition, scaffold, and verification defects to the correct skill;

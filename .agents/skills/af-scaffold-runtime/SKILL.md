@@ -22,6 +22,7 @@ The output is local implementation material. It is not Registry publication, dep
 Require all of the following before generation:
 
 - one valid strict-v2 Work Item and unambiguous artifact root;
+- current `companion_active` participation, active unexpired lease, canonical cwd, and exact `workspace_id`, `application_id`, `work_id`, `role: materialization` attachment;
 - `review_gates.discovery.status` and `review_gates.composition.status` both `approved`;
 - the composition gate binding exactly matches current `revisions.discovery`, `graph`, `root_executable`, `runtime_contract`, and `composition`, and its `artifact_etag` matches the current canonical bytes;
 - current decision, Asset-decision, and Root Executable revision subjects still hash to the values in `af-work-item.json`;
@@ -39,9 +40,13 @@ Do not generate TODO source when any precondition is absent or stale.
 1. [Source of Truth](../_shared/source-of-truth.md)
 2. [Lifecycle Invariants](../_shared/lifecycle-invariants.md)
 3. [Work Item and External Codex](../_shared/work-item-and-external-codex.md)
-4. [Artifact and Source Generation](references/artifact-and-source-generation.md)
-5. [Output Modes and Handoff](references/output-modes-and-handoff.md)
-6. [Target Contract v2](../_shared/target-contract-v2.md)
+4. [Companion Session Participation](../_shared/companion-session-participation.md)
+5. [Decision Input Adapter](../_shared/decision-input-adapter.md)
+6. [Fresh-context Handoff](../_shared/fresh-context-handoff.md)
+7. [Session and Work Item Provenance](../_shared/session-and-work-item-provenance.md)
+8. [Artifact and Source Generation](references/artifact-and-source-generation.md)
+9. [Output Modes and Handoff](references/output-modes-and-handoff.md)
+10. [Target Contract v2](../_shared/target-contract-v2.md)
 
 Read only the selected cards in [Runtime Pattern Selection](../_shared/runtime-pattern-selection.md), plus [Generated Output Checks](references/generated-output-checks.md) when generation is in scope. Verify exact ADK symbols through installed source or official documentation as required by [Source of Truth](../_shared/source-of-truth.md).
 
@@ -58,7 +63,7 @@ Bind each exact Registry version at most once. Root Executable version, Asset-de
 
 ## Procedure
 
-1. Confirm repository root, Work Item root, authorized source roots, and current Git state.
+1. Confirm current Companion participation/lease, exact application/workspace/work materialization scope, canonical repository root, Work Item root, authorized source roots, observed session/turn, and current Git state. Default/Coding mode or a known session alone is insufficient.
 2. Validate the Work Item and artifact root with the current CLI/validator; do not repair rejected legacy shapes.
 3. Recompute current review bindings and revision subjects. Route stale discovery or Asset evidence to Discover, structural/Graph/root/runtime-contract drift to Compose, and unsupported generation to Scaffold.
 4. Confirm all required decisions are resolved by the user and every scaffold Asset has exactly one current resolved Asset decision.
@@ -66,10 +71,10 @@ Bind each exact Registry version at most once. Root Executable version, Asset-de
 6. Reject duplicate Registry-version bindings, duplicate generation, project/Registry identity confusion, mutable published versions, or a Root version mismatch.
 7. Verify Root Executable consistency with Solution Control Strategy, Graph owner/profile/topology, and the selected Agent or Workflow runtime type. Preserve the ADK-required `root_agent` symbol as a pointer to that exact Root Executable object.
 8. Inspect installed ADK imports and signatures required by the approved contracts and confirm deterministic generator coverage for each selected Graph/runtime pattern.
-9. Mark the Scaffold run active through `active_runs` and record its current input revision without changing another run or skill's evidence.
+9. Mark the Scaffold run active through `active_runs` only for the enrolled exact-scope materialization session and record its current input revision without changing another run or skill's evidence.
 10. Run the repository generator with explicit roots when lowering is supported. Add only the smallest contract-backed seams required by the approved handoff; never derive behavior from raw requirement prose.
 11. Preserve user-authored source and unrelated dirty changes. Do not rewrite output roots wholesale unless the approved generator contract requires it.
-12. Write/update `implementation-handoff.md` with decision/revision provenance, exact Asset bindings, generated symbols, TODOs, non-goals, and manual integration boundaries.
+12. Write/update `implementation-handoff.md` with exact application/workspace/work/session/turn provenance, decision and recommendation revisions, exact Asset bindings, generated symbols, TODOs, non-goals, and manual integration boundaries.
 13. Run generated output checks appropriate to the output mode, then inspect the final source diff, output inventory, and prohibited-output scan.
 14. Record generated output roots, output refs, current Scaffold revision, evidence, and status in `af-work-item.json`.
 
@@ -82,7 +87,7 @@ Do not silently change modes.
 
 ## Write boundary
 
-Writes are limited to the Work Item root and source roots explicitly approved in the scaffold plan. Never write Registry records, `catalog/*.yaml`, secrets, private endpoints, deployment scripts, real customer data, or unrelated repository files. The workbench observes generation; it does not perform it.
+Writes are limited to the Work Item root and source roots explicitly approved in the scaffold plan, from the current exact materialization scope. Never write Registry records, `catalog/*.yaml`, secrets, private endpoints, deployment scripts, real customer data, or unrelated repository files. The workbench observes generation; it does not perform it. Ordinary sessions may inspect but cannot Scaffold or supply durable evidence.
 
 ## Verification
 
@@ -98,7 +103,7 @@ Use [Artifact and Source Generation](references/artifact-and-source-generation.m
 
 ## Stop conditions
 
-Stop when any required decision is open, approval or revision is stale, the Registry snapshot changed, an exact version/source/protocol binding is absent, Graph and Root disagree, output roots are ambiguous, duplicate generation would occur, lowering is unsupported, source ownership conflicts, or any required validation fails.
+Stop when participation, lease, application/workspace/work/materialization scope, session/turn, or authorized roots are absent; any required decision is open; approval or revision is stale; the Registry snapshot changed; an exact version/source/protocol binding is absent; Graph and Root disagree; duplicate generation would occur; lowering is unsupported; source ownership conflicts; or any required validation fails.
 
 ## Completion report
 
