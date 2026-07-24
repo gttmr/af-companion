@@ -108,12 +108,20 @@ test("both paths normalize an exact answer to the same schema-shaped Decision Re
     displayed_decision_revision: decisionPrompt.revision,
     displayed_recommendation_revision: decisionPrompt.recommendation.revision,
   };
-  const structuredRecord = normalizeDecisionAnswer(decisionPrompt, answer, provenance).record;
-  const conversationalRecord = normalizeDecisionAnswer(decisionPrompt, { ...answer, text: "C" }, provenance).record;
-  assert.deepEqual(structuredRecord, conversationalRecord);
+  const structuredRecord = normalizeDecisionAnswer(decisionPrompt, answer, { ...provenance, decision_input_mode: "structured" }).record;
+  const conversationalRecord = normalizeDecisionAnswer(decisionPrompt, { ...answer, text: "C" }, { ...provenance, decision_input_mode: "conversational" }).record;
+  const { decision_input_mode: structuredMode, ...structuredSemantics } = structuredRecord;
+  const { decision_input_mode: conversationalMode, ...conversationalSemantics } = conversationalRecord;
+  assert.deepEqual(structuredSemantics, conversationalSemantics);
+  assert.equal(structuredMode, "structured");
+  assert.equal(conversationalMode, "conversational");
   assert.equal(structuredRecord.status, "resolved");
   assert.equal(structuredRecord.selected_option, "hybrid");
   assert.equal(structuredRecord.selected_by, "user");
+  assert.equal(structuredRecord.decision_revision, decisionPrompt.revision);
+  assert.equal(structuredRecord.recommendation_revision, decisionPrompt.recommendation.revision);
+  assert.equal(structuredRecord.selection_source, "explicit_option");
+  assert.equal(structuredRecord.user_text_summary, "User explicitly selected option hybrid.");
   assert.equal(structuredRecord.session_id, "session-review");
   assert.equal(structuredRecord.turn_id, "turn-answer");
   for (const record of [structuredRecord, conversationalRecord]) {
@@ -124,7 +132,7 @@ test("both paths normalize an exact answer to the same schema-shaped Decision Re
 });
 
 test("ambiguous, stale recommendation, and protected-gate shorthand remain open", () => {
-  const provenance = { session_id: "session-review", turn_id: "turn-answer" };
+  const provenance = { session_id: "session-review", turn_id: "turn-answer", decision_input_mode: "conversational" };
   const baseAnswer = {
     displayed_decision_revision: decisionPrompt.revision,
     displayed_recommendation_revision: decisionPrompt.recommendation.revision,
@@ -153,6 +161,26 @@ test("ambiguous, stale recommendation, and protected-gate shorthand remain open"
     confirmed_material_consequence: true,
   }, provenance);
   assert.equal(confirmed.record.status, "resolved");
+});
+
+test("delegated recommendation provenance survives strict Work Item roundtrip", () => {
+  const result = normalizeDecisionAnswer(decisionPrompt, {
+    text: "추천대로",
+    displayed_decision_revision: decisionPrompt.revision,
+    displayed_recommendation_revision: decisionPrompt.recommendation.revision,
+  }, {
+    session_id: "session-delegated",
+    turn_id: "turn-delegated",
+    decision_input_mode: "conversational",
+  });
+  assert.equal(result.outcome, "resolved");
+  assert.equal(result.record.selection_source, "delegated_recommendation");
+  assert.equal(result.record.recommendation_revision, decisionPrompt.recommendation.revision);
+  assert.equal(result.record.user_text_summary, "User explicitly delegated to the displayed recommendation.");
+  const manifest = createAfWorkItemManifest("decision-delegated");
+  manifest.decisions.push(result.record);
+  const [roundtripped] = parseAfWorkItemManifest(serializeAfWorkItemManifest(manifest)).decisions;
+  assert.deepEqual(roundtripped, result.record);
 });
 
 test("fresh-context handoff hashes only the canonical Plan body and fails closed", () => {

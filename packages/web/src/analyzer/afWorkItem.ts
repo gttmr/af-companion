@@ -124,12 +124,17 @@ export interface AfCompositionCycle {
 
 export interface AfDecisionRecord {
   decision_id: string;
+  decision_revision: string;
   topic: string;
   required: boolean;
   options: string[];
   recommended_option: string | null;
+  recommendation_revision: string | null;
   selected_option: string | null;
   selected_by: "user" | null;
+  selection_source: "explicit_option" | "delegated_recommendation" | null;
+  user_text_summary: string | null;
+  decision_input_mode: "structured" | "conversational" | null;
   selection_reason: string | null;
   evidence_refs: string[];
   catalog_refs: string[];
@@ -141,6 +146,7 @@ export interface AfDecisionRecord {
 
 export interface AfAssetDecisionRecord {
   asset_decision_id: string;
+  decision_revision: string;
   asset_ref: string;
   asset_type: "agent" | "workflow" | "tool";
   asset_version: number | null;
@@ -148,8 +154,12 @@ export interface AfAssetDecisionRecord {
   match_grade: AfAssetMatchGrade;
   options: AfAssetDisposition[];
   recommended_disposition: AfAssetDisposition | null;
+  recommendation_revision: string | null;
   selected_disposition: AfAssetDisposition | null;
   selected_by: "user" | null;
+  selection_source: "explicit_option" | "delegated_recommendation" | null;
+  user_text_summary: string | null;
+  decision_input_mode: "structured" | "conversational" | null;
   selection_reason: string | null;
   evidence_refs: string[];
   catalog_refs: string[];
@@ -611,18 +621,24 @@ function parseReturnToDiscover(value: unknown, label: string): AfReturnToDiscove
 
 function parseDecision(record: Record<string, unknown>, label: string): AfDecisionRecord {
   exactKeys(record, [
-    "decision_id", "topic", "required", "options", "recommended_option", "selected_option", "selected_by",
+    "decision_id", "decision_revision", "topic", "required", "options", "recommended_option", "recommendation_revision", "selected_option", "selected_by",
+    "selection_source", "user_text_summary", "decision_input_mode",
     "selection_reason", "evidence_refs", "catalog_refs", "session_id", "turn_id", "status", "supersedes"
   ], label);
   const options = uniqueNonEmptyStringArray(record.options, `${label}.options`);
   const decision: AfDecisionRecord = {
     decision_id: requiredString(record.decision_id, `${label}.decision_id`),
+    decision_revision: sha256(record.decision_revision, `${label}.decision_revision`),
     topic: requiredString(record.topic, `${label}.topic`),
     required: requiredBoolean(record.required, `${label}.required`),
     options,
     recommended_option: nullableString(record.recommended_option, `${label}.recommended_option`),
+    recommendation_revision: nullableSha256(record.recommendation_revision, `${label}.recommendation_revision`),
     selected_option: nullableString(record.selected_option, `${label}.selected_option`),
     selected_by: record.selected_by === null ? null : requiredEnum(record.selected_by, ["user"] as const, `${label}.selected_by`),
+    selection_source: record.selection_source === null ? null : requiredEnum(record.selection_source, ["explicit_option", "delegated_recommendation"] as const, `${label}.selection_source`),
+    user_text_summary: boundedNullableString(record.user_text_summary, `${label}.user_text_summary`, 512),
+    decision_input_mode: record.decision_input_mode === null ? null : requiredEnum(record.decision_input_mode, ["structured", "conversational"] as const, `${label}.decision_input_mode`),
     selection_reason: nullableString(record.selection_reason, `${label}.selection_reason`),
     evidence_refs: stringArray(record.evidence_refs, `${label}.evidence_refs`),
     catalog_refs: stringArray(record.catalog_refs, `${label}.catalog_refs`),
@@ -635,6 +651,12 @@ function parseDecision(record: Record<string, unknown>, label: string): AfDecisi
   if (decision.recommended_option && !options.includes(decision.recommended_option)) {
     throw new Error(`${label}.recommended_option은 options 중 하나여야 합니다.`);
   }
+  if ((decision.recommended_option === null) !== (decision.recommendation_revision === null)) {
+    throw new Error(`${label}.recommended_option과 recommendation_revision은 함께 있어야 합니다.`);
+  }
+  if (decision.selection_source === "delegated_recommendation" && decision.selected_option !== decision.recommended_option) {
+    throw new Error(`${label}.delegated_recommendation은 표시된 recommended_option만 선택할 수 있습니다.`);
+  }
   if (decision.selected_option && !options.includes(decision.selected_option)) {
     throw new Error(`${label}.selected_option은 options 중 하나여야 합니다.`);
   }
@@ -643,13 +665,15 @@ function parseDecision(record: Record<string, unknown>, label: string): AfDecisi
 
 function parseAssetDecision(record: Record<string, unknown>, label: string): AfAssetDecisionRecord {
   exactKeys(record, [
-    "asset_decision_id", "asset_ref", "asset_type", "asset_version", "required", "match_grade", "options",
-    "recommended_disposition", "selected_disposition", "selected_by", "selection_reason", "evidence_refs",
+    "asset_decision_id", "decision_revision", "asset_ref", "asset_type", "asset_version", "required", "match_grade", "options",
+    "recommended_disposition", "recommendation_revision", "selected_disposition", "selected_by", "selection_source",
+    "user_text_summary", "decision_input_mode", "selection_reason", "evidence_refs",
     "catalog_refs", "session_id", "turn_id", "status", "supersedes"
   ], label);
   const options = uniqueEnumArray(record.options, afAssetDispositions, `${label}.options`);
   const decision: AfAssetDecisionRecord = {
     asset_decision_id: requiredString(record.asset_decision_id, `${label}.asset_decision_id`),
+    decision_revision: sha256(record.decision_revision, `${label}.decision_revision`),
     asset_ref: requiredString(record.asset_ref, `${label}.asset_ref`),
     asset_type: requiredEnum(record.asset_type, ["agent", "workflow", "tool"] as const, `${label}.asset_type`),
     asset_version: record.asset_version === null ? null : positiveInteger(record.asset_version, `${label}.asset_version`),
@@ -659,10 +683,14 @@ function parseAssetDecision(record: Record<string, unknown>, label: string): AfA
     recommended_disposition: record.recommended_disposition === null
       ? null
       : requiredEnum(record.recommended_disposition, afAssetDispositions, `${label}.recommended_disposition`),
+    recommendation_revision: nullableSha256(record.recommendation_revision, `${label}.recommendation_revision`),
     selected_disposition: record.selected_disposition === null
       ? null
       : requiredEnum(record.selected_disposition, afAssetDispositions, `${label}.selected_disposition`),
     selected_by: record.selected_by === null ? null : requiredEnum(record.selected_by, ["user"] as const, `${label}.selected_by`),
+    selection_source: record.selection_source === null ? null : requiredEnum(record.selection_source, ["explicit_option", "delegated_recommendation"] as const, `${label}.selection_source`),
+    user_text_summary: boundedNullableString(record.user_text_summary, `${label}.user_text_summary`, 512),
+    decision_input_mode: record.decision_input_mode === null ? null : requiredEnum(record.decision_input_mode, ["structured", "conversational"] as const, `${label}.decision_input_mode`),
     selection_reason: nullableString(record.selection_reason, `${label}.selection_reason`),
     evidence_refs: stringArray(record.evidence_refs, `${label}.evidence_refs`),
     catalog_refs: stringArray(record.catalog_refs, `${label}.catalog_refs`),
@@ -674,6 +702,12 @@ function parseAssetDecision(record: Record<string, unknown>, label: string): AfA
   assertSelection(decision, label, "selected_disposition");
   if (decision.recommended_disposition && !options.includes(decision.recommended_disposition)) {
     throw new Error(`${label}.recommended_disposition은 options 중 하나여야 합니다.`);
+  }
+  if ((decision.recommended_disposition === null) !== (decision.recommendation_revision === null)) {
+    throw new Error(`${label}.recommended_disposition과 recommendation_revision은 함께 있어야 합니다.`);
+  }
+  if (decision.selection_source === "delegated_recommendation" && decision.selected_disposition !== decision.recommended_disposition) {
+    throw new Error(`${label}.delegated_recommendation은 표시된 recommended_disposition만 선택할 수 있습니다.`);
   }
   if (decision.selected_disposition && !options.includes(decision.selected_disposition)) {
     throw new Error(`${label}.selected_disposition은 options 중 하나여야 합니다.`);
@@ -689,14 +723,23 @@ function assertSelection(
   const selected = selectedKey === "selected_option"
     ? (decision as AfDecisionRecord).selected_option
     : (decision as AfAssetDecisionRecord).selected_disposition;
-  const details = [selected, decision.selected_by, decision.selection_reason, decision.session_id, decision.turn_id];
+  const details = [
+    selected,
+    decision.selected_by,
+    decision.selection_source,
+    decision.user_text_summary,
+    decision.selection_reason,
+    decision.session_id,
+    decision.turn_id,
+  ];
   if (decision.status === "open" && details.some((entry) => entry !== null)) {
     throw new Error(`${label} open decision에는 selection metadata를 기록할 수 없습니다.`);
   }
   if (decision.status === "resolved" && (
-    !selected || decision.selected_by !== "user" || !decision.selection_reason || !decision.session_id || !decision.turn_id
+    !selected || decision.selected_by !== "user" || !decision.selection_source || !decision.user_text_summary
+    || !decision.decision_input_mode || !decision.selection_reason || !decision.session_id || !decision.turn_id
   )) {
-    throw new Error(`${label} resolved decision에는 user selection, reason, session_id, turn_id가 필요합니다.`);
+    throw new Error(`${label} resolved decision에는 user selection, selection_source, user_text_summary, decision_input_mode, reason, session_id, turn_id가 필요합니다.`);
   }
   if (decision.status === "superseded" && details.some((entry) => entry !== null) && details.some((entry) => entry === null)) {
     throw new Error(`${label} superseded decision의 selection metadata는 모두 있거나 모두 없어야 합니다.`);
@@ -1064,6 +1107,12 @@ function requiredIdentifier(value: unknown, label: string): string {
 
 function nullableString(value: unknown, label: string): string | null {
   return value === null ? null : requiredString(value, label);
+}
+
+function boundedNullableString(value: unknown, label: string, maxLength: number): string | null {
+  const text = nullableString(value, label);
+  if (text !== null && text.length > maxLength) throw new Error(`${label}은 ${maxLength}자를 초과할 수 없습니다.`);
+  return text;
 }
 
 function sha256(value: unknown, label: string): string {

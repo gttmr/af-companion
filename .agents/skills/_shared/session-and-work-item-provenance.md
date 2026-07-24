@@ -31,7 +31,7 @@ For each durable write, user decision, review, handoff, Scaffold action, or Veri
 - input and output revisions plus Registry revision as applicable;
 - timestamp, artifact/evidence refs, and allowed write roots.
 
-Companion-local state owns enrollment, lease, application/workspace scope, and delivery receipts. `af-work-item.json` owns its schema-supported lifecycle refs, runs, decisions, revisions, and handoffs. Correlate both sources; do not invent Work Item fields to mirror local interaction state.
+Companion-local state owns enrollment, lease, application/workspace scope, and delivery receipts. `af-work-item.json` owns its schema-supported lifecycle refs, runs, decisions, revisions, and handoffs. Decision and Asset Decision records durably preserve decision/recommendation revisions, selection source, bounded answer summary, input mode, and session/turn. Correlate both sources; do not mirror secrets or transient lease state into the Work Item.
 
 ## Durable-write gate
 

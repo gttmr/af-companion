@@ -146,21 +146,21 @@
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
     },
     "decision": {
-      "digest": "8dc36138e79ffa0b1ce8e45a0112095ae250334cefb6d94686dbba0813f5001a",
+      "digest": "e123a0248414c16144b52e8574d6612cf905af6c412e9fb9e88e15e13306f996",
       "subjects": [
         {
           "ref": "af-work-item.json#/decisions",
-          "sha256": "ebc216ff091f30e2b4361a32e901ad83aeb9922373dc2704be9f5049bea8bc83"
+          "sha256": "4c5359f92da8ba720718c5c8432b4ae294f690b1554401434b583778414a936e"
         }
       ],
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
     },
     "asset_decision": {
-      "digest": "8f55caf358d89896ffb21ec52f09cdc7ea85b65870c26611449256492d3eb726",
+      "digest": "f00fc1db664e257827ce2bc76dcbc97c7a6a012703ce263739b829b94b56998e",
       "subjects": [
         {
           "ref": "af-work-item.json#/asset_decisions",
-          "sha256": "e0f23bfd1083303914c0b1e498573739ffeffdf2e2689406450cfdcb5ed50ae9"
+          "sha256": "249e0c59094aa82a25d6e4da72cc4d1fd2ecb87eb22e17cd6fdfd973c4409b26"
         }
       ],
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
@@ -285,8 +285,13 @@
   ],
   "decisions": [
     {
+      "decision_revision": "1111111111111111111111111111111111111111111111111111111111111111",
       "required": true,
       "selected_by": "user",
+      "recommendation_revision": "2222222222222222222222222222222222222222222222222222222222222222",
+      "selection_source": "explicit_option",
+      "user_text_summary": "User explicitly selected the named synthetic fixture option.",
+      "decision_input_mode": "conversational",
       "selection_reason": "Approved synthetic fixture decision.",
       "evidence_refs": [
         "analysis-result.json"
@@ -308,8 +313,13 @@
       "selected_option": "explicit_workflow"
     },
     {
+      "decision_revision": "1111111111111111111111111111111111111111111111111111111111111111",
       "required": true,
       "selected_by": "user",
+      "recommendation_revision": "2222222222222222222222222222222222222222222222222222222222222222",
+      "selection_source": "explicit_option",
+      "user_text_summary": "User explicitly selected the named synthetic fixture option.",
+      "decision_input_mode": "conversational",
       "selection_reason": "Approved synthetic fixture decision.",
       "evidence_refs": [
         "analysis-result.json"
@@ -331,6 +341,7 @@
   "asset_decisions": [
     {
       "asset_decision_id": "asset-decision-1",
+      "decision_revision": "3333333333333333333333333333333333333333333333333333333333333333",
       "asset_ref": "workflow-s11-human-input-resume",
       "asset_type": "workflow",
       "asset_version": 1,
@@ -340,8 +351,12 @@
         "create_project_draft"
       ],
       "recommended_disposition": "create_project_draft",
+      "recommendation_revision": "4444444444444444444444444444444444444444444444444444444444444444",
       "selected_disposition": "create_project_draft",
       "selected_by": "user",
+      "selection_source": "explicit_option",
+      "user_text_summary": "User explicitly selected disposition create_project_draft.",
+      "decision_input_mode": "conversational",
       "selection_reason": "Approved synthetic fixture asset disposition.",
       "evidence_refs": [
         "analysis-result.json"
@@ -354,6 +369,7 @@
     },
     {
       "asset_decision_id": "asset-decision-2",
+      "decision_revision": "3333333333333333333333333333333333333333333333333333333333333333",
       "asset_ref": "tool-s11-apply-synthetic-change",
       "asset_type": "tool",
       "asset_version": 1,
@@ -363,8 +379,12 @@
         "create_project_draft"
       ],
       "recommended_disposition": "create_project_draft",
+      "recommendation_revision": "4444444444444444444444444444444444444444444444444444444444444444",
       "selected_disposition": "create_project_draft",
       "selected_by": "user",
+      "selection_source": "explicit_option",
+      "user_text_summary": "User explicitly selected disposition create_project_draft.",
+      "decision_input_mode": "conversational",
       "selection_reason": "Approved synthetic fixture asset disposition.",
       "evidence_refs": [
         "analysis-result.json"
@@ -398,21 +418,21 @@
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
         },
         "decision_revision": {
-          "digest": "8dc36138e79ffa0b1ce8e45a0112095ae250334cefb6d94686dbba0813f5001a",
+          "digest": "e123a0248414c16144b52e8574d6612cf905af6c412e9fb9e88e15e13306f996",
           "subjects": [
             {
               "ref": "af-work-item.json#/decisions",
-              "sha256": "ebc216ff091f30e2b4361a32e901ad83aeb9922373dc2704be9f5049bea8bc83"
+              "sha256": "4c5359f92da8ba720718c5c8432b4ae294f690b1554401434b583778414a936e"
             }
           ],
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
         },
         "asset_decision_revision": {
-          "digest": "8f55caf358d89896ffb21ec52f09cdc7ea85b65870c26611449256492d3eb726",
+          "digest": "f00fc1db664e257827ce2bc76dcbc97c7a6a012703ce263739b829b94b56998e",
           "subjects": [
             {
               "ref": "af-work-item.json#/asset_decisions",
-              "sha256": "e0f23bfd1083303914c0b1e498573739ffeffdf2e2689406450cfdcb5ed50ae9"
+              "sha256": "249e0c59094aa82a25d6e4da72cc4d1fd2ecb87eb22e17cd6fdfd973c4409b26"
             }
           ],
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"

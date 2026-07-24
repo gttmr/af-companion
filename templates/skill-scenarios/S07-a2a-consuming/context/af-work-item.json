@@ -13,11 +13,11 @@
       "session_id": "fixture-scaffold-session",
       "parent_run_id": null,
       "input_revision": {
-        "digest": "70777bc07ccd562714ffb75e9b6f9372970dafd3a786c893ad5d28006b9dc5bf",
+        "digest": "3d914575356ad164b48f43ac6f5253e2a1d098f07807cac38539a66fdf7fe259",
         "subjects": [
           {
             "ref": "analysis-result.json",
-            "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+            "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
           },
           {
             "ref": "scaffold-plan.json",
@@ -44,11 +44,11 @@
         "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
       },
       "output_revision": {
-        "digest": "f58c798494192e3893deb1148380c170bd56db8283675b85e8fe5e6e1bafea40",
+        "digest": "b224b0eac731448abd3747dc3261e3cb8eec14a81709184f5ff7b47c442d3fa6",
         "subjects": [
           {
             "ref": "analysis-result.json",
-            "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+            "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
           }
         ],
         "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
@@ -65,21 +65,21 @@
     "af-compose-solution": {
       "status": "complete",
       "input_revision": {
-        "digest": "f58c798494192e3893deb1148380c170bd56db8283675b85e8fe5e6e1bafea40",
+        "digest": "b224b0eac731448abd3747dc3261e3cb8eec14a81709184f5ff7b47c442d3fa6",
         "subjects": [
           {
             "ref": "analysis-result.json",
-            "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+            "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
           }
         ],
         "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
       },
       "output_revision": {
-        "digest": "70777bc07ccd562714ffb75e9b6f9372970dafd3a786c893ad5d28006b9dc5bf",
+        "digest": "3d914575356ad164b48f43ac6f5253e2a1d098f07807cac38539a66fdf7fe259",
         "subjects": [
           {
             "ref": "analysis-result.json",
-            "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+            "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
           },
           {
             "ref": "scaffold-plan.json",
@@ -101,11 +101,11 @@
     "af-scaffold-runtime": {
       "status": "active",
       "input_revision": {
-        "digest": "70777bc07ccd562714ffb75e9b6f9372970dafd3a786c893ad5d28006b9dc5bf",
+        "digest": "3d914575356ad164b48f43ac6f5253e2a1d098f07807cac38539a66fdf7fe259",
         "subjects": [
           {
             "ref": "analysis-result.json",
-            "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+            "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
           },
           {
             "ref": "scaffold-plan.json",
@@ -146,31 +146,31 @@
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
     },
     "decision": {
-      "digest": "1968735d368bcb9e21374bf5895a054c0e3084001ffdb0a118ae8bb0fa49897d",
+      "digest": "c7171b77219cb901ffc648765dc0a4cd787bf43084bafd45fac38cb1dd5ef4a0",
       "subjects": [
         {
           "ref": "af-work-item.json#/decisions",
-          "sha256": "e40e75148b37834b95471b3b4a57a92c8a30beb3d7055c685030df8094bb3bd0"
+          "sha256": "c5ef49476e4ba5b6539aab83d027ce5a616c5553df35b128786c02f99d13fff0"
         }
       ],
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
     },
     "asset_decision": {
-      "digest": "4c544cca695a8e252ff3acaabd109d2e1af17ef31ca8e5954548ec59a797081d",
+      "digest": "8d96929e7e608f32192392c79320a01e7458734e58a15459107a7c102ba9bbe7",
       "subjects": [
         {
           "ref": "af-work-item.json#/asset_decisions",
-          "sha256": "32ac7606ce16d5acf7b64e66b762e205329972eee8ca85d2d6ceb3e8de3b2e59"
+          "sha256": "57ffaeae83f38106ce24ab9554fb4c413c5aacb223aa4bd7cebc3b058a799135"
         }
       ],
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
     },
     "discovery": {
-      "digest": "f58c798494192e3893deb1148380c170bd56db8283675b85e8fe5e6e1bafea40",
+      "digest": "b224b0eac731448abd3747dc3261e3cb8eec14a81709184f5ff7b47c442d3fa6",
       "subjects": [
         {
           "ref": "analysis-result.json",
-          "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+          "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
         }
       ],
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
@@ -216,11 +216,11 @@
       "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
     },
     "composition": {
-      "digest": "70777bc07ccd562714ffb75e9b6f9372970dafd3a786c893ad5d28006b9dc5bf",
+      "digest": "3d914575356ad164b48f43ac6f5253e2a1d098f07807cac38539a66fdf7fe259",
       "subjects": [
         {
           "ref": "analysis-result.json",
-          "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+          "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
         },
         {
           "ref": "scaffold-plan.json",
@@ -237,11 +237,11 @@
       "cycle_id": "discovery-1",
       "status": "complete",
       "revision": {
-        "digest": "f58c798494192e3893deb1148380c170bd56db8283675b85e8fe5e6e1bafea40",
+        "digest": "b224b0eac731448abd3747dc3261e3cb8eec14a81709184f5ff7b47c442d3fa6",
         "subjects": [
           {
             "ref": "analysis-result.json",
-            "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+            "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
           }
         ],
         "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
@@ -260,11 +260,11 @@
       "cycle_id": "composition-1",
       "status": "complete",
       "revision": {
-        "digest": "70777bc07ccd562714ffb75e9b6f9372970dafd3a786c893ad5d28006b9dc5bf",
+        "digest": "3d914575356ad164b48f43ac6f5253e2a1d098f07807cac38539a66fdf7fe259",
         "subjects": [
           {
             "ref": "analysis-result.json",
-            "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+            "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
           },
           {
             "ref": "scaffold-plan.json",
@@ -285,8 +285,13 @@
   ],
   "decisions": [
     {
+      "decision_revision": "1111111111111111111111111111111111111111111111111111111111111111",
       "required": true,
       "selected_by": "user",
+      "recommendation_revision": "2222222222222222222222222222222222222222222222222222222222222222",
+      "selection_source": "explicit_option",
+      "user_text_summary": "User explicitly selected the named synthetic fixture option.",
+      "decision_input_mode": "conversational",
       "selection_reason": "Approved synthetic fixture decision.",
       "evidence_refs": [
         "analysis-result.json"
@@ -308,8 +313,13 @@
       "selected_option": "explicit_workflow"
     },
     {
+      "decision_revision": "1111111111111111111111111111111111111111111111111111111111111111",
       "required": true,
       "selected_by": "user",
+      "recommendation_revision": "2222222222222222222222222222222222222222222222222222222222222222",
+      "selection_source": "explicit_option",
+      "user_text_summary": "User explicitly selected the named synthetic fixture option.",
+      "decision_input_mode": "conversational",
       "selection_reason": "Approved synthetic fixture decision.",
       "evidence_refs": [
         "analysis-result.json"
@@ -331,6 +341,7 @@
   "asset_decisions": [
     {
       "asset_decision_id": "asset-decision-1",
+      "decision_revision": "3333333333333333333333333333333333333333333333333333333333333333",
       "asset_ref": "workflow-s07-a2a-consuming",
       "asset_type": "workflow",
       "asset_version": 1,
@@ -340,8 +351,12 @@
         "create_project_draft"
       ],
       "recommended_disposition": "create_project_draft",
+      "recommendation_revision": "4444444444444444444444444444444444444444444444444444444444444444",
       "selected_disposition": "create_project_draft",
       "selected_by": "user",
+      "selection_source": "explicit_option",
+      "user_text_summary": "User explicitly selected disposition create_project_draft.",
+      "decision_input_mode": "conversational",
       "selection_reason": "Approved synthetic fixture asset disposition.",
       "evidence_refs": [
         "analysis-result.json"
@@ -354,6 +369,7 @@
     },
     {
       "asset_decision_id": "asset-decision-2",
+      "decision_revision": "3333333333333333333333333333333333333333333333333333333333333333",
       "asset_ref": "agent-s07-local-coordinator",
       "asset_type": "agent",
       "asset_version": 1,
@@ -363,8 +379,12 @@
         "create_project_draft"
       ],
       "recommended_disposition": "create_project_draft",
+      "recommendation_revision": "4444444444444444444444444444444444444444444444444444444444444444",
       "selected_disposition": "create_project_draft",
       "selected_by": "user",
+      "selection_source": "explicit_option",
+      "user_text_summary": "User explicitly selected disposition create_project_draft.",
+      "decision_input_mode": "conversational",
       "selection_reason": "Approved synthetic fixture asset disposition.",
       "evidence_refs": [
         "analysis-result.json"
@@ -377,6 +397,7 @@
     },
     {
       "asset_decision_id": "asset-decision-3",
+      "decision_revision": "3333333333333333333333333333333333333333333333333333333333333333",
       "asset_ref": "agent-s07-remote-policy-qa",
       "asset_type": "agent",
       "asset_version": 1,
@@ -386,8 +407,12 @@
         "create_project_draft"
       ],
       "recommended_disposition": "create_project_draft",
+      "recommendation_revision": "4444444444444444444444444444444444444444444444444444444444444444",
       "selected_disposition": "create_project_draft",
       "selected_by": "user",
+      "selection_source": "explicit_option",
+      "user_text_summary": "User explicitly selected disposition create_project_draft.",
+      "decision_input_mode": "conversational",
       "selection_reason": "Approved synthetic fixture asset disposition.",
       "evidence_refs": [
         "analysis-result.json"
@@ -421,31 +446,31 @@
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
         },
         "decision_revision": {
-          "digest": "1968735d368bcb9e21374bf5895a054c0e3084001ffdb0a118ae8bb0fa49897d",
+          "digest": "c7171b77219cb901ffc648765dc0a4cd787bf43084bafd45fac38cb1dd5ef4a0",
           "subjects": [
             {
               "ref": "af-work-item.json#/decisions",
-              "sha256": "e40e75148b37834b95471b3b4a57a92c8a30beb3d7055c685030df8094bb3bd0"
+              "sha256": "c5ef49476e4ba5b6539aab83d027ce5a616c5553df35b128786c02f99d13fff0"
             }
           ],
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
         },
         "asset_decision_revision": {
-          "digest": "4c544cca695a8e252ff3acaabd109d2e1af17ef31ca8e5954548ec59a797081d",
+          "digest": "8d96929e7e608f32192392c79320a01e7458734e58a15459107a7c102ba9bbe7",
           "subjects": [
             {
               "ref": "af-work-item.json#/asset_decisions",
-              "sha256": "32ac7606ce16d5acf7b64e66b762e205329972eee8ca85d2d6ceb3e8de3b2e59"
+              "sha256": "57ffaeae83f38106ce24ab9554fb4c413c5aacb223aa4bd7cebc3b058a799135"
             }
           ],
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
         },
         "discovery_revision": {
-          "digest": "f58c798494192e3893deb1148380c170bd56db8283675b85e8fe5e6e1bafea40",
+          "digest": "b224b0eac731448abd3747dc3261e3cb8eec14a81709184f5ff7b47c442d3fa6",
           "subjects": [
             {
               "ref": "analysis-result.json",
-              "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+              "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
             }
           ],
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
@@ -460,7 +485,7 @@
           ],
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
         },
-        "artifact_etag": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+        "artifact_etag": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
       },
       "decided_at": "2030-01-01T00:00:00.000Z",
       "session_id": "fixture-session",
@@ -471,11 +496,11 @@
       "status": "approved",
       "binding": {
         "discovery_revision": {
-          "digest": "f58c798494192e3893deb1148380c170bd56db8283675b85e8fe5e6e1bafea40",
+          "digest": "b224b0eac731448abd3747dc3261e3cb8eec14a81709184f5ff7b47c442d3fa6",
           "subjects": [
             {
               "ref": "analysis-result.json",
-              "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+              "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
             }
           ],
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
@@ -511,11 +536,11 @@
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
         },
         "composition_revision": {
-          "digest": "70777bc07ccd562714ffb75e9b6f9372970dafd3a786c893ad5d28006b9dc5bf",
+          "digest": "3d914575356ad164b48f43ac6f5253e2a1d098f07807cac38539a66fdf7fe259",
           "subjects": [
             {
               "ref": "analysis-result.json",
-              "sha256": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+              "sha256": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
             },
             {
               "ref": "scaffold-plan.json",
@@ -524,7 +549,7 @@
           ],
           "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
         },
-        "artifact_etag": "b98994f83043d3460fca653f890a325f4dd0cfd381db7a2fdbb8486cc190f22e"
+        "artifact_etag": "6448283ac23a6423e8808622a4519a2cce991680d88ef323cf769591f6380b5a"
       },
       "decided_at": "2030-01-01T00:00:00.000Z",
       "session_id": "fixture-session",

@@ -26,7 +26,7 @@ Both paths present the same canonical input:
 - the same evidence refs and material trade-offs;
 - whether the decision is required and whether it is a hard, credential, deployment, security, or irreversible gate.
 
-The current Work Item schema stores the recommendation on the Decision Record and stores a content-addressed revision for the decision set. Preserve the displayed recommendation revision in the Decision Plan, handoff, and provenance evidence; do not invent an unsupported per-record schema field.
+The strict Work Item Decision Record stores `decision_revision`, `recommendation_revision`, `selection_source`, a bounded non-verbatim `user_text_summary`, and `decision_input_mode` alongside the selected option and exact session/turn. These fields are durable fresh-context provenance, not consent inferred by the agent. Asset Decision Records preserve the same provenance fields for disposition choices.
 
 ## One-question turn
 
@@ -49,7 +49,7 @@ If non-mutating Plan rules prohibit a ledger write, `waiting_for_input` is the t
 Normalize both paths to the same schema-valid Decision Record semantics:
 
 - open: selection and session/turn provenance remain null;
-- resolved: the selected option is one of the displayed options, `selected_by` is `user`, and selection reason plus exact session/turn provenance are present;
+- resolved: the selected option is one of the displayed options, `selected_by` is `user`, and decision/recommendation revisions, `selection_source`, bounded answer summary, input mode, selection reason, and exact session/turn provenance are present;
 - superseded: preserve the old record and link the replacement according to the current schema.
 
 Do not add a path-specific decision type, reduce conversational answers to weaker provenance, or resolve a required decision from silence, timeout, likelihood, model preference, or an assumed default.
@@ -66,7 +66,7 @@ Resolve only an unambiguous answer to the displayed matching decision and recomm
 
 ## Compaction and fresh context
 
-Preserve open and resolved decision refs, displayed options, selected option when any, evidence refs, decision revision, and recommendation revision. After compaction or fresh-session entry, re-read that state before asking or normalizing an answer. Never reinterpret `추천대로` against a newly generated recommendation.
+Preserve open and resolved decision refs, displayed options, selected option when any, evidence refs, decision revision, recommendation revision, selection source, bounded user-answer summary, and input mode in the strict Work Item record. After compaction or fresh-session entry, re-read that state before asking or normalizing an answer. Never reinterpret `추천대로` against a newly generated recommendation.
 
 ## Verification
 
