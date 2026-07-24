@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { parseTargetAnalysisResult } from "../../analyzer/targetAnalysisResult";
 import type { AfWorkItemManifest } from "../../analyzer/afWorkItem";
 import type { AnalysisResult, AssetCandidate } from "../../analyzer/types";
-import type { CodexCompanionSnapshot } from "../../companion/types";
+import type { CodexCompanionSnapshotV2 } from "../../companion/types";
 import { useCodexSessions } from "../../state/useCodexSessions";
 import { useEditorActions, useWorkItem, useWorkItemFile } from "../../workspace/useWorkspaceProjection";
 import { ReviewGateLine, ScreenState, SkillScreenHeader } from "./SkillScreenHeader";
@@ -40,9 +40,13 @@ export default function DiscoverWorkspace() {
 function DiscoveryLifecycle({ workId, manifest, snapshot }: {
   workId: string;
   manifest: AfWorkItemManifest;
-  snapshot: CodexCompanionSnapshot | null;
+  snapshot: CodexCompanionSnapshotV2 | null;
 }) {
-  const sessions = snapshot?.sessions.filter((session) => session.work_id === workId) ?? [];
+  const sessions = snapshot?.sessions.filter((session) => (
+    session.participation === "companion_active"
+    && session.status === "active"
+    && session.work_id === workId
+  )) ?? [];
   const planSessions = sessions.filter((session) => session.role === "plan");
   const materializationSessions = sessions.filter((session) => session.role === "materialization");
   const bridgeHandoffs = snapshot?.handoffs.filter((handoff) => handoff.work_id === workId) ?? [];
@@ -60,7 +64,7 @@ function DiscoveryLifecycle({ workId, manifest, snapshot }: {
       </div>
       <div className="session-role-register">
         <SessionRole title="Plan Session" sessions={planSessions} empty="Plan Mode session이 아직 Work Item에 연결되지 않았습니다." />
-        <SessionRole title="Materialization Session" sessions={materializationSessions} empty="Fresh session claim 또는 수동 attach가 필요합니다." />
+        <SessionRole title="Materialization Session" sessions={materializationSessions} empty="Fresh handoff claim 또는 exact-scope Companion Join이 필요합니다." />
         <div className="handoff-summary">
           <span>Latest handoff</span>
           {latestBridgeHandoff ? <><strong>{latestBridgeHandoff.status}</strong><code>{latestBridgeHandoff.handoff_id}</code><small>{latestBridgeHandoff.claimed_by_session_id ? `claimed by ${compactId(latestBridgeHandoff.claimed_by_session_id)}` : `expires ${new Date(latestBridgeHandoff.expires_at).toLocaleString()}`}</small></> : latestLedgerHandoff ? <><strong>{latestLedgerHandoff.status}</strong><code>{latestLedgerHandoff.handoff_id}</code><small>ledger revision {latestLedgerHandoff.discovery_revision.digest.slice(0, 10)}</small></> : <p>Plan marker가 생성되면 exact claim 상태를 표시합니다.</p>}
@@ -164,7 +168,7 @@ function LifecycleMetric({ label, value, tone = "neutral" }: { label: string; va
   return <div className={`lifecycle-metric is-${tone}`}><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function SessionRole({ title, sessions, empty }: { title: string; sessions: CodexCompanionSnapshot["sessions"]; empty: string }) {
+function SessionRole({ title, sessions, empty }: { title: string; sessions: CodexCompanionSnapshotV2["sessions"]; empty: string }) {
   return <div className="session-role"><span>{title}</span>{sessions.length ? sessions.map((session) => <div key={session.session_id}><strong>{session.alias || compactId(session.session_id)}</strong><code>{compactId(session.session_id)}</code><small>{session.status} · {session.last_event} · {new Date(session.last_seen_at).toLocaleString()}</small></div>) : <p>{empty}</p>}</div>;
 }
 

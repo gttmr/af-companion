@@ -22,7 +22,12 @@ export default function ComposeWorkspace() {
   if (!workId) return null;
   const manifest = manifestQuery.data?.data ?? null;
   const graph = graphQuery.data?.data.graph ?? null;
-  const activeSessions = codex.snapshot?.sessions.filter((session) => session.status === "active") ?? [];
+  const activeSessions = codex.snapshot?.sessions.filter((session) => (
+    session.participation === "companion_active"
+    && session.status === "active"
+    && session.work_id === workId
+    && session.role === "materialization"
+  )) ?? [];
   const discoveryReady = manifest?.review_gates.discovery.status === "approved";
 
   function saveGraph(next: GraphIR) {
@@ -76,7 +81,7 @@ export default function ComposeWorkspace() {
       {manifest ? <CompositionDecisionStrip manifest={manifest} /> : null}
 
       {!discoveryReady ? <ScreenState tone="warning" title="Compose gate가 닫혀 있습니다" detail="외부 Codex에서 Discover 산출물을 검토하고 discovery review를 승인한 뒤 Graph를 편집할 수 있습니다." /> : null}
-      {activeSessions.length === 0 ? <ScreenState tone="warning" title="활성 Codex session 없음" detail="이 workspace에서 CLI 또는 VS Code extension prompt를 제출하면 Graph 저장 target으로 선택할 수 있습니다." /> : null}
+      {activeSessions.length === 0 ? <ScreenState tone="warning" title="활성 Companion session 없음" detail="Connections에서 이 Work Item의 materialization 역할로 exact-scope enrollment를 시작하세요." /> : null}
       {message ? <div className={`compose-message is-${message.tone}`}>{message.text}{message.tone === "error" ? <button type="button" onClick={() => void graphQuery.refetch()}>최신 Graph 불러오기</button> : null}</div> : null}
 
       {graphQuery.isLoading ? <ScreenState title="Graph IR을 읽는 중" detail="analysis-result.json의 canonical embedded Graph를 투영합니다." /> : null}

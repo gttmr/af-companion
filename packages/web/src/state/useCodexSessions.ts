@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
-  CodexCompanionSnapshot,
   CodexCompanionSnapshotV2,
   EnrollmentReceipt,
   EnrollmentRequest,
@@ -20,11 +19,9 @@ interface SessionPreferencesInput {
   alias: string | null;
 }
 
-type CompanionSnapshotResponse = CodexCompanionSnapshot | CodexCompanionSnapshotV2;
-
 export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {}) {
   const queryClient = useQueryClient();
-  const snapshotQuery = useQuery<CompanionSnapshotResponse>({
+  const snapshotQuery = useQuery<CodexCompanionSnapshotV2>({
     queryKey: CODEX_COMPANION_SNAPSHOT_QUERY_KEY,
     queryFn: fetchCodexCompanionSnapshot,
     enabled,
@@ -100,20 +97,11 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     onSuccess: invalidateSnapshot,
   });
 
-  const responseSnapshot = snapshotQuery.data ?? null;
-  const companionSnapshot: CodexCompanionSnapshotV2 | null = isCompanionSnapshotV2(responseSnapshot)
-    ? responseSnapshot
-    : null;
-
   return {
-    // Unchanged consumers still read the common v1 fields. Parent's facade now returns
-    // additive v2 data; the explicit companionSnapshot below owns all v2-only behavior.
-    snapshot: responseSnapshot as CodexCompanionSnapshot | null,
-    companionSnapshot,
+    snapshot: snapshotQuery.data ?? null,
     snapshotLoading: snapshotQuery.isLoading,
     snapshotRefreshing: snapshotQuery.isFetching,
     snapshotError: snapshotQuery.error instanceof Error ? snapshotQuery.error.message : null,
-    v2Unavailable: Boolean(responseSnapshot && !companionSnapshot),
     launchVscode: () => launchMutation.mutateAsync(),
     launchPending: launchMutation.isPending,
     launchReceipt: launchMutation.data ?? null,
@@ -142,12 +130,16 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
   };
 }
 
-async function fetchCodexCompanionSnapshot(): Promise<CompanionSnapshotResponse> {
+async function fetchCodexCompanionSnapshot(): Promise<CodexCompanionSnapshotV2> {
   const response = await fetch("/api/codex-companion/snapshot");
   if (!response.ok) {
     throw new Error(await codexCompanionResponseMessage(response, "Companion snapshot을 가져오지 못했습니다."));
   }
-  return (await response.json()) as CompanionSnapshotResponse;
+  const snapshot = (await response.json()) as Partial<CodexCompanionSnapshotV2>;
+  if (snapshot.schema_version !== 2) {
+    throw new Error("Companion facade가 필수 v2 snapshot을 반환하지 않았습니다.");
+  }
+  return snapshot as CodexCompanionSnapshotV2;
 }
 
 async function postCompanion<T>(path: string, body: unknown, fallback: string): Promise<T> {
@@ -169,10 +161,6 @@ async function postCompanion<T>(path: string, body: unknown, fallback: string): 
 
 function mutationMessage(error: Error | null): string | null {
   return error?.message ?? null;
-}
-
-function isCompanionSnapshotV2(snapshot: CompanionSnapshotResponse | null): snapshot is CodexCompanionSnapshotV2 {
-  return snapshot?.schema_version === 2;
 }
 
 export async function codexCompanionResponseMessage(response: Response, fallback: string): Promise<string> {

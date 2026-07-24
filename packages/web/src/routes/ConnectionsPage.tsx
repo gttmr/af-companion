@@ -16,7 +16,7 @@ type EnrollmentLaunchTarget = "cli" | "vscode";
 
 export default function ConnectionsPage() {
   const codex = useCodexSessions();
-  const snapshot = codex.companionSnapshot;
+  const snapshot = codex.snapshot;
   const [message, setMessage] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [applicationId, setApplicationId] = useState("");
@@ -98,11 +98,6 @@ export default function ConnectionsPage() {
       {message ? <p className="connection-message" role="status">{message}</p> : null}
       {copyMessage ? <p className="connection-message" role="status">{copyMessage}</p> : null}
       {codex.snapshotError ? <p className="connection-message is-error" role="alert">{codex.snapshotError}</p> : null}
-      {codex.v2Unavailable ? (
-        <p className="connection-message is-error" role="alert">
-          현재 facade가 legacy snapshot을 반환합니다. v2 session scope가 확인될 때까지 ordinary/unmanaged session은 숨기며 enrollment·handoff action을 사용할 수 없습니다.
-        </p>
-      ) : null}
       {actionErrors.map((error, index) => <p key={`${index}-${error}`} className="connection-message is-error" role="alert">{error}</p>)}
 
       <RegisterSection

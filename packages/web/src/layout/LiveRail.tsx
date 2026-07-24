@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import type { CodexCompanionSnapshot, CodexCompanionSnapshotV2 } from "../companion/types";
+import type { CodexCompanionSnapshotV2 } from "../companion/types";
 import type { WorkspaceProjectionSnapshot } from "../workspace/types";
 import { useEditorActions, useWorkspaceDiff } from "../workspace/useWorkspaceProjection";
 
@@ -12,7 +12,7 @@ export function LiveRail({
   live,
 }: {
   snapshot: WorkspaceProjectionSnapshot | null;
-  codex: CodexCompanionSnapshot | CodexCompanionSnapshotV2 | null;
+  codex: CodexCompanionSnapshotV2 | null;
   live: "connecting" | "live" | "retrying";
 }) {
   const [tab, setTab] = useState<LiveTab>("activity");
@@ -20,9 +20,8 @@ export function LiveRail({
   const diff = useWorkspaceDiff(tab === "changes" ? selectedPath : null);
   const editor = useEditorActions();
   const activities = useMemo(() => [...(snapshot?.activities ?? [])].reverse().slice(0, 80), [snapshot]);
-  const companion = codex?.schema_version === 2 ? codex : null;
-  const activeSessions = companion?.sessions.filter((session) => session.participation === "companion_active") ?? [];
-  const queued = companion?.deliveries.filter((delivery) => delivery.status === "queued") ?? [];
+  const activeSessions = codex?.sessions.filter((session) => session.participation === "companion_active") ?? [];
+  const queued = codex?.deliveries.filter((delivery) => delivery.status === "queued") ?? [];
 
   return (
     <aside className="live-rail" aria-label="실시간 Workspace 상태">
@@ -98,9 +97,7 @@ export function LiveRail({
 
         {tab === "sessions" ? (
           <div className="session-projection">
-            {!companion ? (
-              <RailEmpty title="Companion v2 unavailable" detail="ordinary session은 숨겨집니다. v2 enrollment facade가 준비되면 exact scope session만 표시합니다." />
-            ) : !companion.capabilities.bridge_available ? (
+            {!codex?.capabilities.bridge_available ? (
               <RailEmpty title="Codex Bridge offline" detail="외부 CLI 세션을 연결하려면 companion bridge를 시작하세요." />
             ) : (
               <>

@@ -1,6 +1,6 @@
 import type { AfWorkItemManifest } from "../analyzer/afWorkItem";
 import type { AssetCandidate, GraphIR } from "../analyzer/types";
-import type { ContextDelivery } from "../companion/types";
+import type { ScopedContextDelivery } from "../companion/types";
 import type {
   EditorOpenReceipt,
   WorkspaceDiff,
@@ -36,7 +36,7 @@ export interface GraphSaveResult {
   ok: true;
   etag: string;
   graph: GraphIR;
-  delivery: ContextDelivery | null;
+  delivery: ScopedContextDelivery | null;
   delivery_error: { code: string; message: string } | null;
 }
 
