@@ -11,6 +11,7 @@ import test from "node:test";
 import type { AfWorkItemManifest } from "../src/analyzer/afWorkItem.ts";
 import { ArtifactRootStore } from "./artifactRootStore.ts";
 import { startCodexBridgeServer } from "./codexBridgeServer.ts";
+import { validateCreateEnrollmentInput } from "./codexBridgeStore.ts";
 import { createWorkItemMiddleware } from "./workItemApi.ts";
 import { createWorkItemRevision } from "./workItemRevision.ts";
 
@@ -39,24 +40,8 @@ test("Graph PUT edits only Graph projections, invalidates downstream state, and 
 
   const bridge = await startCodexBridgeServer({ repoRoot, codexVersion: "test", port: 0 });
   t.after(() => bridge.close().catch(() => undefined));
-  await bridge.store.handleHook({
-    session_id: "session-exact",
-    transcript_path: null,
-    cwd: repoRoot,
-    hook_event_name: "SessionStart",
-    model: "gpt-test",
-    permission_mode: "default",
-    source: "startup",
-  });
-  await bridge.store.handleHook({
-    session_id: "session-other",
-    transcript_path: null,
-    cwd: repoRoot,
-    hook_event_name: "SessionStart",
-    model: "gpt-test",
-    permission_mode: "default",
-    source: "startup",
-  });
+  await enrollSession(bridge.store, repoRoot, workId, "session-exact");
+  await enrollSession(bridge.store, repoRoot, workId, "session-other");
 
   const middleware = createWorkItemMiddleware(repoRoot);
   const server = createServer((request, response) => {
@@ -118,6 +103,31 @@ test("Graph PUT edits only Graph projections, invalidates downstream state, and 
   assert.equal(snapshot.deliveries.filter((delivery) => delivery.target_session_id === "session-exact").length, 1);
   assert.equal(snapshot.deliveries.filter((delivery) => delivery.target_session_id === "session-other").length, 0);
 });
+
+async function enrollSession(
+  bridgeStore: Awaited<ReturnType<typeof startCodexBridgeServer>>["store"],
+  repoRoot: string,
+  workId: string,
+  sessionId: string,
+): Promise<void> {
+  const receipt = await bridgeStore.createEnrollment(validateCreateEnrollmentInput({
+    application_id: "work-item-api-test",
+    work_id: workId,
+    requested_role: "materialization",
+    activation_origin: "af_cli_launch",
+    hook_mode: "side_effect_gated",
+  }));
+  await bridgeStore.handleHook({
+    session_id: sessionId,
+    transcript_path: null,
+    cwd: repoRoot,
+    hook_event_name: "SessionStart",
+    model: "gpt-test",
+    permission_mode: "default",
+    source: "startup",
+    companion_proof: { kind: "activation", activation_capsule: receipt.activation_capsule },
+  });
+}
 
 async function approveComposition(store: ArtifactRootStore, workId: string): Promise<void> {
   const result = await store.readWorkItem(workId);
