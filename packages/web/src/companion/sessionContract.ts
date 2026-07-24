@@ -96,6 +96,19 @@ export interface CompanionSessionLease {
   expires_at: string;
 }
 
+export interface LeaseHookProof {
+  kind: "lease";
+  lease_id: string;
+  lease_token: string;
+}
+
+export interface ActivationHookProof {
+  kind: "activation";
+  activation_capsule: string;
+}
+
+export type CompanionHookProof = LeaseHookProof | ActivationHookProof;
+
 export interface CompanionSession {
   session_id: string;
   participation: CompanionSessionParticipation;
