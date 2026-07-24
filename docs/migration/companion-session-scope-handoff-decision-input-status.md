@@ -160,7 +160,7 @@ Browser evidence:
 | `node --test scripts/af-codex-hook.test.mjs` | PASS; 9 tests |
 | `node --test tests/skills/decision-session-contract.test.mjs` | PASS; 8 tests |
 | `cd packages/web && npm run build` | PASS; TypeScript and Vite, 576 modules |
-| changed active Markdown relative-link check | PASS; 11 files, 11 local targets, zero broken |
+| changed active Markdown relative-link check | PASS; 14 files, 34 local targets, zero broken |
 | `git diff --check` | PASS |
 
 The integration worktree intentionally reuses the original checkout's existing
