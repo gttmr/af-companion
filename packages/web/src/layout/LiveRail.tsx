@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import type { CodexCompanionSnapshot } from "../companion/types";
+import type { CodexCompanionSnapshot, CodexCompanionSnapshotV2 } from "../companion/types";
 import type { WorkspaceProjectionSnapshot } from "../workspace/types";
 import { useEditorActions, useWorkspaceDiff } from "../workspace/useWorkspaceProjection";
 
@@ -12,7 +12,7 @@ export function LiveRail({
   live,
 }: {
   snapshot: WorkspaceProjectionSnapshot | null;
-  codex: CodexCompanionSnapshot | null;
+  codex: CodexCompanionSnapshot | CodexCompanionSnapshotV2 | null;
   live: "connecting" | "live" | "retrying";
 }) {
   const [tab, setTab] = useState<LiveTab>("activity");
@@ -20,8 +20,9 @@ export function LiveRail({
   const diff = useWorkspaceDiff(tab === "changes" ? selectedPath : null);
   const editor = useEditorActions();
   const activities = useMemo(() => [...(snapshot?.activities ?? [])].reverse().slice(0, 80), [snapshot]);
-  const activeSessions = codex?.sessions.filter((session) => session.status === "active") ?? [];
-  const queued = codex?.deliveries.filter((delivery) => delivery.status === "queued") ?? [];
+  const companion = codex?.schema_version === 2 ? codex : null;
+  const activeSessions = companion?.sessions.filter((session) => session.participation === "companion_active") ?? [];
+  const queued = companion?.deliveries.filter((delivery) => delivery.status === "queued") ?? [];
 
   return (
     <aside className="live-rail" aria-label="실시간 Workspace 상태">
@@ -97,27 +98,29 @@ export function LiveRail({
 
         {tab === "sessions" ? (
           <div className="session-projection">
-            {!codex?.capabilities.bridge_available ? (
+            {!companion ? (
+              <RailEmpty title="Companion v2 unavailable" detail="ordinary session은 숨겨집니다. v2 enrollment facade가 준비되면 exact scope session만 표시합니다." />
+            ) : !companion.capabilities.bridge_available ? (
               <RailEmpty title="Codex Bridge offline" detail="외부 CLI 세션을 연결하려면 companion bridge를 시작하세요." />
             ) : (
               <>
-                <div className="rail-section-label">Active sessions</div>
+                <div className="rail-section-label">Companion active</div>
                 {activeSessions.length ? (
                   <ul className="session-list">
                     {activeSessions.map((session) => (
                       <li key={session.session_id}>
-                        <div><strong>{session.alias || compactId(session.session_id)}</strong><span>{session.model}</span></div>
+                        <div><strong>{session.alias || compactId(session.session_id)}</strong><span>{session.application_id}/{session.work_id} · {session.role}</span></div>
                         <time>{relativeTime(session.last_seen_at)}</time>
                       </li>
                     ))}
                   </ul>
-                ) : <RailEmpty title="활성 session 없음" detail="이 workspace에서 Codex CLI 또는 extension prompt를 제출하세요." />}
+                ) : <RailEmpty title="Companion session 없음" detail="일반 codex 실행은 표시되지 않습니다. Connections에서 exact scope enrollment를 시작하세요." />}
                 <div className="rail-section-label">Queued deliveries · {queued.length}</div>
                 <ul className="delivery-list">
                   {queued.slice(0, 12).map((delivery) => (
                     <li key={delivery.delivery_id}>
                       <strong>{delivery.bundle.user_intent.text?.startsWith("graph_change:") ? "Graph change" : "Graph context"}</strong>
-                      <span>{compactId(delivery.target_session_id)} · {relativeTime(delivery.created_at)}</span>
+                      <span>{delivery.scope.application_id}/{delivery.scope.work_id} · {compactId(delivery.target_session_id)} · {relativeTime(delivery.created_at)}</span>
                     </li>
                   ))}
                 </ul>
