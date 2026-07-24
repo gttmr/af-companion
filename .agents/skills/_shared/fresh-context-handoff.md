@@ -30,7 +30,7 @@ A handoff identifies exactly:
 - creation and expiry times;
 - claim session, turn, and time after a successful claim.
 
-The Companion create request names the exact canonical Work Item `handoff_id` and `marker_digest`; the Bridge does not allocate a replacement identity. It also receives the complete canonical Plan body, recomputes `plan_body_hash`, and rejects any byte mismatch before authority exists. The bounded Plan body is encrypted in ignored local state, omitted from snapshots and receipts, injected only into the exact successful claim's `additionalContext`, and erased on claim, cancellation, failure, expiry, supersession, source revoke, or restart.
+The Companion create request names the exact canonical Work Item `handoff_id` and `marker_digest`; the Bridge does not allocate a replacement identity. It also receives the complete canonical Plan body, recomputes `plan_body_hash`, and rejects any byte mismatch before authority exists. The 512 KiB JSON transport envelope is sized to carry a valid canonical Plan after worst-case escaping; the Plan itself remains capped at 64 KiB. The bounded Plan body is encrypted in ignored local state, omitted from snapshots and receipts, injected only into the exact successful claim's `additionalContext`, and erased on claim, cancellation, failure, expiry, supersession, source revoke, or restart. Snapshot projection rechecks active pending authority against the canonical Handoff and fails it closed with body erasure when the Handoff is removed or drifts.
 
 ## Transport and fallback order
 

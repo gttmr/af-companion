@@ -113,7 +113,7 @@ Evidence:
 | --- | --- | --- | --- | --- |
 | Shared contract | Parent | `agent/session-scope-handoff-decision-input` | complete | contract tests and build pass |
 | Capability research | Agent A | read-only | complete and closed | installed CLI/IDE source plus official Codex docs |
-| Enrollment/Bridge/API | Agent B | `agent/session-scope-bridge` | integrated and closed | direct/facade negative and exact-scope cases pass in the 60-test Companion suite after Parent remediation |
+| Enrollment/Bridge/API | Agent B | `agent/session-scope-bridge` | integrated and closed | direct/facade negative and exact-scope cases pass in the 62-test Companion suite after Parent remediation |
 | Hook/Launcher/CLI | Agent C | `agent/session-scope-hook-cli` | integrated and closed | Hook/CLI 17/17; plugin validator pass |
 | Decision Adapter/Skills | Agent D | `agent/decision-input-skills` | integrated and closed | skill validator: 46 files, zero errors/warnings; decision/session contract 9/9 |
 | Handoff/Connections UI | Agent E | `agent/session-handoff-ui` | integrated and closed | build, Companion tests, and real fixed-port desktop/narrow browser acceptance |
@@ -143,6 +143,16 @@ delivery rechecks canonical source revision at consume time; and strict
 Decision/Asset Decision records preserve decision/recommendation revisions,
 selection source, bounded answer summary, input mode, and exact session/turn.
 
+A third independent review found three final authority-edge gaps: a read-only
+snapshot did not reconcile a removed canonical Handoff, a superseded selected
+Decision could retain provenance without its input mode, and the facade JSON
+limit could reject a valid 64 KiB Plan after worst-case escaping. Each case was
+first captured as a failing regression. Snapshot projection now fails stale
+authority and erases protected Plan bytes, superseded selection provenance is
+all-or-none including `decision_input_mode`, and both direct and facade Handoff
+requests use one 512 KiB transport envelope while canonical Plan text remains
+strictly bounded to 64 KiB.
+
 ## Acceptance evidence
 
 | Claim | Current evidence |
@@ -150,9 +160,9 @@ selection source, bounded answer summary, input mode, and exact session/turn.
 | unmanaged lifecycle is inert | Hook acceptance sends ordinary SessionStart, prompt, tool, and stop inputs while trapping endpoint/network/state access; all exit silently with zero AF request, lease, activity, or durable session |
 | activation is exact and one-time | direct Bridge tests cover forged, replayed, expired, cross-scope, subagent, v1, symlink, deleted Work Item, and valid post-issuance Work Item mutation cases; successful activation writes only one restrictive session lease |
 | delivery fails closed | tests reject unmanaged, stale, revoked, deleted/tampered-lease, wrong workspace/application/Work Item/role, stale queue revisions, and source state unavailable at consume time |
-| restart and expiry invalidate authority | Bridge restart expires sessions, invalidates old leases, cancels queued delivery, and fails pending Handoffs; lease/source expiry and a later source turn close pending authority |
-| handoff is explicit and exact | tests cover exact canonical Work Item Handoff ID/marker/revisions, independently recomputed Plan hash, encrypted-at-rest body, distinct fresh exact-body claim, body erasure, same/wrong session, replay, durable same-scope existing-session target, next-prompt claim, target detach, cancel, source revoke, and canonical drift |
-| decisions have path-independent semantics | all five skills use the shared turn-capability contract; an executable fixture presents one identical canonical question and produces equivalent strict-parser-valid semantics from structured/conversational answers while preserving input mode, delegated recommendation revision, selection source, safe summary, and exact session/turn |
+| restart and expiry invalidate authority | Bridge restart expires sessions, invalidates old leases, cancels queued delivery, and fails pending Handoffs; lease/source expiry and a later source turn close pending authority; snapshot polling also reconciles canonical Handoff removal/drift and erases protected Plan ciphertext |
+| handoff is explicit and exact | tests cover exact canonical Work Item Handoff ID/marker/revisions, independently recomputed Plan hash, encrypted-at-rest body, distinct fresh exact-body claim, body erasure, same/wrong session, replay, durable same-scope existing-session target, next-prompt claim, target detach, cancel, source revoke, canonical drift, and a valid 64 KiB Plan under worst-case JSON escaping |
+| decisions have path-independent semantics | all five skills use the shared turn-capability contract; an executable fixture presents one identical canonical question and produces equivalent strict-parser-valid semantics from structured/conversational answers while preserving input mode, delegated recommendation revision, selection source, safe summary, and exact session/turn; selected provenance remains all-or-none when a record is superseded |
 | browser projection matches the contract | real Chrome on fixed `8890` shows the four ordered registers; exact Attach and alias Rename return 200, no candidate is preselected, reload preserves the target without rendering a Capsule or Plan body, desktop/narrow layouts have no root overflow, and console reports zero errors/warnings |
 | attached Plan reaches only the exact target | the named target's next leased prompt returns 200 with the exact canonical Plan bytes plus Handoff ID/marker/hash; its following prompt returns 204 with no context, and persisted ciphertext fields are erased |
 | activity projection is bounded | one Bridge activity ID is projected once even when unrelated v2 state rewrites trigger filesystem observation |
@@ -172,8 +182,8 @@ and `4c978db9d7a6e426c98d2a679db2ac97c198cad0c0955161a3f3a90b1a234ac1`.
 | --- | --- |
 | `node scripts/validate-skills.mjs` | PASS; 46 files, zero errors/warnings |
 | `node scripts/validate-artifacts.mjs` | PASS |
-| `cd packages/web && AF_TEST_PYTHON=/home/ilmaswsl/work/af-companion/.agent-factory/runtime/.venv/bin/python npm run test:contracts` | PASS; 22 web + 83 validator/generator = 105 tests |
-| `cd packages/web && npm run test:companion` | PASS; 43 web/server + 17 Hook/CLI = 60 tests |
+| `cd packages/web && AF_TEST_PYTHON=/home/ilmaswsl/work/af-companion/.agent-factory/runtime/.venv/bin/python npm run test:contracts` | PASS; 23 web + 84 validator/generator = 107 tests |
+| `cd packages/web && npm run test:companion` | PASS; 45 web/server + 17 Hook/CLI = 62 tests |
 | `node --test scripts/af-codex-hook.test.mjs` | PASS; 9 tests |
 | `node --test tests/skills/decision-session-contract.test.mjs` | PASS; 9 tests |
 | `cd packages/web && npm run build` | PASS; TypeScript and Vite, 576 modules |
@@ -183,7 +193,7 @@ and `4c978db9d7a6e426c98d2a679db2ac97c198cad0c0955161a3f3a90b1a234ac1`.
 The integration worktree intentionally reuses the original checkout's existing
 Google ADK 2.3.0 test interpreter through `AF_TEST_PYTHON`. The first run
 without that override failed only because this isolated worktree has no local
-ignored `.agent-factory/runtime/.venv/bin/python`; the full 105-test rerun with
+ignored `.agent-factory/runtime/.venv/bin/python`; the full 107-test rerun with
 the explicit interpreter passed.
 
 ## Known limitations
