@@ -1,18 +1,30 @@
 # External Codex Companion
 
-The companion connects the canonical repository to external Codex CLI and VS Code Codex sessions without taking over their turn or file ownership.
+The companion connects the canonical repository to explicitly enrolled Codex CLI or VS Code sessions without taking over turn or file ownership. A Codex process running in the same directory is not automatically a Companion session.
 
 ## Current boundary
 
 - External Codex writes canonical artifacts and source through the four Work Skills.
 - The web app observes the worktree and stores only bounded interaction/projection metadata outside its two canonical write surfaces.
-- Graph IR and the Asset Registry are the only shared browser edit surfaces; the bridge itself never edits either one.
-- VS Code commands open the canonical workspace, a contained file, or a local diff; they do not create/select an IDE chat.
-- The bridge can attach queued context once to an exact session's next prompt. It cannot start a turn or steer an in-flight turn.
+- Graph IR and the Asset Registry are the only shared browser edit surfaces; the bridge never edits either one.
+- The bridge cannot enumerate all local Codex processes, create or select a private IDE chat, start a turn, or steer an in-flight turn.
+- A Bridge health response, editor launch receipt, matching `cwd`, or Hook invocation is not proof of Companion participation.
 
-## Hook lifecycle
+## Participation contract
 
-Tracked `.codex/hooks.json` and the companion plugin delegate the same official event set to `scripts/af-codex-hook.mjs`:
+Three axes remain independent:
+
+| Axis | Values | Meaning |
+| --- | --- | --- |
+| Workspace eligibility | `factory`, `registered_application`, `unregistered` | whether the repository may issue a ticket |
+| Session participation | `unmanaged`, `pending_activation`, `companion_active`, `revoked`, `expired` | whether one exact session may produce Companion side effects |
+| Work attachment | `unattached`, `plan`, `materialization` | which approved work role the session owns |
+
+`unmanaged` is a local no-op, not a durable Bridge row. `pending_activation` belongs to a one-time ticket, not a session. Only an activated session is persisted, and its lease binds one canonical workspace, application, Work Item, role, session, and Bridge instance.
+
+## Hook scope gate
+
+Tracked `.codex/hooks.json` and the companion plugin may invoke `scripts/af-codex-hook.mjs` for:
 
 ```text
 SessionStart
@@ -22,84 +34,128 @@ PostToolUse
 Stop
 ```
 
-`scripts/af-codex-hook-protocol.mjs` translates the Codex wire shape into a minimal bridge payload. Project and plugin delivery may overlap; session/turn receipts prevent duplicate next-prompt consumption.
+Hook definitions are additive. A project, user, plugin, and managed definition may all run, so config precedence or a profile name is not a Session participation boundary. The adapter therefore applies two local gates before endpoint discovery:
 
-Persisted activity includes event kind, session/turn identifiers, tool name when applicable, timestamp, and bounded status metadata. Prompt text, transcript content, tool arguments, and tool output are not persisted or projected.
+1. the event belongs to this exact canonical Agent Factory workspace and adapter;
+2. the event carries an exact activation Capsule or resolves a regular, contained, permission-restricted, unexpired lease file for that session.
 
-## Bridge process
+An unmanaged or malformed event exits with no stdout, endpoint read, Agent Factory network request, receipt, activity, or session state. Subagent events are ignored and never become top-level Companion sessions. This is side-effect isolation; strict suppression of the Hook process itself is not claimed.
 
-Start the bridge independently:
+The protocol adapter removes prompt and transcript fields before transport. Persisted activity is limited to event kind, session/turn identifiers, tool name when applicable, timestamps, and bounded status metadata. Prompt text, transcript content, tool arguments, and tool output are not persisted or projected.
 
-```bash
-cd packages/web
-npm run dev:companion-bridge
+## Enrollment and lease lifecycle
+
+Interaction state uses the breaking v2 root:
+
+```text
+.agent-factory/codex-bridge/v2/
 ```
 
-The bridge uses a loopback-only random bearer endpoint, one process per canonical workspace, repository-contained `cwd`, restricted state permissions, bounded receipts/activity, and atomic state replacement. It fails open when unavailable so a Codex prompt is not blocked.
+No v1 state is migrated. A new Bridge instance writes a new identity, making old leases unusable. Ticket and lease secrets are returned only when needed; durable ticket and Bridge state retain digests rather than plaintext claim tokens. Lease files live only under the contained `leases/` directory, use a session-ID digest as the filename, reject symbolic links, and expire.
 
-Interaction state lives under ignored `.agent-factory/codex-bridge/v1`. Workspace activity projection lives under ignored `.agent-factory/workspace-projection` and remains metadata-only.
+Create one explicit scope and launch/join receipt from the repository root:
+
+```bash
+node scripts/af.mjs companion start \
+  --application <application-id> \
+  --work <work-id> \
+  --role plan
+
+node scripts/af.mjs companion join \
+  --application <application-id> \
+  --work <work-id> \
+  --role materialization
+```
+
+`start` carries the enrollment Capsule in the new CLI process environment. `join` is the explicit Capsule path for a new session. Ticket claim is consume-once and checks exact canonical cwd, workspace, application, Work Item, role, session, expiry, and claim token before issuing the lease.
+
+The same action is available from `/connections` Setup/Diagnostics. A VS Code command being accepted proves only editor launch. Participation is proven only after a fresh eligible Hook event claims the ticket and the v2 snapshot shows the exact leased session.
+
+Revoke a session from `/connections`; subsequent Hook events no-op and deliveries fail closed. Reset is destructive local interaction-state maintenance and requires explicit confirmation:
+
+```bash
+node scripts/af.mjs companion reset --confirm
+```
 
 ## Session trust and connection proof
 
-Review loaded Hook sources/hashes with `/hooks` in Codex and trust the current version. After Hook changes or plugin reinstall, trust again and submit a fresh prompt.
+Review loaded Hook sources and hashes with `/hooks` in Codex and trust the current version. After Hook changes or plugin reinstall, trust again and submit a fresh prompt.
 
-Bridge health or a successful `code` launch is not connection proof. Before claiming a session is connected, confirm:
+Before claiming an enrolled session is connected, confirm all of the following:
 
-1. the expected session appears from a current Hook event;
-2. a fresh prompt updates `last_turn_id`/receipt;
-3. an exact-session delivery, when tested, is consumed only by that session and turn.
+1. the expected v2 session has `participation: companion_active` and the exact application/Work Item/role;
+2. its lease names the current Bridge instance and has not expired;
+3. a fresh prompt updates that session's `last_turn_id` and receipt;
+4. a scoped delivery, when tested, is consumed only by that session and turn.
 
 Sessions become stale by observation TTL because no supported end-event is assumed.
 
-## Workspace projection
+## Scoped delivery
 
-`WorkspaceProjection` watches the canonical repository, Work Item roots, Git status/diff, and bridge activity. It emits SSE events and retains a bounded metadata activity ledger. The UI also performs a slower query refresh as recovery from missed events.
+A Graph save or context queue names one exact target session and scope. There is no global `default_target` and no first-active-session fallback. Queueing requires the intersection of:
 
-File content is fetched only for an explicit contained Work Item preview or diff request. The projection does not index arbitrary source contents into interaction state.
+```text
+participation == companion_active
++ session status == active
++ current Bridge lease
++ exact workspace
++ exact application
++ exact Work Item
++ allowed role
++ current bundle revision
+```
 
-## Graph change delivery
-
-A Graph save requires one explicit active target session. After canonical files and Work Item invalidation are written, the server queues a compact `graph_change` context containing Work Item ID, Graph revision, changed Node IDs, and canonical references. The next prompt consumes it once.
-
-The delivery is context, not a command. The external Codex session must re-open current files and decide the appropriate Compose work.
+The next eligible prompt consumes a delivery once. Consumption is Hook-side context insertion, not model acknowledgement. A delivery failure is surfaced separately and never broadens the target.
 
 ## Plan-to-materialization handoff
 
-`POST /api/codex-companion/handoffs` creates a pending handoff only for a known active Plan-mode session and its exact latest turn. It returns a signed, expiring marker with Work Item, discovery/decision revisions, Plan hash, target, and claim token.
+A Plan handoff binds the exact source session and turn, workspace, application, Work Item, discovery and decision revisions, canonical Plan body hash, target skill, expiry, and consume-once claim. Capsule metadata is excluded from the canonical Plan body hash.
 
-The first prompt in a different fresh session claims one exact marker through `UserPromptSubmit`. A claim is consume-once, rejects mismatched, duplicate, expired, ambiguous, same-session, and subagent prompts, and records Plan/materialization session roles. The marker must be carried explicitly; Codex does not provide a verified automatic new-context metadata transfer.
+Automatic built-in transfer to a fresh context is not assumed. The default supported path is an explicit Companion Continue action:
 
-If marker carriage fails, `/connections` or `node scripts/af.mjs work attach-session --session <id> --work-id <id> --role materialization` can attach one explicitly named active session. Neither path guesses the first active session.
+```bash
+node scripts/af.mjs companion continue --handoff <handoff-id>
+```
 
-## Capabilities
+`/connections` exposes the same action and a copyable returned Capsule. A claim succeeds only for one different fresh session with the exact Capsule and scope. Wrong-session, same-session, duplicate, expired, superseded, ambiguous, and subagent claims fail closed. The Bridge never claims a handoff merely because one candidate is pending.
+
+If a client strips the Capsule, keep the handoff waiting and use Continue or Copy Capsule again. Do not infer participation from `cwd`, editor launch, or an observed prompt.
+
+## Decision input
+
+The Work Skills inspect tools exposed in the current turn. When `request_user_input` is actually available they use the structured adapter; otherwise they ask exactly one conversational question, set `waiting_for_input`, and end the turn. Both paths preserve the same decision ID, option IDs, revision, recommendation revision, selected value, and session/turn provenance.
+
+“추천대로 진행” is user consent only when it unambiguously names the currently displayed recommendation revision. Ambiguous answers trigger one clarification and no write. Recommendations, defaults, validator output, and prior-session assumptions never satisfy a hard gate.
+
+## Capability summary
 
 | Capability | Current |
 | --- | --- |
-| Hook-observed session registration | supported |
-| metadata-only tool/turn activity | supported |
-| exact next-prompt context | supported |
-| exact fresh-session Plan handoff | supported with explicit marker |
-| explicit named-session attach fallback | supported |
+| unmanaged Hook side-effect isolation | supported by local gate; Hook-process suppression not claimed |
+| explicit CLI enrollment and per-session lease | supported |
+| metadata-only activity | supported for enrolled sessions |
+| exact scoped next-prompt context | supported |
+| exact fresh-session Plan handoff | supported through explicit Continue/Capsule |
+| automatic built-in fresh-context transport | unverified; not the default |
+| structured decision prompt | current-turn capability only |
+| conversational decision fallback | supported by Work Skill contract |
 | workspace/Git/file projection | supported |
-| VS Code workspace/file/diff open | supported |
-| browser Graph edit | supported |
+| VS Code workspace/file/diff open | supported; thread selection is unsupported |
 | delivery/model acknowledgement | not claimed |
-| private IDE thread selection | unsupported |
-| direct turn start | unsupported |
-| in-flight steer | unsupported |
-| MCP context pull | unsupported |
+| direct turn start or in-flight steer | unsupported |
 
 ## Source locators
 
 | Behavior | Source |
 | --- | --- |
-| Hook adapter | `scripts/af-codex-hook.mjs`, `scripts/af-codex-hook-protocol.mjs` |
+| shared v2 contract | `packages/web/src/companion/sessionContract.ts` |
+| Hook gate and protocol adapter | `scripts/af-codex-hook.mjs`, `scripts/af-codex-hook-protocol.mjs` |
 | Hook declarations | `.codex/hooks.json`, `plugins/agent-factory-companion/hooks/hooks.json` |
-| bridge state | `packages/web/server/codexBridgeStore.ts` |
-| bridge process | `packages/web/server/codexBridgeServer.ts`, `codexBridgeMain.ts` |
-| companion facade | `packages/web/server/codexCompanionApi.ts` |
+| bridge state and lease lifecycle | `packages/web/server/codexBridgeStore.ts` |
+| bridge process/routes | `packages/web/server/codexBridgeServer.ts`, `codexBridgeMain.ts` |
+| companion web facade | `packages/web/server/codexCompanionApi.ts` |
 | workspace observer | `packages/web/server/workspaceProjection.ts`, `workspaceApi.ts` |
 | editor handoff | `packages/web/server/vscodeWorkspaceLauncher.ts` |
-| Connections UI | `packages/web/src/routes/ConnectionsPage.tsx` |
-| Work Item/Registry CLI | `scripts/af.mjs` |
-| live rail | `packages/web/src/layout/LiveRail.tsx` |
+| Connections registers | `packages/web/src/routes/ConnectionsPage.tsx`, `packages/web/src/state/useCodexSessions.ts` |
+| Companion CLI | `scripts/af.mjs` |
+| decision/session procedures | `.agents/skills/_shared/decision-input-adapter.md`, `.agents/skills/_shared/session-and-work-item-provenance.md` |

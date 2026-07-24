@@ -61,7 +61,9 @@ Work Item을 선택하지 않은 `/`에서는 왼쪽 rail 없이 lifecycle map�
 
 ## Connections와 Assets
 
-Connections는 Bridge health, Hook observation, VS Code capability, observed sessions, Plan handoff, explicit session attach, queued next-prompt delivery를 구분한다. Work Item, role, cwd, last seen을 함께 표시하고 Editor launch accepted와 Codex connected를 같은 성공으로 표시하지 않는다.
+Connections는 조용한 운영 register 안에서 명시적 참여 범위와 만료·위험만 선명하게 드러낸다. 기본 순서는 `Companion Sessions` → `Pending Handoffs` → `Deliveries` → `Setup / Diagnostics`다. 일반 Codex Session은 표시하지 않으며, 각 row는 application, Work Item, role, activation origin, lease expiry, last event, participation을 구분한다. Start/Join, Continue, Revoke는 exact scope action이고 첫 active session이나 global default를 추측하지 않는다.
+
+Bridge health, Hook side-effect gate, strict no-hook 검증 여부, CLI/VS Code launch capability, Capsule transport capability를 별도 진단으로 표시한다. Editor launch accepted, enrollment pending, leased Companion active, delivery consumed를 하나의 성공 상태로 합치지 않는다. 진단은 aggregate count만 보여 주고 raw prompt, transcript, token, Capsule 본문을 노출하지 않는다.
 
 Assets는 Agent·Workflow·Tool Registry를 dense register로 표시한다. L0 목록에서 L1 operational detail과 L2 full contract로 점진적으로 열고, deterministic search evidence, exact versions, usage, version compare를 제공한다. Draft create/update와 review/publish/deprecate는 current Registry revision, strict validation, 명시적 사용자 Decision을 요구한다. Published contract는 편집하지 않는다. A2A는 Agent의 protocol binding/exposure이며 네 번째 category가 아니다.
 
@@ -71,7 +73,7 @@ Assets는 Agent·Workflow·Tool Registry를 dense register로 표시한다. L0 �
 
 - `Activity`: Hook과 filesystem의 bounded metadata event.
 - `Changes`: Git status, contained diff preview, VS Code file/diff open.
-- `Codex`: active/stale sessions와 queued delivery.
+- `Codex`: leased Companion active/stale sessions와 exact-scope queued delivery. 일반 Session은 rail에도 표시하지 않는다.
 
 Activity에는 prompt, transcript, tool argument, tool output을 표시하거나 저장하지 않는다. 자유 텍스트 payload가 없다는 사실을 empty/metadata copy에서도 유지한다.
 

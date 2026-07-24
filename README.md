@@ -32,22 +32,37 @@ The app routes are:
 - `/work/:workId/compose` — Graph IR review and the only browser artifact editor;
 - `/work/:workId/scaffold` — generated source, handoff, and Git diff projection;
 - `/work/:workId/verify` — five-level evidence projection;
-- `/connections` — Hook-observed Codex sessions and delivery state;
+- `/connections` — opt-in Companion sessions, pending handoffs, scoped deliveries, and setup diagnostics;
 - `/assets` — Agent·Workflow·Tool Registry browse, search, version, usage, draft, review, publish, and deprecate operations.
 
 Graph saves require the latest ETag, an approved Discover result, same-origin loopback access, and an explicit active Codex session target. Saving synchronizes embedded and split Graph IR, preserves prior cycle history, marks affected composition/downstream evidence stale, and queues metadata about the change to that exact session. Registry mutations require the current Registry revision and explicit lifecycle decisions; published versions are immutable.
 
 ## Codex connection
 
-Tracked project Hooks and the companion plugin delegate official Codex lifecycle events to a local bridge:
+Tracked project Hooks and the companion plugin may invoke the local adapter for these official Codex lifecycle events:
 
 ```text
 SessionStart · UserPromptSubmit · PreToolUse · PostToolUse · Stop
 ```
 
-The bridge persists bounded metadata only. It does not persist prompts, transcripts, tool arguments, or tool output. A queued Graph/context delivery is attached once to the selected session's next prompt; the workbench does not start or steer a turn.
+Invocation does not enroll a session. The adapter proves an exact enrollment capsule or unexpired per-session lease before endpoint discovery or network access. An ordinary `codex` session therefore produces no Agent Factory request, durable session, receipt, or activity. An enrolled Companion session persists bounded metadata only; prompts, transcripts, tool arguments, and tool output are never persisted.
 
-Review project Hook sources and hashes with `/hooks` in Codex before trusting them.
+Start or join one exact application/Work Item/role scope explicitly:
+
+```bash
+node scripts/af.mjs companion start --application <application-id> --work <work-id> --role plan
+node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization
+```
+
+Plan handoff continuation is also explicit:
+
+```bash
+node scripts/af.mjs companion continue --handoff <handoff-id>
+```
+
+A queued Graph/context delivery is attached once only when the active lease and delivery scope match the exact workspace, application, Work Item, and allowed role. The workbench does not choose a default target, start a turn, or steer an in-flight turn.
+
+Review project Hook sources and hashes with `/hooks` in Codex before trusting them. Hook definitions are additive, so profile selection alone is not a session-isolation boundary.
 
 ## Development
 

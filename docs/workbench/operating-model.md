@@ -35,7 +35,7 @@ Discover has two distinct execution phases.
 1. Phase A runs in actual Codex Plan mode. It may inspect the repository, Handbook, and bounded Registry results, use a bounded planning subagent, and ask the user questions. It must not write tracked repository artifacts.
 2. Required decisions remain open until the user selects an option. A recommendation is evidence, not consent; the model never fills `selected_by: "user"` by itself.
 3. The final Phase A output is a Discovery Decision Plan and an explicit handoff marker, not source code or a final Graph.
-4. Phase B runs in a fresh session, claims the exact handoff, reopens current source, verifies revisions and decisions, and materializes Work Item v2 artifacts.
+4. Phase B runs in a distinct explicitly enrolled session, claims the exact handoff Capsule, reopens current source, verifies revisions and decisions, and materializes Work Item v2 artifacts. When built-in fresh-context transport is unavailable or unverified, Companion Continue is the supported transport.
 
 Repository and Registry evidence must be checked before asking the user a question they can answer. Solution Control Strategy (`single_agent`, `agent_delegation`, `explicit_workflow`, or `hybrid`) and Root Executable (exact Agent or Workflow Asset/version) are separate decisions. `hybrid` is never a default inferred from Graph shape.
 
@@ -62,7 +62,9 @@ Allowed skill statuses are `not_started`, `active`, `waiting_for_input`, `waitin
 
 ## 4. Decisions and review gates
 
-Required decision records expose options, evidence, and an optional recommendation. Resolution requires a selected option/disposition, `selected_by: "user"`, a reason, and session/turn provenance. “추천대로 진행” is an explicit user selection only when it clearly refers to the displayed option set.
+Required decision records expose stable decision/option IDs, evidence, and an optional revisioned recommendation. Resolution requires a selected option/disposition, `selected_by: "user"`, a reason, and current session/turn provenance. Work Skills select structured input only when `request_user_input` is exposed in the current turn; otherwise they ask one conversational question, set `waiting_for_input`, and stop. Both adapters normalize to the same decision contract.
+
+“추천대로 진행” is an explicit user selection only when it unambiguously refers to the currently displayed option set and recommendation revision. An ambiguous answer causes one clarification and no write. A recommendation, prior answer, default, or validator result never satisfies a hard gate.
 
 Review is also a human decision, not validator output or skill self-approval.
 
@@ -95,23 +97,27 @@ Registry search does not select a reuse outcome. Each required Asset receives ex
 | Work Item review decision | external Codex session after explicit reviewer decision |
 | Graph IR | Compose skill or guarded web Graph editor |
 | Asset Registry | shared service through guarded Web/CLI after explicit decision and revision check |
-| activity/Git/file projection and bridge state | bounded workbench metadata stores |
+| activity/Git/file projection and enrolled Companion state | bounded workbench metadata stores |
 
 The app does not expose arbitrary artifact PUT, source edit, stage/commit, Work Item approval mutation, runtime execution, or model-owned publication.
 
 ## 7. Graph collaboration and re-entry
 
-`PUT /api/work-items/:workId/graph` requires loopback, same origin, current `If-Match`, approved discovery, strict Target v2 Graph validation, and one explicitly selected active Codex session.
+`PUT /api/work-items/:workId/graph` requires loopback, same origin, current `If-Match`, approved discovery, strict Target v2 Graph validation, and one explicitly selected active Companion session whose current lease and workspace/application/Work Item/role scope allow the delivery.
 
 The server synchronizes `analysis-result.json.graph` and `graph-ir.json`, creates a new composition cycle/revision, preserves superseded cycles, marks affected composition/Scaffold/Verify evidence stale, records invalidations, and queues compact `graph_change` context to the exact session. A delivery failure is surfaced separately and does not roll back an already committed Graph save.
 
 Compose creates a structured Return-to-Discover when an Asset capability or contract is missing. A new Discover cycle searches the current Registry and gathers new decisions. After approval, Compose receives the new discovery revision and previous composition diff; it does not auto-merge or silently reuse the old Graph.
 
-## 8. Fresh-session handoff
+## 8. Companion participation and fresh-session handoff
 
-The local bridge can create a pending Plan handoff only from a known active Plan-mode session and its exact latest turn. It returns one signed marker containing Work Item, handoff, discovery and decision revisions, Plan hash, target, and claim token.
+Workspace eligibility, Session participation, and Work attachment are independent. A matching `cwd`, Bridge health response, Hook invocation, or editor launch never enrolls a session. A one-time ticket activates one exact session and issues a per-session lease bound to the canonical workspace, application, Work Item, role, and current Bridge instance. Revoked, expired, stale, cross-scope, and pre-restart leases fail closed. Ordinary unmanaged Hook events produce no Agent Factory network or durable Bridge state.
 
-The first prompt in a distinct fresh session claims only one exact, unexpired marker. Claim is consume-once, rejects the source session and mismatched/ambiguous/subagent prompts, and assigns Plan/materialization roles to the two sessions. Hook failure remains fail-open for ordinary Codex usage. If marker carriage fails, `/connections` and `node scripts/af.mjs work attach-session ...` provide explicit named-session attachment; neither path selects the first active session.
+The local bridge can create a pending Plan handoff only from a current leased Plan session and its exact latest turn. It returns one signed Capsule containing the exact workspace/application/Work Item scope, handoff, discovery and decision revisions, canonical Plan body hash, target, expiry, and consume-once claim. Capsule bytes are transport metadata and are excluded from the Plan body hash.
+
+The first eligible prompt in one distinct fresh enrolled session claims only that exact Capsule. Claim rejects the source session and wrong-scope, duplicate, expired, superseded, ambiguous, or subagent events. The Bridge never selects a first active session or infers a claim from one pending candidate.
+
+Automatic client transport is not assumed. `/connections` and `node scripts/af.mjs companion continue --handoff <id>` are the supported fallback and return a copyable Capsule/launch command. If the client strips the Capsule, the handoff remains waiting; it is not silently attached.
 
 ## 9. Scaffold and Runtime Handoff
 
@@ -138,10 +144,10 @@ Outcomes are `passed`, `failed`, `unverified`, or `stale`. Verify can be complet
 | --- | --- | --- |
 | `/api/workspace` | identity, live snapshot, Git changes/diff, SSE, VS Code open | contained editor open only |
 | `/api/work-items` | Work Item/artifact projection | Graph GET/PUT only |
-| `/api/codex-companion` | sessions, Plan handoffs, explicit attach, exact next-prompt queue | bounded interaction state only |
+| `/api/codex-companion` | enrollment, leased sessions, Plan Continue/claim, revoke, exact scoped next-prompt queue | bounded v2 interaction state only |
 | `/api/asset-registry` | L0/L1/L2, search, usage, compare, validate, lifecycle | guarded Registry mutations |
 
-Routes are `/`, `/work/:workId/discover`, `/compose`, `/scaffold`, `/verify`, `/connections`, and `/assets`. Stage routes, `/api/af`, `/api/catalog`, proposal/apply, old manifest parsers, legacy imports, and compatibility aliases are unsupported.
+Routes are `/`, `/work/:workId/discover`, `/compose`, `/scaffold`, `/verify`, `/connections`, and `/assets`. `/connections` contains Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics registers; it does not list ordinary Codex sessions. Stage routes, `/api/af`, `/api/catalog`, proposal/apply, old manifest parsers, legacy imports, and compatibility aliases are unsupported.
 
 ## 12. Documentation impact
 

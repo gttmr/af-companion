@@ -3,12 +3,14 @@
 The companion is local-only and must not be exposed to an untrusted network.
 
 - Product APIs require loopback peers.
-- Graph, Registry, handoff, session-attach, and editor mutations additionally require same-origin requests.
-- Graph writes require current ETag and an explicit active target session.
+- Graph, Registry, enrollment, handoff, session revocation, delivery, state reset, and editor mutations additionally require same-origin requests.
+- Graph writes require current ETag and an exact active Companion target with a current lease and matching workspace/application/Work Item/role scope.
 - Work Item/file/diff/editor paths are canonicalized and contained within the repository.
 - VS Code launch uses a trusted host executable and fixed argv; browser input cannot supply a command.
-- Bridge endpoints use random bearer credentials, restrictive permissions, bounded state, and atomic replacement.
-- Hook/activity state excludes prompts, transcripts, tool arguments, and tool output.
+- Bridge v2 endpoints use random bearer credentials and a per-process instance identity. State uses restrictive permissions, bounded records, and atomic replacement; v1 state is not migrated.
+- Enrollment tickets are one-time and expiring. Durable state stores token digests; lease files are exact-session, contained, regular, non-symlink files with restrictive permissions and become invalid after Bridge restart.
+- The Hook adapter proves an exact activation Capsule or current lease before endpoint discovery. Leaked endpoint credentials without that proof cannot enroll a session, and unmanaged events produce no Agent Factory request or durable state.
+- Hook/activity state excludes prompts, transcripts, tool arguments, and tool output. Capsule parsing rejects extra prompt content, duplicate markers, wrong scope, replay, and oversized input.
 - Work Item previews cap file size/count and reject binary files and escaping symlinks.
 - Registry mutations require strict payloads, current `If-Match`, process locking, atomic replacement, and explicit decision evidence. Published contract bytes are immutable.
 - Never place credentials, private endpoints, real customer data, or production secrets in artifacts, Hook payloads, demos, or screenshots.

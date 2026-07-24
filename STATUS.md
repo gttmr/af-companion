@@ -17,7 +17,11 @@ git rev-parse --short HEAD
 - External Codex owns canonical artifacts and source. The web app projects Work Items, files, Git status/diffs, Hook activity, and session state.
 - Browser canonical writes are limited to Graph IR and the Asset Registry. Both are loopback/same-origin, revision guarded, and strictly validated; Graph writes also target one explicit active Codex session.
 - `catalog/asset-registry.json` versions Agent, Workflow, and Tool contracts. Draft/review/publish/deprecate transitions use explicit decisions, and published versions are immutable.
-- Project/plugin Hooks cover `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, and `Stop`. Persisted activity is metadata-only.
+- Companion participation is opt-in. Workspace eligibility, session participation, and Work Item attachment are independent; `cwd` or Hook observation never enrolls a session.
+- Project/plugin Hooks cover `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, and `Stop`, but the adapter resolves a signed activation capsule or current per-session lease before endpoint discovery. Ordinary unmanaged sessions create no Agent Factory network or durable bridge state.
+- Companion bridge state is breaking v2 under ignored `.agent-factory/codex-bridge/v2`. Tickets are one-time and expiring, leases are bound to one Bridge instance and exact scope, and delivery has no global default target.
+- Fresh-session transfer is explicit: use Companion Continue when built-in Capsule carriage is not proven. Claims are exact, consume-once, and require a distinct session.
+- Decision input is selected from tools actually exposed in the current turn. Structured and conversational paths normalize to the same decision/revision/provenance contract; a recommendation is never consent.
 - VS Code actions open the canonical workspace, a contained file, or a generated local diff. They do not claim IDE-thread creation or selection.
 - Old Stage Runner APIs, stage routes, server analyzer/build/verify primitives, proposal/apply artifacts, and `af-run-manifest.json` are removed.
 - Strict Target Contract v2, deterministic generation, and the no-raw-requirement-to-code gate remain active.
@@ -30,7 +34,7 @@ Vite registers only these product API families:
 
 - `/api/workspace` — identity, snapshot, Git diff, SSE, and contained VS Code open;
 - `/api/work-items` — read-only Work Item/files plus Graph GET/PUT;
-- `/api/codex-companion` — sessions and exact next-prompt deliveries;
+- `/api/codex-companion` — enrollment, Companion sessions, exact handoff continuation, revocation, and scoped next-prompt deliveries;
 - `/api/asset-registry` — progressive Registry reads/search and guarded lifecycle mutations.
 
 ## Verification posture
@@ -46,3 +50,5 @@ cd packages/web && npm run build
 ```
 
 Visible UI changes additionally require a fixed-port browser check and screenshot. A VS Code launch receipt proves only that the editor command was accepted; a fresh Hook-observed prompt and state receipt are still required before claiming a Codex session is connected.
+
+Strict suppression of the Hook process itself and automatic built-in fresh-context Capsule transport are not claimed. The supported safety boundary is zero Agent Factory side effect for an unmanaged invocation plus explicit Companion Continue when transport is unavailable or unverified.
