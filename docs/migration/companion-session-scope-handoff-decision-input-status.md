@@ -49,12 +49,34 @@ The matrix is completed only from the installed client, official Codex
 documentation, and sanitized executable probes. A documented capability is not
 treated as runtime verification for this machine.
 
+Installed versions differ by surface:
+
+```text
+shell Codex CLI: codex-cli 0.145.0
+VS Code: 1.130.0
+OpenAI Codex extension: 26.715.61943
+extension-bundled Codex CLI: 0.145.0-alpha.27
+```
+
 | Capability | CLI | VS Code | Default | Fallback |
 | --- | --- | --- | --- | --- |
-| Strict hook-process isolation | needs current probe | needs current probe | side-effect-gated Hook process | dedicated profile/CODEX_HOME only after client proof |
-| Session environment enrollment | needs current probe | needs current probe | explicit CLI ticket | signed Join Capsule |
-| Fresh-context Capsule carry | needs current probe | needs current probe | unverified | Companion Continue, then Copy Capsule, then exact confirmed attach |
-| `request_user_input` | current-turn capability only | current-turn capability only | use only when the tool is actually exposed | one conversational question, `waiting_for_input`, then end the turn |
+| Strict hook-process isolation | not established; Hook sources are additive and a profile does not remove base/project/plugin Hooks | not established; no supported IDE profile selector was found | side-effect-gated Hook process | dedicated pre-provisioned `CODEX_HOME`, but only after a new-process trace proves isolation |
+| Session environment enrollment | `CODEX_HOME` and launch environment are documented; runtime ticket path remains an implementation acceptance test | extension source inherits process environment, but an existing extension host may defeat a new launch environment | explicit CLI ticket | signed Join Capsule; never treat `code --new-window` as enrollment proof |
+| Fresh-context Capsule carry | `/new` is empty and `/fork` preserves history; automatic Plan metadata carriage is not documented | installed “implement plan” flow reuses the same conversation and submits Plan content after switching mode | unverified | Companion Continue, then Copy Capsule, then exact confirmed attach |
+| `request_user_input` | current-turn capability only; the installed default-mode feature is experimental and disabled | experimental setting applies to new threads and remains capability-gated | use only when the tool is actually exposed | one conversational question, `waiting_for_input`, then end the turn |
+
+Official Codex Hook behavior confirms that matching project, user, plugin, and
+managed Hook definitions are additive and may run concurrently. Hook trust is
+definition-hash-specific. Config precedence is therefore not a Session
+participation boundary. See [Codex Hooks](https://developers.openai.com/codex/hooks),
+[environment variables](https://developers.openai.com/codex/config-file/environment-variables),
+and [advanced configuration](https://developers.openai.com/codex/config-advanced).
+
+Current effective Hook loading in a fresh CLI/IDE process remains unproven. A
+live acceptance claim requires `/debug-config`, `/hooks`, a new prompt, and the
+current Bridge receipt/lease state. Subagent Start/Stop fields are documented,
+but the base Companion does not register those events and current
+`UserPromptSubmit` documentation does not promise `agent_id`/`agent_type`.
 
 ## Parent contract
 
@@ -90,7 +112,7 @@ Evidence:
 | Slice | Owner | Branch | State | Evidence |
 | --- | --- | --- | --- | --- |
 | Shared contract | Parent | `agent/session-scope-handoff-decision-input` | complete | contract tests and build pass |
-| Capability research | Agent A | read-only | active | pending matrix |
+| Capability research | Agent A | read-only | complete and closed | installed CLI/IDE source plus official Codex docs |
 | Enrollment/Bridge/API | Agent B | `agent/session-scope-bridge` | active | pending targeted tests |
 | Hook/Launcher/CLI | Agent C | `agent/session-scope-hook-cli` | active | pending targeted tests |
 | Decision Adapter/Skills | Agent D | `agent/decision-input-skills` | active | pending skill validation |
