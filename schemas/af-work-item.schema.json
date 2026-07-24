@@ -1,19 +1,40 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.org/schemas/af-work-item.schema.json",
-  "title": "Agent Factory Work Item",
+  "title": "Agent Factory Work Item v2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "work_id", "artifact_root", "active_skill", "skills", "review_gates", "verification"],
+  "required": [
+    "schema_version",
+    "work_id",
+    "artifact_root",
+    "ledger_revision",
+    "focus_skill",
+    "active_runs",
+    "skills",
+    "revisions",
+    "discovery_cycles",
+    "composition_cycles",
+    "decisions",
+    "asset_decisions",
+    "solution_control_strategy",
+    "root_executable",
+    "review_gates",
+    "artifact_refs",
+    "generated_output_roots",
+    "verification",
+    "invalidations",
+    "session_handoffs"
+  ],
   "properties": {
-    "schema_version": { "const": 1 },
-    "work_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$" },
+    "schema_version": { "const": 2 },
+    "work_id": { "$ref": "#/$defs/workId" },
     "artifact_root": { "type": "string", "pattern": "^artifacts/af/[a-z0-9][a-z0-9_-]{0,63}$" },
-    "active_skill": {
-      "anyOf": [
-        { "$ref": "#/$defs/skillId" },
-        { "type": "null" }
-      ]
+    "ledger_revision": { "type": "integer", "minimum": 0 },
+    "focus_skill": { "$ref": "#/$defs/nullableSkillId" },
+    "active_runs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/activeRun" }
     },
     "skills": {
       "type": "object",
@@ -26,126 +47,716 @@
         "af-verify-runtime": { "$ref": "#/$defs/skillState" }
       }
     },
+    "revisions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirement",
+        "decision",
+        "asset_decision",
+        "discovery",
+        "catalog_snapshot",
+        "graph",
+        "root_executable",
+        "runtime_contract",
+        "composition",
+        "scaffold",
+        "verification"
+      ],
+      "properties": {
+        "requirement": { "$ref": "#/$defs/nullableRevision" },
+        "decision": { "$ref": "#/$defs/nullableRevision" },
+        "asset_decision": { "$ref": "#/$defs/nullableRevision" },
+        "discovery": { "$ref": "#/$defs/nullableRevision" },
+        "catalog_snapshot": { "$ref": "#/$defs/nullableRevision" },
+        "graph": { "$ref": "#/$defs/nullableRevision" },
+        "root_executable": { "$ref": "#/$defs/nullableRevision" },
+        "runtime_contract": { "$ref": "#/$defs/nullableRevision" },
+        "composition": { "$ref": "#/$defs/nullableRevision" },
+        "scaffold": { "$ref": "#/$defs/nullableRevision" },
+        "verification": { "$ref": "#/$defs/nullableRevision" }
+      }
+    },
+    "discovery_cycles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/discoveryCycle" }
+    },
+    "composition_cycles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/compositionCycle" }
+    },
+    "decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "asset_decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/assetDecision" }
+    },
+    "solution_control_strategy": {
+      "anyOf": [
+        { "enum": ["single_agent", "agent_delegation", "explicit_workflow", "hybrid"] },
+        { "type": "null" }
+      ]
+    },
+    "root_executable": {
+      "anyOf": [
+        { "$ref": "#/$defs/rootExecutable" },
+        { "type": "null" }
+      ]
+    },
     "review_gates": {
       "type": "object",
       "additionalProperties": false,
       "required": ["discovery", "composition"],
       "properties": {
-        "discovery": { "$ref": "#/$defs/reviewGate" },
-        "composition": { "$ref": "#/$defs/reviewGate" }
+        "discovery": { "$ref": "#/$defs/discoveryGate" },
+        "composition": { "$ref": "#/$defs/compositionGate" }
       }
     },
-    "verification": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["outcome", "revision", "report_ref"],
-      "properties": {
-        "outcome": {
-          "anyOf": [
-            { "type": "string", "enum": ["passed", "failed", "unverified"] },
-            { "type": "null" }
-          ]
-        },
-        "revision": { "$ref": "#/$defs/nullableString" },
-        "report_ref": { "$ref": "#/$defs/nullableString" }
-      }
+    "artifact_refs": { "$ref": "#/$defs/stringArray" },
+    "generated_output_roots": { "$ref": "#/$defs/stringArray" },
+    "verification": { "$ref": "#/$defs/verification" },
+    "invalidations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/invalidation" }
+    },
+    "session_handoffs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sessionHandoff" }
     }
   },
   "allOf": [
     {
-      "if": { "properties": { "review_gates": { "properties": { "discovery": { "properties": { "status": { "const": "approved" } } } } } } },
-      "then": { "properties": { "skills": { "properties": { "af-discover-assets": { "properties": { "status": { "const": "complete" } } } } } } }
-    },
-    {
-      "if": { "properties": { "review_gates": { "properties": { "composition": { "properties": { "status": { "const": "approved" } } } } } } },
+      "if": {
+        "properties": {
+          "review_gates": {
+            "properties": {
+              "discovery": { "properties": { "status": { "const": "approved" } }, "required": ["status"] }
+            },
+            "required": ["discovery"]
+          }
+        },
+        "required": ["review_gates"]
+      },
       "then": {
         "properties": {
-          "review_gates": { "properties": { "discovery": { "properties": { "status": { "const": "approved" } } } } },
-          "skills": { "properties": { "af-compose-solution": { "properties": { "status": { "const": "complete" } } } } }
+          "skills": {
+            "properties": {
+              "af-discover-assets": { "properties": { "status": { "const": "complete" } }, "required": ["status"] }
+            }
+          }
         }
       }
     },
     {
-      "if": { "properties": { "skills": { "properties": { "af-compose-solution": { "properties": { "status": { "const": "not_started" } } } } } } },
-      "else": { "properties": { "review_gates": { "properties": { "discovery": { "properties": { "status": { "const": "approved" } } } } } } }
+      "if": {
+        "properties": {
+          "review_gates": {
+            "properties": {
+              "composition": { "properties": { "status": { "const": "approved" } }, "required": ["status"] }
+            },
+            "required": ["composition"]
+          }
+        },
+        "required": ["review_gates"]
+      },
+      "then": {
+        "properties": {
+          "review_gates": {
+            "properties": {
+              "discovery": { "properties": { "status": { "const": "approved" } }, "required": ["status"] }
+            }
+          },
+          "skills": {
+            "properties": {
+              "af-compose-solution": { "properties": { "status": { "const": "complete" } }, "required": ["status"] }
+            }
+          }
+        }
+      }
     },
     {
-      "if": { "properties": { "skills": { "properties": { "af-scaffold-runtime": { "properties": { "status": { "const": "not_started" } } } } } } },
-      "else": { "properties": { "review_gates": { "properties": { "composition": { "properties": { "status": { "const": "approved" } } } } } } }
+      "if": {
+        "properties": {
+          "skills": {
+            "properties": {
+              "af-verify-runtime": { "properties": { "status": { "const": "complete" } }, "required": ["status"] }
+            }
+          }
+        },
+        "required": ["skills"]
+      },
+      "then": {
+        "properties": {
+          "verification": { "properties": { "outcome": { "const": "passed" } }, "required": ["outcome"] }
+        }
+      }
     },
     {
-      "if": { "properties": { "skills": { "properties": { "af-verify-runtime": { "properties": { "status": { "const": "not_started" } } } } } } },
-      "else": { "properties": { "skills": { "properties": { "af-scaffold-runtime": { "properties": { "status": { "const": "complete" } } } } } } }
-    },
-    {
-      "if": { "properties": { "skills": { "properties": { "af-verify-runtime": { "properties": { "status": { "const": "complete" } } } } } } },
-      "then": { "properties": { "verification": { "properties": { "outcome": { "const": "passed" } } } } }
-    },
-    {
-      "if": { "properties": { "verification": { "properties": { "outcome": { "const": "passed" } } } } },
-      "then": { "properties": { "skills": { "properties": { "af-verify-runtime": { "properties": { "status": { "const": "complete" } } } } } } }
+      "if": {
+        "properties": {
+          "verification": { "properties": { "outcome": { "const": "passed" } }, "required": ["outcome"] }
+        },
+        "required": ["verification"]
+      },
+      "then": {
+        "properties": {
+          "skills": {
+            "properties": {
+              "af-verify-runtime": { "properties": { "status": { "const": "complete" } }, "required": ["status"] }
+            }
+          }
+        }
+      }
     }
   ],
   "$defs": {
+    "workId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+    },
     "skillId": {
       "type": "string",
       "enum": ["af-discover-assets", "af-compose-solution", "af-scaffold-runtime", "af-verify-runtime"]
     },
-    "skillState": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "status", "input_revision", "output_revision", "output_refs", "blocker_refs", "output_roots",
-        "started_at", "updated_at", "completed_at"
-      ],
-      "properties": {
-        "status": {
-          "type": "string",
-          "enum": ["not_started", "active", "waiting_for_input", "waiting_for_review", "complete", "blocked", "failed"]
-        },
-        "input_revision": { "$ref": "#/$defs/nullableString" },
-        "output_revision": { "$ref": "#/$defs/nullableString" },
-        "output_refs": { "$ref": "#/$defs/stringArray" },
-        "blocker_refs": { "$ref": "#/$defs/stringArray" },
-        "output_roots": { "$ref": "#/$defs/stringArray" },
-        "started_at": { "$ref": "#/$defs/nullableDateTime" },
-        "updated_at": { "type": "string", "format": "date-time" },
-        "completed_at": { "$ref": "#/$defs/nullableDateTime" }
-      }
-    },
-    "reviewGate": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["status", "artifact_etag", "decided_at", "session_id", "turn_id"],
-      "properties": {
-        "status": { "type": "string", "enum": ["pending", "approved", "changes_requested"] },
-        "artifact_etag": { "$ref": "#/$defs/nullableSha256" },
-        "decided_at": { "$ref": "#/$defs/nullableDateTime" },
-        "session_id": { "$ref": "#/$defs/nullableString" },
-        "turn_id": { "$ref": "#/$defs/nullableString" }
-      }
-    },
-    "nullableString": {
+    "nullableSkillId": {
       "anyOf": [
-        { "type": "string", "minLength": 1 },
+        { "$ref": "#/$defs/skillId" },
         { "type": "null" }
       ]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
     },
     "nullableSha256": {
       "anyOf": [
-        { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        { "$ref": "#/$defs/sha256" },
         { "type": "null" }
       ]
     },
-    "nullableDateTime": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullableString": {
       "anyOf": [
-        { "type": "string", "format": "date-time" },
+        { "$ref": "#/$defs/nonEmptyString" },
         { "type": "null" }
       ]
     },
     "stringArray": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 }
+      "items": { "$ref": "#/$defs/nonEmptyString" }
+    },
+    "nonEmptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/nonEmptyString" }
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullableDateTime": {
+      "anyOf": [
+        { "$ref": "#/$defs/dateTime" },
+        { "type": "null" }
+      ]
+    },
+    "revisionSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "sha256"],
+      "properties": {
+        "ref": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "subjects", "registry_revision"],
+      "properties": {
+        "digest": { "$ref": "#/$defs/sha256" },
+        "subjects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/revisionSubject" }
+        },
+        "registry_revision": { "$ref": "#/$defs/nullableSha256" }
+      }
+    },
+    "nullableRevision": {
+      "anyOf": [
+        { "$ref": "#/$defs/revision" },
+        { "type": "null" }
+      ]
+    },
+    "skillState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "input_revision",
+        "output_revision",
+        "output_refs",
+        "blocker_refs",
+        "output_roots",
+        "started_at",
+        "updated_at",
+        "completed_at"
+      ],
+      "properties": {
+        "status": {
+          "enum": ["not_started", "active", "waiting_for_input", "waiting_for_review", "complete", "blocked", "failed", "stale"]
+        },
+        "input_revision": { "$ref": "#/$defs/nullableRevision" },
+        "output_revision": { "$ref": "#/$defs/nullableRevision" },
+        "output_refs": { "$ref": "#/$defs/stringArray" },
+        "blocker_refs": { "$ref": "#/$defs/stringArray" },
+        "output_roots": { "$ref": "#/$defs/stringArray" },
+        "started_at": { "$ref": "#/$defs/nullableDateTime" },
+        "updated_at": { "$ref": "#/$defs/dateTime" },
+        "completed_at": { "$ref": "#/$defs/nullableDateTime" }
+      }
+    },
+    "activeRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id", "skill_id", "role", "status", "session_id", "parent_run_id", "input_revision", "started_at", "updated_at"
+      ],
+      "properties": {
+        "run_id": { "$ref": "#/$defs/nonEmptyString" },
+        "skill_id": { "$ref": "#/$defs/skillId" },
+        "role": { "enum": ["plan", "planning_subagent", "materializer", "compose", "scaffold", "verify"] },
+        "status": { "enum": ["active", "waiting_for_input", "waiting_for_review"] },
+        "session_id": { "$ref": "#/$defs/nonEmptyString" },
+        "parent_run_id": { "$ref": "#/$defs/nullableString" },
+        "input_revision": { "$ref": "#/$defs/nullableRevision" },
+        "started_at": { "$ref": "#/$defs/dateTime" },
+        "updated_at": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "cycleStatus": {
+      "enum": ["active", "complete", "superseded"]
+    },
+    "discoveryCycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cycle_id", "status", "revision", "supersedes_cycle_id", "trigger", "artifact_refs", "started_at", "completed_at"
+      ],
+      "properties": {
+        "cycle_id": { "$ref": "#/$defs/nonEmptyString" },
+        "status": { "$ref": "#/$defs/cycleStatus" },
+        "revision": { "$ref": "#/$defs/nullableRevision" },
+        "supersedes_cycle_id": { "$ref": "#/$defs/nullableString" },
+        "trigger": { "enum": ["initial", "return_to_discover", "invalidation"] },
+        "artifact_refs": { "$ref": "#/$defs/stringArray" },
+        "started_at": { "$ref": "#/$defs/dateTime" },
+        "completed_at": { "$ref": "#/$defs/nullableDateTime" }
+      }
+    },
+    "returnToDiscover": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "return_id",
+        "triggering_revision",
+        "missing_capability",
+        "failed_asset_refs",
+        "required_contract_delta",
+        "graph_impact",
+        "recommended_search_criteria",
+        "open_decision_id",
+        "created_at"
+      ],
+      "properties": {
+        "return_id": { "$ref": "#/$defs/nonEmptyString" },
+        "triggering_revision": { "$ref": "#/$defs/revision" },
+        "missing_capability": { "$ref": "#/$defs/nonEmptyString" },
+        "failed_asset_refs": { "$ref": "#/$defs/stringArray" },
+        "required_contract_delta": { "$ref": "#/$defs/nonEmptyString" },
+        "graph_impact": { "$ref": "#/$defs/nonEmptyString" },
+        "recommended_search_criteria": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "open_decision_id": { "$ref": "#/$defs/nullableString" },
+        "created_at": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "compositionCycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cycle_id", "status", "revision", "supersedes_cycle_id", "artifact_refs", "return_to_discover", "started_at", "completed_at"
+      ],
+      "properties": {
+        "cycle_id": { "$ref": "#/$defs/nonEmptyString" },
+        "status": { "$ref": "#/$defs/cycleStatus" },
+        "revision": { "$ref": "#/$defs/nullableRevision" },
+        "supersedes_cycle_id": { "$ref": "#/$defs/nullableString" },
+        "artifact_refs": { "$ref": "#/$defs/stringArray" },
+        "return_to_discover": {
+          "anyOf": [
+            { "$ref": "#/$defs/returnToDiscover" },
+            { "type": "null" }
+          ]
+        },
+        "started_at": { "$ref": "#/$defs/dateTime" },
+        "completed_at": { "$ref": "#/$defs/nullableDateTime" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id", "topic", "required", "options", "recommended_option", "selected_option", "selected_by",
+        "selection_reason", "evidence_refs", "catalog_refs", "session_id", "turn_id", "status", "supersedes"
+      ],
+      "properties": {
+        "decision_id": { "$ref": "#/$defs/nonEmptyString" },
+        "topic": { "$ref": "#/$defs/nonEmptyString" },
+        "required": { "type": "boolean" },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "recommended_option": { "$ref": "#/$defs/nullableString" },
+        "selected_option": { "$ref": "#/$defs/nullableString" },
+        "selected_by": {
+          "anyOf": [
+            { "const": "user" },
+            { "type": "null" }
+          ]
+        },
+        "selection_reason": { "$ref": "#/$defs/nullableString" },
+        "evidence_refs": { "$ref": "#/$defs/stringArray" },
+        "catalog_refs": { "$ref": "#/$defs/stringArray" },
+        "session_id": { "$ref": "#/$defs/nullableString" },
+        "turn_id": { "$ref": "#/$defs/nullableString" },
+        "status": { "enum": ["open", "resolved", "superseded"] },
+        "supersedes": { "$ref": "#/$defs/nullableString" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "open" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "selected_option": { "type": "null" },
+              "selected_by": { "type": "null" },
+              "selection_reason": { "type": "null" },
+              "session_id": { "type": "null" },
+              "turn_id": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "resolved" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "selected_option": { "$ref": "#/$defs/nonEmptyString" },
+              "selected_by": { "const": "user" },
+              "selection_reason": { "$ref": "#/$defs/nonEmptyString" },
+              "session_id": { "$ref": "#/$defs/nonEmptyString" },
+              "turn_id": { "$ref": "#/$defs/nonEmptyString" }
+            }
+          }
+        }
+      ]
+    },
+    "disposition": {
+      "enum": [
+        "reuse_exact",
+        "reuse_new_version",
+        "compose_existing",
+        "create_project_draft",
+        "create_publish_candidate",
+        "defer",
+        "exclude"
+      ]
+    },
+    "nullableDisposition": {
+      "anyOf": [
+        { "$ref": "#/$defs/disposition" },
+        { "type": "null" }
+      ]
+    },
+    "assetDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asset_decision_id", "asset_ref", "asset_type", "asset_version", "required", "match_grade", "options",
+        "recommended_disposition", "selected_disposition", "selected_by", "selection_reason", "evidence_refs",
+        "catalog_refs", "session_id", "turn_id", "status", "supersedes"
+      ],
+      "properties": {
+        "asset_decision_id": { "$ref": "#/$defs/nonEmptyString" },
+        "asset_ref": { "$ref": "#/$defs/nonEmptyString" },
+        "asset_type": { "enum": ["agent", "workflow", "tool"] },
+        "asset_version": {
+          "anyOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "required": { "type": "boolean" },
+        "match_grade": { "enum": ["exact", "compatible", "partial", "none"] },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/disposition" }
+        },
+        "recommended_disposition": { "$ref": "#/$defs/nullableDisposition" },
+        "selected_disposition": { "$ref": "#/$defs/nullableDisposition" },
+        "selected_by": {
+          "anyOf": [
+            { "const": "user" },
+            { "type": "null" }
+          ]
+        },
+        "selection_reason": { "$ref": "#/$defs/nullableString" },
+        "evidence_refs": { "$ref": "#/$defs/stringArray" },
+        "catalog_refs": { "$ref": "#/$defs/stringArray" },
+        "session_id": { "$ref": "#/$defs/nullableString" },
+        "turn_id": { "$ref": "#/$defs/nullableString" },
+        "status": { "enum": ["open", "resolved", "superseded"] },
+        "supersedes": { "$ref": "#/$defs/nullableString" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "open" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "selected_disposition": { "type": "null" },
+              "selected_by": { "type": "null" },
+              "selection_reason": { "type": "null" },
+              "session_id": { "type": "null" },
+              "turn_id": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "resolved" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "selected_disposition": { "$ref": "#/$defs/disposition" },
+              "selected_by": { "const": "user" },
+              "selection_reason": { "$ref": "#/$defs/nonEmptyString" },
+              "session_id": { "$ref": "#/$defs/nonEmptyString" },
+              "turn_id": { "$ref": "#/$defs/nonEmptyString" }
+            }
+          }
+        }
+      ]
+    },
+    "rootExecutable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_type", "asset_ref", "asset_version", "decision_id"],
+      "properties": {
+        "asset_type": { "enum": ["agent", "workflow"] },
+        "asset_ref": { "$ref": "#/$defs/nonEmptyString" },
+        "asset_version": { "type": "integer", "minimum": 1 },
+        "decision_id": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "discoveryBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirement_revision", "decision_revision", "asset_decision_revision", "discovery_revision",
+        "catalog_snapshot_revision", "artifact_etag"
+      ],
+      "properties": {
+        "requirement_revision": { "$ref": "#/$defs/revision" },
+        "decision_revision": { "$ref": "#/$defs/revision" },
+        "asset_decision_revision": { "$ref": "#/$defs/revision" },
+        "discovery_revision": { "$ref": "#/$defs/revision" },
+        "catalog_snapshot_revision": { "$ref": "#/$defs/revision" },
+        "artifact_etag": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "compositionBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "discovery_revision", "graph_revision", "root_executable_revision", "runtime_contract_revision",
+        "composition_revision", "artifact_etag"
+      ],
+      "properties": {
+        "discovery_revision": { "$ref": "#/$defs/revision" },
+        "graph_revision": { "$ref": "#/$defs/revision" },
+        "root_executable_revision": { "$ref": "#/$defs/revision" },
+        "runtime_contract_revision": { "$ref": "#/$defs/revision" },
+        "composition_revision": { "$ref": "#/$defs/revision" },
+        "artifact_etag": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "discoveryGate": {
+      "allOf": [
+        { "$ref": "#/$defs/gateBase" },
+        {
+          "type": "object",
+          "properties": {
+            "binding": {
+              "anyOf": [
+                { "$ref": "#/$defs/discoveryBinding" },
+                { "type": "null" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "compositionGate": {
+      "allOf": [
+        { "$ref": "#/$defs/gateBase" },
+        {
+          "type": "object",
+          "properties": {
+            "binding": {
+              "anyOf": [
+                { "$ref": "#/$defs/compositionBinding" },
+                { "type": "null" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "gateBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "binding", "decided_at", "session_id", "turn_id", "stale_reasons"],
+      "properties": {
+        "status": { "enum": ["pending", "approved", "changes_requested", "stale"] },
+        "binding": {},
+        "decided_at": { "$ref": "#/$defs/nullableDateTime" },
+        "session_id": { "$ref": "#/$defs/nullableString" },
+        "turn_id": { "$ref": "#/$defs/nullableString" },
+        "stale_reasons": { "$ref": "#/$defs/stringArray" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "pending" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "binding": { "type": "null" },
+              "decided_at": { "type": "null" },
+              "session_id": { "type": "null" },
+              "turn_id": { "type": "null" },
+              "stale_reasons": { "maxItems": 0 }
+            }
+          },
+          "else": {
+            "properties": {
+              "binding": { "type": "object" },
+              "decided_at": { "$ref": "#/$defs/dateTime" },
+              "session_id": { "$ref": "#/$defs/nonEmptyString" },
+              "turn_id": { "$ref": "#/$defs/nonEmptyString" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "stale" } }, "required": ["status"] },
+          "then": { "properties": { "stale_reasons": { "$ref": "#/$defs/nonEmptyStringArray" } } },
+          "else": { "properties": { "stale_reasons": { "maxItems": 0 } } }
+        }
+      ]
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "revision", "report_ref", "evidence_refs", "verified_at"],
+      "properties": {
+        "outcome": {
+          "anyOf": [
+            { "enum": ["passed", "failed", "unverified", "stale"] },
+            { "type": "null" }
+          ]
+        },
+        "revision": { "$ref": "#/$defs/nullableRevision" },
+        "report_ref": { "$ref": "#/$defs/nullableString" },
+        "evidence_refs": { "$ref": "#/$defs/stringArray" },
+        "verified_at": { "$ref": "#/$defs/nullableDateTime" }
+      }
+    },
+    "invalidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invalidation_id", "source_skill", "target_skill", "triggering_revision", "invalidated_revision", "reason",
+        "affected_refs", "status", "created_at", "resolved_at"
+      ],
+      "properties": {
+        "invalidation_id": { "$ref": "#/$defs/nonEmptyString" },
+        "source_skill": { "$ref": "#/$defs/skillId" },
+        "target_skill": { "$ref": "#/$defs/skillId" },
+        "triggering_revision": { "$ref": "#/$defs/revision" },
+        "invalidated_revision": { "$ref": "#/$defs/revision" },
+        "reason": { "$ref": "#/$defs/nonEmptyString" },
+        "affected_refs": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "status": { "enum": ["active", "resolved"] },
+        "created_at": { "$ref": "#/$defs/dateTime" },
+        "resolved_at": { "$ref": "#/$defs/nullableDateTime" }
+      }
+    },
+    "sessionHandoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_id", "work_id", "from_session_id", "from_turn_id", "discovery_revision", "decision_revision",
+        "plan_hash", "target_skill", "status", "created_at", "expires_at", "marker_digest", "claimed_by_session_id",
+        "claimed_turn_id", "claimed_at", "superseded_by_handoff_id"
+      ],
+      "properties": {
+        "handoff_id": { "$ref": "#/$defs/nonEmptyString" },
+        "work_id": { "$ref": "#/$defs/workId" },
+        "from_session_id": { "$ref": "#/$defs/nonEmptyString" },
+        "from_turn_id": { "$ref": "#/$defs/nonEmptyString" },
+        "discovery_revision": { "$ref": "#/$defs/revision" },
+        "decision_revision": { "$ref": "#/$defs/revision" },
+        "plan_hash": { "$ref": "#/$defs/sha256" },
+        "target_skill": { "const": "af-discover-assets.materialize" },
+        "status": { "enum": ["pending", "claimed", "expired", "superseded"] },
+        "created_at": { "$ref": "#/$defs/dateTime" },
+        "expires_at": { "$ref": "#/$defs/dateTime" },
+        "marker_digest": { "$ref": "#/$defs/sha256" },
+        "claimed_by_session_id": { "$ref": "#/$defs/nullableString" },
+        "claimed_turn_id": { "$ref": "#/$defs/nullableString" },
+        "claimed_at": { "$ref": "#/$defs/nullableDateTime" },
+        "superseded_by_handoff_id": { "$ref": "#/$defs/nullableString" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "claimed" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "claimed_by_session_id": { "$ref": "#/$defs/nonEmptyString" },
+              "claimed_turn_id": { "$ref": "#/$defs/nonEmptyString" },
+              "claimed_at": { "$ref": "#/$defs/dateTime" },
+              "superseded_by_handoff_id": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "claimed_by_session_id": { "type": "null" },
+              "claimed_turn_id": { "type": "null" },
+              "claimed_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "superseded" } }, "required": ["status"] },
+          "then": { "properties": { "superseded_by_handoff_id": { "$ref": "#/$defs/nonEmptyString" } } },
+          "else": { "properties": { "superseded_by_handoff_id": { "type": "null" } } }
+        }
+      ]
     }
   }
 }

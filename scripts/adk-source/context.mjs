@@ -5,6 +5,8 @@ import { isDeepStrictEqual } from "node:util";
 import { validateAgainstSchema } from "../artifact-validation/json-schema.mjs";
 import { scaffoldAssetProjectionErrors } from "../artifact-validation/scaffold-asset-projection.mjs";
 import { toPythonIdentifier } from "./naming.mjs";
+import { resolveRootExecutablePlan } from "./root-executable.mjs";
+import { resolveAssetBindings } from "./asset-bindings.mjs";
 
 export const DEFAULT_MODEL = "hosted_vllm/local-model";
 export const GEMINI_FALLBACK_MODEL = "gemini-2.5-flash";
@@ -50,7 +52,7 @@ const REMOVED_KEYS = new Set([
   "is_remote_boundary_crossing"
 ]);
 
-export function loadArtifactContext(artifactRoot) {
+export function loadArtifactContext(artifactRoot, { registryPath } = {}) {
   for (const [name, replacement] of REMOVED_FILENAMES) {
     if (existsSync(join(artifactRoot, name))) {
       throw new Error(`${name} is removed; use ${replacement}.`);
@@ -70,7 +72,17 @@ export function loadArtifactContext(artifactRoot) {
   const graph = scaffoldPlan.graph;
   const assetCandidates = analysisResult.assetCandidates;
   const assets = scaffoldPlan.assets;
-  validateWorkInputs({ analysisResult, analysisEtag, normalizedRequirement, graph, assetCandidates, workItem, scaffoldPlan, assets });
+  const workContracts = validateWorkInputs({
+    analysisResult,
+    analysisEtag,
+    normalizedRequirement,
+    graph,
+    assetCandidates,
+    workItem,
+    scaffoldPlan,
+    assets,
+    registryPath
+  });
   assertSupportedToolTransports(assets);
 
   return {
@@ -79,6 +91,11 @@ export function loadArtifactContext(artifactRoot) {
     graph,
     assetCandidates,
     workItem,
+    rootExecutable: workItem.root_executable,
+    solutionControlStrategy: workItem.solution_control_strategy,
+    rootExecutablePlan: workContracts.rootExecutablePlan,
+    assetBindings: workContracts.assetBindings.bindings,
+    registryRevision: workContracts.assetBindings.registryRevision,
     mockLabSpec,
     scaffoldPlan,
     assets,
@@ -274,7 +291,7 @@ function assertNoRemovedRecursive(value, label) {
   }
 }
 
-function validateWorkInputs({ analysisResult, analysisEtag, normalizedRequirement, graph, assetCandidates, workItem, scaffoldPlan, assets }) {
+function validateWorkInputs({ analysisResult, analysisEtag, normalizedRequirement, graph, assetCandidates, workItem, scaffoldPlan, assets, registryPath }) {
   const requirementId = normalizedRequirement.id || scaffoldPlan.requirement_id;
   if (scaffoldPlan.requirement_id !== requirementId) throw new Error("scaffold-plan.json requirement_id does not match normalizedRequirement.id.");
   if (graph.source_requirement_id !== requirementId) throw new Error("Graph source_requirement_id does not match the requirement.");
@@ -291,11 +308,25 @@ function validateWorkInputs({ analysisResult, analysisEtag, normalizedRequiremen
   if (workItem.review_gates?.composition?.status !== "approved") {
     throw new Error("af-work-item.json composition review must be approved before generation.");
   }
-  if (workItem.review_gates.composition.artifact_etag !== analysisEtag) {
+  assertReviewedDecisionRevisions(workItem);
+  if (workItem.review_gates.composition.binding?.artifact_etag !== analysisEtag) {
     throw new Error("af-work-item.json composition review does not match current analysis-result.json bytes.");
+  }
+  if (
+    workItem.review_gates.composition.binding?.composition_revision?.digest
+    !== workItem.revisions?.composition?.digest
+  ) {
+    throw new Error("af-work-item.json composition review does not bind the current composition revision.");
   }
   if (workItem.skills?.["af-compose-solution"]?.status !== "complete") {
     throw new Error("af-work-item.json af-compose-solution must be complete before generation.");
+  }
+  if (!workItem.solution_control_strategy || !workItem.root_executable) {
+    throw new Error("af-work-item.json requires a user-selected solution control strategy and root executable before generation.");
+  }
+  const rootAsset = assets.find((asset) => asset.asset_id === workItem.root_executable.asset_ref);
+  if (!rootAsset || rootAsset.asset_type !== workItem.root_executable.asset_type) {
+    throw new Error("af-work-item.json root executable must reference a matching scaffold Agent or Workflow asset.");
   }
   const unapprovedRuntime = [...analysisResult.runtimeContracts, ...(scaffoldPlan.runtime_contracts ?? [])].filter(
     (contract) => contract?.contract_status !== "approved"
@@ -306,6 +337,57 @@ function validateWorkInputs({ analysisResult, analysisEtag, normalizedRequiremen
   assertRequiredRuntimeContracts({ normalizedRequirement, graph, assets, contracts: scaffoldPlan.runtime_contracts });
   const blockers = scaffoldAssetProjectionErrors(assetCandidates, assets);
   if (blockers.length) throw new Error(`scaffold-plan.json includes unapproved or drifted assets: ${blockers.join("; ")}`);
+  return {
+    rootExecutablePlan: resolveRootExecutablePlan({ assets, graph, workItem }),
+    assetBindings: resolveAssetBindings({ assets, workItem, ...(registryPath ? { registryPath } : {}) })
+  };
+}
+
+function assertReviewedDecisionRevisions(workItem) {
+  const checks = [
+    {
+      label: "decision",
+      revision: workItem.revisions?.decision,
+      bound: workItem.review_gates.discovery.binding?.decision_revision,
+      ref: "af-work-item.json#/decisions",
+      value: workItem.decisions
+    },
+    {
+      label: "Asset decision",
+      revision: workItem.revisions?.asset_decision,
+      bound: workItem.review_gates.discovery.binding?.asset_decision_revision,
+      ref: "af-work-item.json#/asset_decisions",
+      value: workItem.asset_decisions
+    },
+    {
+      label: "Root Executable",
+      revision: workItem.revisions?.root_executable,
+      bound: workItem.review_gates.composition.binding?.root_executable_revision,
+      ref: "af-work-item.json#/root_executable",
+      value: workItem.root_executable
+    }
+  ];
+  for (const check of checks) {
+    assertRevisionDigest(check.revision, check.label);
+    if (!deepEqual(check.bound, check.revision)) {
+      throw new Error(`af-work-item.json ${check.label} review binding does not match the current revision.`);
+    }
+    const subject = check.revision.subjects.find((candidate) => candidate.ref === check.ref);
+    const actual = createHash("sha256").update(`${JSON.stringify(check.value, null, 2)}\n`).digest("hex");
+    if (!subject || subject.sha256 !== actual) {
+      throw new Error(`af-work-item.json ${check.label} revision content does not match ${check.ref}.`);
+    }
+  }
+}
+
+function assertRevisionDigest(revision, label) {
+  const digest = createHash("sha256").update(JSON.stringify({
+    subjects: revision.subjects,
+    registry_revision: revision.registry_revision
+  })).digest("hex");
+  if (revision.digest !== digest) {
+    throw new Error(`af-work-item.json ${label} revision digest is invalid.`);
+  }
 }
 
 function assertRequiredRuntimeContracts({ normalizedRequirement, graph, assets, contracts }) {

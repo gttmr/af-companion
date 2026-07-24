@@ -2,77 +2,86 @@
 
 ## Purpose
 
-Generated Runtime Handoff와 선택된 pattern의 deterministic smoke/negative scenarios를 선택한다.
+Select deterministic checks for the exact generated Runtime Handoff, Root Executable, Asset bindings, and approved runtime patterns.
 
 ## When to read
 
-`runtime-stub/` 또는 explicit runtime output이 있고 Level 3-4 검증이 필요한 경우에만 읽는다.
+Read only when an explicit generated output exists and Level 3-5 runtime claims are in scope.
 
-## Decision criteria
+## Preconditions
 
-기본 구조:
+Before runtime execution, prove that the tested tree belongs to the current Work Item/Scaffold revision, its manifest uses the current Registry revision, and all required decisions/gates remain current. A stale tree is not a runtime failure; classify it as stale and route it before testing behavior.
+
+## Root and binding checks
+
+Import the generated package and verify:
+
+- `root_agent is root_executable`;
+- the object is the selected Agent or Workflow runtime type;
+- Root ref/type/version/decision ID and Solution Control Strategy match the Work Item and manifest;
+- every exact Asset binding is present once;
+- local `reuse_exact` Agent/Workflow/Tool objects are identical to the reviewed imported `python:module#symbol` object/callable;
+- MCP Tool and Remote A2A Agent bindings expose only the reviewed exact contract surface;
+- no replacement class, LLM Agent, stub, duplicate Tool, or duplicate Registry-version binding was generated;
+- `compose_existing` uses exact included component objects/bindings under the selected project Workflow Root.
+
+## Base commands
+
+For an explicit runtime output root:
 
 ```bash
 python3 -m compileall <runtime-output-root>
 ```
 
-Dependencies가 있으면 generated tests를 실행한다.
+When dependencies already exist:
 
 ```bash
 cd <runtime-output-root>
 python3 -m pytest -q
 ```
 
-Network install은 사용자 승인 없이 수행하지 않는다.
+For the repository-standard `<artifact-root>/runtime-stub` output:
 
-## Required evidence
+```bash
+node scripts/validate-generated-runtime.mjs <artifact-root>
+```
 
-패턴별 applicable scenario를 선택한다.
+Do not install from the network without user approval.
+
+## Pattern scenarios
 
 | Pattern | Required checks |
 | --- | --- |
-| Function/MCP Tool | schema, allow-list, invalid input, timeout, unavailable server, cleanup |
-| A2A | Agent binding/exposure, discovery, task lifecycle, auth failure, timeout, fallback |
+| Function/MCP Tool | exact Tool ref/name/filter, schema, invalid input, timeout, unavailable server, cleanup |
+| A2A | exact Agent ref/version/binding or exposure, discovery, task lifecycle, auth failure, timeout, fallback boundary |
 | Callback/Plugin | baseline, Continue, Override, order, exception, duplicate side effect |
 | Event Loop | yield, final commit, partial no-commit, failure before commit, resume |
 | Ambient | normalization, malformed event, duplicate, retry/DLQ, concurrency, output sink |
-| Human Input | pause, stable ID, valid/invalid response, duplicate, at-least-once Tool |
+| Human Input | pause, stable ID, valid/invalid response, duplicate, expiry/replay, at-most-once side effect |
 | State/Artifact | scope, commit, version, missing value, producer conflict |
 
-## Artifact implications
+## Required evidence
 
-Selected scenarios는 approved design과 scaffold handoff에서 추적 가능해야 한다.
+For each scenario, record input, deterministic invariant, actual output, exact command/cwd/environment, exit code, tested Work Item/Registry/Git revisions, and residual uncertainty.
 
-Unselected pattern을 검증하기 위해 새 scaffold를 만들지 않는다.
+Trace every selected scenario to the approved Graph/runtime/A2A contract and exact Asset binding. Do not create source to test an unselected pattern.
 
-## Scaffold implications
-
-Smoke는 local synthetic mock만 사용한다.
-
-Production endpoint, real credential, private payload를 사용하지 않는다.
-
-## Verification
-
-각 scenario에 input, expected deterministic invariant, actual output, exit code를 기록한다.
-
-Behavior quality는 별도 eval로 기록하고 exact natural-language golden을 사용하지 않는다.
+Behavior quality is a separate evaluation. Do not use exact natural-language output as the only golden.
 
 ## Stop conditions
 
-- runtime output이 없음
-- dependencies가 없는데 pass를 요구함
-- approved contract와 test fixture가 다름
-- negative scenario가 실패함
-- production system 접근이 필요함
-- duplicate side-effect safety가 없음
+Stop when output is absent/stale, manifest and Work Item disagree, Root identity/type fails, an exact source/protocol binding is unprovable, dependencies are absent but passing is requested, fixtures drift from the approved contract, a required negative scenario fails, or production access would be required.
 
 ## Official sources checked
 
+- `scripts/validate-generated-runtime.mjs`
+- `scripts/adk-source/asset-bindings.mjs`
+- `scripts/adk-source/root-executable.mjs`
+- `scripts/adk-source/support/manifest.mjs`
 - `../../_shared/runtime-pattern-selection.md`
 - `../../_shared/testing-contract.md`
-- `scripts/adk-source/`
 
 ## Checked date
 
-- Checked date: 2026-07-18
-- Runtime evidence is local and synthetic unless a separate production test authority exists.
+- Checked date: 2026-07-24
+- Runtime evidence is local and synthetic unless separately authorized production evidence exists.

@@ -1,33 +1,38 @@
 ---
 name: af-scaffold-runtime
 description: >-
-  Generates a reviewable ADK Runtime Handoff or local source scaffold from an approved Agent Factory composition and explicit output roots. Use when an approved composition is ready for source generation; stop when approval, contracts, or generator support are missing.
+  Generates a reviewable ADK Runtime Handoff or local source scaffold from the current approved Agent Factory composition, exact Asset bindings, and explicit output roots. Use when composition revisions and user decisions are current; stop on stale gates, unresolved decisions, unsupported lowering, or Registry drift.
 ---
 
 # AF Scaffold Runtime
 
 ## Purpose
 
-Lower an approved composition into reviewable ADK source or a Runtime Handoff.
+Lower the current approved composition into reviewable ADK source or a Runtime Handoff while preserving the user's Solution Control Strategy, Root Executable, and exact Asset dispositions.
 
 ```text
-Approved Contract -> Scaffold
-Raw Requirement -> Code is forbidden
+Approved current composition -> exact binding -> Scaffold
+Raw requirement -> Code is forbidden
 ```
 
-The output is local implementation material, not deployment, credential provisioning, private integration, or production-readiness proof.
+The output is local implementation material. It is not Registry publication, deployment, credential provisioning, private integration, or production-readiness proof.
 
 ## Preconditions
 
-- valid Work Item and strict v2 composition artifacts exist;
-- discovery and composition review gates are approved for current bytes;
-- Compose is complete and Scaffold Readiness is supported by evidence;
-- `scaffold-plan.json` has `raw_requirement_to_code=false` and explicit output mode/roots;
-- runtime/A2A contracts are approved and candidate hard gates are closed;
-- required ADK symbols and signatures can be checked against the installed version;
-- the source output roots are within user-authorized repository scope.
+Require all of the following before generation:
 
-If any gate or revision is stale, return to the owning skill. Do not create even a TODO scaffold from raw requirements.
+- one valid strict-v2 Work Item and unambiguous artifact root;
+- `review_gates.discovery.status` and `review_gates.composition.status` both `approved`;
+- the composition gate binding exactly matches current `revisions.discovery`, `graph`, `root_executable`, `runtime_contract`, and `composition`, and its `artifact_etag` matches the current canonical bytes;
+- current decision, Asset-decision, and Root Executable revision subjects still hash to the values in `af-work-item.json`;
+- `af-compose-solution` is `complete`, with no active invalidation affecting Scaffold and no unresolved required decision;
+- a user-selected `solution_control_strategy` and `root_executable` whose Agent or Workflow ref/version is present in the approved scaffold assets;
+- exactly one resolved, user-selected `asset_decision` for every scaffold Asset, including an exact positive `asset_version` and a generation disposition;
+- a current `revisions.catalog_snapshot` and exact Registry revision for every Registry-backed decision;
+- `scaffold-plan.json` has `raw_requirement_to_code=false`, explicit `smoke` or `runnable` mode, explicit authorized output roots, and no generation blocker;
+- approved runtime/A2A contracts and installed-package evidence for every emitted ADK symbol.
+
+Do not generate TODO source when any precondition is absent or stale.
 
 ## Required reading
 
@@ -38,49 +43,63 @@ If any gate or revision is stale, return to the owning skill. Do not create even
 5. [Output Modes and Handoff](references/output-modes-and-handoff.md)
 6. [Target Contract v2](../_shared/target-contract-v2.md)
 
-Read only the selected cards in [Runtime Pattern Selection](../_shared/runtime-pattern-selection.md), plus [Generated Output Checks](references/generated-output-checks.md) when relevant. Verify exact ADK symbols through installed source or official documentation as required by [Source of Truth](../_shared/source-of-truth.md).
+Read only the selected cards in [Runtime Pattern Selection](../_shared/runtime-pattern-selection.md), plus [Generated Output Checks](references/generated-output-checks.md) when generation is in scope. Verify exact ADK symbols through installed source or official documentation as required by [Source of Truth](../_shared/source-of-truth.md).
+
+## Exact Asset binding rules
+
+- `reuse_exact`: bind one exact `published` version, or an explicitly accepted `deprecated` version. Import a local Agent, Workflow, or callable Tool from exactly one reviewed `python:module#symbol` source ref. A published local executable contract without that source ref fails closed; never recreate it as a new Agent or stub. MCP Tools and Remote A2A Agents use their reviewed protocol binding instead of a local source ref.
+- `reuse_new_version`: implement only the selected exact `draft` or `reviewed` Registry version, and require an earlier Registry version of the same Asset. Never modify or regenerate a published version.
+- `create_publish_candidate`: implement only the selected exact `draft` or `reviewed` Registry version. Scaffold does not publish it.
+- `create_project_draft`: generate project-local version `1` with no Registry ref.
+- `compose_existing`: apply only to the selected project-local Workflow Root at version `1`, with no Registry ref. Preserve at least two exact published or explicitly accepted deprecated component refs, and include each component as its own `reuse_exact` binding.
+- `defer` and `exclude`: cannot appear in the scaffold set.
+
+Bind each exact Registry version at most once. Root Executable version, Asset-decision version, Registry record, contract projection, and generated manifest binding must agree.
 
 ## Procedure
 
-1. Re-read the Work Item and approved artifacts; verify review hashes.
-2. Mark Scaffold active with the composition input revision and declared output roots.
-3. Validate the artifact root before source generation.
-4. Inspect installed ADK version, imports, and signatures required by the selected contracts.
-5. Confirm deterministic generator coverage for each Graph and runtime pattern.
-6. Run the repository generator when supported.
-7. Add only contract-backed seams or TODOs required by the approved handoff. Keep framework defaults neutral and avoid domain hard-coding in generators.
-8. Preserve user-authored source and unrelated dirty changes. Do not rewrite output roots wholesale unless the approved generator contract requires it.
-9. Write/update `implementation-handoff.md` with provenance, TODOs, non-goals, and manual integration boundaries.
-10. Run compile/import, generated tests, and the agreed smoke scenario appropriate to the output mode.
-11. Inspect the final Git diff and output inventory.
-12. Record output refs, output roots, revision, evidence, and Scaffold completion in `af-work-item.json`.
+1. Confirm repository root, Work Item root, authorized source roots, and current Git state.
+2. Validate the Work Item and artifact root with the current CLI/validator; do not repair rejected legacy shapes.
+3. Recompute current review bindings and revision subjects. Route stale discovery or Asset evidence to Discover, structural/Graph/root/runtime-contract drift to Compose, and unsupported generation to Scaffold.
+4. Confirm all required decisions are resolved by the user and every scaffold Asset has exactly one current resolved Asset decision.
+5. Load the current Asset Registry snapshot. Re-resolve every exact Registry ref/version and compare type, status, contract hash/projection, source ref or protocol binding, and Registry revision.
+6. Reject duplicate Registry-version bindings, duplicate generation, project/Registry identity confusion, mutable published versions, or a Root version mismatch.
+7. Verify Root Executable consistency with Solution Control Strategy, Graph owner/profile/topology, and the selected Agent or Workflow runtime type. Preserve the ADK-required `root_agent` symbol as a pointer to that exact Root Executable object.
+8. Inspect installed ADK imports and signatures required by the approved contracts and confirm deterministic generator coverage for each selected Graph/runtime pattern.
+9. Mark the Scaffold run active through `active_runs` and record its current input revision without changing another run or skill's evidence.
+10. Run the repository generator with explicit roots when lowering is supported. Add only the smallest contract-backed seams required by the approved handoff; never derive behavior from raw requirement prose.
+11. Preserve user-authored source and unrelated dirty changes. Do not rewrite output roots wholesale unless the approved generator contract requires it.
+12. Write/update `implementation-handoff.md` with decision/revision provenance, exact Asset bindings, generated symbols, TODOs, non-goals, and manual integration boundaries.
+13. Run generated output checks appropriate to the output mode, then inspect the final source diff, output inventory, and prohibited-output scan.
+14. Record generated output roots, output refs, current Scaffold revision, evidence, and status in `af-work-item.json`.
 
 ## Output modes
 
 - `smoke`: importable structure and explicit TODO seams; it does not claim real external behavior.
 - `runnable`: reviewed synthetic/local behavior for the agreed scenarios; it still excludes private production integration.
 
-Do not silently upgrade one mode to the other.
+Do not silently change modes.
 
 ## Write boundary
 
-Writes are limited to the Work Item root and source roots explicitly approved in the scaffold plan. Never write Catalog seeds, secrets, private endpoints, deployment scripts, or unrelated repository files. The workbench observes these changes; it does not perform generation.
+Writes are limited to the Work Item root and source roots explicitly approved in the scaffold plan. Never write Registry records, `catalog/*.yaml`, secrets, private endpoints, deployment scripts, real customer data, or unrelated repository files. The workbench observes generation; it does not perform it.
 
 ## Verification
 
 Use [Artifact and Source Generation](references/artifact-and-source-generation.md) and [Generated Output Checks](references/generated-output-checks.md). At minimum preserve:
 
-- artifact validation;
-- generated file inventory;
-- installed package/version probe;
-- Python compile and import result;
-- generated test and local smoke result;
+- Work Item and strict-v2 artifact validation;
+- current gate/revision and Registry-snapshot checks;
+- exact Asset-binding and no-duplicate-generation checks;
+- generated file and `workflow_manifest.json` inventory;
+- installed package/version and exact import/signature probes;
+- Python compile/import, generated tests, and applicable local smoke results;
 - exact Git diff and residual uncertainty.
 
 ## Stop conditions
 
-Stop when approval is missing/stale, Graph changed after review, output roots are ambiguous, an unsupported lowering is required, installed API evidence is absent, generated/user source ownership conflicts, or any required validation fails.
+Stop when any required decision is open, approval or revision is stale, the Registry snapshot changed, an exact version/source/protocol binding is absent, Graph and Root disagree, output roots are ambiguous, duplicate generation would occur, lowering is unsupported, source ownership conflicts, or any required validation fails.
 
 ## Completion report
 
-Report generated/edited files, output mode, commands and results, source diff summary, remaining TODOs, Work Item revision, and the exact claims still reserved for Verify.
+Report generated/edited files, output mode and roots, Work Item/Graph/runtime/composition/Registry revisions, Root Executable and generated symbol, exact Asset binding actions, commands/results, source diff summary, remaining TODOs, and the claims reserved for Verify.

@@ -1,0 +1,360 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/asset-registry.schema.json",
+  "title": "Agent Factory Asset Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "assets"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "assets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/assetRecord" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "stringArray": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonEmptyString" }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "required"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "type": { "$ref": "#/$defs/nonEmptyString" },
+        "required": { "type": "boolean" },
+        "schema": { "type": "object" }
+      }
+    },
+    "assetRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_id", "version"],
+      "properties": {
+        "asset_id": { "$ref": "#/$defs/nonEmptyString" },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "binding": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/toolBinding" },
+        { "$ref": "#/$defs/a2aBinding" }
+      ]
+    },
+    "toolBinding": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "enum": ["function", "built_in", "unresolved"] } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "server_ref", "tool_name"],
+          "properties": {
+            "kind": { "const": "mcp" },
+            "server_ref": { "$ref": "#/$defs/nonEmptyString" },
+            "tool_name": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        }
+      ]
+    },
+    "a2aBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "contract_ref"],
+      "properties": {
+        "kind": { "const": "a2a" },
+        "contract_ref": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "httpConnection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transport"],
+      "properties": { "transport": { "const": "http" } }
+    },
+    "connection": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/connectionObject" }
+      ]
+    },
+    "connectionObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transport"],
+      "properties": {
+        "transport": { "enum": ["in_process", "stdio", "http", "unknown"] }
+      }
+    },
+    "workflowProfile": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/workflowProfileObject" }
+      ]
+    },
+    "workflowProfileObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["representation", "coordination", "template_ref"],
+      "properties": {
+        "representation": { "enum": ["graph", "dynamic", "unresolved"] },
+        "coordination": { "enum": ["explicit", "agent_delegation", "mixed"] },
+        "template_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/nonEmptyString" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "exposure": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["protocol", "contract_ref"],
+          "properties": {
+            "protocol": { "const": "a2a" },
+            "contract_ref": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        }
+      ]
+    },
+    "userDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "selected_by", "rationale"],
+      "properties": {
+        "decision_id": { "$ref": "#/$defs/nonEmptyString" },
+        "selected_by": { "const": "user" },
+        "rationale": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "publishDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "selected_by", "rationale", "owner_confirmed", "domain_confirmed", "reuse_confirmed"],
+      "properties": {
+        "decision_id": { "$ref": "#/$defs/nonEmptyString" },
+        "selected_by": { "const": "user" },
+        "rationale": { "$ref": "#/$defs/nonEmptyString" },
+        "owner_confirmed": { "const": true },
+        "domain_confirmed": { "const": true },
+        "reuse_confirmed": { "const": true }
+      }
+    },
+    "seedPublication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source_ref", "rationale"],
+      "properties": {
+        "kind": { "const": "repository_seed" },
+        "source_ref": { "$ref": "#/$defs/nonEmptyString" },
+        "rationale": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "lifecycle": {
+      "oneOf": [
+        { "$ref": "#/$defs/draftLifecycle" },
+        { "$ref": "#/$defs/reviewedLifecycle" },
+        { "$ref": "#/$defs/publishedLifecycle" },
+        { "$ref": "#/$defs/deprecatedLifecycle" }
+      ]
+    },
+    "draftLifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["created_by"],
+      "properties": {
+        "created_by": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "reviewedLifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["created_by", "review_decision"],
+      "properties": {
+        "created_by": { "$ref": "#/$defs/nonEmptyString" },
+        "review_decision": { "$ref": "#/$defs/userDecision" }
+      }
+    },
+    "publishedLifecycle": {
+      "oneOf": [
+        { "$ref": "#/$defs/userPublishedLifecycle" },
+        { "$ref": "#/$defs/seedPublishedLifecycle" }
+      ]
+    },
+    "userPublishedLifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["created_by", "review_decision", "publish_decision"],
+      "properties": {
+        "created_by": { "$ref": "#/$defs/nonEmptyString" },
+        "review_decision": { "$ref": "#/$defs/userDecision" },
+        "publish_decision": { "$ref": "#/$defs/publishDecision" }
+      }
+    },
+    "seedPublishedLifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["created_by", "seed_publication"],
+      "properties": {
+        "created_by": { "$ref": "#/$defs/nonEmptyString" },
+        "seed_publication": { "$ref": "#/$defs/seedPublication" }
+      }
+    },
+    "deprecatedLifecycle": {
+      "oneOf": [
+        { "$ref": "#/$defs/userDeprecatedLifecycle" },
+        { "$ref": "#/$defs/seedDeprecatedLifecycle" }
+      ]
+    },
+    "userDeprecatedLifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["created_by", "review_decision", "publish_decision", "deprecation_decision"],
+      "properties": {
+        "created_by": { "$ref": "#/$defs/nonEmptyString" },
+        "review_decision": { "$ref": "#/$defs/userDecision" },
+        "publish_decision": { "$ref": "#/$defs/publishDecision" },
+        "deprecation_decision": { "$ref": "#/$defs/userDecision" }
+      }
+    },
+    "seedDeprecatedLifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["created_by", "seed_publication", "deprecation_decision"],
+      "properties": {
+        "created_by": { "$ref": "#/$defs/nonEmptyString" },
+        "seed_publication": { "$ref": "#/$defs/seedPublication" },
+        "deprecation_decision": { "$ref": "#/$defs/userDecision" }
+      }
+    },
+    "assetRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asset_id", "asset_type", "version", "status", "contract_hash", "name", "responsibility",
+        "capability_tags", "inputs", "outputs", "side_effect_class", "domain_scope", "business_domains",
+        "owner", "reuse_status", "binding", "connection", "workflow_profile", "exposure",
+        "runtime_requirements", "source_refs", "handbook_refs", "depends_on", "contract_status",
+        "risk_signals", "runtime_mock", "composition", "notes", "lifecycle"
+      ],
+      "properties": {
+        "asset_id": { "$ref": "#/$defs/nonEmptyString" },
+        "asset_type": { "enum": ["agent", "workflow", "tool"] },
+        "version": { "type": "integer", "minimum": 1 },
+        "status": { "enum": ["draft", "reviewed", "published", "deprecated"] },
+        "contract_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "responsibility": { "$ref": "#/$defs/nonEmptyString" },
+        "capability_tags": { "$ref": "#/$defs/stringArray" },
+        "inputs": { "type": "array", "items": { "$ref": "#/$defs/field" } },
+        "outputs": { "type": "array", "items": { "$ref": "#/$defs/field" } },
+        "side_effect_class": { "enum": ["none", "read_only", "write", "external_action"] },
+        "domain_scope": { "enum": ["domain_specific", "cross_domain", "domain_neutral"] },
+        "business_domains": { "$ref": "#/$defs/stringArray" },
+        "owner": { "$ref": "#/$defs/nonEmptyString" },
+        "reuse_status": { "enum": ["not_reviewed", "reuse_existing", "publish_candidate", "project_only", "excluded"] },
+        "binding": { "$ref": "#/$defs/binding" },
+        "connection": { "$ref": "#/$defs/connection" },
+        "workflow_profile": { "$ref": "#/$defs/workflowProfile" },
+        "exposure": { "$ref": "#/$defs/exposure" },
+        "runtime_requirements": { "$ref": "#/$defs/stringArray" },
+        "source_refs": { "$ref": "#/$defs/stringArray" },
+        "handbook_refs": { "$ref": "#/$defs/stringArray" },
+        "depends_on": { "type": "array", "items": { "$ref": "#/$defs/assetRef" } },
+        "contract_status": { "$ref": "#/$defs/nonEmptyString" },
+        "risk_signals": { "$ref": "#/$defs/stringArray" },
+        "runtime_mock": { "type": "object" },
+        "composition": { "$ref": "#/$defs/stringArray" },
+        "notes": { "$ref": "#/$defs/nonEmptyString" },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "asset_type": { "const": "workflow" } }, "required": ["asset_type"] },
+          "then": {
+            "properties": {
+              "binding": { "type": "null" },
+              "connection": { "type": "null" },
+              "workflow_profile": { "$ref": "#/$defs/workflowProfileObject" },
+              "exposure": { "type": "null" }
+            }
+          },
+          "else": { "properties": { "workflow_profile": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "asset_type": { "const": "agent" } }, "required": ["asset_type"] },
+          "then": {
+            "properties": {
+              "binding": {
+                "oneOf": [
+                  { "type": "null" },
+                  { "$ref": "#/$defs/a2aBinding" }
+                ]
+              },
+              "connection": {
+                "oneOf": [
+                  { "type": "null" },
+                  { "$ref": "#/$defs/httpConnection" }
+                ]
+              }
+            }
+          },
+          "else": { "properties": { "exposure": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "asset_type": { "const": "tool" } }, "required": ["asset_type"] },
+          "then": {
+            "properties": {
+              "binding": { "$ref": "#/$defs/toolBinding" },
+              "connection": { "$ref": "#/$defs/connectionObject" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "draft" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "lifecycle": { "$ref": "#/$defs/draftLifecycle" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "reviewed" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "lifecycle": { "$ref": "#/$defs/reviewedLifecycle" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "published" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "lifecycle": { "$ref": "#/$defs/publishedLifecycle" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "deprecated" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "lifecycle": { "$ref": "#/$defs/deprecatedLifecycle" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

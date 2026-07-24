@@ -3,7 +3,7 @@
 ## Start here
 
 1. [README](../README.md) — product purpose and local startup.
-2. [Operating Model](workbench/operating-model.md) — external Codex ownership, four Work Skills, reviews, artifacts, and verification.
+2. [Operating Model](workbench/operating-model.md) — external Codex ownership, re-entrant Work Skills, decisions, Asset Registry, reviews, artifacts, and verification.
 3. [Taxonomy](workbench/taxonomy.md) — Agent·Workflow·Tool classification.
 4. [Graph IR](workbench/graph-ir.md) — nodes, edges, regions, bindings, and invocation control.
 5. [Handbook](handbook/README.md) — current route/API/artifact behavior mapped to source.
@@ -22,5 +22,6 @@
 - [External Review Gates](workbench/review-board.md)
 - [ADK Agent Execution Modes](workbench/adk-agent-execution-modes.md)
 - [Decision Log](decision-log.md)
+- [Plan Discovery and Asset Registry migration evidence](migration/plan-discovery-asset-registry-status.md)
 
 `docs/archive/**`, `docs/handoff/**`, dated reviews, and migration snapshots are historical evidence. Current source remains final authority for implementation behavior.

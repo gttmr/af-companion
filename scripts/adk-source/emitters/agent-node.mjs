@@ -5,29 +5,61 @@ import { graphIndexes } from "../graph/indexes.mjs";
 import { routeCasesFor } from "../graph/routes.mjs";
 import { nodeSymbol, pyNodeName } from "../naming.mjs";
 import { toPyStr, truncate } from "../python-literals.mjs";
+import {
+  emitRegistryReferenceDecl,
+  isPythonRegistryReference,
+  registryBindingFor
+} from "../registry-reference.mjs";
 
 export function emitAgentNode(target, context) {
   const asset = target.asset ?? target;
+  if (isPythonRegistryReference(context, asset.asset_id)) {
+    return emitRegistryReferenceDecl(target, context);
+  }
   const sym = nodeSymbol(target);
   const instruction = agentInstruction(target, context);
-  const toolsBlock = emitAgentTools(agentOwnedTools(context.graphContext, asset));
+  const toolsBlock = emitAgentTools(agentOwnedTools(context.graphContext, asset), context);
+  const mode = agentMode(target, context);
+  const modeBlock = mode ? `\n    mode=${toPyStr(mode)},` : "";
+  const subAgentsBlock = isRootAgentTarget(target, context)
+    ? emitSubAgents(context.rootExecutablePlan.delegatedAgentSymbols)
+    : "";
   return `${sym} = LlmAgent(
     name=${toPyStr(pyNodeName(target))},
     model=_model_for(${toPyStr(asset.asset_id)}, ${toPyStr(DEFAULT_MODEL)}),
     instruction=_agent_cfg_for_node(${toPyStr(target.node?.id ?? asset.asset_id)}, ${toPyStr(asset.asset_id)}, "instruction", ${toPyStr(instruction)}),
     description=${toPyStr(truncate(asset.name))},
-    output_key=${toPyStr(agentOutputStateKey(context.graphContext, asset))},
-    mode="single_turn",${toolsBlock}
+    output_key=${toPyStr(agentOutputStateKey(context.graphContext, asset))},${modeBlock}${subAgentsBlock}${toolsBlock}
 )`;
 }
 
-function emitAgentTools(tools) {
+function agentMode(target, context) {
+  if (context.rootExecutablePlan?.assetType !== "agent") return "single_turn";
+  if (isRootAgentTarget(target, context)) return null;
+  return "task";
+}
+
+function isRootAgentTarget(target, context) {
+  return context.rootExecutablePlan?.assetType === "agent"
+    && target.node?.id === context.rootExecutablePlan.rootNodeId;
+}
+
+function emitSubAgents(symbols) {
+  if (!symbols.length) return "";
+  const rows = symbols.map((symbol) => `        ${symbol},`).join("\n");
+  return `\n    sub_agents=[\n${rows}\n    ],`;
+}
+
+function emitAgentTools(tools, context) {
   if (!tools.length) return "";
   const rows = tools
-    .map(
-      (tool) =>
-        `        McpToolset(connection_params=StreamableHTTPConnectionParams(url=_mcp_url(${toPyStr(tool.asset_id)}, ${toPyStr(tool.binding.server_ref)})), tool_filter=[${toPyStr(tool.binding.tool_name)}]),`
-    )
+    .map((tool) => {
+      if (isPythonRegistryReference(context, tool.asset_id)) {
+        const binding = registryBindingFor(context, tool.asset_id);
+        return `        _load_registry_asset(${toPyStr(binding.source_ref)}, "tool"),`;
+      }
+      return `        McpToolset(connection_params=StreamableHTTPConnectionParams(url=_mcp_url(${toPyStr(tool.asset_id)}, ${toPyStr(tool.binding.server_ref)})), tool_filter=[${toPyStr(tool.binding.tool_name)}]),`;
+    })
     .join("\n");
   return `\n    tools=[\n${rows}\n    ],`;
 }

@@ -214,15 +214,16 @@ strict v2 read boundary는 legacy 전용 field, 제거된 category, 버전 없�
 
 ## Current source locators
 
-2026-07-19 현재 working tree에서 아래 path와 symbol을 재확인했다. locator는 탐색점이며 소스가 최종 권위다.
+2026-07-24 현재 working tree에서 아래 path와 symbol을 재확인했다. locator는 탐색점이며 소스가 최종 권위다.
 
 | 계약 표면 | Path | Stable symbol |
 | --- | --- | --- |
 | 자산·Binding·Workflow Profile enum과 TypeScript shape | `packages/web/src/analyzer/types.ts` | `TARGET_CONTRACT_VERSION`, `assetTypes`, `AssetCandidate`, `WorkflowProfile` |
 | strict analysis read 검증 | `packages/web/src/analyzer/targetContract.ts` | `validateTargetAnalysisResult`, `assertTargetAnalysisResult` |
 | 자산 JSON Schema | `schemas/asset-candidate.schema.json` | root schema와 `allOf` 자산별 제약 |
-| Catalog strict read | `packages/web/src/catalog/catalogIndex.ts` | `parseCatalogIndexPayload`, `parseCatalogDocument` |
-| Catalog bucket 선택 | `packages/web/server/catalogPublishTarget.ts` | `targetCatalogFile` |
+| Asset Registry strict contract/service | `packages/agent-factory-core/src/assetRegistry.ts` | `validateRegistryDocument`, `AssetRegistryService` |
+| Registry Web API | `packages/web/server/assetRegistryApi.ts` | `createAssetRegistryMiddleware` |
+| Registry CLI | `scripts/af.mjs` | `dispatchAsset` |
 | validator enum | `scripts/artifact-validation/constants.mjs` | `targetContractVersion`, `assetTypes`, `invocationControls` |
 
-Catalog read와 publish는 `catalog/agents.yaml`, `catalog/workflows.yaml`, `catalog/tools.yaml`만 사용한다.
+Registry read와 lifecycle mutation은 `catalog/asset-registry.json`과 shared Registry core만 사용한다. 제거된 YAML bucket이나 `/api/catalog` 호환 parser는 없다.

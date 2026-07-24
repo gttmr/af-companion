@@ -11,6 +11,10 @@ export function buildManifest({
   scaffoldPlan,
   assets,
   graph,
+  rootExecutablePlan,
+  solutionControlStrategy,
+  assetBindings,
+  registryRevision,
   startNodeIds,
   terminalOutputIds,
   graphNodeSemantics,
@@ -21,6 +25,16 @@ export function buildManifest({
     contract_version: "2.0",
     package: packageName,
     output_mode: outputMode,
+    solution_control_strategy: solutionControlStrategy,
+    root_executable: {
+      asset_type: rootExecutablePlan.assetType,
+      asset_ref: rootExecutablePlan.assetRef,
+      asset_version: rootExecutablePlan.assetVersion,
+      decision_id: rootExecutablePlan.decisionId,
+      generated_symbol: "root_agent"
+    },
+    asset_registry_revision: registryRevision,
+    asset_bindings: assetBindings,
     requirement: {
       id: normalizedRequirement.id,
       title: normalizedRequirement.title,

@@ -3,15 +3,39 @@ import { collectGenerationNodes } from "./graph/collector.mjs";
 import { nodeFunctionName, todoFunctionName } from "./naming.mjs";
 import { escapePythonString, toPythonEdgeTupleLiteral, toPythonLiteral } from "./python-literals.mjs";
 import { componentContracts } from "./agent-contracts.mjs";
+import { buildReferencedRootPy, hasPythonReferencedRoot } from "./agent-referenced-root.mjs";
 
 export function buildSmokeAgentPy(context) {
-  const { assets, graphContext, packageName } = context;
+  if (hasPythonReferencedRoot(context)) {
+    return buildReferencedRootPy(context);
+  }
+  const { assets, graphContext, packageName, rootExecutablePlan } = context;
   const collection = collectGenerationNodes(graphContext, { mode: "smoke" });
   const functions = [
     ...assets.map(buildTodoFunction),
     ...collection.assetSpecsInDeclarationOrder.map(buildNodeFunction)
   ].join("\n\n");
   const graphEdges = buildSmokeGraphWorkflowEdges(graphContext, collection);
+
+  const workflowImport = rootExecutablePlan.assetType === "workflow"
+    ? "from google.adk.workflow import START, Workflow\n"
+    : "";
+  const rootBinding = rootExecutablePlan.assetType === "workflow"
+    ? `smoke_entry_agent = SyntheticRuntimeSmokeAgent(
+    name="${packageName}_smoke_entry",
+    description="검토된 workbench 인계 artifact를 확인하는 합성 ADK 런타임 smoke bridge입니다.",
+)
+root_executable = Workflow(
+    name="${packageName}",
+    description="선택된 Workflow Root Executable을 보존하는 합성 smoke graph입니다.",
+    edges=[(START, smoke_entry_agent)],
+)
+root_agent = root_executable`
+    : `root_executable = SyntheticRuntimeSmokeAgent(
+    name="${packageName}",
+    description="선택된 Agent Root Executable을 보존하는 합성 ADK 런타임 smoke bridge입니다.",
+)
+root_agent = root_executable`;
 
   return `from __future__ import annotations
 
@@ -22,6 +46,7 @@ from google.adk.agents import BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events import Event
 from google.genai import types
+${workflowImport}
 
 
 COMPONENT_CONTRACTS = ${toPythonLiteral(componentContracts(context))}
@@ -114,10 +139,7 @@ class SyntheticRuntimeSmokeAgent(BaseAgent):
         )
 
 
-root_agent = SyntheticRuntimeSmokeAgent(
-    name="${packageName}",
-    description="검토된 workbench 인계 artifact를 확인하는 합성 ADK 런타임 smoke bridge입니다.",
-)
+${rootBinding}
 `;
 }
 

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { chmod, mkdir, open, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 
@@ -7,7 +7,9 @@ import type {
   CodexBridgeSnapshot,
   CodexActivity,
   CodexSession,
+  CodexSessionRole,
   ContextDelivery,
+  PlanHandoff,
   SelectionBundleV1,
 } from "../src/companion/types.ts";
 import { CODEX_BRIDGE_SCHEMA_VERSION } from "../src/companion/types.ts";
@@ -20,6 +22,12 @@ export const MAX_CODEX_CONTEXT_CHARS = 8_000;
 export const MAX_CODEX_PROMPT_RECEIPTS = 512;
 export const MAX_CODEX_ACTIVITIES = 512;
 export const PROMPT_RECOVERY_SOURCE = "prompt_recovery";
+export const PLAN_HANDOFF_TARGET = "af-discover-assets.materialize" as const;
+
+const PLAN_HANDOFF_MARKER_START = "[AF_PLAN_HANDOFF]";
+const PLAN_HANDOFF_MARKER_END = "[/AF_PLAN_HANDOFF]";
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const WORK_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 
 const PERMISSION_MODES = new Set(["default", "acceptEdits", "plan", "dontAsk", "bypassPermissions"]);
 const SESSION_START_SOURCES = new Set(["startup", "resume", "clear", "compact"]);
@@ -43,7 +51,10 @@ const CHANNELS = new Set(["event", "state", "artifact"]);
 const ASSET_TYPES = new Set(["agent", "workflow", "tool"]);
 const SESSION_STATUSES = new Set(["active", "stale"]);
 const SESSION_LAST_EVENTS = new Set(["session_start", "prompt_submit", "tool_start", "tool_end", "turn_stop"]);
+const ACTIVITY_EVENTS = new Set([...SESSION_LAST_EVENTS, "session_handoff"]);
+const SESSION_ROLES = new Set(["unassigned", "plan", "materialization"]);
 const DELIVERY_STATUSES = new Set(["queued", "consumed", "expired", "canceled", "failed"]);
+const PLAN_HANDOFF_STATUSES = new Set(["pending", "claimed", "expired", "superseded"]);
 
 interface PromptReceipt {
   session_id: string;
@@ -55,6 +66,7 @@ interface PersistedBridgeState {
   schema_version: typeof CODEX_BRIDGE_SCHEMA_VERSION;
   sessions: CodexSession[];
   deliveries: ContextDelivery[];
+  handoffs: PlanHandoff[];
   prompt_receipts: PromptReceipt[];
   activities: CodexActivity[];
 }
@@ -125,6 +137,27 @@ export interface SessionPreferencesInput {
   default_target?: boolean;
 }
 
+export interface CreatePlanHandoffInput {
+  work_id: string;
+  from_session_id: string;
+  from_turn_id: string;
+  discovery_revision: string;
+  decision_revision: string;
+  plan_hash: string;
+  expires_at: string;
+}
+
+export interface CreatePlanHandoffResult {
+  handoff: PlanHandoff;
+  marker: string;
+}
+
+export interface AttachSessionInput {
+  session_id: string;
+  work_id: string;
+  role: CodexSessionRole;
+}
+
 export interface ConsumedHookContext {
   hookSpecificOutput: {
     hookEventName: "UserPromptSubmit";
@@ -188,6 +221,27 @@ function requireEnum(value: unknown, field: string, allowed: ReadonlySet<string>
     throw new CodexBridgeValidationError(`${field} has an unsupported value`);
   }
   return normalized;
+}
+
+function requireSha256(value: unknown, field: string): string {
+  const normalized = requireString(value, field, { max: 64 });
+  if (!SHA256_PATTERN.test(normalized)) {
+    throw new CodexBridgeValidationError(`${field} must be a lowercase sha256 digest`);
+  }
+  return normalized;
+}
+
+function requireWorkId(value: unknown, field = "work_id"): string {
+  const normalized = requireString(value, field, { max: 256 });
+  if (!WORK_ID_PATTERN.test(normalized)) {
+    throw new CodexBridgeValidationError(`${field} has an unsupported format`);
+  }
+  return normalized;
+}
+
+function rejectUnknownKeys(value: Record<string, unknown>, field: string, allowed: ReadonlySet<string>): void {
+  const unknown = Object.keys(value).find((key) => !allowed.has(key));
+  if (unknown) throw new CodexBridgeValidationError(`${field}.${unknown} is not supported`);
 }
 
 function requireIsoDate(value: unknown, field: string): string {
@@ -280,6 +334,12 @@ function normalizePersistedState(value: unknown): PersistedBridgeState {
       status: requireEnum(session.status, `bridge state.sessions[${index}].status`, SESSION_STATUSES) as CodexSession["status"],
       alias,
       default_target: session.default_target === true,
+      work_id: session.work_id === undefined || session.work_id === null
+        ? null
+        : requireWorkId(session.work_id, `bridge state.sessions[${index}].work_id`),
+      role: (session.role === undefined
+        ? "unassigned"
+        : requireEnum(session.role, `bridge state.sessions[${index}].role`, SESSION_ROLES)) as CodexSessionRole,
     };
   });
 
@@ -315,6 +375,55 @@ function normalizePersistedState(value: unknown): PersistedBridgeState {
     };
   });
 
+  const rawHandoffs = state.handoffs === undefined ? [] : state.handoffs;
+  if (!Array.isArray(rawHandoffs)) throw new Error("Invalid Codex Bridge handoff history");
+  const handoffs = rawHandoffs.map((raw, index): PlanHandoff => {
+    const handoff = requireObject(raw, `bridge state.handoffs[${index}]`);
+    const status = requireEnum(
+      handoff.status,
+      `bridge state.handoffs[${index}].status`,
+      PLAN_HANDOFF_STATUSES,
+    ) as PlanHandoff["status"];
+    const createdAt = requireIsoDate(handoff.created_at, `bridge state.handoffs[${index}].created_at`);
+    const expiresAt = requireIsoDate(handoff.expires_at, `bridge state.handoffs[${index}].expires_at`);
+    if (Date.parse(expiresAt) <= Date.parse(createdAt)) {
+      throw new Error(`Invalid Codex Bridge handoff expiry at index ${index}`);
+    }
+    const claimedBySessionId = handoff.claimed_by_session_id === null
+      ? null
+      : requireString(handoff.claimed_by_session_id, `bridge state.handoffs[${index}].claimed_by_session_id`, { max: 256 });
+    const claimedByTurnId = handoff.claimed_by_turn_id === null
+      ? null
+      : requireString(handoff.claimed_by_turn_id, `bridge state.handoffs[${index}].claimed_by_turn_id`, { max: 256 });
+    const claimedAt = requireNullableIsoDate(handoff.claimed_at, `bridge state.handoffs[${index}].claimed_at`);
+    if (status === "claimed" && (!claimedBySessionId || !claimedByTurnId || !claimedAt)) {
+      throw new Error(`Claimed Codex Bridge handoff is incomplete at index ${index}`);
+    }
+    if (status !== "claimed" && (claimedBySessionId || claimedByTurnId || claimedAt)) {
+      throw new Error(`Unclaimed Codex Bridge handoff has claim metadata at index ${index}`);
+    }
+    if (handoff.target_skill !== PLAN_HANDOFF_TARGET) {
+      throw new Error(`Unsupported Codex Bridge handoff target at index ${index}`);
+    }
+    return {
+      handoff_id: requireString(handoff.handoff_id, `bridge state.handoffs[${index}].handoff_id`, { max: 256 }),
+      work_id: requireWorkId(handoff.work_id, `bridge state.handoffs[${index}].work_id`),
+      from_session_id: requireString(handoff.from_session_id, `bridge state.handoffs[${index}].from_session_id`, { max: 256 }),
+      from_turn_id: requireString(handoff.from_turn_id, `bridge state.handoffs[${index}].from_turn_id`, { max: 256 }),
+      discovery_revision: requireSha256(handoff.discovery_revision, `bridge state.handoffs[${index}].discovery_revision`),
+      decision_revision: requireSha256(handoff.decision_revision, `bridge state.handoffs[${index}].decision_revision`),
+      plan_hash: requireSha256(handoff.plan_hash, `bridge state.handoffs[${index}].plan_hash`),
+      marker_digest: requireSha256(handoff.marker_digest, `bridge state.handoffs[${index}].marker_digest`),
+      target_skill: PLAN_HANDOFF_TARGET,
+      status,
+      created_at: createdAt,
+      expires_at: expiresAt,
+      claimed_by_session_id: claimedBySessionId,
+      claimed_by_turn_id: claimedByTurnId,
+      claimed_at: claimedAt,
+    };
+  });
+
   const rawReceipts = state.prompt_receipts === undefined ? [] : state.prompt_receipts;
   if (!Array.isArray(rawReceipts)) throw new Error("Invalid Codex Bridge prompt receipt history");
   const deduplicatedReceipts = new Map<string, PromptReceipt>();
@@ -341,11 +450,17 @@ function normalizePersistedState(value: unknown): PersistedBridgeState {
       event: requireEnum(
         activity.event,
         `bridge state.activities[${index}].event`,
-        SESSION_LAST_EVENTS,
+        ACTIVITY_EVENTS,
       ) as CodexActivity["event"],
       tool_name: activity.tool_name === null
         ? null
         : requireString(activity.tool_name, `bridge state.activities[${index}].tool_name`, { max: 256 }),
+      work_id: activity.work_id === undefined || activity.work_id === null
+        ? null
+        : requireWorkId(activity.work_id, `bridge state.activities[${index}].work_id`),
+      handoff_id: activity.handoff_id === undefined || activity.handoff_id === null
+        ? null
+        : requireString(activity.handoff_id, `bridge state.activities[${index}].handoff_id`, { max: 256 }),
       at: requireIsoDate(activity.at, `bridge state.activities[${index}].at`),
     };
   });
@@ -354,6 +469,7 @@ function normalizePersistedState(value: unknown): PersistedBridgeState {
     schema_version: CODEX_BRIDGE_SCHEMA_VERSION,
     sessions,
     deliveries,
+    handoffs,
     prompt_receipts: [...deduplicatedReceipts.values()]
       .sort((left, right) => Date.parse(left.received_at) - Date.parse(right.received_at))
       .slice(-MAX_CODEX_PROMPT_RECEIPTS),
@@ -541,6 +657,118 @@ export function validateSessionPreferencesInput(value: unknown): SessionPreferen
   return normalized;
 }
 
+export function validateCreatePlanHandoffInput(value: unknown): CreatePlanHandoffInput {
+  const input = requireObject(value, "plan handoff request");
+  rejectUnknownKeys(input, "plan handoff request", new Set([
+    "work_id",
+    "from_session_id",
+    "from_turn_id",
+    "discovery_revision",
+    "decision_revision",
+    "plan_hash",
+    "expires_at",
+  ]));
+  return {
+    work_id: requireWorkId(input.work_id),
+    from_session_id: requireString(input.from_session_id, "from_session_id", { max: 256 }),
+    from_turn_id: requireString(input.from_turn_id, "from_turn_id", { max: 256 }),
+    discovery_revision: requireSha256(input.discovery_revision, "discovery_revision"),
+    decision_revision: requireSha256(input.decision_revision, "decision_revision"),
+    plan_hash: requireSha256(input.plan_hash, "plan_hash"),
+    expires_at: requireIsoDate(input.expires_at, "expires_at"),
+  };
+}
+
+export function validateAttachSessionInput(value: unknown): AttachSessionInput {
+  const input = requireObject(value, "session attachment request");
+  rejectUnknownKeys(input, "session attachment request", new Set(["session_id", "work_id", "role"]));
+  return {
+    session_id: requireString(input.session_id, "session_id", { max: 256 }),
+    work_id: requireWorkId(input.work_id),
+    role: requireEnum(input.role, "role", SESSION_ROLES) as CodexSessionRole,
+  };
+}
+
+interface ParsedPlanHandoffMarker {
+  work_id: string;
+  handoff_id: string;
+  discovery_revision: string;
+  decision_revision: string;
+  plan_hash: string;
+  target_skill: typeof PLAN_HANDOFF_TARGET;
+  claim_token: string;
+}
+
+function renderPlanHandoffMarker(input: ParsedPlanHandoffMarker): string {
+  return [
+    PLAN_HANDOFF_MARKER_START,
+    `AF_WORK_ITEM=${input.work_id}`,
+    `AF_HANDOFF=${input.handoff_id}`,
+    `AF_DISCOVERY_REVISION=${input.discovery_revision}`,
+    `AF_DECISION_REVISION=${input.decision_revision}`,
+    `AF_PLAN_HASH=${input.plan_hash}`,
+    `AF_TARGET=${input.target_skill}`,
+    `AF_CLAIM_TOKEN=${input.claim_token}`,
+    PLAN_HANDOFF_MARKER_END,
+  ].join("\n");
+}
+
+function sha256(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function markerOccurrenceCount(prompt: string, marker: string): number {
+  return prompt.split(marker).length - 1;
+}
+
+function parsePlanHandoffMarker(prompt: string): ParsedPlanHandoffMarker | null {
+  if (markerOccurrenceCount(prompt, PLAN_HANDOFF_MARKER_START) !== 1
+    || markerOccurrenceCount(prompt, PLAN_HANDOFF_MARKER_END) !== 1) return null;
+  const start = prompt.indexOf(PLAN_HANDOFF_MARKER_START);
+  const end = prompt.indexOf(PLAN_HANDOFF_MARKER_END, start) + PLAN_HANDOFF_MARKER_END.length;
+  if (start < 0 || end < PLAN_HANDOFF_MARKER_END.length) return null;
+  const endsAtLineBoundary = end === prompt.length
+    || prompt[end] === "\n"
+    || (prompt[end] === "\r" && prompt[end + 1] === "\n");
+  if ((start > 0 && prompt[start - 1] !== "\n") || !endsAtLineBoundary) {
+    return null;
+  }
+  const lines = prompt.slice(start, end).split("\r\n").join("\n").split("\n");
+  if (lines.length !== 9 || lines[0] !== PLAN_HANDOFF_MARKER_START || lines[8] !== PLAN_HANDOFF_MARKER_END) {
+    return null;
+  }
+  const values = lines.slice(1, 8).map((line, index) => {
+    const expectedKeys = [
+      "AF_WORK_ITEM",
+      "AF_HANDOFF",
+      "AF_DISCOVERY_REVISION",
+      "AF_DECISION_REVISION",
+      "AF_PLAN_HASH",
+      "AF_TARGET",
+      "AF_CLAIM_TOKEN",
+    ];
+    const prefix = `${expectedKeys[index]}=`;
+    return line.startsWith(prefix) ? line.slice(prefix.length) : null;
+  });
+  if (values.some((value) => value === null)) return null;
+  try {
+    const target = values[5];
+    const claimToken = values[6];
+    if (target !== PLAN_HANDOFF_TARGET || claimToken === null || !/^[A-Za-z0-9_-]{32,128}$/.test(claimToken)) return null;
+    return {
+      work_id: requireWorkId(values[0], "AF_WORK_ITEM"),
+      handoff_id: requireString(values[1], "AF_HANDOFF", { max: 256 }),
+      discovery_revision: requireSha256(values[2], "AF_DISCOVERY_REVISION"),
+      decision_revision: requireSha256(values[3], "AF_DECISION_REVISION"),
+      plan_hash: requireSha256(values[4], "AF_PLAN_HASH"),
+      target_skill: PLAN_HANDOFF_TARGET,
+      claim_token: claimToken,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function boundedSection(label: string, rows: unknown[], maxChars: number): string {
   const lines = [`${label}:`];
   let used = lines[0].length + 1;
@@ -592,6 +820,29 @@ export function renderSelectionContext(bundle: SelectionBundleV1): string {
   return `${rendered.slice(0, MAX_CODEX_CONTEXT_CHARS - 24)}\n[context truncated]`;
 }
 
+function renderPlanHandoffContext(handoff: PlanHandoff): string {
+  return [
+    "Agent Factory plan handoff was explicitly claimed for this fresh session.",
+    `Work Item: ${handoff.work_id}`,
+    `Discovery revision: ${handoff.discovery_revision}`,
+    `Decision revision: ${handoff.decision_revision}`,
+    `Plan hash: ${handoff.plan_hash}`,
+    `Target skill: ${handoff.target_skill}`,
+    "Materialize only the verified plan for this Work Item and preserve its recorded decisions.",
+  ].join("\n");
+}
+
+function mergeHookContexts(handoff: PlanHandoff | null, delivery: ContextDelivery | null): string | null {
+  const sections = [
+    handoff ? renderPlanHandoffContext(handoff) : null,
+    delivery ? renderSelectionContext(delivery.bundle) : null,
+  ].filter((section): section is string => section !== null);
+  if (sections.length === 0) return null;
+  const rendered = sections.join("\n\n");
+  if (rendered.length <= MAX_CODEX_CONTEXT_CHARS) return rendered;
+  return `${rendered.slice(0, MAX_CODEX_CONTEXT_CHARS - 24)}\n[context truncated]`;
+}
+
 export class CodexBridgeStore {
   readonly repoRoot: string;
   readonly stateDir: string;
@@ -637,6 +888,7 @@ export class CodexBridgeStore {
         schema_version: CODEX_BRIDGE_SCHEMA_VERSION,
         sessions: [],
         deliveries: [],
+        handoffs: [],
         prompt_receipts: [],
         activities: [],
       };
@@ -658,6 +910,8 @@ export class CodexBridgeStore {
       mcp_context_pull: false,
       direct_turn_start: false,
       inflight_steer: false,
+      fresh_session_handoff: true,
+      automatic_fresh_context: false,
     };
   }
 
@@ -707,6 +961,8 @@ export class CodexBridgeStore {
             status: "active",
             alias: null,
             default_target: false,
+            work_id: null,
+            role: "unassigned",
           });
         }
         this.#recordActivity({
@@ -740,6 +996,8 @@ export class CodexBridgeStore {
             status: "active",
             alias: null,
             default_target: false,
+            work_id: null,
+            role: "unassigned",
           };
           this.#state.sessions.push(session);
         }
@@ -761,8 +1019,19 @@ export class CodexBridgeStore {
       return null;
     }
 
-    const consumed = await this.#mutate((now): ContextDelivery | null => {
+    if (input.hook_event_name !== "UserPromptSubmit") return null;
+
+    const consumed = await this.#mutate((now): { delivery: ContextDelivery | null; handoff: PlanHandoff | null } | null => {
+      const receiptKey = promptReceiptKey(input.session_id, input.turn_id);
+      if (this.#state.prompt_receipts.some((receipt) => promptReceiptKey(receipt.session_id, receipt.turn_id) === receiptKey)) {
+        return null;
+      }
+
       let session = this.#state.sessions.find((candidate) => candidate.session_id === input.session_id);
+      const isFreshRegisteredSession = session !== undefined
+        && session.source !== PROMPT_RECOVERY_SOURCE
+        && session.last_event === "session_start"
+        && session.last_turn_id === null;
       if (!session) {
         session = {
           session_id: input.session_id,
@@ -777,6 +1046,8 @@ export class CodexBridgeStore {
           status: "active",
           alias: null,
           default_target: false,
+          work_id: null,
+          role: "unassigned",
         };
         this.#state.sessions.push(session);
       }
@@ -795,10 +1066,6 @@ export class CodexBridgeStore {
         at: now,
       });
 
-      const receiptKey = promptReceiptKey(input.session_id, input.turn_id);
-      if (this.#state.prompt_receipts.some((receipt) => promptReceiptKey(receipt.session_id, receipt.turn_id) === receiptKey)) {
-        return null;
-      }
       this.#state.prompt_receipts.push({
         session_id: input.session_id,
         turn_id: input.turn_id,
@@ -807,6 +1074,49 @@ export class CodexBridgeStore {
       if (this.#state.prompt_receipts.length > MAX_CODEX_PROMPT_RECEIPTS) {
         this.#state.prompt_receipts.splice(0, this.#state.prompt_receipts.length - MAX_CODEX_PROMPT_RECEIPTS);
       }
+
+      let claimedHandoff: PlanHandoff | null = null;
+      const marker = isFreshRegisteredSession && input.agent_id === undefined && input.agent_type === undefined
+        ? parsePlanHandoffMarker(input.prompt)
+        : null;
+      if (marker && (session.work_id === null || session.work_id === marker.work_id)) {
+        const handoff = this.#state.handoffs.find((candidate) => candidate.handoff_id === marker.handoff_id);
+        const digestMatches = handoff !== undefined
+          && sha256(renderPlanHandoffMarker(marker)) === handoff.marker_digest;
+        if (handoff
+          && digestMatches
+          && handoff.status === "pending"
+          && Date.parse(handoff.expires_at) > Date.parse(now)
+          && handoff.from_session_id !== input.session_id
+          && handoff.work_id === marker.work_id
+          && handoff.discovery_revision === marker.discovery_revision
+          && handoff.decision_revision === marker.decision_revision
+          && handoff.plan_hash === marker.plan_hash
+          && handoff.target_skill === marker.target_skill) {
+          const sourceSession = this.#state.sessions.find((candidate) => candidate.session_id === handoff.from_session_id);
+          if (sourceSession) {
+            handoff.status = "claimed";
+            handoff.claimed_by_session_id = input.session_id;
+            handoff.claimed_by_turn_id = input.turn_id;
+            handoff.claimed_at = now;
+            sourceSession.work_id = handoff.work_id;
+            sourceSession.role = "plan";
+            session.work_id = handoff.work_id;
+            session.role = "materialization";
+            this.#recordActivity({
+              event: "session_handoff",
+              sessionId: input.session_id,
+              turnId: input.turn_id,
+              toolName: null,
+              workId: handoff.work_id,
+              handoffId: handoff.handoff_id,
+              at: now,
+            });
+            claimedHandoff = clone(handoff);
+          }
+        }
+      }
+
       const delivery = this.#state.deliveries
         .filter((candidate) => candidate.target_session_id === input.session_id && candidate.status === "queued")
         .sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at))[0];
@@ -815,15 +1125,19 @@ export class CodexBridgeStore {
         delivery.delivered_at = now;
         delivery.consumed_at = now;
         delivery.consumed_turn_id = input.turn_id;
-        return clone(delivery);
       }
-      return null;
+      return {
+        delivery: delivery ? clone(delivery) : null,
+        handoff: claimedHandoff,
+      };
     });
     if (!consumed) return null;
+    const additionalContext = mergeHookContexts(consumed.handoff, consumed.delivery);
+    if (additionalContext === null) return null;
     return {
       hookSpecificOutput: {
         hookEventName: "UserPromptSubmit",
-        additionalContext: renderSelectionContext(consumed.bundle),
+        additionalContext,
       },
     };
   }
@@ -844,6 +1158,96 @@ export class CodexBridgeStore {
         for (const candidate of this.#state.sessions) candidate.default_target = candidate.session_id === sessionId;
       } else if (input.default_target === false) session.default_target = false;
       if (Object.prototype.hasOwnProperty.call(input, "alias")) session.alias = input.alias ?? null;
+      return clone(session);
+    });
+  }
+
+  async createPlanHandoff(input: CreatePlanHandoffInput): Promise<CreatePlanHandoffResult> {
+    return this.#mutate((now): CreatePlanHandoffResult => {
+      if (Date.parse(input.expires_at) <= Date.parse(now)) {
+        throw new CodexBridgeValidationError("expires_at must be in the future", 409, "handoff_expired");
+      }
+      const sourceSession = this.#state.sessions.find((candidate) => candidate.session_id === input.from_session_id);
+      if (!sourceSession || sourceSession.status !== "active") {
+        throw new CodexBridgeValidationError(
+          "from_session_id must identify a known active session",
+          409,
+          "inactive_session",
+        );
+      }
+      if (sourceSession.permission_mode !== "plan") {
+        throw new CodexBridgeValidationError(
+          "from_session_id must identify a Plan-mode session",
+          409,
+          "plan_session_required",
+        );
+      }
+      if (sourceSession.last_turn_id !== input.from_turn_id) {
+        throw new CodexBridgeValidationError(
+          "from_turn_id must match the source session's exact known turn",
+          409,
+          "source_turn_mismatch",
+        );
+      }
+
+      for (const handoff of this.#state.handoffs) {
+        if (handoff.status === "pending"
+          && handoff.work_id === input.work_id
+          && handoff.from_session_id === input.from_session_id) {
+          handoff.status = "superseded";
+        }
+      }
+
+      const markerInput: ParsedPlanHandoffMarker = {
+        work_id: input.work_id,
+        handoff_id: randomUUID(),
+        discovery_revision: input.discovery_revision,
+        decision_revision: input.decision_revision,
+        plan_hash: input.plan_hash,
+        target_skill: PLAN_HANDOFF_TARGET,
+        claim_token: randomBytes(32).toString("base64url"),
+      };
+      const marker = renderPlanHandoffMarker(markerInput);
+      const handoff: PlanHandoff = {
+        handoff_id: markerInput.handoff_id,
+        work_id: input.work_id,
+        from_session_id: input.from_session_id,
+        from_turn_id: input.from_turn_id,
+        discovery_revision: input.discovery_revision,
+        decision_revision: input.decision_revision,
+        plan_hash: input.plan_hash,
+        marker_digest: sha256(marker),
+        target_skill: PLAN_HANDOFF_TARGET,
+        status: "pending",
+        created_at: now,
+        expires_at: input.expires_at,
+        claimed_by_session_id: null,
+        claimed_by_turn_id: null,
+        claimed_at: null,
+      };
+      this.#state.handoffs.push(handoff);
+      return { handoff: clone(handoff), marker };
+    });
+  }
+
+  async attachSession(input: AttachSessionInput): Promise<CodexSession> {
+    return this.#mutate((now): CodexSession => {
+      const session = this.#state.sessions.find((candidate) => candidate.session_id === input.session_id);
+      if (!session) throw new CodexBridgeValidationError("Codex session not found", 404, "session_not_found");
+      if (session.status !== "active") {
+        throw new CodexBridgeValidationError("Session attachment requires an active session", 409, "inactive_session");
+      }
+      session.work_id = input.work_id;
+      session.role = input.role;
+      this.#recordActivity({
+        event: "session_handoff",
+        sessionId: input.session_id,
+        turnId: session.last_turn_id,
+        toolName: null,
+        workId: input.work_id,
+        handoffId: null,
+        at: now,
+      });
       return clone(session);
     });
   }
@@ -896,6 +1300,7 @@ export class CodexBridgeStore {
       capabilities: this.capabilities(),
       sessions: clone(this.#state.sessions),
       deliveries: clone(this.#state.deliveries),
+      handoffs: clone(this.#state.handoffs),
       activities: clone(this.#state.activities),
     };
   }
@@ -942,6 +1347,11 @@ export class CodexBridgeStore {
         delivery.status = "expired";
       }
     }
+    for (const handoff of this.#state.handoffs) {
+      if (handoff.status === "pending" && Date.parse(handoff.expires_at) <= nowMs) {
+        handoff.status = "expired";
+      }
+    }
     if (this.#state.prompt_receipts.length > MAX_CODEX_PROMPT_RECEIPTS) {
       this.#state.prompt_receipts.splice(0, this.#state.prompt_receipts.length - MAX_CODEX_PROMPT_RECEIPTS);
     }
@@ -955,6 +1365,8 @@ export class CodexBridgeStore {
     sessionId: string;
     turnId: string | null;
     toolName: string | null;
+    workId?: string | null;
+    handoffId?: string | null;
     at: string;
   }): void {
     this.#state.activities.push({
@@ -963,6 +1375,8 @@ export class CodexBridgeStore {
       turn_id: input.turnId,
       event: input.event,
       tool_name: input.toolName,
+      work_id: input.workId ?? null,
+      handoff_id: input.handoffId ?? null,
       at: input.at,
     });
   }

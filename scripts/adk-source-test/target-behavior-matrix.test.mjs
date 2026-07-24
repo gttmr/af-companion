@@ -101,7 +101,8 @@ test("Target lowering separates Workflow-owned MCP calls from Agent-owned availa
         "from google.adk.agents import LlmAgent",
         "from google.adk.tools import McpToolset",
         `module = importlib.import_module(${JSON.stringify(`${packageName}.agent`)})`,
-        "filters = [tool.tool_filter for value in vars(module).values() if isinstance(value, LlmAgent) for tool in value.tools if isinstance(tool, McpToolset)]",
+        "agents = {id(value): value for value in vars(module).values() if isinstance(value, LlmAgent)}",
+        "filters = [tool.tool_filter for value in agents.values() for tool in value.tools if isinstance(tool, McpToolset)]",
         "print(json.dumps(filters))"
       ].join("\n")],
       { cwd: output, encoding: "utf8", env: { ...process.env, AF_LLM_PROVIDER: "gemini" }, stdio: ["ignore", "pipe", "pipe"] }
@@ -1006,7 +1007,14 @@ function writeTargetArtifactsFromObjects(root, analysis, plan) {
     graph: plan.graph,
     runnable: true,
     a2aContracts: analysis.a2aContracts,
-    runtimeContracts: analysis.runtimeContracts
+    runtimeContracts: analysis.runtimeContracts,
+    rootOptions: {
+      injectFixtureWorkflow: true,
+      assetDispositions: {
+        ...Object.fromEntries(plan.assets.map((asset) => [asset.asset_id, "create_project_draft"])),
+        "workflow.fixture-root": "create_project_draft"
+      }
+    }
   });
   writeFileSync(join(root, "analysis-result.json"), `${JSON.stringify(analysis, null, 2)}\n`);
   writeFileSync(join(root, "scaffold-plan.json"), `${JSON.stringify(plan, null, 2)}\n`);

@@ -1,0 +1,12 @@
+{
+  "name": "@agent-factory/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./asset-registry": "./src/assetRegistry.ts"
+  },
+  "scripts": {
+    "test": "node --test src/*.test.ts"
+  }
+}

@@ -16,11 +16,13 @@ on Target fields. Target meanings are canonical in
 - `validate-artifacts.test.mjs`: node:test coverage for validator invariants, including analyzer/schema/validator enum alignment.
 - `generate-adk-source.mjs`: builds smoke or reviewed runnable ADK handoff bundles from approved artifact roots.
 - `generate-adk-source.test.mjs`: regression coverage for generated output and guardrails.
+- `af.mjs`: strict Work Item and Asset Registry CLI using the same Registry core as the web API.
+- `af-cli.test.mjs`: CLI parity, revision conflict, mutation decision, and exact-session attach coverage.
 
 ## Local Rules
 
 - Keep scripts runnable from repo root without importing web package build output.
-- Generator input must include a valid Work Item, approved discovery/composition, an approved scaffold plan with `source: approved_workbench_artifact`, and `raw_requirement_to_code: false`.
+- Generator input must include a valid Work Item, current approved discovery/composition, resolved user decisions, an explicit Root Executable, exact Registry/project Asset bindings, an approved scaffold plan with `source: approved_workbench_artifact`, and `raw_requirement_to_code: false`.
 - Generator defaults must be framework/runtime-neutral; scenario labels, route aliases, Tool binding hints, and business terms belong in reviewed artifacts or catalog/mock specs.
 - Target validator enums and required keys must stay aligned with schemas, templates, web analyzer types, docs, and tests; the agreement test must stay green.
 - Generated output belongs under ignored artifact/runtime directories, not source.
@@ -37,6 +39,7 @@ on Target fields. Target meanings are canonical in
 ```bash
 node scripts/validate-artifacts.test.mjs
 node scripts/generate-adk-source.test.mjs
+node scripts/af-cli.test.mjs
 node scripts/validate-artifacts.mjs
 ```
 

@@ -3,7 +3,7 @@ import { pyNodeName } from "../naming.mjs";
 import { toPyStr, toPythonLiteral, yamlScalar } from "../python-literals.mjs";
 import { remoteA2aEnvVars } from "../remote-a2a.mjs";
 
-export function buildAgentsConfig({ assets, agentNodeTargets = [], defaultAgentInstruction, toolConnection }) {
+export function buildAgentsConfig({ assets, assetBindings = [], agentNodeTargets = [], defaultAgentInstruction, toolConnection }) {
   const lines = [];
   lines.push("# agents.config.yaml — runnable ADK bundle의 노드별 override 파일입니다.");
   lines.push("# 한글 우선 instruction을 여기에서 검토/수정하세요. model / instruction / mcp_url 변경은");
@@ -32,21 +32,26 @@ export function buildAgentsConfig({ assets, agentNodeTargets = [], defaultAgentI
   }
 
   const tools = assets.filter((asset) => asset.asset_type === "tool");
+  const registryBindings = new Map(assetBindings.map((binding) => [binding.asset_id, binding]));
   lines.push("tools:");
   if (!tools.length) lines.push("  []");
   for (const asset of tools) {
+    const registryBinding = registryBindings.get(asset.asset_id);
+    const referenced = typeof registryBinding?.source_ref === "string";
     const connected = toolConnection(asset) === "mcp_connected";
     lines.push(`  - asset_id: ${asset.asset_id}`);
-    lines.push(`    connection: ${connected ? "mcp_connected" : "unconnected"}`);
+    lines.push(`    connection: ${referenced ? "registry_reference" : connected ? "mcp_connected" : "unconnected"}`);
     lines.push("    binding:");
     lines.push(`      kind: ${asset.binding?.kind ?? "unresolved"}`);
     lines.push(`      server_ref: ${asset.binding?.server_ref ?? "null"}`);
     lines.push(`      tool_name: ${asset.binding?.tool_name ?? "null"}`);
-    if (connected) {
+    if (referenced) {
+      lines.push(`    source_ref: ${registryBinding.source_ref}`);
+    } else if (connected) {
       lines.push(`    runtime_mcp_label: ${RUNTIME_MCP_LABEL}`);
       lines.push(`    runtime_mcp_note: ${RUNTIME_MCP_NOTE}`);
     }
-    lines.push("    url: null  # 기본값: $AF_MOCK_LAB_MCP_URL/<server_ref>");
+    if (!referenced) lines.push("    url: null  # 기본값: $AF_MOCK_LAB_MCP_URL/<server_ref>");
     if (connected) {
       lines.push("    input_map: {}  # 선택: {tool_input_name: state_or_upstream_output_key}");
     }
@@ -96,7 +101,8 @@ __all__ = ["root_agent"]
 `;
 }
 
-export function buildSchemasPy({ assets, toolConnection }) {
+export function buildSchemasPy({ assets, assetBindings = [], toolConnection }) {
+  const registryBindings = new Map(assetBindings.map((binding) => [binding.asset_id, binding]));
   return `"""Reviewed input/output schema names for the generated skeleton."""
 
 ASSET_SCHEMAS = ${toPythonLiteral(
@@ -108,7 +114,14 @@ ASSET_SCHEMAS = ${toPythonLiteral(
           outputs: asset.outputs ?? [],
           binding: asset.binding ?? null,
           connection: asset.connection ?? null,
-          tool_config: asset.asset_type === "tool" ? toolConfigFromAsset(asset, { toolConnection }) : null,
+          tool_config: asset.asset_type === "tool"
+            ? registryBindings.get(asset.asset_id)?.source_ref
+              ? {
+                  status: "registry_reference",
+                  source_ref: registryBindings.get(asset.asset_id).source_ref
+                }
+              : toolConfigFromAsset(asset, { toolConnection })
+            : null,
         },
       ])
     )
@@ -158,8 +171,13 @@ async def call_existing_workflow(ctx, input_data, workflow_ref):
 `;
 }
 
-export function buildMockConfigYaml({ assets, toolConnection }) {
-  const tools = assets.filter((asset) => asset.asset_type === "tool");
+export function buildMockConfigYaml({ assets, assetBindings = [], toolConnection }) {
+  const registryReferenceIds = new Set(
+    assetBindings.filter((binding) => binding.source_ref).map((binding) => binding.asset_id)
+  );
+  const tools = assets.filter(
+    (asset) => asset.asset_type === "tool" && !registryReferenceIds.has(asset.asset_id)
+  );
   const lines = ["provider: mock_lab", "package_path: packages/mock-lab", "tools:"];
   if (!tools.length) lines.push("  []");
   for (const asset of tools) {

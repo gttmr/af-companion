@@ -27,6 +27,12 @@ import {
 } from "./artifactRootStore";
 import { isRecord, readJsonBody, sendJson } from "./httpApi";
 import {
+  CodexBridgeValidationError,
+  type CreatePlanHandoffResult,
+  validateAttachSessionInput,
+  validateCreatePlanHandoffInput,
+} from "./codexBridgeStore";
+import {
   VscodeWorkspaceLauncher,
   VscodeWorkspaceLauncherError,
 } from "./vscodeWorkspaceLauncher";
@@ -182,6 +188,36 @@ export function createCodexCompanionMiddleware(
         return;
       }
 
+      if (request.method === "POST" && pathname === "/handoffs") {
+        assertSameOrigin(request);
+        assertJsonContentType(request);
+        const handoff = validateCreatePlanHandoffInput(await readJsonBody(request, {
+          maxBytes: QUEUE_BODY_LIMIT_BYTES,
+          sizeLimitMessage: "Plan Handoff 요청은 32 KiB를 넘을 수 없습니다.",
+        }));
+        sendJson(response, 201, await brokerRequest<CreatePlanHandoffResult>(
+          repoRoot,
+          "/v1/handoffs",
+          { method: "POST", body: handoff },
+        ));
+        return;
+      }
+
+      if (request.method === "POST" && pathname === "/sessions/attach") {
+        assertSameOrigin(request);
+        assertJsonContentType(request);
+        const attachment = validateAttachSessionInput(await readJsonBody(request, {
+          maxBytes: QUEUE_BODY_LIMIT_BYTES,
+          sizeLimitMessage: "Session 연결 요청은 32 KiB를 넘을 수 없습니다.",
+        }));
+        sendJson(response, 200, await brokerRequest<CodexSession>(
+          repoRoot,
+          "/v1/sessions/attach",
+          { method: "POST", body: attachment },
+        ));
+        return;
+      }
+
       if (request.method === "POST" && pathname === "/launch-vscode") {
         assertSameOrigin(request);
         assertJsonContentType(request);
@@ -329,9 +365,12 @@ function unavailableSnapshot(): CodexBridgeSnapshot {
       mcp_context_pull: false,
       direct_turn_start: false,
       inflight_steer: false,
+      fresh_session_handoff: false,
+      automatic_fresh_context: false,
     },
     sessions: [],
     deliveries: [],
+    handoffs: [],
     activities: [],
   };
 }
@@ -597,6 +636,10 @@ async function git(repoRoot: string, args: string[]): Promise<string> {
 
 function handleError(error: unknown, response: ServerResponse, next: MiddlewareNext): void {
   if (error instanceof CompanionApiError) {
+    sendJson(response, error.statusCode, { error: error.message, code: error.code });
+    return;
+  }
+  if (error instanceof CodexBridgeValidationError) {
     sendJson(response, error.statusCode, { error: error.message, code: error.code });
     return;
   }

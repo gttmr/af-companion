@@ -14,7 +14,6 @@ import {
   targetRuntimeContract,
   targetWorkItem,
   refreshCompositionReviewEtag,
-  sha256File,
   writeJson
 } from "./fixtures.mjs";
 
@@ -71,7 +70,7 @@ test("generator requires a complete Work Item instead of backfilling lifecycle s
       schema_version: 1,
       work_id: "req-target-only"
     });
-    assert.throws(() => loadArtifactContext(artifactRoot), /af-work-item\.json.*(?:artifact_root|active_skill|skills)/);
+    assert.throws(() => loadArtifactContext(artifactRoot), /af-work-item\.json\.schema_version must equal 2/);
 
     rmSync(join(artifactRoot, "af-work-item.json"));
     assert.throws(() => loadArtifactContext(artifactRoot), /Missing required artifact: .*af-work-item\.json/);
@@ -88,10 +87,11 @@ test("generator rejects a Work Item that skips the review hierarchy", () => {
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
     manifest.review_gates.discovery = {
       status: "pending",
-      artifact_etag: null,
+      binding: null,
       decided_at: null,
       session_id: null,
-      turn_id: null
+      turn_id: null,
+      stale_reasons: []
     };
     writeJson(manifestPath, manifest);
     assert.throws(
@@ -200,5 +200,11 @@ function writeTargetOnlyFixture(root) {
     manifest: { catalog_bound_assets: [], new_code_required: [] },
     validation: { can_generate_source: true, blockers: [], warnings: [] }
   });
-  writeJson(join(root, "af-work-item.json"), targetWorkItem(requirement.id, {}, sha256File(join(root, "analysis-result.json"))));
+  writeJson(join(root, "af-work-item.json"), targetWorkItem(root, {
+    injectFixtureWorkflow: true,
+    assetDispositions: {
+      ...Object.fromEntries(assets.map((asset) => [asset.asset_id, "create_project_draft"])),
+      "workflow.fixture-root": "create_project_draft"
+    }
+  }));
 }

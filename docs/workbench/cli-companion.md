@@ -5,8 +5,8 @@ The companion connects the canonical repository to external Codex CLI and VS Cod
 ## Current boundary
 
 - External Codex writes canonical artifacts and source through the four Work Skills.
-- The web app observes the worktree and stores only bounded interaction/projection metadata.
-- Graph IR is the one shared browser edit surface.
+- The web app observes the worktree and stores only bounded interaction/projection metadata outside its two canonical write surfaces.
+- Graph IR and the Asset Registry are the only shared browser edit surfaces; the bridge itself never edits either one.
 - VS Code commands open the canonical workspace, a contained file, or a local diff; they do not create/select an IDE chat.
 - The bridge can attach queued context once to an exact session's next prompt. It cannot start a turn or steer an in-flight turn.
 
@@ -63,6 +63,14 @@ A Graph save requires one explicit active target session. After canonical files 
 
 The delivery is context, not a command. The external Codex session must re-open current files and decide the appropriate Compose work.
 
+## Plan-to-materialization handoff
+
+`POST /api/codex-companion/handoffs` creates a pending handoff only for a known active Plan-mode session and its exact latest turn. It returns a signed, expiring marker with Work Item, discovery/decision revisions, Plan hash, target, and claim token.
+
+The first prompt in a different fresh session claims one exact marker through `UserPromptSubmit`. A claim is consume-once, rejects mismatched, duplicate, expired, ambiguous, same-session, and subagent prompts, and records Plan/materialization session roles. The marker must be carried explicitly; Codex does not provide a verified automatic new-context metadata transfer.
+
+If marker carriage fails, `/connections` or `node scripts/af.mjs work attach-session --session <id> --work-id <id> --role materialization` can attach one explicitly named active session. Neither path guesses the first active session.
+
 ## Capabilities
 
 | Capability | Current |
@@ -70,6 +78,8 @@ The delivery is context, not a command. The external Codex session must re-open 
 | Hook-observed session registration | supported |
 | metadata-only tool/turn activity | supported |
 | exact next-prompt context | supported |
+| exact fresh-session Plan handoff | supported with explicit marker |
+| explicit named-session attach fallback | supported |
 | workspace/Git/file projection | supported |
 | VS Code workspace/file/diff open | supported |
 | browser Graph edit | supported |
@@ -91,4 +101,5 @@ The delivery is context, not a command. The external Codex session must re-open 
 | workspace observer | `packages/web/server/workspaceProjection.ts`, `workspaceApi.ts` |
 | editor handoff | `packages/web/server/vscodeWorkspaceLauncher.ts` |
 | Connections UI | `packages/web/src/routes/ConnectionsPage.tsx` |
+| Work Item/Registry CLI | `scripts/af.mjs` |
 | live rail | `packages/web/src/layout/LiveRail.tsx` |

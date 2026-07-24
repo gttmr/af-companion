@@ -11,7 +11,7 @@ Define the only artifact vocabulary that canonical Agent Factory skills may writ
 Read before writing, replacing, reviewing, scaffolding from, or verifying:
 
 - canonical `artifacts/af/<work-id>/analysis-result.json`;
-- `asset-candidates.json`, `graph-ir.json`, scaffold plans, or Catalog proposals.
+- `asset-candidates.json`, `graph-ir.json`, scaffold plans, or versioned Asset Registry contracts.
 
 ## Required v2 output
 
@@ -27,9 +27,11 @@ Read before writing, replacing, reviewing, scaffolding from, or verifying:
 
 Split artifacts use `asset-candidates.json` and `graph-ir.json`. Never write alternate candidate or Graph filenames.
 
-`af-work-item.json`은 별도 lifecycle schema를 사용하며 `contract_version`을 넣지 않는다. 네 Work Skill 상태, discovery/composition review provenance, verification outcome을 완전하게 기록한다. 누락값을 default로 보정하지 않으며 current generator input에서는 Work Item이 필수다.
+`af-work-item.json`은 `schemas/af-work-item.schema.json`의 별도 lifecycle schema version 2를 사용하며 `contract_version`을 넣지 않는다. `focus_skill`, `active_runs`, 네 Work Skill 상태, revisions, cycles, decisions, invalidations, review provenance, session handoffs, verification outcome을 완전하게 기록한다. 누락값을 default로 보정하지 않으며 current generator input에서는 Work Item이 필수다.
 
-Lifecycle은 Discover review → Compose review → Scaffold → Verify 순서를 건너뛰지 않는다. 관련 canonical bytes가 바뀌면 stale review gate와 downstream evidence를 무효화한다.
+정상 경로의 Discover review → Compose review → Scaffold → Verify gate는 건너뛰지 않지만 Lifecycle Router는 고정된 단방향 순서를 가정하지 않는다. Compose는 Asset 또는 계약 문제를 구조화해 새 Discover cycle로 돌아갈 수 있고 Scaffold/Verify 문제도 Evidence 소유 Skill로 돌아간다. 관련 canonical bytes 또는 Registry revision이 바뀌면 owning review gate를 새 review용 `pending`으로 reset하거나 이전 결정을 `stale`로 표시하고 downstream gate/evidence를 무효화하며 history를 보존한다.
+
+`decisions`와 `asset_decisions`의 required 항목은 사용자 선택 없이 resolved가 될 수 없다. 추천은 selection이 아니며 자동 default를 쓰지 않는다. `solution_control_strategy`와 Agent/Workflow `root_executable`도 현재 사용자 결정과 revision binding을 보존한다.
 
 Each `assetCandidates[]` entry uses exactly one `asset_type`: `agent`, `workflow`, or `tool`. Keep Resource and Dependency records outside the asset list.
 
@@ -64,11 +66,11 @@ Represent execution decisions under `control`, data and state movement under `ch
 ## Artifact and scaffold implications
 
 - Discover and Compose outputs must parse and pass the active strict v2 validator before review.
-- External Codex owns canonical analysis and split artifacts. The web workbench may update only Graph IR, synchronizing `analysis-result.json.graph` and `graph-ir.json` atomically within its process boundary.
-- Changed discovery or composition artifacts invalidate the affected review gate and downstream evidence.
+- External Codex owns canonical analysis and split artifacts. The web workbench has two canonical write surfaces: Graph IR and the versioned Asset Registry. Graph writes synchronize `analysis-result.json.graph` and `graph-ir.json`; Registry writes go through the shared service with the current optimistic `registry_revision`.
+- Changed discovery, decision, Asset selection, Registry snapshot, composition, Graph, root executable, or runtime contract invalidates every gate and downstream evidence bound to the old revision.
 - Compose produces a coherent `analysis-result.json`, `graph-ir.json`, `boundary-design.md`, and `scaffold-plan.json` when readiness is achieved.
 - Scaffold consumes reviewed and approved v2 artifacts only.
-- Catalog publication proposes Agent, Workflow, or Tool entries; skills never write `catalog/*.yaml` directly.
+- Registry entries and versions remain Agent, Workflow, or Tool only. Skills and web/CLI callers never bypass the Asset Registry service by directly editing Registry storage or `catalog/*.yaml`.
 - Missing required Target data is a Blocker. Do not repair it by inventing a retired field or selector.
 
 ## Verification
@@ -86,6 +88,7 @@ Also inspect the serialized keys, split filenames, asset types, node kinds, type
 Stop and report a Blocker when:
 
 - `contract_version` is absent or differs from `"2.0"`;
+- Work Item schema version 2 is incomplete or relies on legacy projection;
 - a Resource or Dependency would have to masquerade as a Tool;
 - an A2A Agent lacks its binding or exposure contract;
 - an asset-bound node lacks the matching typed reference;
@@ -98,10 +101,12 @@ Stop and report a Blocker when:
 - [Taxonomy](../../../docs/workbench/taxonomy.md)
 - [Graph IR](../../../docs/workbench/graph-ir.md)
 - [Operating Model](../../../docs/workbench/operating-model.md)
+- `schemas/af-work-item.schema.json`
+- `scripts/af.mjs`
 - strict cutover contract authorized for the canonical skill tree
 
 ## Checked date
 
-- Checked date: 2026-07-23
+- Checked date: 2026-07-24
 - Product contract: strict Target Contract v2 only
 - Installed package version: `google-adk 2.3.0`

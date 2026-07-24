@@ -64,12 +64,21 @@ function validateFile(path) {
 function validateWorkItem(manifest, label, path) {
   pushAll(validateAgainstSchema(manifest, "af-work-item.schema.json", label));
   if (!record(manifest)) return;
+  validateRevisionObjects(manifest, label);
   const skills = manifest.skills ?? {};
   const discovery = skills["af-discover-assets"];
   const compose = skills["af-compose-solution"];
   const scaffold = skills["af-scaffold-runtime"];
   const verify = skills["af-verify-runtime"];
-  const started = (state) => state?.status && state.status !== "not_started";
+  for (const [skillId, state] of Object.entries(skills)) {
+    if (!record(state)) continue;
+    if (record(state.output_revision) && Array.isArray(state.output_refs)) {
+      const subjects = new Set((state.output_revision.subjects ?? []).map((subject) => subject?.ref));
+      for (const ref of state.output_refs) {
+        if (!subjects.has(ref)) push(`${label}.skills.${skillId}.output_refs ${ref} is absent from output_revision subjects.`);
+      }
+    }
+  }
   if (manifest.review_gates?.composition?.status === "approved" && manifest.review_gates?.discovery?.status !== "approved") {
     push(`${label}.review_gates.composition approval requires approved discovery.`);
   }
@@ -78,18 +87,6 @@ function validateWorkItem(manifest, label, path) {
   }
   if (manifest.review_gates?.composition?.status === "approved" && compose?.status !== "complete") {
     push(`${label}.review_gates.composition approval requires af-compose-solution complete.`);
-  }
-  if (started(compose) && manifest.review_gates?.discovery?.status !== "approved") {
-    push(`${label}.af-compose-solution start requires approved discovery.`);
-  }
-  if ((started(scaffold) || started(verify)) && manifest.review_gates?.composition?.status !== "approved") {
-    push(`${label}.Scaffold/Verify start requires approved composition.`);
-  }
-  if (started(verify) && scaffold?.status !== "complete") {
-    push(`${label}.af-verify-runtime start requires af-scaffold-runtime complete.`);
-  }
-  if (manifest.active_skill && skills[manifest.active_skill]?.status === "not_started") {
-    push(`${label}.active_skill cannot reference a not_started skill.`);
   }
   if (scaffold?.status === "complete" && !containsRegularFile(join(dirname(path), "runtime-stub"))) {
     push(`${label}.skills.af-scaffold-runtime complete requires a non-empty runtime-stub directory.`);
@@ -100,18 +97,128 @@ function validateWorkItem(manifest, label, path) {
   if (verify?.status === "complete" && manifest.verification?.outcome !== "passed") {
     push(`${label}.af-verify-runtime complete requires verification.outcome passed.`);
   }
+  const catalogSnapshot = manifest.revisions?.catalog_snapshot;
+  if (record(catalogSnapshot)) {
+    if (typeof catalogSnapshot.registry_revision !== "string") {
+      push(`${label}.revisions.catalog_snapshot requires a Registry revision.`);
+    }
+    if (!catalogSnapshot.subjects?.some((subject) => subject?.ref === "catalog/asset-registry.json")) {
+      push(`${label}.revisions.catalog_snapshot must include catalog/asset-registry.json.`);
+    }
+    for (const [key, revision] of Object.entries(manifest.revisions ?? {})) {
+      if (record(revision) && revision.registry_revision !== catalogSnapshot.registry_revision) {
+        push(`${label}.revisions.${key}.registry_revision must match catalog_snapshot.`);
+      }
+    }
+  } else if (Object.values(manifest.revisions ?? {}).some((revision) => record(revision) && revision.registry_revision !== null)) {
+    push(`${label} current revisions using a Registry revision require catalog_snapshot.`);
+  }
+  assertUniqueWorkItemIds(manifest.active_runs, "run_id", `${label}.active_runs`);
+  assertUniqueWorkItemIds(manifest.discovery_cycles, "cycle_id", `${label}.discovery_cycles`);
+  assertUniqueWorkItemIds(manifest.composition_cycles, "cycle_id", `${label}.composition_cycles`);
+  assertUniqueWorkItemIds(manifest.decisions, "decision_id", `${label}.decisions`);
+  assertUniqueWorkItemIds(manifest.asset_decisions, "asset_decision_id", `${label}.asset_decisions`);
+  assertUniqueWorkItemIds(manifest.invalidations, "invalidation_id", `${label}.invalidations`);
+  assertUniqueWorkItemIds(manifest.session_handoffs, "handoff_id", `${label}.session_handoffs`);
+  for (const [name, cycles] of [["discovery_cycles", manifest.discovery_cycles], ["composition_cycles", manifest.composition_cycles]]) {
+    if (Array.isArray(cycles) && cycles.filter((cycle) => cycle?.status === "active").length > 1) {
+      push(`${label}.${name} may contain only one active cycle.`);
+    }
+  }
+  validateCurrentGateBinding(
+    manifest.review_gates?.discovery,
+    manifest.revisions,
+    ["requirement_revision", "decision_revision", "asset_decision_revision", "discovery_revision", "catalog_snapshot_revision"],
+    ["requirement", "decision", "asset_decision", "discovery", "catalog_snapshot"],
+    `${label}.review_gates.discovery`
+  );
+  validateCurrentGateBinding(
+    manifest.review_gates?.composition,
+    manifest.revisions,
+    ["discovery_revision", "graph_revision", "root_executable_revision", "runtime_contract_revision", "composition_revision"],
+    ["discovery", "graph", "root_executable", "runtime_contract", "composition"],
+    `${label}.review_gates.composition`
+  );
+  if (manifest.solution_control_strategy && !manifest.decisions?.some((decision) =>
+    decision?.topic === "solution_control_strategy"
+    && decision?.status === "resolved"
+    && decision?.selected_by === "user"
+    && decision?.selected_option === manifest.solution_control_strategy
+  )) {
+    push(`${label}.solution_control_strategy requires a matching resolved user decision.`);
+  }
+  if (manifest.root_executable && !manifest.decisions?.some((decision) =>
+    decision?.decision_id === manifest.root_executable.decision_id
+    && decision?.status === "resolved"
+    && decision?.selected_by === "user"
+  )) {
+    push(`${label}.root_executable.decision_id must reference a resolved user decision.`);
+  }
   const analysisPath = join(dirname(path), "analysis-result.json");
   if (!existsSync(analysisPath)) return;
-  if (manifest.review_gates?.composition?.status === "approved") {
-    const actualEtag = createHash("sha256").update(readFileSync(analysisPath)).digest("hex");
-    if (manifest.review_gates.composition.artifact_etag !== actualEtag) {
-      push(`${label}.review_gates.composition.artifact_etag must match current analysis-result.json bytes.`);
+  const actualEtag = createHash("sha256").update(readFileSync(analysisPath)).digest("hex");
+  for (const gateName of ["discovery", "composition"]) {
+    const gate = manifest.review_gates?.[gateName];
+    if (gate?.status === "approved" && gate.binding?.artifact_etag !== actualEtag) {
+      push(`${label}.review_gates.${gateName}.binding.artifact_etag must match current analysis-result.json bytes.`);
     }
   }
   const analysis = readJson(analysisPath);
   if (record(analysis) && manifest.work_id !== analysis.normalizedRequirement?.id) {
     push(`${label}.work_id must equal analysis-result.json.normalizedRequirement.id.`);
   }
+  if (record(analysis) && record(manifest.root_executable)) {
+    const root = (analysis.assetCandidates ?? []).find((asset) => asset?.asset_id === manifest.root_executable.asset_ref);
+    if (!root || root.asset_type !== manifest.root_executable.asset_type) {
+      push(`${label}.root_executable must reference an analysis-result Agent or Workflow asset.`);
+    }
+  }
+}
+
+function validateRevision(revision, label) {
+  if (revision === null || revision === undefined || !record(revision) || !Array.isArray(revision.subjects)) return;
+  if (revision.subjects.length === 0) push(`${label}.subjects must include at least one subject.`);
+  const refs = revision.subjects.map((subject) => subject?.ref);
+  if (new Set(refs).size !== refs.length) push(`${label}.subjects refs must be unique.`);
+  const sorted = [...refs].sort((left, right) => String(left).localeCompare(String(right)));
+  if (refs.some((ref, index) => ref !== sorted[index])) push(`${label}.subjects must be sorted by ref.`);
+  const digest = createHash("sha256").update(JSON.stringify({
+    subjects: revision.subjects,
+    registry_revision: revision.registry_revision
+  })).digest("hex");
+  if (revision.digest !== digest) push(`${label}.digest must match canonical subjects and registry_revision.`);
+}
+
+function validateRevisionObjects(value, label) {
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => validateRevisionObjects(entry, `${label}[${index}]`));
+    return;
+  }
+  if (!record(value)) return;
+  if ("digest" in value && "subjects" in value && "registry_revision" in value) {
+    validateRevision(value, label);
+    return;
+  }
+  for (const [key, entry] of Object.entries(value)) {
+    validateRevisionObjects(entry, `${label}.${key}`);
+  }
+}
+
+function assertUniqueWorkItemIds(records, key, label) {
+  if (!Array.isArray(records)) return;
+  const ids = records.map((record) => record?.[key]).filter((value) => typeof value === "string");
+  if (new Set(ids).size !== ids.length) push(`${label}.${key} values must be unique.`);
+}
+
+function validateCurrentGateBinding(gate, revisions, bindingKeys, revisionKeys, label) {
+  if (!record(gate) || !record(gate.binding) || gate.status === "stale") return;
+  bindingKeys.forEach((bindingKey, index) => {
+    const bound = gate.binding[bindingKey];
+    const current = revisions?.[revisionKeys[index]];
+    if (!record(bound) || !record(current) || bound.digest !== current.digest) {
+      push(`${label}.binding.${bindingKey} must match the current top-level revision.`);
+    }
+  });
 }
 
 function validateAnalysis(result, label, path) {

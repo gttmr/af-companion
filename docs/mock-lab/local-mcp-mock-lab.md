@@ -21,7 +21,7 @@ Mock Lab 성공은 Tool의 Catalog 승인, 실제 backend 연결, 운영 준비 
 
 ## Current Implementation
 
-현재 UI는 Tool을 표시하고 read-only prefill은 `catalog/tools.yaml`만 읽는다. Prefill loader는 `asset_type: tool`, `binding.kind: mcp`, `connection.transport: stdio`를 요구하며 제거된 역사 입력을 변환하거나 보정하지 않는다.
+현재 UI는 Tool을 표시하고 read-only prefill은 shared Registry core로 `catalog/asset-registry.json`만 읽는다. Prefill loader는 최신 published version, `asset_type: tool`, `binding.kind: mcp`, `connection.transport: stdio`를 요구하며 제거된 역사 입력을 변환하거나 보정하지 않는다.
 
 ### 실행 경로
 
@@ -37,13 +37,13 @@ npm run dev
 
 ### Catalog Prefill
 
-`GET /api/mock-lab/catalog-prefill`은 `catalog/tools.yaml`을 읽기 전용으로 파싱한다. `status: deprecated`가 아닌 각 `asset_id`의 최신 version을 고른 뒤 `contract_status == "mock_ready"` 또는 `runtime_mock` 존재 조건을 만족하는 Tool만 표시한다. 응답의 `source_file`도 `catalog/tools.yaml`이다.
+`GET /api/mock-lab/catalog-prefill`은 `catalog/asset-registry.json`을 읽기 전용으로 파싱한다. 각 `asset_id`의 active published version을 고른 뒤 `contract_status == "mock_ready"` 또는 non-empty `runtime_mock` 조건을 만족하는 Tool만 표시한다. 응답의 `source_file`도 `catalog/asset-registry.json`이다.
 
 좌측 패널은 저장된 Mock server 목록을 표시한다. 저장된 Mock은 선택해 편집하거나 삭제할 수 있으며, 삭제는 실행 중 saved-spec process의 stop을 시도한 뒤 `artifacts/mock-lab/<mock-id>/`의 해당 로컬 artifact를 제거한다.
 
 Catalog prefill은 Mock Spec Editor의 `+ tool` 선택 창에서 사용한다. 첫 `new` 항목은 빈 Tool mock을 만들고, Catalog Tool을 고르면 `inputSchema`, `outputSchema`, `successResponse`, `riskSignals`, `auditRequired` 초안을 채운다. 선택 창은 3×3과 pagination 흐름을 유지한다.
 
-Mock Lab을 `/?tool=<catalog-name>`으로 열면 `URLSearchParams`의 `tool` 값으로 Catalog Tool 이름을 찾고 해당 prefill을 적용한다. Prefill은 편집 시작점일 뿐 승인된 Tool 계약이 아니며, Mock Lab은 `catalog/*.yaml`을 저장하거나 수정하지 않는다. Companion의 `Assets` 화면은 Catalog 읽기 전용 projection이므로 여기에서 Mock Lab으로 이동하거나 binding을 변경하지 않는다.
+Mock Lab을 `/?tool=<registry-name>`으로 열면 `URLSearchParams`의 `tool` 값으로 Registry Tool 이름을 찾고 해당 prefill을 적용한다. Prefill은 편집 시작점일 뿐 승인된 Tool 계약이 아니며, Mock Lab은 Asset Registry를 저장하거나 수정하지 않는다. Companion의 `Assets` 화면이 Registry lifecycle을 소유하고 Mock Lab은 prefill만 소비한다.
 
 ### MockSpec 편집과 저장
 
@@ -98,10 +98,10 @@ Server control API는 저장되고 schema-valid한 `mock-spec.json`을 읽어 pa
 
 | 행동 | Path | Stable anchor |
 | --- | --- | --- |
-| `tools.yaml` 전용 prefill load·filter | [catalogPrefillLoader.ts](../../packages/mock-lab/server/catalogPrefillLoader.ts) | `loadCatalogPrefill`, `readCatalogTools`, `isPrefillCandidate` |
+| Registry Tool prefill load·filter | [catalogPrefillLoader.ts](../../packages/mock-lab/server/catalogPrefillLoader.ts) | `loadCatalogPrefill`, `isPrefillCandidate` |
 | `tool` query 적용 | [App.tsx](../../packages/mock-lab/src/App.tsx) | `refreshInitial`, `readRequestedToolName` |
 | 이름 기반 prefill 선택 | [catalogPrefillSelection.ts](../../packages/mock-lab/src/catalogPrefillSelection.ts) | `resolveCatalogPrefillSpec` |
-| Companion Catalog 읽기 전용 projection | [AssetsPage.tsx](../../packages/web/src/routes/AssetsPage.tsx) | `AssetsPage` |
+| Companion Asset Registry operations | [AssetsPage.tsx](../../packages/web/src/routes/AssetsPage.tsx) | `AssetsPage` |
 | Mock Lab API route | [mockLabApi.ts](../../packages/mock-lab/server/mockLabApi.ts) | `createMockLabMiddleware` |
 | generated MCP base URL | [runtime-config.mjs](../../scripts/adk-source/emitters/runtime-config.mjs) | `AF_MOCK_LAB_MCP_URL` |
 
@@ -123,7 +123,7 @@ runtime secret이 필요하면 ignored local env 경계를 사용하며 MockSpec
 
 - MCP를 Tool과 별도의 자산 유형으로 정의
 - Companion Catalog 거버넌스를 Mock Lab으로 이전
-- `catalog/*.yaml` 직접 수정 또는 `catalog-delta.yaml` 생성
+- Asset Registry 직접 파일 수정 또는 `catalog-delta.yaml` 생성
 - 실제 은행 endpoint나 External Dependency 연결
 - credential·auth의 운영 구현
 - A2A mock server 생성

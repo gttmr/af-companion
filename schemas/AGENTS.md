@@ -17,7 +17,7 @@ and [Graph IR](../docs/workbench/graph-ir.md).
 - `normalized-requirement.schema.json`: normalized request shape.
 - `asset-candidate.schema.json`: Agent, Workflow, and Tool candidate contract.
 - `graph.schema.json`: Graph IR nodes, edges, and regions.
-- `af-work-item.schema.json`: four Work Skill states, explicit review provenance, and verification outcome.
+- `af-work-item.schema.json`: revisioned Work Skill states, cycles, decisions, exact gate bindings, invalidations, session handoffs, and verification outcome.
 - `classification.schema.json`: supporting Asset classification output.
 - `scaffold-plan.schema.json`: approved Runtime Handoff input.
 - `a2a-contract.schema.json`: A2A protocol contract for an Agent boundary.
@@ -38,7 +38,7 @@ return as supported artifact surfaces.
 - Keep schemas aligned with `packages/web/src/analyzer/types.ts`, `targetContract.ts`, templates, and validator tests.
 - Tighten contracts only with matching source, fixture, and regression updates.
 - Preserve `raw_requirement_to_code=false` and approved-artifact posture in scaffold-plan contracts.
-- Preserve Discover review → Compose review → Scaffold → Verify ordering in the Work Item schema and validators.
+- Preserve revision-bound gates and evidence ownership without imposing a one-way lifecycle: Compose may return to Discover, while Scaffold and Verify still require the current approved composition.
 
 ## Anti-Patterns
 

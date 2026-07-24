@@ -12,7 +12,7 @@ and [Graph IR](../../docs/workbench/graph-ir.md).
 ## Structure
 
 - `src`: standalone React app for editing, saving, running, and smoke testing `MockSpec`.
-- `server/catalogPrefillLoader.ts`: strict `catalog/tools.yaml` prefill reader.
+- `server/catalogPrefillLoader.ts`: read-only Asset Registry snapshot prefill adapter.
 - `server`: saved-spec runtime, draft generation, API handlers, MCP bridge, and persistence helpers.
 - `schemas`: `MockSpec` schema.
 - `scripts`: package-local TS loader and validator helpers.
@@ -20,8 +20,9 @@ and [Graph IR](../../docs/workbench/graph-ir.md).
 
 ## Local Rules
 
-- `catalog/tools.yaml` is the only read-only Catalog prefill input.
-- Prefill accepts Tool rows with an MCP binding and stdio transport; it never changes Catalog YAML.
+- `catalog/asset-registry.json` is the only read-only prefill input; use the shared Registry core for parsing and validation.
+- Prefill projects only the latest published Tool version with an MCP binding, stdio transport, and mock-ready contract or non-empty `runtime_mock`.
+- Prefill source metadata must preserve the Registry file, `asset_id`, and exact asset version. It never changes the Registry.
 - Canonical specs live under ignored `artifacts/mock-lab/<mock-id>/mock-spec.json`.
 - Codex draft specs stay under `drafts/<draft-id>/draft-spec.json` until explicitly loaded.
 - Server start uses the saved `mock-spec.json`; it should not require generated project files.
@@ -31,9 +32,9 @@ and [Graph IR](../../docs/workbench/graph-ir.md).
 ## Anti-Patterns
 
 - Do not add non-Tool asset categories or A2A mock servers.
-- Do not add alternate Catalog inputs or accept retired Tool shapes.
+- Do not add alternate Catalog inputs, local Registry parsers, or duplicate Registry validation.
 - Do not store credentials, private endpoints, deployment scripts, or production business logic in mock specs.
-- Do not make Mock Lab edit seed Catalog YAML.
+- Do not make Mock Lab edit the Asset Registry.
 - Do not treat `packages/mock-lab/DESIGN.md` as active implementation policy; prefer README, package scripts, server/source, and active docs.
 
 ## Verification
@@ -45,5 +46,5 @@ npm run build
 ```
 
 Standalone development and browser testing use fixed port 5176. The Companion
-on 5173 provides only a read-only Tool Catalog projection and does not mount
-Mock Lab routes or APIs.
+on 5173 owns Registry lifecycle operations but does not mount Mock Lab routes or
+APIs. Mock Lab itself remains a read-only Registry consumer.

@@ -1,51 +1,102 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "work_id": "req-s15-private-data-safety",
   "artifact_root": "artifacts/af/req-s15-private-data-safety",
-  "active_skill": "af-scaffold-runtime",
+  "ledger_revision": 2,
+  "focus_skill": "af-scaffold-runtime",
+  "active_runs": [],
   "skills": {
     "af-discover-assets": {
       "status": "complete",
-      "input_revision": "requirement-v1",
-      "output_revision": "analysis-v1",
+      "input_revision": {
+        "digest": "76f5b9967ee86d53674baae5f113f05345d30e049c1ec54a4df25bb2e7fb24ed",
+        "subjects": [
+          {
+            "ref": "analysis-result.json#/normalizedRequirement",
+            "sha256": "06eb5d8263d348accfda55041d34b82596a68126b9de143f8887077c6a3307f9"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
+      "output_revision": {
+        "digest": "71e51b79d04253e5a1833fdb8055852b7fbc4fa7012cbaec1f685da838fd6823",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
       "output_refs": [
-        "analysis-result.json",
-        "normalized-requirement.json",
-        "asset-candidates.json"
+        "analysis-result.json"
       ],
       "blocker_refs": [],
       "output_roots": [],
-      "started_at": "2026-07-23T00:00:00.000Z",
-      "updated_at": "2026-07-23T00:00:00.000Z",
-      "completed_at": "2026-07-23T00:00:00.000Z"
+      "started_at": "2030-01-01T00:00:00.000Z",
+      "updated_at": "2030-01-01T00:00:00.000Z",
+      "completed_at": "2030-01-01T00:00:00.000Z"
     },
     "af-compose-solution": {
       "status": "complete",
-      "input_revision": "analysis-v1",
-      "output_revision": "composition-v1",
+      "input_revision": {
+        "digest": "71e51b79d04253e5a1833fdb8055852b7fbc4fa7012cbaec1f685da838fd6823",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
+      "output_revision": {
+        "digest": "1d5cc06b4e9d5165207366e49e16ffe5d0f9bf935ec9e1e6fb805be353e076b1",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+          },
+          {
+            "ref": "scaffold-plan.json",
+            "sha256": "7176e23c88ed91ce76068698668b44a8e546c843a5e37a61db1db4df449e672d"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
       "output_refs": [
         "analysis-result.json",
-        "graph-ir.json",
-        "boundary-design.md",
         "scaffold-plan.json"
       ],
       "blocker_refs": [],
       "output_roots": [],
-      "started_at": "2026-07-23T00:00:00.000Z",
-      "updated_at": "2026-07-23T00:00:00.000Z",
-      "completed_at": "2026-07-23T00:00:00.000Z"
+      "started_at": "2030-01-01T00:00:00.000Z",
+      "updated_at": "2030-01-01T00:00:00.000Z",
+      "completed_at": "2030-01-01T00:00:00.000Z"
     },
     "af-scaffold-runtime": {
       "status": "blocked",
-      "input_revision": "composition-v1",
+      "input_revision": {
+        "digest": "1d5cc06b4e9d5165207366e49e16ffe5d0f9bf935ec9e1e6fb805be353e076b1",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+          },
+          {
+            "ref": "scaffold-plan.json",
+            "sha256": "7176e23c88ed91ce76068698668b44a8e546c843a5e37a61db1db4df449e672d"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
       "output_revision": null,
       "output_refs": [],
       "blocker_refs": [
         "implementation-handoff.md"
       ],
       "output_roots": [],
-      "started_at": "2026-07-23T00:00:00.000Z",
-      "updated_at": "2026-07-23T00:00:00.000Z",
+      "started_at": "2030-01-01T00:00:00.000Z",
+      "updated_at": "2030-01-01T00:00:00.000Z",
       "completed_at": null
     },
     "af-verify-runtime": {
@@ -56,29 +107,397 @@
       "blocker_refs": [],
       "output_roots": [],
       "started_at": null,
-      "updated_at": "2026-07-23T00:00:00.000Z",
+      "updated_at": "2030-01-01T00:00:00.000Z",
       "completed_at": null
     }
+  },
+  "revisions": {
+    "requirement": {
+      "digest": "76f5b9967ee86d53674baae5f113f05345d30e049c1ec54a4df25bb2e7fb24ed",
+      "subjects": [
+        {
+          "ref": "analysis-result.json#/normalizedRequirement",
+          "sha256": "06eb5d8263d348accfda55041d34b82596a68126b9de143f8887077c6a3307f9"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "decision": {
+      "digest": "dae275f0bc40867c748b946556c2147d598d2122375fd42ea8fd3dc63e556b99",
+      "subjects": [
+        {
+          "ref": "af-work-item.json#/decisions",
+          "sha256": "68a0324c344b99cbe35e2e0c55618b34738e0c12d9b7ad73f8c8cfce065acf88"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "asset_decision": {
+      "digest": "48899b3bdbfd189b357e08c6cc820609aea91beeb68120c0bc4ba8900f68d795",
+      "subjects": [
+        {
+          "ref": "af-work-item.json#/asset_decisions",
+          "sha256": "362e05431cf47facba144b025f2bad84ff4097b214609cfa1d929c1060769a3b"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "discovery": {
+      "digest": "71e51b79d04253e5a1833fdb8055852b7fbc4fa7012cbaec1f685da838fd6823",
+      "subjects": [
+        {
+          "ref": "analysis-result.json",
+          "sha256": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "catalog_snapshot": {
+      "digest": "c3b8ab95b14a661c7393e35237692cbdf03eac5c39a160142ff7b94b34671ed3",
+      "subjects": [
+        {
+          "ref": "catalog/asset-registry.json",
+          "sha256": "280dd08e925e78cd0e0380b7a708dedd82570e9dfc20abd33a0979f869577f4f"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "graph": {
+      "digest": "825bd5d37ebb348ad0576a9c55f6b418b56a2ad21dee5d6d36016c9f2431df19",
+      "subjects": [
+        {
+          "ref": "analysis-result.json#/graph",
+          "sha256": "d5ef9cd2086de06a7404d5ec03e1f12f5e1ecf5fa1d77e6f851aeca467a23c82"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "root_executable": {
+      "digest": "fca539d61462eed8c9c0498bbd9858a7344d84974fa52234553a7eb82539b551",
+      "subjects": [
+        {
+          "ref": "af-work-item.json#/root_executable",
+          "sha256": "7f3ad290137769f57df9e41122ca6188b30679ea8bc76b573e3773e2eec4ad34"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "runtime_contract": {
+      "digest": "cf832cc6539c322d272356206c8ed37067a096adc5702a832414f701447c0223",
+      "subjects": [
+        {
+          "ref": "analysis-result.json#/runtimeContracts",
+          "sha256": "c4a28230efa2bc2639fe30bdc5bfe6f1c39f7ba7555144f6f1cc343dbc68ad73"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "composition": {
+      "digest": "1d5cc06b4e9d5165207366e49e16ffe5d0f9bf935ec9e1e6fb805be353e076b1",
+      "subjects": [
+        {
+          "ref": "analysis-result.json",
+          "sha256": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+        },
+        {
+          "ref": "scaffold-plan.json",
+          "sha256": "7176e23c88ed91ce76068698668b44a8e546c843a5e37a61db1db4df449e672d"
+        }
+      ],
+      "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+    },
+    "scaffold": null,
+    "verification": null
+  },
+  "discovery_cycles": [
+    {
+      "cycle_id": "discovery-1",
+      "status": "complete",
+      "revision": {
+        "digest": "71e51b79d04253e5a1833fdb8055852b7fbc4fa7012cbaec1f685da838fd6823",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
+      "supersedes_cycle_id": null,
+      "trigger": "initial",
+      "artifact_refs": [
+        "analysis-result.json"
+      ],
+      "started_at": "2030-01-01T00:00:00.000Z",
+      "completed_at": "2030-01-01T00:00:00.000Z"
+    }
+  ],
+  "composition_cycles": [
+    {
+      "cycle_id": "composition-1",
+      "status": "complete",
+      "revision": {
+        "digest": "1d5cc06b4e9d5165207366e49e16ffe5d0f9bf935ec9e1e6fb805be353e076b1",
+        "subjects": [
+          {
+            "ref": "analysis-result.json",
+            "sha256": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+          },
+          {
+            "ref": "scaffold-plan.json",
+            "sha256": "7176e23c88ed91ce76068698668b44a8e546c843a5e37a61db1db4df449e672d"
+          }
+        ],
+        "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+      },
+      "supersedes_cycle_id": null,
+      "artifact_refs": [
+        "analysis-result.json",
+        "scaffold-plan.json"
+      ],
+      "return_to_discover": null,
+      "started_at": "2030-01-01T00:00:00.000Z",
+      "completed_at": "2030-01-01T00:00:00.000Z"
+    }
+  ],
+  "decisions": [
+    {
+      "required": true,
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture decision.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null,
+      "decision_id": "decision-solution-control-strategy",
+      "topic": "solution_control_strategy",
+      "options": [
+        "single_agent",
+        "agent_delegation",
+        "explicit_workflow",
+        "hybrid"
+      ],
+      "recommended_option": "explicit_workflow",
+      "selected_option": "explicit_workflow"
+    },
+    {
+      "required": true,
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture decision.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null,
+      "decision_id": "decision-root-executable",
+      "topic": "root_executable",
+      "options": [
+        "workflow-s15-private-data-safety-smoke"
+      ],
+      "recommended_option": "workflow-s15-private-data-safety-smoke",
+      "selected_option": "workflow-s15-private-data-safety-smoke"
+    }
+  ],
+  "asset_decisions": [
+    {
+      "asset_decision_id": "asset-decision-1",
+      "asset_ref": "workflow-s15-private-data-safety-smoke",
+      "asset_type": "workflow",
+      "asset_version": 1,
+      "required": true,
+      "match_grade": "none",
+      "options": [
+        "create_project_draft"
+      ],
+      "recommended_disposition": "create_project_draft",
+      "selected_disposition": "create_project_draft",
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture asset disposition.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null
+    },
+    {
+      "asset_decision_id": "asset-decision-2",
+      "asset_ref": "tool-s15-environment-backed-service",
+      "asset_type": "tool",
+      "asset_version": 1,
+      "required": true,
+      "match_grade": "none",
+      "options": [
+        "create_project_draft"
+      ],
+      "recommended_disposition": "create_project_draft",
+      "selected_disposition": "create_project_draft",
+      "selected_by": "user",
+      "selection_reason": "Approved synthetic fixture asset disposition.",
+      "evidence_refs": [
+        "analysis-result.json"
+      ],
+      "catalog_refs": [],
+      "session_id": "fixture-session",
+      "turn_id": "fixture-turn",
+      "status": "resolved",
+      "supersedes": null
+    }
+  ],
+  "solution_control_strategy": "explicit_workflow",
+  "root_executable": {
+    "asset_type": "workflow",
+    "asset_ref": "workflow-s15-private-data-safety-smoke",
+    "asset_version": 1,
+    "decision_id": "decision-root-executable"
   },
   "review_gates": {
     "discovery": {
       "status": "approved",
-      "artifact_etag": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf",
-      "decided_at": "2026-07-23T00:00:00.000Z",
-      "session_id": "scenario-review",
-      "turn_id": "discover-review"
+      "binding": {
+        "requirement_revision": {
+          "digest": "76f5b9967ee86d53674baae5f113f05345d30e049c1ec54a4df25bb2e7fb24ed",
+          "subjects": [
+            {
+              "ref": "analysis-result.json#/normalizedRequirement",
+              "sha256": "06eb5d8263d348accfda55041d34b82596a68126b9de143f8887077c6a3307f9"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "decision_revision": {
+          "digest": "dae275f0bc40867c748b946556c2147d598d2122375fd42ea8fd3dc63e556b99",
+          "subjects": [
+            {
+              "ref": "af-work-item.json#/decisions",
+              "sha256": "68a0324c344b99cbe35e2e0c55618b34738e0c12d9b7ad73f8c8cfce065acf88"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "asset_decision_revision": {
+          "digest": "48899b3bdbfd189b357e08c6cc820609aea91beeb68120c0bc4ba8900f68d795",
+          "subjects": [
+            {
+              "ref": "af-work-item.json#/asset_decisions",
+              "sha256": "362e05431cf47facba144b025f2bad84ff4097b214609cfa1d929c1060769a3b"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "discovery_revision": {
+          "digest": "71e51b79d04253e5a1833fdb8055852b7fbc4fa7012cbaec1f685da838fd6823",
+          "subjects": [
+            {
+              "ref": "analysis-result.json",
+              "sha256": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "catalog_snapshot_revision": {
+          "digest": "c3b8ab95b14a661c7393e35237692cbdf03eac5c39a160142ff7b94b34671ed3",
+          "subjects": [
+            {
+              "ref": "catalog/asset-registry.json",
+              "sha256": "280dd08e925e78cd0e0380b7a708dedd82570e9dfc20abd33a0979f869577f4f"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "artifact_etag": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+      },
+      "decided_at": "2030-01-01T00:00:00.000Z",
+      "session_id": "fixture-session",
+      "turn_id": "discover-review",
+      "stale_reasons": []
     },
     "composition": {
       "status": "approved",
-      "artifact_etag": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf",
-      "decided_at": "2026-07-23T00:00:00.000Z",
-      "session_id": "scenario-review",
-      "turn_id": "compose-review"
+      "binding": {
+        "discovery_revision": {
+          "digest": "71e51b79d04253e5a1833fdb8055852b7fbc4fa7012cbaec1f685da838fd6823",
+          "subjects": [
+            {
+              "ref": "analysis-result.json",
+              "sha256": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "graph_revision": {
+          "digest": "825bd5d37ebb348ad0576a9c55f6b418b56a2ad21dee5d6d36016c9f2431df19",
+          "subjects": [
+            {
+              "ref": "analysis-result.json#/graph",
+              "sha256": "d5ef9cd2086de06a7404d5ec03e1f12f5e1ecf5fa1d77e6f851aeca467a23c82"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "root_executable_revision": {
+          "digest": "fca539d61462eed8c9c0498bbd9858a7344d84974fa52234553a7eb82539b551",
+          "subjects": [
+            {
+              "ref": "af-work-item.json#/root_executable",
+              "sha256": "7f3ad290137769f57df9e41122ca6188b30679ea8bc76b573e3773e2eec4ad34"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "runtime_contract_revision": {
+          "digest": "cf832cc6539c322d272356206c8ed37067a096adc5702a832414f701447c0223",
+          "subjects": [
+            {
+              "ref": "analysis-result.json#/runtimeContracts",
+              "sha256": "c4a28230efa2bc2639fe30bdc5bfe6f1c39f7ba7555144f6f1cc343dbc68ad73"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "composition_revision": {
+          "digest": "1d5cc06b4e9d5165207366e49e16ffe5d0f9bf935ec9e1e6fb805be353e076b1",
+          "subjects": [
+            {
+              "ref": "analysis-result.json",
+              "sha256": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+            },
+            {
+              "ref": "scaffold-plan.json",
+              "sha256": "7176e23c88ed91ce76068698668b44a8e546c843a5e37a61db1db4df449e672d"
+            }
+          ],
+          "registry_revision": "2a303eed929d252d012bd69d86acbf6314c6e270cd76726e79ebe6d19b7c327f"
+        },
+        "artifact_etag": "f533010db60f6b094ab674570f9ac0f4970d6a4c3304e9dc179b15c9fe712ecf"
+      },
+      "decided_at": "2030-01-01T00:00:00.000Z",
+      "session_id": "fixture-session",
+      "turn_id": "compose-review",
+      "stale_reasons": []
     }
   },
+  "artifact_refs": [
+    "analysis-result.json",
+    "scaffold-plan.json"
+  ],
+  "generated_output_roots": [],
   "verification": {
     "outcome": null,
     "revision": null,
-    "report_ref": null
-  }
+    "report_ref": null,
+    "evidence_refs": [],
+    "verified_at": null
+  },
+  "invalidations": [],
+  "session_handoffs": []
 }

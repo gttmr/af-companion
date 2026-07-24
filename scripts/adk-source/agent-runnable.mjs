@@ -1,5 +1,5 @@
 import { assertDataChannelsSupported, usesArtifactChannels } from "./channels.mjs";
-import { hasAgentOwnedTools } from "./tools.mjs";
+import { hasAgentOwnedMcpTools } from "./tools.mjs";
 import { collisionTargetForSyntheticJoin } from "./dispatch/index.mjs";
 import { collectGenerationNodes } from "./graph/collector.mjs";
 import { assertNoSymbolCollisions, assertRunnableGraphSupported } from "./graph/guards.mjs";
@@ -17,10 +17,18 @@ import { componentContracts } from "./agent-contracts.mjs";
 import { emitRunnableNodeBlocks } from "./emitters/node-registry.mjs";
 import { buildRuntimeHelperSection } from "./emitters/runtime-helpers.mjs";
 import { buildDynamicRunnableAgentPy } from "./agent-dynamic.mjs";
+import { buildAgentRootPy } from "./agent-root.mjs";
+import { buildReferencedRootPy, hasPythonReferencedRoot } from "./agent-referenced-root.mjs";
 
 export function buildRunnableAgentPy(context) {
-  const { analysisResult, assets, connectedTools, graphContext, normalizedRequirement, packageName } =
+  const { analysisResult, assetBindings, assets, connectedTools, graphContext, normalizedRequirement, packageName } =
     context;
+  if (hasPythonReferencedRoot(context)) {
+    return buildReferencedRootPy(context);
+  }
+  if (context.rootExecutablePlan.assetType === "agent") {
+    return buildAgentRootPy(context);
+  }
   if (hasDynamicRunnableShape(graphContext)) {
     return buildDynamicRunnableAgentPy(context);
   }
@@ -73,7 +81,7 @@ export function buildRunnableAgentPy(context) {
   const remoteConfigImport = usesRemoteAuth
     ? "from google.adk.a2a.agent.config import A2aRemoteAgentConfig, RequestInterceptor\n"
     : "";
-  const mcpToolsetImport = hasAgentOwnedTools(graphContext)
+  const mcpToolsetImport = hasAgentOwnedMcpTools(graphContext)
     ? "from google.adk.tools import McpToolset\nfrom google.adk.tools.mcp_tool import StreamableHTTPConnectionParams\n"
     : "";
   const eventImport = usesRouteNodes || usesRemoteAuth || usesTerminalOutputs ? "Event, RequestInput" : "RequestInput";
@@ -93,7 +101,7 @@ ${remoteImport}${mcpToolsetImport}from google.adk.events import ${eventImport}
 from google.adk.workflow import FunctionNode, JoinNode, START, Workflow
 ${artifactGenaiImport}
 
-${buildRuntimeHelperSection({ componentContractLiteral: toPythonLiteral(componentContracts(context)), assets })}
+${buildRuntimeHelperSection({ componentContractLiteral: toPythonLiteral(componentContracts(context)), assets, assetBindings })}
 ${buildAsyncResumeWorkflowSupport(context)}
 
 ${funcBlocks.join("\n\n")}${funcBlocks.length ? "\n\n\n" : ""}# ---------------------------------------------------------------------------
@@ -103,10 +111,11 @@ ${funcBlocks.join("\n\n")}${funcBlocks.length ? "\n\n\n" : ""}# ----------------
 ${nodeBlocks.join("\n\n")}
 ${joinDecls.length ? `\n${joinDecls.join("\n")}\n` : ""}
 
-root_agent = ${asyncResumeRootClass(context)}(
+root_executable = ${asyncResumeRootClass(context)}(
     name=${toPyStr(packageName)},
     description=${toPyStr(description)},
     edges=${edgeLiteral},
 )
+root_agent = root_executable
 `;
 }

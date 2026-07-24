@@ -17,15 +17,15 @@ Read this reference before any other shared reference when a task:
 
 Use this order, scoped to the question being answered:
 
-1. Active Agent Factory vNext docs own Target concepts and operating rules.
-2. Current repository source, schema, validator, and tests own Current Implementation behavior.
+1. Active Agent Factory vNext decisions and approved work orders own Target concepts and operating rules.
+2. Current repository source, schema, validator, CLI, and tests own Current Implementation behavior.
 3. Official ADK documentation owns documented framework semantics.
 4. Installed `google-adk` source and execution own version-specific availability and signatures.
 5. Local Google Agents CLI skills are structural and workflow examples, not Agent Factory authority.
 6. Retired or pre-vNext Agent Factory skills are salvage sources only; the canonical five-skill tree is active procedure.
 7. Archive and handoff material are historical evidence, never active authority.
 
-Do not use the order to force a false agreement. For example, official docs may describe a feature that is absent or different in the installed package. In that case, preserve the documented intent, block unsupported scaffold code, and record the implementation gap.
+Do not use the order to force a false agreement. For this lifecycle, `schemas/af-work-item.schema.json` owns the accepted Work Item shape and `scripts/af.mjs` owns the supported CLI surface. If an active document still assumes a single global skill pointer, fixed one-way routing, Graph-only web writes, read-only Assets, or a command not dispatched by that script, label the document stale and follow current source.
 
 ## Required evidence
 
@@ -33,6 +33,7 @@ Record enough evidence for another coding agent to reproduce the decision:
 
 - authority class: Target, Current, or Blocker;
 - repository path and stable symbol or schema key for product behavior;
+- current Work Item revision subjects and Asset Registry `registry_revision` when lifecycle or reuse depends on them;
 - official URL and checked date for framework behavior;
 - installed package version and import/signature probe for emitted Python;
 - validator, build, test, or runtime command used;
@@ -43,9 +44,11 @@ Do not present inference as verification. A handbook locator is a navigation aid
 ## Artifact implications
 
 - Standalone design notes outside validators may use Target vocabulary.
-- Canonical Work Item artifacts write only strict Target v2 fields from [target-contract-v2.md](target-contract-v2.md).
+- Canonical analysis artifacts write only strict Target v2 fields from [target-contract-v2.md](target-contract-v2.md); the lifecycle ledger separately follows `schemas/af-work-item.schema.json` schema version 2.
 - Reject pre-v2 artifact shapes; there is no read fallback or projection path.
 - Record unrepresentable or ambiguous Target data as a Blocker; do not invent an enum or selector.
+- Treat Graph IR and the versioned Asset Registry as the web workbench's two canonical write surfaces. Registry reads and writes go through the shared service; direct file mutation is not an alternate contract.
+- Use `focus_skill`, `active_runs`, revision-bound gates, cycles, invalidations, and session handoffs exactly as the current Work Item schema defines them. Do not project a single stage counter.
 
 ## Scaffold implications
 
@@ -79,12 +82,14 @@ Stop and report a Blocker when:
 - [Agent Factory Taxonomy](../../../docs/workbench/taxonomy.md)
 - [Agent Factory Graph IR](../../../docs/workbench/graph-ir.md)
 - [Agent Factory Operating Model](../../../docs/workbench/operating-model.md)
+- Current Work Item schema: `schemas/af-work-item.schema.json`
+- Current CLI dispatcher: `scripts/af.mjs`
 - [Google ADK documentation](https://adk.dev/)
 - Installed-package evidence: [r1-adk-package-check.md](../../../tests/skills/evidence/research/r1-adk-package-check.md)
 
 ## Checked date
 
-- Checked date: 2026-07-23
+- Checked date: 2026-07-24
 - Official sources: Agent Factory active docs and `https://adk.dev/`
 - Installed package version: `google-adk 2.3.0`
-- Contract note: Canonical skills read and write strict Target Contract v2 only.
+- Contract note: Canonical skills use strict Target Contract v2 artifacts and Work Item schema version 2 without legacy projection.

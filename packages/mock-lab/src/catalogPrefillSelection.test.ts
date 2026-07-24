@@ -4,10 +4,11 @@ import type { CatalogPrefillPayload } from "./types/mockSpec.ts";
 
 const payload: CatalogPrefillPayload = {
   loaded_at: "2026-07-19T00:00:00.000Z",
-  source_file: "catalog/tools.yaml",
+  source_file: "catalog/asset-registry.json",
   entries: [
     {
       asset_id: "tool.customer.account-snapshot",
+      version: 3,
       name: "고객 계좌 Snapshot Tool",
       asset_type: "tool",
       capability_tags: ["data-query"],
@@ -28,8 +29,9 @@ const payload: CatalogPrefillPayload = {
         source: {
           prefill_from_catalog: true,
           catalog_asset_id: "tool.customer.account-snapshot",
+          catalog_asset_version: 3,
           catalog_entry_name: "고객 계좌 Snapshot Tool",
-          catalog_file: "catalog/tools.yaml"
+          catalog_file: "catalog/asset-registry.json"
         },
         tools: [
           {
@@ -59,6 +61,7 @@ const payload: CatalogPrefillPayload = {
 
 const spec = resolveCatalogPrefillSpec(payload, "고객 계좌 Snapshot Tool");
 assert.equal(spec?.mock_id, "tool-customer-account-snapshot");
+assert.equal(spec?.source?.catalog_asset_version, 3);
 assert.notEqual(spec, payload.entries[0].prefill);
 spec!.mock_id = "changed";
 assert.equal(payload.entries[0].prefill.mock_id, "tool-customer-account-snapshot");

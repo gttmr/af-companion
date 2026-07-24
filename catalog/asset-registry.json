@@ -1,0 +1,1393 @@
+{
+  "assets": [
+    {
+      "asset_id": "agent.page-recommendation.analysis-synthesizer",
+      "asset_type": "agent",
+      "binding": null,
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "analysis-synthesis",
+        "judgment"
+      ],
+      "composition": [],
+      "connection": null,
+      "contract_hash": "bd1bdaad0b94636e618f0dc886a9fe8af9678a032b052942c769ff457b725faa",
+      "contract_status": "mock_ready",
+      "depends_on": [],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "userflow",
+          "required": true,
+          "type": "object"
+        },
+        {
+          "name": "scenario",
+          "required": true,
+          "type": "object"
+        },
+        {
+          "name": "t2s",
+          "required": true,
+          "type": "object"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/agents.yaml"
+        }
+      },
+      "name": "분석 결과 종합 Agent",
+      "notes": "req-page-recommendation-required catalog-only scenario를 위한 synthetic Agent 계약이다. 실제 판단 기준이나 운영 데이터는 포함하지 않는다.",
+      "outputs": [
+        {
+          "name": "synthesized_page_selection",
+          "required": true,
+          "type": "object"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "세 분석 mock 결과를 종합해 Page/Page Group 후보를 다시 선택하는 judgment node다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "customer_impact",
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "synthesized_page_selection": {
+          "basis": [
+            "userflow high_dropoff",
+            "scenario recommendation",
+            "t2s relation score"
+          ],
+          "requires_user_confirmation": true,
+          "selected_page_ids": [
+            "NWMMH00040_003M"
+          ]
+        }
+      },
+      "runtime_requirements": [
+        "ADK-compatible agent runtime",
+        "synthetic local inputs"
+      ],
+      "side_effect_class": "none",
+      "source_refs": [
+        "catalog/asset-registry.json#agent.page-recommendation.analysis-synthesizer@1"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": null
+    },
+    {
+      "asset_id": "agent.page-recommendation.initial-page-selector",
+      "asset_type": "agent",
+      "binding": null,
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "page-selection",
+        "judgment"
+      ],
+      "composition": [],
+      "connection": null,
+      "contract_hash": "c8522cf71a9d9818030d11e96bc262a7577b697aa229fce4a5dcc3e7f46a761e",
+      "contract_status": "mock_ready",
+      "depends_on": [],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "page_candidates",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "name": "page_products",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/agents.yaml"
+        }
+      },
+      "name": "1차 Page 선택 Agent",
+      "notes": "req-page-recommendation-required catalog-only scenario를 위한 synthetic Agent 계약이다. 실제 판단 기준이나 운영 데이터는 포함하지 않는다.",
+      "outputs": [
+        {
+          "name": "initial_selection",
+          "required": true,
+          "type": "object"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "RAG 후보를 읽고 초기 추천 후보를 설명하는 judgment node다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "customer_impact",
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "initial_selection": {
+          "rationale": "꿀머니 혜택 조회 목적과 직접 연결된 페이지입니다.",
+          "requires_user_confirmation": true,
+          "selected_page_ids": [
+            "NWMMH00040_003M"
+          ]
+        }
+      },
+      "runtime_requirements": [
+        "ADK-compatible agent runtime",
+        "synthetic local inputs"
+      ],
+      "side_effect_class": "none",
+      "source_refs": [
+        "catalog/asset-registry.json#agent.page-recommendation.initial-page-selector@1"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": null
+    },
+    {
+      "asset_id": "agent.page-recommendation.objective-classifier",
+      "asset_type": "agent",
+      "binding": null,
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "objective-classification",
+        "judgment"
+      ],
+      "composition": [],
+      "connection": null,
+      "contract_hash": "8166c3b4edb8d96de6d2b2c6ce0c0a38133549483127061b5c4c957bbd9dc89b",
+      "contract_status": "mock_ready",
+      "depends_on": [],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "objective_text",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "categories",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/agents.yaml"
+        }
+      },
+      "name": "목적 분류 Agent",
+      "notes": "req-page-recommendation-required catalog-only scenario를 위한 synthetic Agent 계약이다. 실제 판단 기준이나 운영 데이터는 포함하지 않는다.",
+      "outputs": [
+        {
+          "name": "objective_classification",
+          "required": true,
+          "type": "object"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "get_scenario_taxonomy가 제공한 분류체계를 참고해 objective_text를 대/중/소 분류로 매핑하는 judgment node다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "customer_impact",
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "objective_classification": {
+          "category_large": "혜택",
+          "category_medium": "꿀머니",
+          "category_small": "이탈률분석",
+          "confidence": 0.91
+        }
+      },
+      "runtime_requirements": [
+        "ADK-compatible agent runtime",
+        "synthetic local inputs"
+      ],
+      "side_effect_class": "none",
+      "source_refs": [
+        "catalog/asset-registry.json#agent.page-recommendation.objective-classifier@1"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": null
+    },
+    {
+      "asset_id": "agent.page-recommendation.tool-argument-builder",
+      "asset_type": "agent",
+      "binding": null,
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "tool-argument-generation",
+        "reasoning"
+      ],
+      "composition": [],
+      "connection": null,
+      "contract_hash": "8e7fc797351c0da930bfd731f0447451143d2d6c108c3bb99d387dc89f6401f9",
+      "contract_status": "mock_ready",
+      "depends_on": [],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "objective_text",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "objective_classification",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "purpose_confirmation",
+          "required": false,
+          "type": "object"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/agents.yaml"
+        }
+      },
+      "name": "Tool Arguments 생성 Agent",
+      "notes": "req-page-recommendation-required catalog-only scenario를 위한 synthetic Agent 계약이다. 실제 판단 기준이나 운영 데이터는 포함하지 않는다.",
+      "outputs": [
+        {
+          "name": "tool_arguments",
+          "required": true,
+          "type": "object"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "목적/시나리오 분류 확인 응답과 이전 objective context를 결합해 후속 MCP Tool 호출 인자를 구성하는 reasoning node다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "customer_impact",
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "tool_arguments": {
+          "customer_behavior_hint": "혜택 조회 중단",
+          "objective_text": "꿀머니 이탈률 분석할래",
+          "product_hint": "꿀머니 혜택"
+        }
+      },
+      "runtime_requirements": [
+        "ADK-compatible agent runtime",
+        "synthetic local inputs"
+      ],
+      "side_effect_class": "none",
+      "source_refs": [
+        "catalog/asset-registry.json#agent.page-recommendation.tool-argument-builder@1"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": null
+    },
+    {
+      "asset_id": "tool.page-recommendation.analyze-page-customer-relation",
+      "asset_type": "tool",
+      "binding": {
+        "kind": "mcp",
+        "server_ref": "wf-page-recommendation-mock",
+        "tool_name": "analyze_page_customer_relation"
+      },
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "computation"
+      ],
+      "composition": [],
+      "connection": {
+        "transport": "stdio"
+      },
+      "contract_hash": "6c48a8f14fd2b45b6654889e32148421278f53157c304ebdaa5e01be1cacae9b",
+      "contract_status": "mock_ready",
+      "depends_on": [],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "selected_page_ids",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "name": "objective_text",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/tools.yaml"
+        }
+      },
+      "name": "T2S 분석 Tool",
+      "notes": "Mock Lab wf-page-recommendation-mock/analyze_page_customer_relation synthetic MCP tool에 고정된 Tool 계약이다.",
+      "outputs": [
+        {
+          "name": "page_customer_relations",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "name": "insight",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "T2S 분석 Tool의 deterministic synthetic Mock Lab 결과를 제공한다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "customer_impact",
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "insight": "내 꿀머니(NWMMH00040_003M) 페이지가 고객 규모·이탈 신호 기준 우선 분석 대상",
+        "page_customer_relations": [
+          {
+            "page_id": "NWMMH00040_003M",
+            "recommendation_score": 0.91,
+            "signal": "high_dropoff",
+            "target_customer_count": 5634
+          }
+        ],
+        "source": "agent-factory-mock-lab",
+        "synthetic": true
+      },
+      "runtime_requirements": [
+        "Mock Lab MCP server wf-page-recommendation-mock",
+        "stdio transport"
+      ],
+      "side_effect_class": "read_only",
+      "source_refs": [
+        "catalog/asset-registry.json#tool.page-recommendation.analyze-page-customer-relation@1",
+        "catalog/contracts/mcp/page_recommendation.analyze_page_customer_relation.v1.json"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": null
+    },
+    {
+      "asset_id": "tool.page-recommendation.get-scenario-taxonomy",
+      "asset_type": "tool",
+      "binding": {
+        "kind": "mcp",
+        "server_ref": "wf-page-recommendation-mock",
+        "tool_name": "get_scenario_taxonomy"
+      },
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "retrieval"
+      ],
+      "composition": [],
+      "connection": {
+        "transport": "stdio"
+      },
+      "contract_hash": "486ec267e29fc0201e2c1f5849a583d30f2a2e034c6c0818d1bb41303cf5f0c1",
+      "contract_status": "mock_ready",
+      "depends_on": [],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "objective_text",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/tools.yaml"
+        }
+      },
+      "name": "시나리오 목적 분류체계 조회 Tool",
+      "notes": "Mock Lab wf-page-recommendation-mock/get_scenario_taxonomy synthetic MCP tool에 고정된 Tool 계약이다.",
+      "outputs": [
+        {
+          "name": "categories",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "시나리오 목적 분류체계 조회 Tool의 deterministic synthetic Mock Lab 결과를 제공한다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "customer_impact",
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "categories": [
+          {
+            "category_large": "상품",
+            "category_medium": "IRP",
+            "category_small": "신규"
+          },
+          {
+            "category_large": "상품",
+            "category_medium": "ISA",
+            "category_small": "신규"
+          },
+          {
+            "category_large": "상품",
+            "category_medium": "노란우산",
+            "category_small": "신규"
+          },
+          {
+            "category_large": "상품",
+            "category_medium": "신용대출",
+            "category_small": "신규"
+          },
+          {
+            "category_large": "상품",
+            "category_medium": "예금",
+            "category_small": "신규"
+          },
+          {
+            "category_large": "상품",
+            "category_medium": "외화예금",
+            "category_small": "신규"
+          },
+          {
+            "category_large": "상품",
+            "category_medium": "요구불",
+            "category_small": "신규"
+          },
+          {
+            "category_large": "상품",
+            "category_medium": "적금",
+            "category_small": "신규"
+          },
+          {
+            "category_large": "상품",
+            "category_medium": "청약",
+            "category_small": "신규"
+          },
+          {
+            "category_large": "상품",
+            "category_medium": "펀드",
+            "category_small": "신규"
+          },
+          {
+            "category_large": "혜택",
+            "category_medium": "꿀머니",
+            "category_small": "이탈률분석"
+          }
+        ],
+        "source": "agent-factory-mock-lab",
+        "synthetic": true
+      },
+      "runtime_requirements": [
+        "Mock Lab MCP server wf-page-recommendation-mock",
+        "stdio transport"
+      ],
+      "side_effect_class": "read_only",
+      "source_refs": [
+        "catalog/asset-registry.json#tool.page-recommendation.get-scenario-taxonomy@1",
+        "catalog/contracts/mcp/page_recommendation.get_scenario_taxonomy.v1.json"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": null
+    },
+    {
+      "asset_id": "tool.page-recommendation.recommend-scenario-by-behavior-type",
+      "asset_type": "tool",
+      "binding": {
+        "kind": "mcp",
+        "server_ref": "wf-page-recommendation-mock",
+        "tool_name": "recommend_scenario_by_behavior_type"
+      },
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "computation"
+      ],
+      "composition": [],
+      "connection": {
+        "transport": "stdio"
+      },
+      "contract_hash": "bcc72f2d8da5af9c94acdcfd03806adc1edcd741a8474208b6c63db72ebd0246",
+      "contract_status": "mock_ready",
+      "depends_on": [],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "objective_text",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "selected_page_ids",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "name": "customer_behavior_hint",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/tools.yaml"
+        }
+      },
+      "name": "행동유형 기반 시나리오 추천 Tool",
+      "notes": "Mock Lab wf-page-recommendation-mock/recommend_scenario_by_behavior_type synthetic MCP tool에 고정된 Tool 계약이다.",
+      "outputs": [
+        {
+          "name": "recommended_scenarios",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "행동유형 기반 시나리오 추천 Tool의 deterministic synthetic Mock Lab 결과를 제공한다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "customer_impact",
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "recommended_scenarios": [
+          {
+            "basis": "혜택 조회 중단 행동유형 기반 추천",
+            "related_page_ids": [
+              "NWMMH00040_003M"
+            ],
+            "scenario_id": "SCN_KKULMONEY_DROPOFF_001",
+            "scenario_name": "꿀머니 혜택 조회 중단 고객 재유도",
+            "score": 0.88
+          },
+          {
+            "basis": "상품 상세 조회 행동유형 기반 추천",
+            "related_page_ids": [
+              "NWMMH00051_001M"
+            ],
+            "scenario_id": "SCN_DEPOSIT_DETAIL_REVISIT_002",
+            "scenario_name": "상품 상세 열람 후 미가입 고객 재방문 유도",
+            "score": 0.81
+          }
+        ],
+        "source": "agent-factory-mock-lab",
+        "synthetic": true
+      },
+      "runtime_requirements": [
+        "Mock Lab MCP server wf-page-recommendation-mock",
+        "stdio transport"
+      ],
+      "side_effect_class": "read_only",
+      "source_refs": [
+        "catalog/asset-registry.json#tool.page-recommendation.recommend-scenario-by-behavior-type@1",
+        "catalog/contracts/mcp/page_recommendation.recommend_scenario_by_behavior_type.v1.json"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": null
+    },
+    {
+      "asset_id": "tool.page-recommendation.run-userflow-analysis",
+      "asset_type": "tool",
+      "binding": {
+        "kind": "mcp",
+        "server_ref": "wf-page-recommendation-mock",
+        "tool_name": "run_userflow_analysis"
+      },
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "computation"
+      ],
+      "composition": [],
+      "connection": {
+        "transport": "stdio"
+      },
+      "contract_hash": "3da5053d4e3633e9fc1c301f886b77fa41c1ad6037178d0fb6f47f7780448503",
+      "contract_status": "mock_ready",
+      "depends_on": [],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "selected_page_ids",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "name": "objective_text",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/tools.yaml"
+        }
+      },
+      "name": "UserFlow 분석 Tool",
+      "notes": "Mock Lab wf-page-recommendation-mock/run_userflow_analysis synthetic MCP tool에 고정된 Tool 계약이다.",
+      "outputs": [
+        {
+          "name": "funnel_dropoff_pages",
+          "required": true,
+          "type": "array"
+        },
+        {
+          "name": "insight",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "UserFlow 분석 Tool의 deterministic synthetic Mock Lab 결과를 제공한다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "customer_impact",
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "funnel_dropoff_pages": [
+          {
+            "dropoff_rate": 0.41,
+            "page_id": "NWMMH00040_003M",
+            "page_name": "내 꿀머니",
+            "reason": "꿀머니 혜택 조회 화면에서 이탈률 높음"
+          }
+        ],
+        "insight": "혜택·이벤트 탭에서 내 꿀머니 화면 진입 후 이탈이 가장 큼",
+        "major_next_pages": [
+          "NWMMH00040_003M"
+        ],
+        "major_previous_pages": [
+          "NWMMH00021_001M"
+        ],
+        "source": "agent-factory-mock-lab",
+        "synthetic": true
+      },
+      "runtime_requirements": [
+        "Mock Lab MCP server wf-page-recommendation-mock",
+        "stdio transport"
+      ],
+      "side_effect_class": "read_only",
+      "source_refs": [
+        "catalog/asset-registry.json#tool.page-recommendation.run-userflow-analysis@1",
+        "catalog/contracts/mcp/page_recommendation.run_userflow_analysis.v1.json"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": null
+    },
+    {
+      "asset_id": "tool.page-recommendation.search-page-candidates",
+      "asset_type": "tool",
+      "binding": {
+        "kind": "mcp",
+        "server_ref": "wf-page-recommendation-mock",
+        "tool_name": "search_page_candidates"
+      },
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "retrieval"
+      ],
+      "composition": [],
+      "connection": {
+        "transport": "stdio"
+      },
+      "contract_hash": "56356eeef307dbf74790d3dcc70d88e36851acc2b9ab373142b350d396040aee",
+      "contract_status": "mock_ready",
+      "depends_on": [],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "objective_text",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "product_hint",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "journey_stage",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "event_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "keywords",
+          "required": false,
+          "type": "array"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/tools.yaml"
+        }
+      },
+      "name": "Page Metadata RAG 조회 Tool",
+      "notes": "Mock Lab wf-page-recommendation-mock/search_page_candidates synthetic MCP tool에 고정된 Tool 계약이다.",
+      "outputs": [
+        {
+          "name": "page_candidates",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "Page Metadata RAG 조회 Tool의 deterministic synthetic Mock Lab 결과를 제공한다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "customer_impact",
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "page_candidates": [
+          {
+            "action_category_large": "수신상품",
+            "action_category_medium": "예적금",
+            "description": "상품가입_B 시 이자 시뮬레이션 페이지입니다. 이자 수익을 미리 예측합니다.",
+            "match_reason": "예적금 가입 퍼널 진입 단계로 이탈 고객 재유도 직접 대상",
+            "page_id": "NWDID00019_002M",
+            "page_name": "예금/적금 가입 - 이자 시뮬레이션(STEP01)",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품가입_B > (STEP01)이자 시뮬레이션",
+            "product_event_area": 1,
+            "rag_score": 0.93,
+            "screen_category_large": "예/적금",
+            "screen_category_medium": "입출금/예금/적금 가입"
+          },
+          {
+            "action_category_large": "수신상품",
+            "action_category_medium": "예적금",
+            "description": "상품가입_B의 가입정보 확인 단계입니다. 입력한 정보를 다시 한번 확인합니다.",
+            "match_reason": "가입 정보 확인 단계 이탈이 잦은 핵심 퍼널 구간",
+            "page_id": "NWDID00019_003M",
+            "page_name": "예금/적금 가입 - 가입정보 확인(STEP02)",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품가입_B > (STEP02)가입정보 확인",
+            "product_event_area": 1,
+            "rag_score": 0.91,
+            "screen_category_large": "예/적금",
+            "screen_category_medium": "입출금/예금/적금 가입"
+          },
+          {
+            "action_category_large": "수신상품",
+            "action_category_medium": "예적금",
+            "description": "예금/적금 상품 가입 시, 약관 동의 단계로, 가입 전 필수 확인이 필요해요. 핵심키워드: 약관동의, 상품가입, 예금, 적금, 가입절차",
+            "match_reason": "약관동의 필수 단계로 가입 직전 이탈 방지 대상",
+            "page_id": "NWDID00019_004M",
+            "page_name": "예금/적금 가입 - 약관동의(STEP03)",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품가입_B > (STEP03)약관동의",
+            "product_event_area": 1,
+            "rag_score": 0.9,
+            "screen_category_large": "예/적금",
+            "screen_category_medium": "입출금/예금/적금 가입"
+          },
+          {
+            "action_category_large": "수신상품",
+            "action_category_medium": "예적금",
+            "description": "장병내일준비적금 가입 완료 또는 실패 후 안내되는 페이지입니다. 핵심키워드: 가입완료, 실패, 안내",
+            "match_reason": "가입 완료/실패 분기 단계로 실패 이탈 고객 회수 대상",
+            "page_id": "NWDID00019_005M",
+            "page_name": "예금/적금 가입 - 가입완료/실패(STEP04)",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품가입_B > (STEP04)가입완료/실패",
+            "product_event_area": 1,
+            "rag_score": 0.88,
+            "screen_category_large": "예/적금",
+            "screen_category_medium": "입출금/예금/적금 가입"
+          },
+          {
+            "action_category_large": "수신상품",
+            "action_category_medium": "예적금",
+            "description": "입출금/예금/적금 상품의 상세 정보를 확인하는 페이지입니다. 상품명, 금리, 최소가입금액, 만기일, 이자 지급 방식, 가입 조건 등을 상세히 안내합니다.",
+            "match_reason": "상품 상세 조회 후 미가입 이탈 고객의 가입 전환 유도 대상",
+            "page_id": "NWMMH00051_001M",
+            "page_name": "입출금/예금/적금 상품 상세",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품 상세",
+            "product_event_area": 1,
+            "rag_score": 0.86,
+            "screen_category_large": "메인",
+            "screen_category_medium": "상품몰"
+          },
+          {
+            "action_category_large": "수신상품",
+            "action_category_medium": "예적금",
+            "description": "예금, 적금 상품을 확인하고, 가입할 수 있는 메인 화면입니다. 상품명, 금리, 기간, 이자 계산 방식 등을 확인하며, 선택을 결정합니다.",
+            "match_reason": "예적금 탐색 진입 메인으로 상위 퍼널 후보",
+            "page_id": "NWMMH00023_001M",
+            "page_name": "예적금 상품몰 메인",
+            "page_path": "메인(상품) > 예적금(입출금, 예금, 적금)",
+            "product_event_area": 0,
+            "rag_score": 0.78,
+            "screen_category_large": "메인",
+            "screen_category_medium": "상품몰"
+          },
+          {
+            "action_category_large": "상품메인",
+            "action_category_medium": "NA",
+            "description": "상품몰의 메인 화면입니다. 다양한 금융상품(예금, 적금, 펀드, 대출, 보험 등)을 한눈에 확인하고, 원하는 상품으로 이동할 수 있습니다.",
+            "match_reason": "전체 상품 진입 메인으로 광범위 후보",
+            "page_id": "NWMMH00021_001M",
+            "page_name": "상품몰 메인",
+            "page_path": "메인(상품)",
+            "product_event_area": 0,
+            "rag_score": 0.62,
+            "screen_category_large": "메인",
+            "screen_category_medium": "상품몰"
+          },
+          {
+            "action_category_large": "여신상품",
+            "action_category_medium": "NA",
+            "description": "대출 가입 안내 페이지. 대출 상품, 조건, 신청 절차 설명.",
+            "match_reason": "여신 상품 페이지로 예적금 목적과는 약한 연관",
+            "page_id": "NWMMH00057_001M",
+            "page_name": "대출 가입 안내",
+            "page_path": "금융상품 > 대출 > 가입하기 > 안내",
+            "product_event_area": 1,
+            "rag_score": 0.41,
+            "screen_category_large": "메인",
+            "screen_category_medium": "상품몰"
+          },
+          {
+            "action_category_large": "개인사업자상품",
+            "action_category_medium": "개인사업자대출",
+            "description": "메인(상품) > 개인사업자 페이지입니다. 개인사업자 전용 상품을 확인할 수 있습니다.",
+            "match_reason": "개인사업자 전용 영역으로 예적금 목적과 연관 낮음",
+            "page_id": "NWMMH00034_001M",
+            "page_name": "개인사업자 상품 메인",
+            "page_path": "메인(상품) > 개인사업자",
+            "product_event_area": 0,
+            "rag_score": 0.33,
+            "screen_category_large": "메인",
+            "screen_category_medium": "상품몰"
+          },
+          {
+            "action_category_large": "꿀머니조회",
+            "action_category_medium": "꿀머니",
+            "description": "내 꿀머니 메인. 포인트, 캐시백, 혜택을 한 눈에 확인.",
+            "match_reason": "꿀머니 혜택 잔액·포인트 조회 목적과 직접 연결된 페이지로 이탈률 분석 대상",
+            "page_id": "NWMMH00040_003M",
+            "page_name": "내 꿀머니",
+            "page_path": "메인(혜택) > (TAB)혜택·이벤트 > 내 꿀머니",
+            "product_event_area": 0,
+            "rag_score": 0.94,
+            "screen_category_large": "메인",
+            "screen_category_medium": "홈/메뉴"
+          }
+        ],
+        "source": "agent-factory-mock-lab",
+        "synthetic": true
+      },
+      "runtime_requirements": [
+        "Mock Lab MCP server wf-page-recommendation-mock",
+        "stdio transport"
+      ],
+      "side_effect_class": "read_only",
+      "source_refs": [
+        "catalog/asset-registry.json#tool.page-recommendation.search-page-candidates@1",
+        "catalog/contracts/mcp/page_recommendation.search_page_candidates.v1.json"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": null
+    },
+    {
+      "asset_id": "tool.page-recommendation.search-page-products",
+      "asset_type": "tool",
+      "binding": {
+        "kind": "mcp",
+        "server_ref": "wf-page-recommendation-mock",
+        "tool_name": "search_page_products"
+      },
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "retrieval"
+      ],
+      "composition": [],
+      "connection": {
+        "transport": "stdio"
+      },
+      "contract_hash": "53fd2865751971db93facfdae0cca9317d6fae3a5b97d0315731139b262da28c",
+      "contract_status": "mock_ready",
+      "depends_on": [],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "objective_text",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "product_class",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/tools.yaml"
+        }
+      },
+      "name": "페이지×상품 매핑 조회 Tool",
+      "notes": "Mock Lab wf-page-recommendation-mock/search_page_products synthetic MCP tool에 고정된 Tool 계약이다.",
+      "outputs": [
+        {
+          "name": "page_products",
+          "required": true,
+          "type": "array"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "페이지×상품 매핑 조회 Tool의 deterministic synthetic Mock Lab 결과를 제공한다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "customer_impact",
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "base_date": "20260526",
+        "page_products": [
+          {
+            "page_id": "NWMMH00040_003M",
+            "page_path": "메인(혜택) > (TAB)혜택·이벤트 > 내 꿀머니",
+            "product_class": "혜택",
+            "product_code": "BENEFIT_KKULMONEY",
+            "product_name": "꿀머니 혜택",
+            "screen_category_large": "메인",
+            "screen_category_medium": "홈/메뉴"
+          },
+          {
+            "page_id": "NWMMH00051_001M",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품 상세",
+            "product_class": "수신",
+            "product_code": "P010002584",
+            "product_name": "우리 빙고 적금",
+            "screen_category_large": "메인",
+            "screen_category_medium": "상품몰"
+          },
+          {
+            "page_id": "NWDID00019_002M",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품가입_B > (STEP01)이자 시뮬레이션",
+            "product_class": "수신",
+            "product_code": "P010002491",
+            "product_name": "WON플러스 예금",
+            "screen_category_large": "예/적금",
+            "screen_category_medium": "입출금/예금/적금 가입"
+          },
+          {
+            "page_id": "NWDID00019_003M",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품가입_B > (STEP02)가입정보 확인",
+            "product_class": "수신",
+            "product_code": "P010002491",
+            "product_name": "WON플러스 예금",
+            "screen_category_large": "예/적금",
+            "screen_category_medium": "입출금/예금/적금 가입"
+          },
+          {
+            "page_id": "NWDID00019_004M",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품가입_B > (STEP03)약관동의",
+            "product_class": "수신",
+            "product_code": "P010002491",
+            "product_name": "WON플러스 예금",
+            "screen_category_large": "예/적금",
+            "screen_category_medium": "입출금/예금/적금 가입"
+          },
+          {
+            "page_id": "NWDID00019_005M",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품가입_B > (STEP04)가입완료/실패",
+            "product_class": "수신",
+            "product_code": "P010002491",
+            "product_name": "WON플러스 예금",
+            "screen_category_large": "예/적금",
+            "screen_category_medium": "입출금/예금/적금 가입"
+          },
+          {
+            "page_id": "NWDID00019_002M",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품가입_B > (STEP01)이자 시뮬레이션",
+            "product_class": "수신",
+            "product_code": "P010002353",
+            "product_name": "WON 적금",
+            "screen_category_large": "예/적금",
+            "screen_category_medium": "입출금/예금/적금 가입"
+          },
+          {
+            "page_id": "NWMMH00051_001M",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품 상세",
+            "product_class": "수신",
+            "product_code": "P010002590",
+            "product_name": "우리 T-WON 적금",
+            "screen_category_large": "메인",
+            "screen_category_medium": "상품몰"
+          },
+          {
+            "page_id": "NWMMH00057_001M",
+            "page_path": "금융상품 > 대출 > 가입하기 > 안내",
+            "product_class": "여신",
+            "product_code": "P020000121",
+            "product_name": "예금담보대출",
+            "screen_category_large": "메인",
+            "screen_category_medium": "상품몰"
+          },
+          {
+            "page_id": "NWMMH00051_001M",
+            "page_path": "금융상품 > 입출금/예금/적금 > 가입하기 > 상품 상세",
+            "product_class": "수신",
+            "product_code": "P010002562",
+            "product_name": "우월한 월급 통장",
+            "screen_category_large": "메인",
+            "screen_category_medium": "상품몰"
+          }
+        ],
+        "source": "agent-factory-mock-lab",
+        "synthetic": true
+      },
+      "runtime_requirements": [
+        "Mock Lab MCP server wf-page-recommendation-mock",
+        "stdio transport"
+      ],
+      "side_effect_class": "read_only",
+      "source_refs": [
+        "catalog/asset-registry.json#tool.page-recommendation.search-page-products@1",
+        "catalog/contracts/mcp/page_recommendation.search_page_products.v1.json"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": null
+    },
+    {
+      "asset_id": "workflow.page-recommendation.required-page-selection",
+      "asset_type": "workflow",
+      "binding": null,
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "page-recommendation",
+        "human-in-the-loop",
+        "orchestration"
+      ],
+      "composition": [
+        "tool: 시나리오 목적 분류체계 조회 Tool",
+        "agent: 목적 분류 Agent",
+        "human_input: 목적/시나리오 분류 확인",
+        "agent: Tool Arguments 생성 Agent",
+        "tool: Page Metadata RAG 조회 Tool과 페이지×상품 매핑 조회 Tool을 병렬 조회",
+        "agent: 1차 Page 선택 Agent",
+        "human_input + router: run_analysis 또는 skip_analysis 분기",
+        "tool fan-out: UserFlow 분석, 행동유형 기반 시나리오 추천, T2S 분석",
+        "agent: 분석 결과 종합 Agent",
+        "human_input: 사용자 최종 Page(다중) 선택",
+        "subworkflow: Workflow 1-2 전달 Placeholder"
+      ],
+      "connection": null,
+      "contract_hash": "55e73894329ce66ba86aac8e34552c7aef1600c086ef473b070f940fd10fe161",
+      "contract_status": "mock_ready",
+      "depends_on": [
+        {
+          "asset_id": "tool.page-recommendation.get-scenario-taxonomy",
+          "version": 1
+        },
+        {
+          "asset_id": "agent.page-recommendation.objective-classifier",
+          "version": 1
+        },
+        {
+          "asset_id": "agent.page-recommendation.tool-argument-builder",
+          "version": 1
+        },
+        {
+          "asset_id": "tool.page-recommendation.search-page-candidates",
+          "version": 1
+        },
+        {
+          "asset_id": "tool.page-recommendation.search-page-products",
+          "version": 1
+        },
+        {
+          "asset_id": "agent.page-recommendation.initial-page-selector",
+          "version": 1
+        },
+        {
+          "asset_id": "tool.page-recommendation.run-userflow-analysis",
+          "version": 1
+        },
+        {
+          "asset_id": "tool.page-recommendation.recommend-scenario-by-behavior-type",
+          "version": 1
+        },
+        {
+          "asset_id": "tool.page-recommendation.analyze-page-customer-relation",
+          "version": 1
+        },
+        {
+          "asset_id": "agent.page-recommendation.analysis-synthesizer",
+          "version": 1
+        },
+        {
+          "asset_id": "workflow.page-recommendation.workflow-1-2-placeholder",
+          "version": 1
+        }
+      ],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "objective_text",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/workflows.yaml"
+        }
+      },
+      "name": "1-1 페이지 추천(필수) Workflow",
+      "notes": "등록된 Catalog 자산을 조합해 설계하는 best-scenario 검증용 root Workflow 계약이다.",
+      "outputs": [
+        {
+          "name": "broad_handoff_payload",
+          "required": true,
+          "type": "object"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "사용자 확인 Gate, Mock Lab Tool fan-out/fan-in, final handoff를 포함하는 Workflow graph owner다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "customer_impact",
+        "external_message",
+        "human_approval_required",
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "broad_handoff_payload": {
+          "selected_page_ids": [
+            "NWMMH00040_003M"
+          ],
+          "source_workflow": "req-page-recommendation-required",
+          "synthetic": true
+        }
+      },
+      "runtime_requirements": [
+        "ADK-compatible workflow runtime",
+        "synthetic local inputs"
+      ],
+      "side_effect_class": "none",
+      "source_refs": [
+        "catalog/asset-registry.json#workflow.page-recommendation.required-page-selection@1"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": {
+        "coordination": "explicit",
+        "representation": "graph",
+        "template_ref": null
+      }
+    },
+    {
+      "asset_id": "workflow.page-recommendation.workflow-1-2-placeholder",
+      "asset_type": "workflow",
+      "binding": null,
+      "business_domains": [
+        "페이지추천"
+      ],
+      "capability_tags": [
+        "handoff",
+        "placeholder"
+      ],
+      "composition": [
+        "subworkflow placeholder: Workflow 1-2 계약 확정 전 broad_handoff_payload를 synthetic으로 반환한다."
+      ],
+      "connection": null,
+      "contract_hash": "a5c8216ef5d75d9d56fe5ac375e6e0b566d99994da472931e64ed4925a3dc6b3",
+      "contract_status": "mock_ready",
+      "depends_on": [],
+      "domain_scope": "domain_specific",
+      "exposure": null,
+      "handbook_refs": [
+        "docs/workbench/taxonomy.md",
+        "docs/workbench/graph-ir.md",
+        "docs/workbench/validation.md"
+      ],
+      "inputs": [
+        {
+          "name": "broad_handoff_payload",
+          "required": true,
+          "type": "object"
+        }
+      ],
+      "lifecycle": {
+        "created_by": "seed-catalog-import",
+        "seed_publication": {
+          "kind": "repository_seed",
+          "rationale": "Imports the reviewed repository seed without fabricating a new user decision.",
+          "source_ref": "git:38baf2706f97ac4e66125ccb838b7f219af439e0:catalog/workflows.yaml"
+        }
+      },
+      "name": "Workflow 1-2 전달 Placeholder",
+      "notes": "Workflow 1-2 미확정 상태를 보존하는 synthetic placeholder Workflow 계약이다.",
+      "outputs": [
+        {
+          "name": "broad_handoff_payload",
+          "required": true,
+          "type": "object"
+        }
+      ],
+      "owner": "AI공통플랫폼팀",
+      "responsibility": "Workflow 1-2는 미확정이므로 broad handoff payload를 반환하는 placeholder Workflow 호출로만 표현한다.",
+      "reuse_status": "reuse_existing",
+      "risk_signals": [
+        "audit_required"
+      ],
+      "runtime_mock": {
+        "broad_handoff_payload": {
+          "selected_page_ids": [
+            "NWMMH00040_003M"
+          ],
+          "synthetic": true,
+          "target_workflow": "wf-1-2-placeholder",
+          "unresolved_contract": true
+        }
+      },
+      "runtime_requirements": [
+        "ADK-compatible workflow runtime",
+        "synthetic local inputs"
+      ],
+      "side_effect_class": "none",
+      "source_refs": [
+        "catalog/asset-registry.json#workflow.page-recommendation.workflow-1-2-placeholder@1"
+      ],
+      "status": "published",
+      "version": 1,
+      "workflow_profile": {
+        "coordination": "explicit",
+        "representation": "graph",
+        "template_ref": null
+      }
+    }
+  ],
+  "schema_version": 1
+}

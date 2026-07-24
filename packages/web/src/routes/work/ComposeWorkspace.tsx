@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { parseTargetAnalysisResult } from "../../analyzer/targetAnalysisResult";
+import type { AfWorkItemManifest } from "../../analyzer/afWorkItem";
 import type { AnalysisResult, GraphIR } from "../../analyzer/types";
 import { GraphCanvas } from "../../components/GraphCanvas";
 import { useCodexSessions } from "../../state/useCodexSessions";
@@ -72,6 +73,8 @@ export default function ComposeWorkspace() {
       </SkillScreenHeader>
       <div className="compose-gates"><ReviewGateLine manifest={manifest} gate="discovery" /><ReviewGateLine manifest={manifest} gate="composition" /></div>
 
+      {manifest ? <CompositionDecisionStrip manifest={manifest} /> : null}
+
       {!discoveryReady ? <ScreenState tone="warning" title="Compose gate가 닫혀 있습니다" detail="외부 Codex에서 Discover 산출물을 검토하고 discovery review를 승인한 뒤 Graph를 편집할 수 있습니다." /> : null}
       {activeSessions.length === 0 ? <ScreenState tone="warning" title="활성 Codex session 없음" detail="이 workspace에서 CLI 또는 VS Code extension prompt를 제출하면 Graph 저장 target으로 선택할 수 있습니다." /> : null}
       {message ? <div className={`compose-message is-${message.tone}`}>{message.text}{message.tone === "error" ? <button type="button" onClick={() => void graphQuery.refetch()}>최신 Graph 불러오기</button> : null}</div> : null}
@@ -96,28 +99,52 @@ export default function ComposeWorkspace() {
         </section>
       ) : null}
 
-      {analysis ? <CompositionRegisters analysis={analysis} /> : null}
+      {analysis && manifest ? <CompositionRegisters analysis={analysis} manifest={manifest} /> : null}
     </div>
   );
 }
 
-function CompositionRegisters({ analysis }: { analysis: AnalysisResult }) {
+function CompositionDecisionStrip({ manifest }: { manifest: AfWorkItemManifest }) {
+  const requiredOpen = manifest.decisions.some((decision) => decision.required && decision.status === "open")
+    || manifest.asset_decisions.some((decision) => decision.required && decision.status === "open");
+  const currentRevisions = ["discovery", "graph", "root_executable", "runtime_contract", "composition"] as const;
+  const readiness = !requiredOpen
+    && manifest.review_gates.discovery.status === "approved"
+    && Boolean(manifest.solution_control_strategy && manifest.root_executable)
+    && currentRevisions.every((key) => manifest.revisions[key]);
   return (
-    <section className="composition-registers">
-      <div className="binding-register">
+    <section className="composition-decision-strip">
+      <div><span>Solution control</span><strong>{manifest.solution_control_strategy ?? "결정 필요"}</strong></div>
+      <div><span>Root Executable</span>{manifest.root_executable ? <><strong>{manifest.root_executable.asset_type}</strong><code>{manifest.root_executable.asset_ref}@{manifest.root_executable.asset_version}</code></> : <strong>결정 필요</strong>}</div>
+      <div><span>Registry snapshot</span><strong>{manifest.revisions.catalog_snapshot?.registry_revision?.slice(0, 12) ?? "unbound"}</strong></div>
+      <div className={readiness ? "is-ready" : "is-blocked"}><span>Composition readiness</span><strong>{readiness ? "Ready for review" : "Not ready"}</strong><small>{requiredOpen ? "required decision open" : readiness ? "current revision set complete" : "gate, Root 또는 revision 확인 필요"}</small></div>
+    </section>
+  );
+}
+
+function CompositionRegisters({ analysis, manifest }: { analysis: AnalysisResult; manifest: AfWorkItemManifest }) {
+  const activeReturns = manifest.composition_cycles
+    .filter((cycle) => cycle.return_to_discover)
+    .map((cycle) => ({ cycleId: cycle.cycle_id, value: cycle.return_to_discover! }));
+  const latestReturn = activeReturns[activeReturns.length - 1] ?? null;
+  const activeInvalidations = manifest.invalidations.filter((invalidation) => invalidation.status === "active");
+  return (
+    <>
+      <section className="composition-registers">
+        <div className="binding-register">
         <div className="section-title-line compact"><div><span>Bindings</span><h2>Invocation & protocol</h2></div><strong>{analysis.assetCandidates.length}</strong></div>
-        <table><thead><tr><th>Asset</th><th>Binding</th><th>Invocation control</th><th>Exposure</th></tr></thead>
+        <table><thead><tr><th>Asset</th><th>Exact ref / disposition</th><th>Binding</th><th>Invocation control</th></tr></thead>
           <tbody>{analysis.assetCandidates.map((asset) => (
             <tr key={asset.asset_id}>
               <td><strong>{asset.name}</strong><code>{asset.asset_id}</code></td>
+              <td>{assetDecisionLabel(manifest, asset.asset_id)}</td>
               <td>{asset.binding?.kind ?? "—"}</td>
               <td>{invocationControl(asset.asset_type)}</td>
-              <td>{asset.exposure ? `${asset.exposure.protocol} · ${asset.exposure.contract_ref}` : "—"}</td>
             </tr>
           ))}</tbody>
         </table>
-      </div>
-      <div className="runtime-contract-register">
+        </div>
+        <div className="runtime-contract-register">
         <div className="section-title-line compact"><div><span>Runtime contracts</span><h2>Execution seams</h2></div><strong>{analysis.runtimeContracts.length}</strong></div>
         {analysis.runtimeContracts.length ? <ul>{analysis.runtimeContracts.map((contract) => (
           <li key={contract.contract_id}>
@@ -126,9 +153,29 @@ function CompositionRegisters({ analysis }: { analysis: AnalysisResult }) {
             <em className={`is-${contract.contract_status}`}>{contract.contract_status}</em>
           </li>
         ))}</ul> : <ScreenState title="Runtime Contract 없음" detail="현재 composition은 별도 runtime seam을 요구하지 않습니다." />}
-      </div>
-    </section>
+        </div>
+      </section>
+      <section className="composition-reentry-register">
+        <div className="section-title-line"><div><span>Re-entry</span><h2>Return to Discover & invalidation</h2></div><p>Compose는 부족한 capability를 임의로 보완하지 않고 새 Discovery Cycle로 돌려보냅니다.</p></div>
+        <div className="composition-reentry-grid">
+          <div>
+            <span>Latest Return-to-Discover</span>
+            {latestReturn ? <><strong>{latestReturn.value.missing_capability}</strong><code>{latestReturn.value.return_id} · {latestReturn.cycleId}</code><p>{latestReturn.value.required_contract_delta}</p><small>Graph impact: {latestReturn.value.graph_impact}</small><ul>{latestReturn.value.recommended_search_criteria.map((criterion) => <li key={criterion}>{criterion}</li>)}</ul></> : <p>현재 composition cycle에는 Return-to-Discover 요청이 없습니다.</p>}
+          </div>
+          <div>
+            <span>Active invalidations</span>
+            {activeInvalidations.length ? <ul>{activeInvalidations.map((invalidation) => <li key={invalidation.invalidation_id}><strong>{invalidation.source_skill} → {invalidation.target_skill}</strong><p>{invalidation.reason}</p><code>{invalidation.affected_refs.join(", ")}</code></li>)}</ul> : <p>현재 revision을 무효화하는 active record가 없습니다.</p>}
+          </div>
+        </div>
+      </section>
+    </>
   );
+}
+
+function assetDecisionLabel(manifest: AfWorkItemManifest, assetId: string) {
+  const decision = manifest.asset_decisions.find((candidate) => candidate.asset_ref === assetId && candidate.status === "resolved");
+  if (!decision) return <span className="decision-status is-open">unresolved</span>;
+  return <><strong>{decision.asset_ref}{decision.asset_version ? `@${decision.asset_version}` : ""}</strong><small>{decision.selected_disposition} · {decision.match_grade}</small></>;
 }
 
 function invocationControl(assetType: string): string {

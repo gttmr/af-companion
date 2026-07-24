@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { buildRuntimeContracts, requiredRuntimeContractKeys, runtimeContractReadinessIssues } from "./runtimeContracts.ts";
 import { buildScaffoldPlan } from "./scaffoldPlan.ts";
 import { assetCandidate, runtimeContract, strictAnalysisFixture } from "./targetContract.testFixture.ts";
+import type { AssetRecord } from "../registry/assetRegistryClient.ts";
 import type { AssetCandidate, GraphIR, RuntimeContract } from "./types.ts";
 
 const analysis = strictAnalysisFixture();
@@ -16,6 +17,35 @@ assert.equal(plan.raw_requirement_to_code, false);
 assert.equal(plan.assets.length, 2);
 assert.equal(plan.validation.can_generate_source, true);
 assert.equal("modules" in plan, false);
+
+const selectedRegistryAgent = {
+  asset_id: "agent.reviewer",
+  version: 1,
+  name: "Reviewer Agent"
+} as AssetRecord;
+const registryBoundPlan = buildScaffoldPlan({
+  normalizedRequirement: analysis.normalizedRequirement,
+  assetCandidates: analysis.assetCandidates.map((asset) => asset.asset_id === "agent.reviewer"
+    ? { ...asset, catalog_entry_id: "agent.reviewer" }
+    : asset),
+  graph: analysis.graph,
+  registryAssets: [selectedRegistryAgent]
+});
+assert.deepEqual(registryBoundPlan.manifest.catalog_bound_assets, [{
+  asset_id: "agent.reviewer",
+  asset_name: analysis.assetCandidates[1]!.name,
+  catalog_id: "agent.reviewer",
+  catalog_name: "Reviewer Agent"
+}]);
+
+const ambiguousRegistryPlan = buildScaffoldPlan({
+  normalizedRequirement: analysis.normalizedRequirement,
+  assetCandidates: analysis.assetCandidates,
+  graph: analysis.graph,
+  registryAssets: [selectedRegistryAgent, { ...selectedRegistryAgent, version: 2 }]
+});
+assert.equal(ambiguousRegistryPlan.validation.can_generate_source, false);
+assert.ok(ambiguousRegistryPlan.validation.blockers.some((blocker) => blocker.includes("exact Registry version 하나")));
 
 const emptyPlan = buildScaffoldPlan({
   normalizedRequirement: analysis.normalizedRequirement,

@@ -1,4 +1,5 @@
 import { graphIndexes, nodeAssetRef } from "./graph/indexes.mjs";
+import { isPythonRegistryReference } from "./registry-reference.mjs";
 
 export function toolConnection(asset) {
   if (asset.asset_type !== "tool") return "n/a";
@@ -17,8 +18,8 @@ export function agentOwnedTools(context, agentAsset) {
     .map(({ tool }) => tool);
 }
 
-export function hasAgentOwnedTools(context) {
-  return agentOwnedToolPairs(context).length > 0;
+export function hasAgentOwnedMcpTools(context) {
+  return agentOwnedToolPairs(context).some(({ tool }) => isMcpTool(tool));
 }
 
 function agentOwnedToolPairs(context) {
@@ -32,7 +33,7 @@ function agentOwnedToolPairs(context) {
     for (const available of node.available_tools ?? []) {
       if (available?.invocation_control !== "agent") continue;
       const tool = graph.assetById.get(available.tool_ref);
-      if (!isMcpTool(tool)) continue;
+      if (!isMcpTool(tool) && !isPythonRegistryReference(context, tool?.asset_id)) continue;
       const key = `${agent.asset_id}->${tool.asset_id}`;
       if (seen.has(key)) continue;
       seen.add(key);

@@ -11,10 +11,16 @@ import {
   MAX_CODEX_CONTEXT_CHARS,
   PROMPT_RECOVERY_SOURCE,
   renderSelectionContext,
+  validateAttachSessionInput,
   validateCodexHookInput,
   validateCreateDeliveryInput,
+  validateCreatePlanHandoffInput,
   validateSessionPreferencesInput,
 } from "./codexBridgeStore.ts";
+
+const DISCOVERY_REVISION = "a".repeat(64);
+const DECISION_REVISION = "b".repeat(64);
+const PLAN_HASH = "c".repeat(64);
 
 function bundle(selectionId: string, expiresAt = "2030-01-01T00:30:00.000Z"): SelectionBundleV1 {
   return {
@@ -42,19 +48,25 @@ function bundle(selectionId: string, expiresAt = "2030-01-01T00:30:00.000Z"): Se
   };
 }
 
-function sessionStart(sessionId: string, cwd: string, source = "startup") {
+function sessionStart(sessionId: string, cwd: string, source = "startup", permissionMode = "default") {
   return validateCodexHookInput({
     session_id: sessionId,
     transcript_path: `/private/${sessionId}.jsonl`,
     cwd,
     hook_event_name: "SessionStart",
     model: "gpt-5.6",
-    permission_mode: "default",
+    permission_mode: permissionMode,
     source,
   });
 }
 
-function promptSubmit(sessionId: string, turnId: string, cwd: string, prompt = "private prompt") {
+function promptSubmit(
+  sessionId: string,
+  turnId: string,
+  cwd: string,
+  prompt = "private prompt",
+  options: { permissionMode?: string; agentId?: string; agentType?: string } = {},
+) {
   return validateCodexHookInput({
     session_id: sessionId,
     turn_id: turnId,
@@ -62,8 +74,22 @@ function promptSubmit(sessionId: string, turnId: string, cwd: string, prompt = "
     cwd,
     hook_event_name: "UserPromptSubmit",
     model: "gpt-5.6",
-    permission_mode: "default",
+    permission_mode: options.permissionMode ?? "default",
     prompt,
+    ...(options.agentId === undefined ? {} : { agent_id: options.agentId }),
+    ...(options.agentType === undefined ? {} : { agent_type: options.agentType }),
+  });
+}
+
+function planHandoffRequest(fromSessionId = "plan-session", fromTurnId = "plan-turn", expiresAt = "2030-01-01T00:15:00.000Z") {
+  return validateCreatePlanHandoffInput({
+    work_id: "work-plan-1",
+    from_session_id: fromSessionId,
+    from_turn_id: fromTurnId,
+    discovery_revision: DISCOVERY_REVISION,
+    decision_revision: DECISION_REVISION,
+    plan_hash: PLAN_HASH,
+    expires_at: expiresAt,
   });
 }
 
@@ -140,6 +166,214 @@ test("routes the oldest delivery to only its exact session and consumes it once"
   assert.equal(consumed?.delivered_at, consumed?.consumed_at);
   const persisted = await readFile(store.statePath, "utf8");
   assert.doesNotMatch(persisted, /DO NOT STORE THIS PROMPT|\/private\/session-a\.jsonl/);
+});
+
+test("claims one explicit Plan marker in a distinct fresh session and merges exact-session context", async (t) => {
+  const { root, store } = await fixture(t);
+  await store.handleHook(sessionStart("plan-session", root, "startup", "plan"));
+  await store.handleHook(promptSubmit(
+    "plan-session",
+    "plan-turn",
+    root,
+    "private planning prompt",
+    { permissionMode: "plan" },
+  ));
+  const created = await store.createPlanHandoff(planHandoffRequest());
+  assert.match(created.marker, /^\[AF_PLAN_HANDOFF\]$/m);
+  assert.match(created.marker, new RegExp(`^AF_PLAN_HASH=${PLAN_HASH}$`, "m"));
+  assert.match(created.marker, /^AF_CLAIM_TOKEN=[A-Za-z0-9_-]{32,128}$/m);
+  const claimToken = /^AF_CLAIM_TOKEN=(.+)$/m.exec(created.marker)?.[1];
+  assert.ok(claimToken);
+
+  let persisted = await readFile(store.statePath, "utf8");
+  assert.doesNotMatch(persisted, new RegExp(claimToken));
+  assert.doesNotMatch(persisted, /private planning prompt|AF_CLAIM_TOKEN/);
+
+  await store.handleHook(sessionStart("fresh-session", root));
+  await store.createDelivery(validateCreateDeliveryInput({
+    target_session_id: "fresh-session",
+    delivery_mode: "next_prompt",
+    consume_policy: "once",
+    bundle: bundle("selection-with-handoff"),
+  }));
+  const firstPrompt = `Implement the approved plan.\n${created.marker}\nDO NOT STORE THIS FRESH PROMPT`;
+  const output = await store.handleHook(promptSubmit("fresh-session", "fresh-turn", root, firstPrompt));
+  const context = output?.hookSpecificOutput.additionalContext ?? "";
+  assert.match(context, /Work Item: work-plan-1/);
+  assert.match(context, new RegExp(`Plan hash: ${PLAN_HASH}`));
+  assert.match(context, /Target skill: af-discover-assets\.materialize/);
+  assert.match(context, /selection-with-handoff/);
+
+  let snapshot = await store.snapshot();
+  assert.equal(snapshot.handoffs[0].status, "claimed");
+  assert.equal(snapshot.handoffs[0].claimed_by_session_id, "fresh-session");
+  assert.equal(snapshot.handoffs[0].claimed_by_turn_id, "fresh-turn");
+  assert.equal(snapshot.sessions.find((session) => session.session_id === "plan-session")?.work_id, "work-plan-1");
+  assert.equal(snapshot.sessions.find((session) => session.session_id === "plan-session")?.role, "plan");
+  assert.equal(snapshot.sessions.find((session) => session.session_id === "fresh-session")?.work_id, "work-plan-1");
+  assert.equal(snapshot.sessions.find((session) => session.session_id === "fresh-session")?.role, "materialization");
+  assert.deepEqual(
+    snapshot.activities.filter((activity) => activity.event === "session_handoff").map((activity) => ({
+      session_id: activity.session_id,
+      turn_id: activity.turn_id,
+      work_id: activity.work_id,
+      handoff_id: activity.handoff_id,
+    })),
+    [{
+      session_id: "fresh-session",
+      turn_id: "fresh-turn",
+      work_id: "work-plan-1",
+      handoff_id: created.handoff.handoff_id,
+    }],
+  );
+
+  assert.equal(await store.handleHook(promptSubmit("fresh-session", "fresh-turn", root, firstPrompt)), null);
+  await store.handleHook(sessionStart("fresh-session", root, "compact"));
+  assert.equal(
+    await store.handleHook(promptSubmit("fresh-session", "fresh-turn-after-compact", root, created.marker)),
+    null,
+  );
+  await store.handleHook(sessionStart("other-fresh-session", root));
+  assert.equal(
+    await store.handleHook(promptSubmit("other-fresh-session", "other-turn", root, created.marker)),
+    null,
+  );
+  snapshot = await store.snapshot();
+  assert.equal(snapshot.handoffs[0].claimed_by_session_id, "fresh-session");
+  assert.equal(snapshot.activities.filter((activity) => activity.event === "session_handoff").length, 1);
+  persisted = await readFile(store.statePath, "utf8");
+  assert.doesNotMatch(persisted, new RegExp(claimToken));
+  assert.doesNotMatch(persisted, /DO NOT STORE THIS FRESH PROMPT|private planning prompt|AF_CLAIM_TOKEN/);
+});
+
+test("does not claim omitted, malformed, ambiguous, mismatched, or subagent markers", async (t) => {
+  const { root, store } = await fixture(t);
+  await store.handleHook(sessionStart("plan-session", root, "startup", "plan"));
+  await store.handleHook(promptSubmit("plan-session", "plan-turn", root, "plan", { permissionMode: "plan" }));
+  const created = await store.createPlanHandoff(planHandoffRequest());
+  assert.equal(
+    await store.handleHook(promptSubmit(
+      "plan-session",
+      "plan-turn-same-session",
+      root,
+      created.marker,
+      { permissionMode: "plan" },
+    )),
+    null,
+  );
+
+  const suppressedPrompts = [
+    { session: "missing", prompt: "Implement without marker", options: {} },
+    { session: "malformed", prompt: created.marker.replace("[/AF_PLAN_HANDOFF]", ""), options: {} },
+    { session: "ambiguous", prompt: `${created.marker}\n${created.marker}`, options: {} },
+    { session: "mismatch", prompt: created.marker.replace(`AF_PLAN_HASH=${PLAN_HASH}`, `AF_PLAN_HASH=${"d".repeat(64)}`), options: {} },
+    { session: "subagent", prompt: created.marker, options: { agentId: "agent-child" } },
+    { session: "subagent-type", prompt: created.marker, options: { agentType: "reviewer" } },
+  ];
+  for (const candidate of suppressedPrompts) {
+    await store.handleHook(sessionStart(candidate.session, root));
+    assert.equal(
+      await store.handleHook(promptSubmit(candidate.session, `${candidate.session}-turn`, root, candidate.prompt, candidate.options)),
+      null,
+    );
+  }
+  assert.equal(
+    await store.handleHook(promptSubmit("missing", "missing-second-turn", root, created.marker)),
+    null,
+    "a marker arriving after the first prompt must not retroactively claim the session",
+  );
+
+  let snapshot = await store.snapshot();
+  assert.equal(snapshot.handoffs[0].status, "pending");
+  assert.equal(snapshot.handoffs[0].claimed_by_session_id, null);
+  assert.ok(snapshot.sessions.filter((session) => session.session_id !== "plan-session").every((session) => (
+    session.work_id === null && session.role === "unassigned"
+  )));
+
+  await store.handleHook(sessionStart("valid-fresh", root));
+  assert.match(
+    (await store.handleHook(promptSubmit("valid-fresh", "valid-turn", root, created.marker)))
+      ?.hookSpecificOutput.additionalContext ?? "",
+    /work-plan-1/,
+  );
+  snapshot = await store.snapshot();
+  assert.equal(snapshot.handoffs[0].claimed_by_session_id, "valid-fresh");
+});
+
+test("expires pending handoffs and rejects invalid Plan source metadata", async (t) => {
+  const clock = await fixture(t);
+  await clock.store.handleHook(sessionStart("default-session", clock.root));
+  await clock.store.handleHook(promptSubmit("default-session", "default-turn", clock.root));
+  await assert.rejects(
+    clock.store.createPlanHandoff(planHandoffRequest("default-session", "default-turn")),
+    /Plan-mode session/,
+  );
+
+  await clock.store.handleHook(sessionStart("plan-session", clock.root, "startup", "plan"));
+  await clock.store.handleHook(promptSubmit("plan-session", "plan-turn", clock.root, "plan", { permissionMode: "plan" }));
+  await assert.rejects(
+    clock.store.createPlanHandoff(planHandoffRequest("plan-session", "wrong-turn")),
+    /exact known turn/,
+  );
+  const created = await clock.store.createPlanHandoff(planHandoffRequest(
+    "plan-session",
+    "plan-turn",
+    "2030-01-01T00:00:01.000Z",
+  ));
+  clock.advance(1_001);
+  await clock.store.handleHook(sessionStart("fresh-expired", clock.root));
+  assert.equal(
+    await clock.store.handleHook(promptSubmit("fresh-expired", "expired-turn", clock.root, created.marker)),
+    null,
+  );
+  const snapshot = await clock.store.snapshot();
+  assert.equal(snapshot.handoffs[0].status, "expired");
+  assert.equal(snapshot.handoffs[0].claimed_by_session_id, null);
+  assert.equal(snapshot.sessions.find((session) => session.session_id === "fresh-expired")?.work_id, null);
+});
+
+test("attaches only the explicitly named active session to the exact Work Item", async (t) => {
+  const { root, store } = await fixture(t);
+  await store.handleHook(sessionStart("session-a", root));
+  await store.handleHook(sessionStart("session-b", root));
+  await assert.rejects(
+    store.attachSession(validateAttachSessionInput({
+      session_id: "missing-session",
+      work_id: "work-manual-1",
+      role: "materialization",
+    })),
+    /session not found/i,
+  );
+  const attached = await store.attachSession(validateAttachSessionInput({
+    session_id: "session-b",
+    work_id: "work-manual-1",
+    role: "materialization",
+  }));
+  assert.equal(attached.session_id, "session-b");
+  assert.equal(attached.work_id, "work-manual-1");
+  assert.equal(attached.role, "materialization");
+  const snapshot = await store.snapshot();
+  assert.equal(snapshot.sessions.find((session) => session.session_id === "session-a")?.work_id, null);
+  assert.equal(snapshot.sessions.find((session) => session.session_id === "session-b")?.work_id, "work-manual-1");
+  assert.deepEqual(snapshot.activities.at(-1), {
+    activity_id: snapshot.activities.at(-1)?.activity_id,
+    session_id: "session-b",
+    turn_id: null,
+    event: "session_handoff",
+    tool_name: null,
+    work_id: "work-manual-1",
+    handoff_id: null,
+    at: "2030-01-01T00:00:00.000Z",
+  });
+  assert.throws(
+    () => validateAttachSessionInput({
+      session_id: "session-a",
+      work_id: "work-manual-1",
+      role: "plan",
+      select_first_active: true,
+    }),
+    /not supported/,
+  );
 });
 
 test("projects tool and stop lifecycle metadata without persisting tool payloads", async (t) => {
@@ -247,11 +481,14 @@ test("migrates old schema-version-1 sessions and strips unrecognized secret fiel
     status: "active",
     alias: null,
     default_target: false,
+    work_id: null,
+    role: "unassigned",
   });
   const persisted = await readFile(store.statePath, "utf8");
   assert.doesNotMatch(persisted, /transcript_path|DO NOT PERSIST/);
   assert.deepEqual(JSON.parse(persisted).prompt_receipts, []);
   assert.deepEqual(JSON.parse(persisted).activities, []);
+  assert.deepEqual(JSON.parse(persisted).handoffs, []);
 });
 
 test("recovers an unknown prompt session and protects the same turn from concurrent duplicate hooks", async (t) => {

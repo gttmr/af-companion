@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CodexCompanionSnapshot,
+  CodexSession,
+  CodexSessionRole,
   ContextDelivery,
   VscodeLaunchReceipt
 } from "../companion/types";
@@ -17,6 +19,12 @@ interface SessionPreferencesInput {
     alias?: string | null;
     default_target?: boolean;
   };
+}
+
+interface SessionAttachmentInput {
+  sessionId: string;
+  workId: string;
+  role: Exclude<CodexSessionRole, "unassigned">;
 }
 
 export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {}) {
@@ -82,6 +90,23 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     }
   });
 
+  const attachmentMutation = useMutation<CodexSession, Error, SessionAttachmentInput>({
+    mutationFn: async ({ sessionId, workId, role }) => {
+      const response = await fetch("/api/codex-companion/sessions/attach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, work_id: workId, role })
+      });
+      if (!response.ok) {
+        throw new Error(await codexCompanionResponseMessage(response, "Codex session을 Work Item에 연결하지 못했습니다."));
+      }
+      return (await response.json()) as CodexSession;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: CODEX_COMPANION_SNAPSHOT_QUERY_KEY });
+    }
+  });
+
   return {
     snapshot: snapshotQuery.data ?? null,
     snapshotLoading: snapshotQuery.isLoading,
@@ -97,7 +122,10 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     preferencesError: preferencesMutation.error instanceof Error ? preferencesMutation.error.message : null,
     cancelDelivery: (deliveryId: string) => cancelMutation.mutateAsync(deliveryId),
     cancelPendingDeliveryId: cancelMutation.isPending ? cancelMutation.variables ?? null : null,
-    cancelError: cancelMutation.error instanceof Error ? cancelMutation.error.message : null
+    cancelError: cancelMutation.error instanceof Error ? cancelMutation.error.message : null,
+    attachSession: (input: SessionAttachmentInput) => attachmentMutation.mutateAsync(input),
+    attachmentPending: attachmentMutation.isPending,
+    attachmentError: attachmentMutation.error instanceof Error ? attachmentMutation.error.message : null
   };
 }
 

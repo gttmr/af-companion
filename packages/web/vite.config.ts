@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import type { Plugin, PreviewServer, ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react";
-import { createAfCatalogMiddleware } from "./server/afCatalogApi";
+import { createAssetRegistryMiddleware } from "./server/assetRegistryApi";
 import { createCodexCompanionMiddleware } from "./server/codexCompanionApi";
 import { createWorkItemMiddleware } from "./server/workItemApi";
 import { createWorkspaceApi } from "./server/workspaceApi";
@@ -32,7 +32,7 @@ function agentFactoryServerPlugin(): Plugin {
     server.middlewares.use("/api/workspace", workspaceApi.middleware);
     server.middlewares.use("/api/work-items", createWorkItemMiddleware(repoRoot, workspaceApi.projection));
     server.middlewares.use("/api/codex-companion", createCodexCompanionMiddleware(repoRoot));
-    server.middlewares.use("/api/catalog", createAfCatalogMiddleware(repoRoot));
+    server.middlewares.use("/api/asset-registry", createAssetRegistryMiddleware(repoRoot));
     server.httpServer?.once("close", () => { void workspaceApi.close(); });
   };
   return {

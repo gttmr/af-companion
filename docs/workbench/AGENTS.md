@@ -10,7 +10,7 @@ This directory owns current Target v2 concepts and the external-Codex-first oper
 | --- | --- |
 | Agent·Workflow·Tool classification | `taxonomy.md` |
 | Graph nodes, edges, regions, bindings, invocation control | `graph-ir.md` |
-| four Work Skills, reviews, artifact/source ownership, verification | `operating-model.md` |
+| re-entrant Work Skills, decisions, reviews, Registry, artifact/source ownership, verification | `operating-model.md` |
 | Hook bridge, workspace projection, VS Code handoff | `cli-companion.md` |
 | discovery procedure | `analysis-guide.md` |
 | Workflow necessity | `workflow-decision-guide.md` |
@@ -23,10 +23,10 @@ This directory owns current Target v2 concepts and the external-Codex-first oper
 - Agent, Workflow, and Tool are the only asset types.
 - Graph uses the canonical strict envelope; A2A is an Agent protocol boundary.
 - Invocation Control is Workflow or Agent.
-- `af-work-item.json` is the four-skill lifecycle ledger.
-- External Codex writes canonical artifacts/source; web writes Graph IR only.
-- The app has no Stage Runner, `/api/af`, arbitrary artifact/source write, review mutation, runtime execution, or Catalog publication.
-- Catalog storage is `agents.yaml`, `workflows.yaml`, and `tools.yaml`; the web projection is read-only.
+- `af-work-item.json` v2 is the revisioned, re-entrant four-skill lifecycle ledger.
+- External Codex writes Work Item artifacts/source; web canonical writes are limited to guarded Graph IR and Asset Registry mutations.
+- The app has no Stage Runner, `/api/af`, arbitrary artifact/source write, Work Item review mutation, or runtime execution.
+- Asset Registry storage is `catalog/asset-registry.json`; Web and CLI share one strict Registry core and published versions are immutable.
 - Unsupported input is rejected, not migrated or backfilled.
 
 ## Local rules

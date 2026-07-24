@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  AssetRegistryError,
+  computeContractHash,
+  type AssetRecord,
+  type AssetRegistryDocument
+} from "../../agent-factory-core/src/assetRegistry.ts";
 import { loadCatalogPrefill } from "./catalogPrefillLoader.ts";
 import { MockDraftRegistry, buildDraftSpecPrompt, createDraftId, readDraftDetail } from "./mockDraftRunner.ts";
 import { MockProcessRegistry } from "./mockProcessRegistry.ts";
@@ -10,82 +17,147 @@ import { validateMockSpec, validateValueAgainstSchema } from "./schemaValidation
 
 const testRoot = await mkdtemp(join(tmpdir(), "af-mock-lab-"));
 const repoRoot = join(testRoot, "repo");
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const seedRegistry = JSON.parse(
+  await readFile(join(repositoryRoot, "catalog", "asset-registry.json"), "utf8")
+) as AssetRegistryDocument;
+const seedTools = seedRegistry.assets.filter((asset) => asset.asset_type === "tool");
+const latestToolV1 = seedTools[0];
+const latestToolV2 = updatedRecord(latestToolV1, {
+  version: 2,
+  name: "문서 OCR Tool v2",
+  responsibility: "Returns deterministic synthetic OCR output for adapter tests.",
+  binding: { kind: "mcp", server_ref: "synthetic-ocr", tool_name: "target_ocr_v2" },
+  connection: { transport: "stdio" },
+  inputs: [{ name: "document_uri", type: "string", required: true }],
+  outputs: [
+    { name: "ocr_text", type: "text", required: true },
+    { name: "confidence", type: "number", required: true }
+  ],
+  risk_signals: ["audit_required"],
+  runtime_mock: { ocr_text: "[SYNTHETIC] Registry OCR text", confidence: 0.95 },
+  notes: "Registry-backed synthetic OCR"
+});
+const runtimeOnlyTool = updatedRecord(seedTools[1], { contract_status: "review_pending" });
+const noMockTool = updatedRecord(seedTools[2], { contract_status: "review_pending", runtime_mock: {} });
+const functionTool = updatedRecord(seedTools[3], {
+  binding: { kind: "function" },
+  connection: { transport: "in_process" }
+});
+const httpTool = updatedRecord(seedTools[4], { connection: { transport: "http" } });
+const reviewedTool = updatedRecord(seedTools[5], {
+  status: "reviewed",
+  lifecycle: {
+    created_by: "mock-lab-test",
+    review_decision: {
+      decision_id: "decision:mock-lab-review",
+      selected_by: "user",
+      rationale: "Keeps a non-published Tool in the filtering fixture."
+    }
+  }
+});
+const a2aAgent = updatedRecord(
+  seedRegistry.assets.find((asset) => asset.asset_type === "agent")!,
+  {
+    binding: { kind: "a2a", contract_ref: "catalog/contracts/a2a/synthetic-agent.json" },
+    connection: { transport: "http" }
+  }
+);
+const workflow = updatedRecord(
+  seedRegistry.assets.find((asset) => asset.asset_type === "workflow")!,
+  { depends_on: [] }
+);
+const registryDocument: AssetRegistryDocument = {
+  schema_version: 1,
+  assets: [
+    latestToolV1,
+    latestToolV2,
+    runtimeOnlyTool,
+    noMockTool,
+    functionTool,
+    httpTool,
+    reviewedTool,
+    a2aAgent,
+    workflow
+  ]
+};
 await mkdir(join(repoRoot, "catalog"), { recursive: true });
 await writeFile(
-  join(repoRoot, "catalog", "tools.yaml"),
-  [
-    "tools:",
-    "  - asset_id: tool.document.ocr",
-    "    asset_type: tool",
-    "    name: 문서 OCR Tool",
-    "    version: 1",
-    "    status: published",
-    "    domain_scope: cross_domain",
-    "    business_domains: [문서처리]",
-    "    owner: platform_team",
-    "    reuse_status: reuse_existing",
-    "    capability_tags:",
-    "      - external_service",
-    "    binding:",
-    "      kind: mcp",
-    "      server_ref: synthetic-ocr",
-    "      tool_name: target_ocr",
-    "    connection:",
-    "      transport: stdio",
-    "    workflow_profile: null",
-    "    exposure: null",
-    "    contract_status: mock_ready",
-    "    inputs:",
-    "      - name: document_uri",
-    "        type: string",
-    "        required: true",
-    "    outputs:",
-    "      - name: ocr_text",
-    "        type: text",
-    "      - name: confidence",
-    "        type: number",
-    "    risk_signals:",
-    "      - audit_required",
-    "    runtime_mock:",
-    "      ocr_text: '[SYNTHETIC] Target Tool OCR text'",
-    "      confidence: 0.95",
-    "    notes: Target Tool synthetic OCR"
-  ].join("\n"),
+  join(repoRoot, "catalog", "asset-registry.json"),
+  JSON.stringify(registryDocument),
   "utf8"
 );
+await writeFile(join(repoRoot, "catalog", "tools.yaml"), "this is intentionally ignored: [", "utf8");
 
 const catalog = await loadCatalogPrefill(repoRoot);
-assert.equal(catalog.entries.length, 1);
-assert.equal(catalog.source_file, "catalog/tools.yaml");
-assert.equal(catalog.entries[0].asset_id, "tool.document.ocr");
-assert.equal(catalog.entries[0].name, "문서 OCR Tool");
+assert.equal(catalog.entries.length, 2);
+assert.equal(catalog.source_file, "catalog/asset-registry.json");
+assert.deepEqual(
+  catalog.entries.map((entry) => entry.asset_id),
+  [latestToolV2.asset_id, runtimeOnlyTool.asset_id]
+);
+assert.equal(catalog.entries[0].asset_id, latestToolV2.asset_id);
+assert.equal(catalog.entries[0].version, 2);
+assert.equal(catalog.entries[0].name, "문서 OCR Tool v2");
 assert.equal(catalog.entries[0].asset_type, "tool");
-assert.deepEqual(catalog.entries[0].capability_tags, ["external_service"]);
-assert.equal(catalog.entries[0].owner, "platform_team");
 assert.equal(catalog.entries[0].binding.kind, "mcp");
 assert.equal(catalog.entries[0].has_runtime_mock, true);
 assert.equal(catalog.entries[0].prefill.server_name, "synthetic-ocr");
-assert.equal(catalog.entries[0].prefill.tools[0].name, "target_ocr");
-assert.equal(catalog.entries[0].prefill.source?.catalog_file, "catalog/tools.yaml");
-assert.equal(catalog.entries[0].prefill.source?.catalog_asset_id, "tool.document.ocr");
+assert.equal(catalog.entries[0].prefill.tools[0].name, "target_ocr_v2");
+assert.equal(catalog.entries[0].prefill.source?.catalog_file, "catalog/asset-registry.json");
+assert.equal(catalog.entries[0].prefill.source?.catalog_asset_id, latestToolV2.asset_id);
+assert.equal(catalog.entries[0].prefill.source?.catalog_asset_version, 2);
 assert.deepEqual(catalog.entries[0].prefill.tools[0].inputSchema.required, ["document_uri"]);
 assert.deepEqual(catalog.entries[0].prefill.tools[0].successResponse, {
-  ocr_text: "[SYNTHETIC] Target Tool OCR text",
+  ocr_text: "[SYNTHETIC] Registry OCR text",
   confidence: 0.95
 });
+assert.deepEqual(catalog.entries[0].prefill.guardrails, {
+  synthetic_only: true,
+  no_private_data: true,
+  no_private_endpoint: true,
+  no_credentials: true,
+  no_production_business_logic: true
+});
+assert.equal(catalog.entries[1].contract_status, "review_pending");
+assert.equal(catalog.entries[1].has_runtime_mock, true);
+assert.equal(catalog.entries.some((entry) => entry.asset_id === noMockTool.asset_id), false);
+assert.equal(catalog.entries.some((entry) => entry.asset_id === functionTool.asset_id), false);
+assert.equal(catalog.entries.some((entry) => entry.asset_id === httpTool.asset_id), false);
+assert.equal(catalog.entries.some((entry) => entry.asset_id === reviewedTool.asset_id), false);
+assert.equal(catalog.entries.some((entry) => entry.asset_id === a2aAgent.asset_id), false);
+assert.equal(catalog.entries.some((entry) => entry.asset_id === workflow.asset_id), false);
 
 const missingCatalogRoot = join(testRoot, "missing-catalog");
 await mkdir(missingCatalogRoot, { recursive: true });
-await assert.rejects(() => loadCatalogPrefill(missingCatalogRoot), /tools\.yaml|ENOENT/);
+await assert.rejects(
+  () => loadCatalogPrefill(missingCatalogRoot),
+  (error) => registryErrorCode(error) === "registry_not_found"
+);
 
 const malformedCatalogRoot = join(testRoot, "malformed-catalog");
 await mkdir(join(malformedCatalogRoot, "catalog"), { recursive: true });
 await writeFile(
-  join(malformedCatalogRoot, "catalog", "tools.yaml"),
-  "tools:\n  - asset_id: adapter.legacy\n    asset_type: adapter\n    name: Legacy Adapter\n",
+  join(malformedCatalogRoot, "catalog", "asset-registry.json"),
+  "{ not valid JSON",
   "utf8"
 );
-await assert.rejects(() => loadCatalogPrefill(malformedCatalogRoot), /asset_type.*tool/);
+await assert.rejects(
+  () => loadCatalogPrefill(malformedCatalogRoot),
+  (error) => registryErrorCode(error) === "invalid_registry_json"
+);
+
+const duplicateCatalogRoot = join(testRoot, "duplicate-catalog");
+await mkdir(join(duplicateCatalogRoot, "catalog"), { recursive: true });
+await writeFile(
+  join(duplicateCatalogRoot, "catalog", "asset-registry.json"),
+  JSON.stringify({ schema_version: 1, assets: [latestToolV2, latestToolV2] }),
+  "utf8"
+);
+await assert.rejects(
+  () => loadCatalogPrefill(duplicateCatalogRoot),
+  (error) => registryErrorCode(error) === "duplicate_asset_version"
+);
 
 const validSpec = catalog.entries[0].prefill;
 const specValidation = validateMockSpec(validSpec);
@@ -275,12 +347,23 @@ const prompt = buildDraftSpecPrompt({
 });
 assert.match(prompt, /Return only one valid MockSpec JSON object/);
 assert.match(prompt, /Required server_name: document_ocr_tool-mcp/);
+assert.match(prompt, /catalog_asset_version: null/);
 assert.match(prompt, /errorCode/);
 assert.match(prompt, /when must be a JSON object/);
 assert.match(prompt, /Create an OCR mock spec/);
 assert.doesNotMatch(prompt, /Generate a local MCP stdio mock server from the approved Mock Lab spec/);
 
 await rm(testRoot, { recursive: true, force: true });
+
+function updatedRecord(record: AssetRecord, updates: Partial<AssetRecord>): AssetRecord {
+  const next = { ...structuredClone(record), ...structuredClone(updates) } as AssetRecord;
+  next.contract_hash = computeContractHash(next);
+  return next;
+}
+
+function registryErrorCode(error: unknown): string | undefined {
+  return error instanceof AssetRegistryError ? error.code : undefined;
+}
 
 async function waitFor(assertion: () => Promise<void>, timeoutMs = 3000): Promise<void> {
   const startedAt = Date.now();

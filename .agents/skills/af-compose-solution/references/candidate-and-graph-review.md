@@ -1,121 +1,191 @@
-# Candidate and Graph Review
-
-## Contents
-
-- [Purpose](#purpose)
-- [When to read](#when-to-read)
-- [Decision criteria](#decision-criteria)
-- [Required evidence](#required-evidence)
-- [Artifact implications](#artifact-implications)
-- [Scaffold implications](#scaffold-implications)
-- [Verification](#verification)
-- [Stop conditions](#stop-conditions)
-- [Official sources checked](#official-sources-checked)
-- [Checked date](#checked-date)
+# Selected Asset, Root, and Graph Review
 
 ## Purpose
 
-후보의 approve/defer/reject 결정을 내리고 standalone 또는 Graph 실행 구조를 review한다.
+Review whether the current approved discovery revision, user decisions, exact Asset versions/dispositions, Root Executable, and Graph form one coherent composition. This review consumes decisions; it does not replace them with Compose recommendations.
 
-## When to read
+## 1. Current input review
 
-모든 Compose 작업에서 candidate decision 전과 Graph 완료 판정 전에 읽는다.
+Before topology work, build a review table from `af-work-item.json`.
 
-## Decision criteria
-
-### Candidate decision
-
-| Decision | Required state |
+| Surface | Required current evidence |
 | --- | --- |
-| approve | responsibility, I/O, risk, owner, contract, missing-information gate가 검토됨 |
-| defer | 정보·계약·승인이 부족하지만 후보를 보존할 이유가 있음 |
-| reject | 중복, 잘못된 자산 경계, 다른 책임에 흡수됨 |
+| Discovery cycle | one current non-superseded complete cycle whose revision matches `revisions.discovery` |
+| Discovery gate | `approved`; all five bound revisions match current top-level revisions; `artifact_etag` matches current `analysis-result.json` bytes |
+| Required decisions | current records are `resolved`, `selected_by: user`, with complete reason/session/turn provenance |
+| Control strategy | Work Item value matches the resolved `solution_control_strategy` decision |
+| Root Executable | exact Agent/Workflow ref and positive version match the resolved `root_executable` decision |
+| Selected Assets | one resolved Asset decision per included Asset with exact ref, type, version, disposition, and provenance |
+| Registry evidence | Catalog-backed versions resolve against the gate-bound Registry revision |
+| Invalidation | no active invalidation makes an input current only in name |
 
-Target 자산 유형은 Agent, Workflow, Tool만 사용한다.
+Do not accept a matching name, latest Registry version, prior cycle approval, recommendation, or old Graph as a substitute for these checks.
 
-`asset_type`은 Agent, Workflow, Tool 중 하나이며 다른 category를 만들지 않는다.
+## 2. Asset decision review
 
-### Standalone decision
+For every Root, Graph typed ref, Agent available Tool, runtime contract Asset, and A2A contract Agent, trace both directions:
 
-먼저 A-D를 판정한다.
+```text
+Graph/contract use
+  -> asset_ref
+  -> current asset_decision
+  -> asset_type + asset_version + selected_disposition
+  -> discovery candidate/full contract or exact Registry contract
+  -> user decision provenance
+```
 
-- A: independent Agent/Tool만 필요
-- B: explicit Workflow 필요
-- C: Agent delegation으로 충분
-- D: Graph와 Agent delegation 혼합
+The only disposition values are:
 
-No-Workflow 결정도 검토 가능한 설계 결과다.
+- `reuse_exact`
+- `reuse_new_version`
+- `compose_existing`
+- `create_project_draft`
+- `create_publish_candidate`
+- `defer`
+- `exclude`
 
-### Graph review
+Apply these rules:
 
-Node마다 responsibility, typed asset reference 또는 synthetic/control 역할, input/output port, region, review status를 확인한다.
+- Every included Asset has a positive exact version before Compose review.
+- `reuse_exact` binds the reviewed exact version; never upgrade it implicitly.
+- `reuse_new_version` and `create_publish_candidate` remain distinct from a published existing version.
+- `compose_existing` preserves every selected component decision; composition does not collapse them into an invented replacement Asset.
+- `create_project_draft` remains project-local.
+- `defer` blocks a required capability.
+- `exclude` removes the Asset from Root, Graph, available Tools, and runtime/A2A contracts.
+- Recommendations explain trade-offs but never populate `selected_disposition`.
 
-Edge마다 source/target, data/control 의미, schema/channel key, route condition, remote boundary를 확인한다.
+For Registry-backed selections, use implemented CLI reads rather than memory:
 
-Function Node, Tool Node, Agent-selected Tool을 서로 바꾸지 않는다.
+```bash
+node scripts/af.mjs asset get <asset-id>@<version> --level 2
+node scripts/af.mjs asset validate <asset-id>@<version>
+node scripts/af.mjs asset compare <asset-id> <from-version> <to-version>
+```
 
-## Required evidence
+If an exact version is absent, failed, incompatible, or materially different from the approved evidence, use Return-to-Discover.
 
-- root Workflow 또는 no-Workflow 근거
-- 모든 active node의 reachability
-- terminal, failure, pause path
-- route values, aliases, default, invalid behavior
-- fan-out/fan-in과 Join
-- loop bound, back/exit, timeout/cancel
-- state/artifact producer, consumer, key, scope
-- Human Input payload, response mapping, resume, idempotency
-- A2A owner, lifecycle, discovery, task contract
-- Tool Binding, Transport, Invocation Control
-- candidate와 contract approvals
+## 3. Strategy and Root Executable realization
 
-## Artifact implications
+`solution_control_strategy` and `root_executable` are separate user decisions. The Root object has exactly:
 
-- Candidate decision은 rationale와 evidence locator를 보존한다.
-- Graph Node가 Catalog asset을 새로 만들지 않는다.
-- Agent-selected Tool은 fixed Tool Node로 강제하지 않는다.
-- Callback, Event Loop, Ambient Trigger는 asset이나 Graph Node가 아니다.
-- Canonical output은 strict Target Contract v2를 사용한다.
+```text
+asset_type: agent | workflow
+asset_ref: non-empty Asset ID
+asset_version: positive integer
+decision_id: resolved root_executable decision ID
+```
 
-## Scaffold implications
+Review against the canonical matrix:
 
-Ready Graph만 lowering에 넘긴다.
+| Selected strategy | Allowed selected Root | Required realization |
+| --- | --- | --- |
+| `single_agent` | Agent | Input -> Root Agent -> Output; Tools are Agent `available_tools[]` |
+| `agent_delegation` | Agent | Root Agent delegates to one or more reviewed Agent refs |
+| `explicit_workflow` | Workflow | `graph.workflow_ref` equals the Root Workflow; coordination is explicit |
+| `hybrid` | Agent or Workflow | Agent Root owns delegation topology, or Workflow Root owns mixed explicit/delegated control |
 
-Unsupported node/edge, open hard gate, unapproved contract, ambiguous route/loop/resume는 scaffold blocker다.
+The generated Python name `root_agent` is not an Asset type and is not a reason to alter the selected Root.
+
+If the approved requirement cannot be realized by the selected strategy/Root pair, record the conflict and Return to Discover. Compose may recommend reconsideration but may not change either selection.
+
+## 4. Hybrid boundary review
+
+For `hybrid`, write an explicit boundary table:
+
+| Question | Required answer |
+| --- | --- |
+| Fixed control | Which sequence, condition, approval, retry, loop, or terminal path is owned by the Workflow Graph? |
+| Agent discretion | Which delegation or Tool choice is made by which Agent? |
+| Transfer | What payload/channel crosses into delegated control? |
+| Return | What result/error returns to the explicit flow or Root Agent? |
+| Failure owner | Which side owns timeout, retry, fallback, cancellation, and audit? |
+| State owner | Which side produces/consumes state or artifact keys? |
+
+Do not use `hybrid` as a default or as a vague label for “several Agents.” Every boundary must be visible in Graph structure and reviewed contracts.
+
+## 5. Graph review
+
+Use only the strict v2 Graph envelope, eight node kinds, canonical edge `control`, optional `channel`, and `parallel`/`loop` regions.
+
+### Root and ownership
+
+- Agent Root: `graph.workflow_ref` is `null`.
+- Workflow Root: `graph.workflow_ref` equals `root_executable.asset_ref` and that exact Asset is a Workflow.
+- Every asset-bound node ref matches an included current Asset decision.
+- Graph refs identify Assets; exact versions/dispositions remain in the Work Item decisions and are checked during every lowering handoff.
+
+### Nodes
+
+Check responsibility, typed ref where allowed, ports, region membership, and contract annotations.
+
+- Agent Node: `agent_ref`; optional `available_tools[]` entries use `invocation_control: agent`.
+- Tool Node: `tool_ref` and `invocation_control: workflow`.
+- Subworkflow Node: `workflow_ref`.
+- Function, Input, Human Input, Join, and Output Nodes do not bind an Asset ref.
+
+Do not turn Function, Human Input, Join, callback, route, loop, A2A, MCP, or ambient behavior into an Asset or extra node kind.
+
+### Edges and regions
+
+Check:
+
+- source/target existence and reachability;
+- success, failure, pause, and terminal paths;
+- route values, accepted aliases, one default, and invalid-value behavior;
+- fan-out/fan-in and Join completeness;
+- loop entry, bound, back/exit, timeout, and cancellation;
+- producer/consumer ownership for `event`, `state`, and `artifact` channels;
+- retry, fallback, error, callback, resume, cancel, and timeout semantics;
+- remote boundary and A2A contract alignment.
+
+Static cycles, unbounded loops, ambiguous routes, conflicting channel producers, or unsupported lowering are not review-ready.
+
+## 6. Binding, Invocation Control, and runtime contracts
+
+- Binding and Transport belong to the referenced Asset contract, not the Graph Node.
+- Tool Invocation Control is only Workflow or Agent in the canonical serialization positions.
+- A2A is an Agent binding/exposure with an exact contract ref, never a node or Asset category.
+- Human Input includes payload, response mapping, pause/resume, expiry, duplicate, conflict, restart, and side-effect idempotency behavior when applicable.
+- Every runtime contract names its Asset/Graph scope, owner, lifecycle, data, side effect, auth reference, timeout, retry, fallback, cancellation, audit, and support status as applicable.
+
+An approved-looking Graph does not compensate for an unresolved runtime contract.
+
+## 7. Return-to-Discover decision
+
+Return rather than patching the design when review finds:
+
+- no selected Asset for a required capability;
+- an exact selected Asset version cannot be resolved;
+- selected disposition and intended use conflict;
+- I/O, side effect, security, owner, Human Input, A2A, or runtime policy is incompatible;
+- a material contract delta changes discovery evidence;
+- the selected strategy or Root would need to change.
+
+The active composition cycle records the exact `return_to_discover` object. Create an open user decision only when choice is actually required. Add invalidations for each affected existing revision, preserve old evidence, and route to Discover. Do not search, select, or create the replacement Asset inside Compose.
 
 ## Verification
 
-다음을 직접 점검한다.
-
-- reachability와 terminal path
-- route completeness와 Join
-- loop exit와 bound
-- channel keys와 producer conflicts
-- approved asset/contract references
-
-Strict v2 artifact는 다음을 실행한다.
-
-```bash
-node scripts/validate-artifacts.mjs <artifact-root-or-proposed-dir>
-```
+- Recompute current revisions and analysis SHA-256.
+- Confirm every included Asset use has one exact current Asset decision.
+- Check Root/strategy/Graph consistency.
+- Check reachability, terminal paths, routes, joins, loops, and channels.
+- Check contract and A2A references in both directions.
+- Run `node scripts/validate-artifacts.mjs <artifact-root>`.
 
 ## Stop conditions
 
-- candidate decision 근거가 없음
-- no-Workflow 대안을 검토하지 않음
-- Graph validation error가 있음
-- static cycle 또는 unbounded loop가 있음
-- unresolved route, channel, Human Input, A2A contract가 있음
-- design edit가 approval을 자동 변경함
+Stop when any current gate/revision check fails, a required decision is open, an Asset ref/version/disposition is ambiguous, the selected Root/strategy cannot be realized, a Graph/runtime contract is unresolved, or Return-to-Discover evidence has not been durably recorded.
 
-## Official sources checked
+## Sources checked
 
+- `schemas/af-work-item.schema.json`
+- `scripts/af.mjs`
 - `docs/workbench/taxonomy.md`
 - `docs/workbench/graph-ir.md`
 - `scripts/validate-artifacts.mjs`
-- `scripts/adk-source/graph/lowering.mjs`
-- `scripts/adk-source/graph/dynamic.mjs`
 
 ## Checked date
 
-- Checked date: 2026-07-18
-- Contract note: Graph nodes use only the strict v2 node kinds and typed references.
+- Checked date: 2026-07-24
+- Contract note: Work Item v2 revision-bound re-entry replaces linear candidate approval and standalone/read-only assumptions.

@@ -38,12 +38,23 @@ export function buildFiles({
   scaffoldPlan,
   assets,
   outputMode,
-  packageName
+  packageName,
+  rootExecutablePlan,
+  solutionControlStrategy,
+  assetBindings,
+  registryRevision
 }) {
-  const graphContext = { assets, graph };
+  const graphContext = { assets, graph, assetBindings };
+  const registryReferenceIds = new Set(
+    assetBindings.filter((binding) => binding.source_ref).map((binding) => binding.asset_id)
+  );
   validateGraphCoverage(graphContext);
   const connectedTools = assets.filter((asset) => toolConnection(asset) === "mcp_connected");
-  const unconnectedTools = assets.filter((asset) => asset.asset_type === "tool" && toolConnection(asset) === "unconnected");
+  const unconnectedTools = assets.filter(
+    (asset) => asset.asset_type === "tool"
+      && toolConnection(asset) === "unconnected"
+      && !registryReferenceIds.has(asset.asset_id)
+  );
   const a2aProviderEnabled = hasApprovedA2aExposure({ analysisResult, assets });
   const supportContext = {
     artifactRoot,
@@ -56,6 +67,10 @@ export function buildFiles({
     assets,
     outputMode,
     packageName,
+    rootExecutablePlan,
+    solutionControlStrategy,
+    assetBindings,
+    registryRevision,
     graphContext,
     a2aProviderEnabled,
     unconnectedTools,
@@ -90,11 +105,14 @@ export function buildFiles({
       packageName,
       graphContext,
       connectedTools,
-      toolConfigForAsset
+      toolConfigForAsset,
+      rootExecutablePlan,
+      solutionControlStrategy,
+      assetBindings
     }),
     [`${packageName}/workflow.py`]: buildWorkflowPy(),
-    [`${packageName}/schemas.py`]: buildSchemasPy({ assets, toolConnection }),
-    [`${packageName}/mock_config.yaml`]: buildMockConfigYaml({ assets, toolConnection }),
+    [`${packageName}/schemas.py`]: buildSchemasPy({ assets, assetBindings, toolConnection }),
+    [`${packageName}/mock_config.yaml`]: buildMockConfigYaml({ assets, assetBindings, toolConnection }),
     [`${packageName}/sample_inputs.yaml`]: buildSampleInputsYaml(supportContext),
     [`${packageName}/README.md`]: buildReadme(supportContext),
     [`${packageName}/nodes/__init__.py`]: "",
@@ -116,7 +134,11 @@ export function buildFiles({
         assets,
         graph,
         graphContext,
-        toolConfigForAsset
+        toolConfigForAsset,
+        rootExecutablePlan,
+        solutionControlStrategy,
+        assetBindings,
+        registryRevision
       }),
       null,
       2
@@ -125,7 +147,14 @@ export function buildFiles({
     "implementation-handoff.md": buildImplementationHandoff(supportContext),
     "runtime-chat-smoke.json": `${JSON.stringify(buildRuntimeChatSmoke(supportContext), null, 2)}\n`,
     [`${packageName}/tests/__init__.py`]: "",
-    [`${packageName}/tests/test_workflow_contract.py`]: buildContractTest({ outputMode, packageName, a2aProviderEnabled }),
+    [`${packageName}/tests/test_workflow_contract.py`]: buildContractTest({
+      outputMode,
+      packageName,
+      a2aProviderEnabled,
+      rootExecutablePlan,
+      solutionControlStrategy,
+      assetBindings
+    }),
     "README.md": buildReadme(supportContext)
   };
   if (a2aProviderEnabled) {
@@ -135,6 +164,7 @@ export function buildFiles({
   if (outputMode === "runnable") {
     files["agents.config.yaml"] = buildAgentsConfig({
       assets,
+      assetBindings,
       agentNodeTargets: orderedGraphNodeSpecs(graphContext),
       defaultAgentInstruction: defaultAgentInstructionForConfig,
       toolConnection
@@ -156,7 +186,11 @@ function buildManifest({
   assets,
   graph,
   graphContext,
-  toolConfigForAsset
+  toolConfigForAsset,
+  rootExecutablePlan,
+  solutionControlStrategy,
+  assetBindings,
+  registryRevision
 }) {
   return buildSupportManifest({
     outputMode,
@@ -168,6 +202,10 @@ function buildManifest({
     scaffoldPlan,
     assets,
     graph,
+    rootExecutablePlan,
+    solutionControlStrategy,
+    assetBindings,
+    registryRevision,
     startNodeIds: () => startNodeIds(graphContext),
     terminalOutputIds: () => terminalOutputIds(graphContext),
     graphNodeSemantics: () => graphNodeSemantics(graphContext),

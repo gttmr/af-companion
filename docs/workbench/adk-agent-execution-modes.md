@@ -158,6 +158,8 @@ Runnable source generator는 다음 규칙을 따른다.
 4. static Workflow node에 `task` mode를 생성하지 않는다.
 5. task sub-agent가 필요하면 root/coordinator agent topology를 생성하고, Graph IR에는 이 구조가 static edge replacement가 아니라 delegation topology임을 남긴다.
 6. `output_key`와 `ctx.state`는 명시 데이터 전달용이다. conversation memory를 state로 오해하지 않는다.
+7. Agent Root의 coordinator는 `mode`를 강제하지 않고, reviewed delegated Agent만 `mode='task'`로 생성한다. Workflow Root의 Agent Graph Node는 계속 `single_turn`이다.
+8. Generated `root_agent`는 Work Item이 선택한 Agent 또는 Workflow Root Executable object와 identity가 같아야 한다.
 
 ## UI And Review Rules
 

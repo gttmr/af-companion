@@ -4,7 +4,7 @@
 
 This directory owns strict Target Contract v2 client semantics: asset taxonomy,
 Graph IR validation, Work Item lifecycle, scaffold-plan derivation, runtime contracts,
-A2A Agent boundaries, and artifact import validation.
+and A2A Agent boundaries.
 
 Target taxonomy is canonical in [Taxonomy](../../../../docs/workbench/taxonomy.md),
 and Graph semantics in [Graph IR](../../../../docs/workbench/graph-ir.md).
@@ -16,13 +16,11 @@ and Graph semantics in [Graph IR](../../../../docs/workbench/graph-ir.md).
 | Artifact and Graph IR types | `types.ts` |
 | Work Item lifecycle ledger | `afWorkItem.ts` |
 | Exact Target v2 validation | `targetContract.ts` |
-| Strict analysis import/read boundary | `analysisArtifactImport.ts`, `targetAnalysisResult.ts` (`parseTargetAnalysisResult`) |
-| Classification labels and taxonomy UI text | `classificationRules.ts` |
+| Strict analysis read boundary | `targetAnalysisResult.ts` (`parseTargetAnalysisResult`) |
 | Graph IR validation | `graphValidation.ts` (`validateGraphIR`) |
-| Asset review status and Graph IR sync | `assetReview.ts` |
 | Scaffold-plan blockers and warnings | `scaffoldPlan.ts` |
 | Runtime support contracts | `runtimeContracts.ts` |
-| A2A Agent contracts and local provider import | `a2aContracts.ts`, `localA2aProvider.ts` |
+| A2A Agent contracts | `a2aContracts.ts` |
 
 ## Local Rules
 
@@ -35,7 +33,7 @@ and Graph semantics in [Graph IR](../../../../docs/workbench/graph-ir.md).
 - A2A is valid only as an Agent binding or exposure linked to an A2A contract.
 - Read-boundary functions validate and return strict input unchanged; they must not repair, migrate, coerce, or backfill it.
 - Candidate-level missing information is a hard scaffold blocker; requirement-level missing information is reviewer-attested.
-- Work Item order is Discover review → Compose review → Scaffold complete → Verify. Review decisions require artifact hash plus external Codex session/turn provenance.
+- Work Item routing is revision/evidence driven and allows Compose → Discover re-entry. Current approved composition still gates Scaffold, and review decisions require exact revision bindings plus external Codex session/turn provenance.
 - Keep enums aligned with schemas, validators, generator inputs, badges, templates, and analyzer tests.
 
 ## Anti-Patterns
@@ -50,6 +48,6 @@ and Graph semantics in [Graph IR](../../../../docs/workbench/graph-ir.md).
 
 ```bash
 cd packages/web
-npm run test:analyzer
+npm run test:contracts
 npm run build
 ```

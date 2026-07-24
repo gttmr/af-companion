@@ -1,5 +1,5 @@
 import { assertDataChannelsSupported, usesArtifactChannels } from "./channels.mjs";
-import { hasAgentOwnedTools } from "./tools.mjs";
+import { hasAgentOwnedMcpTools } from "./tools.mjs";
 import { collectGenerationNodes } from "./graph/collector.mjs";
 import { assertNoSymbolCollisions } from "./graph/guards.mjs";
 import {
@@ -19,7 +19,7 @@ import { emitRunnableNodeBlocks } from "./emitters/node-registry.mjs";
 import { buildRuntimeHelperSection } from "./emitters/runtime-helpers.mjs";
 
 export function buildDynamicRunnableAgentPy(context) {
-  const { analysisResult, assets, connectedTools, graphContext, normalizedRequirement, packageName } = context;
+  const { analysisResult, assetBindings, assets, connectedTools, graphContext, normalizedRequirement, packageName } = context;
   assertDynamicLoopsHaveApprovedBounds(graphContext);
   const collection = collectGenerationNodes(graphContext, { mode: "dynamic" });
   const dynamicPlan = assertDynamicRunnableGraphSupported(graphContext, { collection });
@@ -61,7 +61,7 @@ export function buildDynamicRunnableAgentPy(context) {
   const remoteConfigImport = usesRemoteAuth
     ? "from google.adk.a2a.agent.config import A2aRemoteAgentConfig, RequestInterceptor\n"
     : "";
-  const mcpToolsetImport = hasAgentOwnedTools(graphContext)
+  const mcpToolsetImport = hasAgentOwnedMcpTools(graphContext)
     ? "from google.adk.tools import McpToolset\nfrom google.adk.tools.mcp_tool import StreamableHTTPConnectionParams\n"
     : "";
   const eventImport = usesRemoteAuth || usesTerminalOutputs ? "Event, RequestInput" : "RequestInput";
@@ -82,7 +82,7 @@ ${remoteImport}${mcpToolsetImport}from google.adk.events import ${eventImport}
 from google.adk.workflow import FunctionNode, START, Workflow, node
 ${artifactGenaiImport}
 
-${buildRuntimeHelperSection({ componentContractLiteral: toPythonLiteral(componentContracts(context)), assets })}
+${buildRuntimeHelperSection({ componentContractLiteral: toPythonLiteral(componentContracts(context)), assets, assetBindings })}
 ${buildAsyncResumeWorkflowSupport(context)}
 
 ${funcBlocks.join("\n\n")}${funcBlocks.length ? "\n\n\n" : ""}
@@ -90,11 +90,12 @@ ${funcBlocks.join("\n\n")}${funcBlocks.length ? "\n\n\n" : ""}
 ${nodeBlocks.join("\n\n")}
 ${dynamicWorkflow}
 
-root_agent = ${asyncResumeRootClass(context)}(
+root_executable = ${asyncResumeRootClass(context)}(
     name=${toPyStr(packageName)},
     description=${toPyStr(description)},
     edges=[(START, dynamic_workflow)],
 )
+root_agent = root_executable
 `;
 }
 
