@@ -115,9 +115,9 @@ Workspace eligibility, Session participation, and Work attachment are independen
 
 The local bridge can create a pending Plan handoff only from a current leased Plan session and its exact latest turn. It returns one signed Capsule containing the exact workspace/application/Work Item scope, handoff, discovery and decision revisions, canonical Plan body hash, target, expiry, and consume-once claim. Capsule bytes are transport metadata and are excluded from the Plan body hash.
 
-The first eligible prompt in one distinct fresh enrolled session claims only that exact Capsule. Claim rejects the source session and wrong-scope, duplicate, expired, superseded, ambiguous, or subagent events. The Bridge never selects a first active session or infers a claim from one pending candidate.
+The first eligible prompt in one distinct fresh session claims only that exact Capsule. Claim rejects the source session and wrong-scope, duplicate, canonical-revision-stale, expired, superseded, ambiguous, or subagent events. As a separately confirmed fallback, `/connections` may durably attach the pending Handoff to one explicitly selected, already-enrolled materialization session whose current lease and workspace/application/Work Item scope match. This path returns no raw Capsule, stores the exact target, and only that session's next leased prompt can claim it. The Bridge never selects a first active session or infers a claim from one pending candidate.
 
-Automatic client transport is not assumed. `/connections` and `node scripts/af.mjs companion continue --handoff <id>` are the supported fallback and return a copyable Capsule/launch command. If the client strips the Capsule, the handoff remains waiting; it is not silently attached.
+Automatic client transport is not assumed. `/connections` and `node scripts/af.mjs companion continue --handoff <id>` provide the explicit fresh-session fallback and return a copyable Capsule/launch command. `/connections` also exposes durable exact existing-session attachment and pending-handoff cancellation. If the client strips the Capsule, the handoff remains waiting; it is not silently attached. Revoking a target detaches it; source revocation/staleness, source-turn drift, canonical Work Item revision drift, or Bridge restart closes pending authority.
 
 ## 9. Scaffold and Runtime Handoff
 
@@ -144,7 +144,7 @@ Outcomes are `passed`, `failed`, `unverified`, or `stale`. Verify can be complet
 | --- | --- | --- |
 | `/api/workspace` | identity, live snapshot, Git changes/diff, SSE, VS Code open | contained editor open only |
 | `/api/work-items` | Work Item/artifact projection | Graph GET/PUT only |
-| `/api/codex-companion` | enrollment, leased sessions, Plan Continue/claim, revoke, exact scoped next-prompt queue | bounded v2 interaction state only |
+| `/api/codex-companion` | enrollment, leased sessions, Plan Continue/exact attach/claim/cancel, revoke, exact scoped next-prompt queue | bounded v2 interaction state only |
 | `/api/asset-registry` | L0/L1/L2, search, usage, compare, validate, lifecycle | guarded Registry mutations |
 
 Routes are `/`, `/work/:workId/discover`, `/compose`, `/scaffold`, `/verify`, `/connections`, and `/assets`. `/connections` contains Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics registers; it does not list ordinary Codex sessions. Stage routes, `/api/af`, `/api/catalog`, proposal/apply, old manifest parsers, legacy imports, and compatibility aliases are unsupported.

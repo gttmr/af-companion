@@ -61,7 +61,7 @@ Work Item을 선택하지 않은 `/`에서는 왼쪽 rail 없이 lifecycle map�
 
 ## Connections와 Assets
 
-Connections는 조용한 운영 register 안에서 명시적 참여 범위와 만료·위험만 선명하게 드러낸다. 기본 순서는 `Companion Sessions` → `Pending Handoffs` → `Deliveries` → `Setup / Diagnostics`다. 일반 Codex Session은 표시하지 않으며, 각 row는 application, Work Item, role, activation origin, lease expiry, last event, participation을 구분한다. Start/Join, Continue, Revoke는 exact scope action이고 첫 active session이나 global default를 추측하지 않는다.
+Connections는 조용한 운영 register 안에서 명시적 참여 범위와 만료·위험만 선명하게 드러낸다. 기본 순서는 `Companion Sessions` → `Pending Handoffs` → `Deliveries` → `Setup / Diagnostics`다. 일반 Codex Session은 표시하지 않으며, 각 row는 application, Work Item, role, activation origin, lease expiry, last event, participation을 구분한다. Start/Join, Continue, exact existing-session Attach, Cancel, Revoke는 명시적 scope action이고 첫 active session이나 global default를 추측하지 않는다. Existing Attach의 select는 최초에 빈 값이며, Attach 후에는 영속 target을 표시하되 raw Capsule은 렌더링하지 않는다.
 
 Bridge health, Hook side-effect gate, strict no-hook 검증 여부, CLI/VS Code launch capability, Capsule transport capability를 별도 진단으로 표시한다. Editor launch accepted, enrollment pending, leased Companion active, delivery consumed를 하나의 성공 상태로 합치지 않는다. 진단은 aggregate count만 보여 주고 raw prompt, transcript, token, Capsule 본문을 노출하지 않는다.
 

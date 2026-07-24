@@ -113,29 +113,68 @@ Evidence:
 | --- | --- | --- | --- | --- |
 | Shared contract | Parent | `agent/session-scope-handoff-decision-input` | complete | contract tests and build pass |
 | Capability research | Agent A | read-only | complete and closed | installed CLI/IDE source plus official Codex docs |
-| Enrollment/Bridge/API | Agent B | `agent/session-scope-bridge` | active | pending targeted tests |
-| Hook/Launcher/CLI | Agent C | `agent/session-scope-hook-cli` | integrated and closed | Hook/CLI 16/16; plugin validator pass |
-| Decision Adapter/Skills | Agent D | `agent/decision-input-skills` | integrated and closed | skill validator 46/46; decision/session contract 4/4 |
-| Handoff/Connections UI | Agent E | `agent/session-handoff-ui` | integrated and closed | build + Companion tests; legacy fail-closed browser check at desktop/narrow |
-| Independent acceptance | Agent F | read-only after integration | pending | negative/security/locator review |
+| Enrollment/Bridge/API | Agent B | `agent/session-scope-bridge` | integrated and closed | direct/facade negative and exact-scope cases pass in the 57-test Companion suite |
+| Hook/Launcher/CLI | Agent C | `agent/session-scope-hook-cli` | integrated and closed | Hook/CLI 17/17; plugin validator pass |
+| Decision Adapter/Skills | Agent D | `agent/decision-input-skills` | integrated and closed | skill validator: 46 files, zero errors/warnings; decision/session contract 8/8 |
+| Handoff/Connections UI | Agent E | `agent/session-handoff-ui` | integrated and closed | build, Companion tests, and real fixed-port desktop/narrow browser acceptance |
+| Independent acceptance | Agent F | read-only after integration | complete and closed | five canonical-state, stale-authority, durable-attach, and evidence-strength findings reviewed |
 
 Only targeted-test-passing commits are eligible for Parent review and
 cherry-pick. This table is updated after each result is captured.
 
-## Acceptance evidence pending
+Agent F's review found that enrollment/CLI could name a nonexistent Work Item,
+delivery and Handoff revisions were caller-relative, existing-session Attach
+returned only a transient Capsule, pending authority survived source/restart
+drift, and Decision Adapter proof was text-only. Parent remediation now uses the
+strict canonical Work Item parser at enrollment/CLI and authority boundaries,
+rechecks repository/Graph and Handoff revisions, persists exact Attach targets,
+fails stale/restarted authority, and runs schema-validated semantic parity
+fixtures. Client-only behavior remains explicitly unverified below.
 
-- unmanaged SessionStart/prompt/tool/stop: zero AF network and durable state;
-- ticket/lease activation, expiry, replay, revoke, and symlink protection;
-- exact workspace/application/work/role delivery isolation;
-- atomic distinct-session handoff claim and wrong-session rejection;
-- structured/conversational Decision Record semantic parity;
-- fixed-port `/connections` browser and screenshot verification;
-- skill, artifact, contract, companion, Hook, build, link, and diff gates.
+## Acceptance evidence
 
-## Known limitations until proven otherwise
+| Claim | Current evidence |
+| --- | --- |
+| unmanaged lifecycle is inert | Hook acceptance sends ordinary SessionStart, prompt, tool, and stop inputs while trapping endpoint/network/state access; all exit silently with zero AF request, lease, activity, or durable session |
+| activation is exact and one-time | direct Bridge tests cover forged, replayed, expired, cross-scope, subagent, v1, and symlink cases; successful activation writes only one restrictive session lease |
+| delivery fails closed | tests reject unmanaged, stale, revoked, deleted/tampered-lease, wrong workspace/application/Work Item/role, and stale-revision targets |
+| restart and expiry invalidate authority | Bridge restart expires sessions, invalidates old leases, cancels queued delivery, and fails pending Handoffs; lease/source expiry and a later source turn close pending authority |
+| handoff is explicit and exact | tests cover strict canonical Work Item/revision drift, exact duplicate creation, distinct fresh claim, same/wrong session, replay, durable same-scope existing-session target, next-prompt claim, target detach, cancel, and source revoke |
+| decisions have path-independent semantics | all five skills use the shared turn-capability contract; an executable fixture presents one identical canonical question and produces the same strict-parser-valid Decision Record from structured/conversational answers while blocking ambiguity, stale recommendation, and protected shorthand |
+| browser projection matches the contract | real Chrome on fixed `8890` shows the four ordered registers; exact Attach and alias Rename return 200, no candidate is preselected, reload preserves the target without rendering a Capsule, and console reports zero errors/warnings |
+| activity projection is bounded | one Bridge activity ID is projected once even when unrelated v2 state rewrites trigger filesystem observation |
 
-- Project/plugin Hooks may still start a local process for an unmanaged session.
-- Built-in Plan-to-fresh-context Capsule carriage is not assumed.
-- VS Code launch acceptance is not Session enrollment or Hook-delivery proof.
-- `request_user_input` availability is turn/surface capability, not a version promise.
-- Delivery consumption is Hook-side consumption, not model acknowledgement.
+Browser evidence:
+
+- `artifacts/af/browser-companion/evidence/connections-v2-durable-attach-desktop.png`
+- `artifacts/af/browser-companion/evidence/connections-v2-durable-attach-narrow.png`
+
+## Validation snapshot
+
+| Command | Result |
+| --- | --- |
+| `node scripts/validate-skills.mjs` | PASS; 46 files, zero errors/warnings |
+| `node scripts/validate-artifacts.mjs` | PASS |
+| `cd packages/web && AF_TEST_PYTHON=/home/ilmaswsl/work/af-companion/.agent-factory/runtime/.venv/bin/python npm run test:contracts` | PASS; 22 web + 82 validator/generator = 104 tests |
+| `cd packages/web && npm run test:companion` | PASS; 40 web/server + 17 Hook/CLI = 57 tests |
+| `node --test scripts/af-codex-hook.test.mjs` | PASS; 9 tests |
+| `node --test tests/skills/decision-session-contract.test.mjs` | PASS; 8 tests |
+| `cd packages/web && npm run build` | PASS; TypeScript and Vite, 576 modules |
+| changed active Markdown relative-link check | PASS; 11 files, 11 local targets, zero broken |
+| `git diff --check` | PASS |
+
+The integration worktree intentionally reuses the original checkout's existing
+Google ADK 2.3.0 test interpreter through `AF_TEST_PYTHON`. The first run
+without that override failed only because this isolated worktree has no local
+ignored `.agent-factory/runtime/.venv/bin/python`; the full 104-test rerun with
+the explicit interpreter passed.
+
+## Known limitations
+
+- Project/plugin Hooks may still start a local process for an unmanaged session; the verified guarantee is zero AF communication or persistence after local proof gating.
+- Built-in Plan-to-fresh-context Capsule carriage is client-dependent and remains unverified, so explicit Continue/copy/exact attach is the supported path.
+- The current workspace resolver issues `factory` eligibility only. `registered_application` is a Target Contract value without a separate application-root registry or independent cwd resolver.
+- A VS Code window-open acceptance does not prove that one Codex thread inherited enrollment environment or delivered a Hook event.
+- `request_user_input` availability is a current-turn capability, not a CLI/extension version promise. Semantic output parity is executable, but one live structured and one live conversational client path were not both available in this run; conversational fallback remains required.
+- Delivery consumption records Hook-side consume-once handling, not model acknowledgement.
+- There is no current `SessionEnd` Hook contract; Stop, lease expiry, revoke, and Bridge restart provide the bounded lifecycle semantics.

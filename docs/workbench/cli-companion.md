@@ -22,6 +22,8 @@ Three axes remain independent:
 
 `unmanaged` is a local no-op, not a durable Bridge row. `pending_activation` belongs to a one-time ticket, not a session. Only an activated session is persisted, and its lease binds one canonical workspace, application, Work Item, role, session, and Bridge instance.
 
+The current repository resolver issues `factory` tickets only. `registered_application` remains a Target Contract value; there is not yet a separate application-root registry or independent registered-application cwd resolver. Within the factory checkout, `application_id` is an explicit logical scope and exact-equality delivery boundary, not proof of an external application workspace.
+
 ## Hook scope gate
 
 Tracked `.codex/hooks.json` and the companion plugin may invoke `scripts/af-codex-hook.mjs` for:
@@ -109,7 +111,7 @@ The next eligible prompt consumes a delivery once. Consumption is Hook-side cont
 
 ## Plan-to-materialization handoff
 
-A Plan handoff binds the exact source session and turn, workspace, application, Work Item, discovery and decision revisions, canonical Plan body hash, target skill, expiry, and consume-once claim. Capsule metadata is excluded from the canonical Plan body hash.
+A Plan handoff binds the exact source session and latest turn, workspace, application, canonical Work Item Handoff, discovery and decision revisions, canonical Plan body hash, target skill, expiry, and consume-once claim. Capsule metadata is excluded from the canonical Plan body hash. Bridge creation and every later authority-producing action recheck the current strict Work Item and revision tuple.
 
 Automatic built-in transfer to a fresh context is not assumed. The default supported path is an explicit Companion Continue action:
 
@@ -119,11 +121,13 @@ node scripts/af.mjs companion continue --handoff <handoff-id>
 
 `/connections` exposes the same action and a copyable returned Capsule. A claim succeeds only for one different fresh session with the exact Capsule and scope. Wrong-session, same-session, duplicate, expired, superseded, ambiguous, and subagent claims fail closed. The Bridge never claims a handoff merely because one candidate is pending.
 
+When a fresh client cannot be launched, `/connections` can durably attach the pending Handoff to one user-selected existing materialization Companion session. The target must have a current lease and the exact workspace/application/Work Item scope; no candidate is preselected, no raw Capsule is returned, and only the named session can claim context on its next leased prompt. Reload preserves the target. Pending handoffs can also be canceled explicitly. Target revoke detaches; source revoke/staleness, source-turn drift, canonical revision drift, or Bridge restart closes pending authority.
+
 If a client strips the Capsule, keep the handoff waiting and use Continue or Copy Capsule again. Do not infer participation from `cwd`, editor launch, or an observed prompt.
 
 ## Decision input
 
-The Work Skills inspect tools exposed in the current turn. When `request_user_input` is actually available they use the structured adapter; otherwise they ask exactly one conversational question, set `waiting_for_input`, and end the turn. Both paths preserve the same decision ID, option IDs, revision, recommendation revision, selected value, and session/turn provenance.
+The Work Skills inspect tools exposed in the current turn. When `request_user_input` is actually available they use the structured adapter; otherwise they ask exactly one conversational question, set `waiting_for_input`, and end the turn. Both paths preserve the same decision ID, option IDs, revision, recommendation revision, selected value, and session/turn provenance. `tests/skills/decision-input-fixture.mjs` behaviorally proves normalization parity against the strict Work Item parser; this does not replace a live current-turn client capability check.
 
 “추천대로 진행” is user consent only when it unambiguously names the currently displayed recommendation revision. Ambiguous answers trigger one clarification and no write. Recommendations, defaults, validator output, and prior-session assumptions never satisfy a hard gate.
 
@@ -135,7 +139,7 @@ The Work Skills inspect tools exposed in the current turn. When `request_user_in
 | explicit CLI enrollment and per-session lease | supported |
 | metadata-only activity | supported for enrolled sessions |
 | exact scoped next-prompt context | supported |
-| exact fresh-session Plan handoff | supported through explicit Continue/Capsule |
+| exact Plan handoff | supported through fresh Continue/Capsule or explicit exact existing-session attach |
 | automatic built-in fresh-context transport | unverified; not the default |
 | structured decision prompt | current-turn capability only |
 | conversational decision fallback | supported by Work Skill contract |
@@ -153,9 +157,9 @@ The Work Skills inspect tools exposed in the current turn. When `request_user_in
 | Hook declarations | `.codex/hooks.json`, `plugins/agent-factory-companion/hooks/hooks.json` |
 | bridge state and lease lifecycle | `packages/web/server/codexBridgeStore.ts` |
 | bridge process/routes | `packages/web/server/codexBridgeServer.ts`, `codexBridgeMain.ts` |
-| companion web facade | `packages/web/server/codexCompanionApi.ts` |
+| companion web facade and explicit handoff actions | `packages/web/server/codexCompanionApi.ts`, `packages/web/src/routes/ConnectionsPage.tsx` |
 | workspace observer | `packages/web/server/workspaceProjection.ts`, `workspaceApi.ts` |
 | editor handoff | `packages/web/server/vscodeWorkspaceLauncher.ts` |
 | Connections registers | `packages/web/src/routes/ConnectionsPage.tsx`, `packages/web/src/state/useCodexSessions.ts` |
 | Companion CLI | `scripts/af.mjs` |
-| decision/session procedures | `.agents/skills/_shared/decision-input-adapter.md`, `.agents/skills/_shared/session-and-work-item-provenance.md` |
+| decision/session procedures and semantic parity fixture | `.agents/skills/_shared/decision-input-adapter.md`, `.agents/skills/_shared/session-and-work-item-provenance.md`, `tests/skills/decision-input-fixture.mjs` |

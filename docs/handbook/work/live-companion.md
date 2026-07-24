@@ -14,13 +14,13 @@ The bridge stores bounded session, role, receipt, handoff, delivery, and activit
 
 ## Handoff and decisions
 
-Plan handoff creation requires a current leased Plan session and exact turn. A distinct fresh prompt claims one exact signed Capsule once; wrong scope, missing/duplicate Capsule, expiry, replay, same-session, and subagent claims fail closed. Automatic client transport is not assumed: `node scripts/af.mjs companion continue --handoff <id>` and `/connections` Continue return the explicit launch/copy fallback.
+Plan handoff creation requires a current canonical Work Item Handoff, leased Plan session, and exact latest turn. A distinct fresh prompt claims one exact signed Capsule once; wrong scope, missing/duplicate Capsule, canonical revision drift, expiry, replay, same-session, and subagent claims fail closed. Automatic client transport is not assumed: `node scripts/af.mjs companion continue --handoff <id>` and `/connections` Continue return the explicit launch/copy fallback. A separate `/connections` action durably records one user-selected, same-scope leased materialization target without returning a Capsule; only its next leased prompt can claim the Handoff. No candidate is preselected. Pending handoffs can be canceled, target revocation detaches them, and source revocation/staleness or Bridge restart closes their authority.
 
-Work Skills choose structured decision input only from tools actually exposed in the current turn. Otherwise they ask one conversational question and stop at `waiting_for_input`. Both adapters preserve one decision ID/revision/option/provenance contract, and an ambiguous answer or stale recommendation does not write a user decision.
+Work Skills choose structured decision input only from tools actually exposed in the current turn. Otherwise they ask one conversational question and stop at `waiting_for_input`. Both adapters preserve one decision ID/revision/option/provenance contract, and an ambiguous answer or stale recommendation does not write a user decision. An executable semantic fixture proves schema-valid output parity and protected-gate blocking; live two-client-path execution remains capability-dependent.
 
 ## Projection
 
-`ConnectionsPage` presents four ordered registers: Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics. Session rows keep participation, application/Work Item/role, activation origin, lease expiry, last event, alias, and revoke action distinct. Diagnostics expose capability labels and aggregate ignored/invalid/expired counts only.
+`ConnectionsPage` presents four ordered registers: Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics. Session rows keep participation, application/Work Item/role, activation origin, lease expiry, last event, alias, and revoke action distinct. Handoff rows show the source session/turn, revisions, transport, destination, expiry, and explicit Continue, exact existing-session Attach, and Cancel actions. Diagnostics expose capability labels and aggregate ignored/invalid/expired counts only.
 
 Bridge health, editor launch acceptance, ticket issuance, active lease, and prompt receipt are separate states. The UI never lists ordinary Hook-observed sessions, selects the first active session, or reports editor launch as Codex connection proof.
 
@@ -34,3 +34,4 @@ Source:
 - `packages/web/src/routes/ConnectionsPage.tsx`, `packages/web/src/state/useCodexSessions.ts`
 - `scripts/af-codex-hook.mjs`, `scripts/af-codex-hook-protocol.mjs`, `scripts/af.mjs`
 - `.agents/skills/_shared/decision-input-adapter.md`, `.agents/skills/_shared/fresh-context-handoff.md`
+- `tests/skills/decision-input-fixture.mjs`, `tests/skills/decision-session-contract.test.mjs`
