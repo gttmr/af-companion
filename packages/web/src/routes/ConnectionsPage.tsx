@@ -185,11 +185,20 @@ export default function ConnectionsPage() {
                       disabled={codex.continuePendingHandoffId === handoff.handoff_id}
                       onClick={() => void codex.continueHandoff(handoff.handoff_id).catch(() => undefined)}
                     >{codex.continuePendingHandoffId === handoff.handoff_id ? "Preparing…" : "Continue"}</button>
+                    <button
+                      type="button"
+                      className="is-danger"
+                      disabled={codex.cancelPendingHandoffId === handoff.handoff_id}
+                      onClick={() => void codex.cancelHandoff(handoff.handoff_id).catch(() => undefined)}
+                    >{codex.cancelPendingHandoffId === handoff.handoff_id ? "Canceling…" : "Cancel"}</button>
                     <div className="handoff-attach-control">
                       <select
                         aria-label={`${handoff.handoff_id} existing Companion target`}
                         value={selectedTarget}
-                        onChange={(event) => setHandoffTargetById((current) => ({ ...current, [handoff.handoff_id]: event.currentTarget.value }))}
+                        onChange={(event) => {
+                          const targetSessionId = event.currentTarget.value;
+                          setHandoffTargetById((current) => ({ ...current, [handoff.handoff_id]: targetSessionId }));
+                        }}
                       >
                         <option value="">Existing session 선택…</option>
                         {eligibleTargets.map((session) => <option key={session.session_id} value={session.session_id}>{session.alias || compactId(session.session_id)}</option>)}
@@ -200,12 +209,6 @@ export default function ConnectionsPage() {
                         onClick={() => void codex.attachHandoff({ handoffId: handoff.handoff_id, targetSessionId: selectedTarget }).catch(() => undefined)}
                       >{codex.attachPendingHandoffId === handoff.handoff_id ? "Attaching…" : "Attach existing"}</button>
                     </div>
-                    <button
-                      type="button"
-                      className="is-danger"
-                      disabled={codex.cancelPendingHandoffId === handoff.handoff_id}
-                      onClick={() => void codex.cancelHandoff(handoff.handoff_id).catch(() => undefined)}
-                    >{codex.cancelPendingHandoffId === handoff.handoff_id ? "Canceling…" : "Cancel"}</button>
                   </div></td>
                 </tr>;
               })}</tbody>

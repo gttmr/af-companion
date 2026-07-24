@@ -732,8 +732,8 @@
 .connection-table-scroll { max-width: 100%; overflow-x: auto; border-top: 1px solid var(--line); }
 .connection-table-scroll table { margin: 0; }
 .companion-session-table { min-width: 1320px; }
-.companion-handoff-table { min-width: 1120px; }
-.companion-delivery-table { min-width: 1080px; }
+.companion-handoff-table,
+.companion-delivery-table { min-width: 1000px; }
 .connection-table-scroll tbody tr,
 .connection-command-receipt { transition: opacity var(--transition-fast), transform var(--transition-fast), background-color var(--transition-fast); }
 .connection-table-scroll tbody tr:hover { background: color-mix(in srgb, var(--surface-muted) 65%, transparent); }
@@ -758,8 +758,8 @@
 .connection-state-label.is-failed,
 .connection-state-label.is-canceled { border-color: var(--danger-line); background: var(--danger-soft); color: var(--danger-text); }
 .connection-row-actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
-.handoff-attach-control { display: grid; grid-template-columns: minmax(150px, 1fr) auto; gap: var(--space-xs); }
-.handoff-attach-control select { min-height: 30px; height: 30px; max-width: 210px; font-size: var(--fs-2xs); }
+.handoff-attach-control { width: 180px; display: grid; grid-template-columns: 1fr; gap: var(--space-xs); }
+.handoff-attach-control select { width: 100%; min-height: 30px; height: 30px; font-size: var(--fs-2xs); }
 .connection-row-actions button,
 .connection-table-scroll td > button { min-height: 30px; height: 30px; padding: 0 var(--space-sm); font-size: var(--fs-2xs); transition: opacity var(--transition-fast), transform var(--transition-fast), background-color var(--transition-fast); }
 .connection-row-actions button:hover:not(:disabled),

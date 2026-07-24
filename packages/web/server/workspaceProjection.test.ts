@@ -73,9 +73,16 @@ test("projects Work Items, Git changes, diffs, and metadata-only filesystem acti
   await mkdir(bridgeStateDir, { recursive: true });
   await writeFile(join(bridgeStateDir, "state.json"), `${JSON.stringify({
     schema_version: 2,
-    activities: [{ event: "tool_start", tool_name: "Bash" }],
+    activities: [{ activity_id: "activity-1", event: "tool_start", tool_name: "Bash" }],
   })}\n`, "utf8");
   await codexActivityPromise;
+  await writeFile(join(bridgeStateDir, "state.json"), `${JSON.stringify({
+    schema_version: 2,
+    activities: [{ activity_id: "activity-1", event: "tool_start", tool_name: "Bash" }],
+    handoffs: [],
+  })}\n`, "utf8");
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal((await projection.snapshot()).activities.filter((activity) => activity.kind === "codex").length, 1);
 
   await assert.rejects(
     projection.diff("../outside"),
