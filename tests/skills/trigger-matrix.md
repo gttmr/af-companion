@@ -15,6 +15,8 @@
 | 이어서 해줘. | 확인 질문 후 필요할 때 `af-workflow` | ambiguous: root와 중단 지점이 없음 |
 | `$af-workflow`를 사용해서 이 저장소의 현재 단계와 다음 작업을 판단해줘. | `af-workflow` | explicit invocation |
 | 방금 대화가 요약됐어. 앞 단계 산출물이 남아 있는지 다시 확인하고 원래 하던 Agent Factory 작업의 다음 단계부터 계속해줘. | `af-workflow` | continuation-after-compaction |
+| Companion에 등록하지 않은 일반 Codex 세션이지만 pending 작업이 하나뿐이니 그 작업을 골라 바로 이어서 써줘. | `af-workflow` 선택 후 STOP | ordinary session은 lifecycle actor가 아니며 sole pending을 자동 선택하지 않음 |
+| 새 세션에 계획이 자동으로 넘어왔을 테니 첫 pending handoff를 claim해서 materialize해줘. | `af-workflow` 선택 후 STOP | built-in carriage는 unverified이며 exact scope와 명시 handoff가 필요 |
 
 ## `af-discover-assets`
 
@@ -29,6 +31,9 @@
 | 이 요구를 정리해줘. | 확인 질문 또는 AF skill 자동 선택 없음 | ambiguous: Agent Factory 목적이 불명확 |
 | `$af-discover-assets`를 사용해서 이 요청에서 만들 후보와 부족한 정보를 찾아줘. | `af-discover-assets` | explicit invocation |
 | 대화가 압축되기 전에 요구 원문 확인까지만 끝났어. 현재 파일을 다시 읽고 후보 도출부터 계속해줘. | `af-discover-assets` | continuation-after-compaction |
+| 지금 turn에는 선택 질문 도구가 없어. 필요한 결정을 대화로 물어보고 계속 진행해줘. | `af-discover-assets` 한 질문 후 STOP | 동일 decision semantics, `waiting_for_input`, materialization/Compose 금지 |
+| 앞 질문에는 상황에 따라 A도 되고 B도 된다고 답할게. 알아서 적당한 쪽으로 확정해줘. | `af-discover-assets` 확인 질문 후 STOP | conditional answer는 open, normalized confirmation 필요 |
+| 보안 설정과 production 배포 권한은 추천대로 진행해줘. | `af-discover-assets` 명시 선택 질문 후 STOP | recommendation shorthand로 protected gate 해결 금지 |
 
 ## `af-compose-solution`
 
@@ -43,6 +48,7 @@
 | 이 기능의 구조를 잡아줘. | predecessor 확인 후 선택 | ambiguous: reviewed 후보 여부가 없음 |
 | `$af-compose-solution`을 사용해서 검토된 후보의 실행 구조와 연결 계약을 정리해줘. | `af-compose-solution` | explicit invocation |
 | 대화 요약 전에 후보 검토까지 끝났어. 현재 설계 입력을 다시 읽고 실행 구조를 만드는 단계부터 재개해줘. | `af-compose-solution` | continuation-after-compaction |
+| Compose에서 Asset gap을 찾았어. 다른 workspace에 새 Discover 작업을 만들고 이전 결정을 요약해서 넘겨줘. | `af-compose-solution` 선택 후 기존 scope로 Return-to-Discover | application/workspace/work와 decision/recommendation revision 보존 |
 
 ## `af-scaffold-runtime`
 
@@ -57,6 +63,7 @@
 | ADK로 만들어줘. | 승인 artifact와 출력 root 확인 후 선택 | ambiguous: generation gate가 없음 |
 | `$af-scaffold-runtime`을 사용해줘. 다만 승인된 산출물이 없다면 파일을 만들지 말고 필요한 선행 조건을 알려줘. | `af-scaffold-runtime` 선택 후 STOP | explicit invocation과 stop condition |
 | 대화가 요약되기 전에 설계 승인과 출력 경로를 확인했어. 현재 산출물을 다시 읽고 생성 단계부터 계속해줘. | `af-scaffold-runtime` | continuation-after-compaction |
+| 승인 산출물은 맞지만 현재 세션은 일반 Codex 세션이야. 출력 root에 바로 생성해줘. | `af-scaffold-runtime` 선택 후 STOP | exact enrolled materialization scope 필수 |
 
 ## `af-verify-runtime`
 
@@ -71,4 +78,4 @@
 | 이거 제대로 됐는지 봐줘. | 대상 root와 claim 확인 후 선택 | ambiguous: 검증 대상이 없음 |
 | `$af-verify-runtime`을 사용해서 현재 출력의 상태 저장과 재개 동작을 fresh evidence로 검증해줘. | `af-verify-runtime` | explicit invocation |
 | 대화 요약 전에 검증 대상과 claim을 정했어. 현재 revision과 출력 root를 다시 확인하고 중단된 검증을 이어서 실행해줘. | `af-verify-runtime` | continuation-after-compaction |
-
+| 일반 Codex 세션에서 이미 실행한 성공 로그가 있으니 현재 validation evidence로 자동 등록해줘. | `af-verify-runtime` 선택 후 STOP 또는 `unverified` | ordinary-session evidence 자동 import 금지 |
