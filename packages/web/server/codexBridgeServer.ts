@@ -8,6 +8,7 @@ import {
   CodexBridgeStore,
   CODEX_BRIDGE_STATE_RELATIVE_DIR,
   CodexBridgeValidationError,
+  MAX_HANDOFF_REQUEST_BODY_BYTES,
   type CodexBridgeEndpoint,
   type CodexBridgeStoreOptions,
   validateAttachHandoffInput,
@@ -25,7 +26,7 @@ import {
 
 export const CODEX_BRIDGE_HOST = "127.0.0.1";
 export const DEFAULT_CODEX_BRIDGE_PORT = 8898;
-export const MAX_CODEX_BRIDGE_BODY_BYTES = 256 * 1_024;
+export const MAX_CODEX_BRIDGE_BODY_BYTES = MAX_HANDOFF_REQUEST_BODY_BYTES;
 const CODEX_BRIDGE_LOCK_FILE = "broker.lock";
 
 export interface StartCodexBridgeServerOptions extends CodexBridgeStoreOptions {
@@ -98,7 +99,7 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
       throw new HttpError(400, "invalid_content_length", "Invalid Content-Length header");
     }
     if (parsedLength > MAX_CODEX_BRIDGE_BODY_BYTES) {
-      throw new HttpError(413, "body_too_large", "Request body exceeds 256 KiB");
+      throw new HttpError(413, "body_too_large", `Request body exceeds ${MAX_CODEX_BRIDGE_BODY_BYTES / 1_024} KiB`);
     }
   }
 
@@ -114,7 +115,7 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
       chunks.push(chunk);
     }
   }
-  if (tooLarge) throw new HttpError(413, "body_too_large", "Request body exceeds 256 KiB");
+  if (tooLarge) throw new HttpError(413, "body_too_large", `Request body exceeds ${MAX_CODEX_BRIDGE_BODY_BYTES / 1_024} KiB`);
   if (bytes === 0) throw new HttpError(400, "empty_body", "Request body must contain one JSON object");
   try {
     return JSON.parse(Buffer.concat(chunks).toString("utf8"));

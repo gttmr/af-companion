@@ -478,6 +478,16 @@ test("validator rejects delegated recommendation provenance that names another o
   });
 });
 
+test("validator rejects superseded selection provenance without its input mode", () => {
+  withRoot((root, analysis) => {
+    const manifest = completedScaffoldWorkItem(analysis);
+    manifest.decisions[0].status = "superseded";
+    manifest.decisions[0].decision_input_mode = null;
+    writeJson(join(root, "af-work-item.json"), manifest);
+    assert.match(fail(root), /decision_input_mode|oneOf/);
+  });
+});
+
 test("Work Item revisions pin the canonical Registry revision and reject digest drift", () => {
   const registryUrl = new URL("../catalog/asset-registry.json", import.meta.url);
   const registrySource = readFileSync(registryUrl);

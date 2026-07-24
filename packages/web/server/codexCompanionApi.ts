@@ -22,6 +22,7 @@ import {
   ATTACH_HANDOFF_CONFIRMATION,
   CANCEL_HANDOFF_CONFIRMATION,
   CodexBridgeValidationError,
+  MAX_HANDOFF_REQUEST_BODY_BYTES,
   RESET_CONFIRMATION,
   REVOKE_CONFIRMATION,
   readRepositorySourceRevision,
@@ -35,7 +36,6 @@ import { VscodeWorkspaceLauncher, VscodeWorkspaceLauncherError } from "./vscodeW
 
 const ENDPOINT_RELATIVE_PATH = `${COMPANION_STATE_RELATIVE_DIR}/endpoint.json`;
 const BODY_LIMIT = 32 * 1_024;
-const HANDOFF_BODY_LIMIT = 96 * 1_024;
 const BROKER_TIMEOUT_MS = 1_000;
 const SELECTION_TTL_MS = 15 * 60 * 1_000;
 const MAX_SELECTED_NODE_IDS = 20;
@@ -116,7 +116,7 @@ export function createCodexCompanionMiddleware(repoRoot: string, options: CodexC
         sendJson(response, 201, await brokerRequest(repoRoot, "/v1/enrollments", { method: "POST", body: input })); return;
       }
       if (request.method === "POST" && path === "/handoffs") {
-        const input = await mutationBody(request, validateCreatePlanHandoffInput, HANDOFF_BODY_LIMIT);
+        const input = await mutationBody(request, validateCreatePlanHandoffInput, MAX_HANDOFF_REQUEST_BODY_BYTES);
         await assertWorkItemExists(repoRoot, artifactStore, input.work_id);
         sendJson(response, 201, await brokerRequest(repoRoot, "/v1/handoffs", { method: "POST", body: input })); return;
       }

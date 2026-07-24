@@ -741,8 +741,9 @@ function assertSelection(
   )) {
     throw new Error(`${label} resolved decision에는 user selection, selection_source, user_text_summary, decision_input_mode, reason, session_id, turn_id가 필요합니다.`);
   }
-  if (decision.status === "superseded" && details.some((entry) => entry !== null) && details.some((entry) => entry === null)) {
-    throw new Error(`${label} superseded decision의 selection metadata는 모두 있거나 모두 없어야 합니다.`);
+  if (decision.status === "superseded" && details.some((entry) => entry !== null)
+    && (details.some((entry) => entry === null) || decision.decision_input_mode === null)) {
+    throw new Error(`${label} superseded decision의 selection metadata는 decision_input_mode를 포함해 모두 있어야 합니다.`);
   }
 }
 

@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import type { CodexEditorCapabilities } from "../src/companion/types.ts";
+import { parseAfWorkItemManifest, serializeAfWorkItemManifest } from "../src/analyzer/afWorkItem.ts";
+import { canonicalizePlanBody } from "../src/companion/sessionContract.ts";
 import {
   TEST_HANDOFF_ID,
   TEST_MARKER_DIGEST,
@@ -185,6 +188,37 @@ test("Facade maps bounded Continue, attach, cancel, and Revoke actions to exact 
   const revoked = await response.json();
   assert.equal(revoked.participation, "revoked");
   assert.equal(revoked.revoke_reason, "revoked_from_companion_ui");
+});
+
+test("Facade carries every valid 64 KiB Plan body after worst-case JSON escaping", async (t) => {
+  const { root, bridge, facade, direct } = await fixture(t);
+  assert.ok(bridge);
+  const planBody = canonicalizePlanBody(`${"\u0000".repeat(65_534)}A`);
+  assert.equal(Buffer.byteLength(planBody, "utf8"), 64 * 1_024);
+  const planHash = createHash("sha256").update(planBody, "utf8").digest("hex");
+  const workItemPath = join(root, "artifacts", "af", "work-plan", "af-work-item.json");
+  const manifest = parseAfWorkItemManifest(await readFile(workItemPath, "utf8"));
+  manifest.session_handoffs[0].plan_hash = planHash;
+  await writeFile(workItemPath, serializeAfWorkItemManifest(manifest), "utf8");
+
+  let response = await facade("/enrollments", {
+    application_id: "app-1", work_id: "work-plan", requested_role: "plan", activation_origin: "af_cli_launch",
+  });
+  const enrollment = await response.json();
+  await direct("/v1/hooks", sessionHook(root, "plan-session", { kind: "activation", activation_capsule: enrollment.activation_capsule }, "plan"));
+  const lease = await bridge.store.leaseProofForTesting("plan-session");
+  await direct("/v1/hooks", sessionHook(root, "plan-session", lease, "plan", "plan-turn"));
+  const request = {
+    handoff_id: TEST_HANDOFF_ID, marker_digest: TEST_MARKER_DIGEST,
+    workspace_id: bridge.store.workspaceId, application_id: "app-1", work_id: "work-plan",
+    from_session_id: "plan-session", from_turn_id: "plan-turn",
+    discovery_revision: "a".repeat(64), decision_revision: "b".repeat(64),
+    plan_body_hash: planHash, plan_body: planBody,
+    transport_capability: "client_dependent", expires_at: "2030-01-01T00:10:00.000Z",
+  };
+  assert.ok(Buffer.byteLength(JSON.stringify(request), "utf8") > 256 * 1_024);
+  response = await facade("/handoffs", request);
+  assert.equal(response.status, 201);
 });
 
 test("Facade reset maps bounded empty action while direct Bridge still requires confirmation", async (t) => {

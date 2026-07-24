@@ -509,6 +509,36 @@
           }
         },
         {
+          "if": { "properties": { "status": { "const": "superseded" } }, "required": ["status"] },
+          "then": {
+            "oneOf": [
+              {
+                "properties": {
+                  "selected_option": { "type": "null" },
+                  "selected_by": { "type": "null" },
+                  "selection_source": { "type": "null" },
+                  "user_text_summary": { "type": "null" },
+                  "selection_reason": { "type": "null" },
+                  "session_id": { "type": "null" },
+                  "turn_id": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "selected_option": { "$ref": "#/$defs/nonEmptyString" },
+                  "selected_by": { "const": "user" },
+                  "selection_source": { "$ref": "#/$defs/selectionSource" },
+                  "user_text_summary": { "$ref": "#/$defs/userTextSummary" },
+                  "decision_input_mode": { "$ref": "#/$defs/decisionInputMode" },
+                  "selection_reason": { "$ref": "#/$defs/nonEmptyString" },
+                  "session_id": { "$ref": "#/$defs/nonEmptyString" },
+                  "turn_id": { "$ref": "#/$defs/nonEmptyString" }
+                }
+              }
+            ]
+          }
+        },
+        {
           "if": { "properties": { "recommended_option": { "type": "null" } }, "required": ["recommended_option"] },
           "then": { "properties": { "recommendation_revision": { "type": "null" } } },
           "else": { "properties": { "recommendation_revision": { "$ref": "#/$defs/sha256" } } }
@@ -608,6 +638,36 @@
               "session_id": { "$ref": "#/$defs/nonEmptyString" },
               "turn_id": { "$ref": "#/$defs/nonEmptyString" }
             }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "superseded" } }, "required": ["status"] },
+          "then": {
+            "oneOf": [
+              {
+                "properties": {
+                  "selected_disposition": { "type": "null" },
+                  "selected_by": { "type": "null" },
+                  "selection_source": { "type": "null" },
+                  "user_text_summary": { "type": "null" },
+                  "selection_reason": { "type": "null" },
+                  "session_id": { "type": "null" },
+                  "turn_id": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "selected_disposition": { "$ref": "#/$defs/disposition" },
+                  "selected_by": { "const": "user" },
+                  "selection_source": { "$ref": "#/$defs/selectionSource" },
+                  "user_text_summary": { "$ref": "#/$defs/userTextSummary" },
+                  "decision_input_mode": { "$ref": "#/$defs/decisionInputMode" },
+                  "selection_reason": { "$ref": "#/$defs/nonEmptyString" },
+                  "session_id": { "$ref": "#/$defs/nonEmptyString" },
+                  "turn_id": { "$ref": "#/$defs/nonEmptyString" }
+                }
+              }
+            ]
           }
         },
         {

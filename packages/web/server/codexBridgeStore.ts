@@ -51,6 +51,7 @@ export const DEFAULT_ENROLLMENT_TTL_MS = 5 * 60 * 1_000;
 export const DEFAULT_LEASE_TTL_MS = 8 * 60 * 60 * 1_000;
 export const MAX_CODEX_CONTEXT_CHARS = 8_000;
 export const MAX_HANDOFF_PLAN_BODY_BYTES = 64 * 1_024;
+export const MAX_HANDOFF_REQUEST_BODY_BYTES = 512 * 1_024;
 export const MAX_CODEX_PROMPT_RECEIPTS = 512;
 export const MAX_CODEX_ACTIVITIES = 512;
 export const PLAN_HANDOFF_TARGET = "af-discover-assets.materialize" as const;
@@ -1473,7 +1474,14 @@ export class CodexBridgeStore {
   }
 
   async snapshot(): Promise<CodexBridgeSnapshotV2> {
-    await this.#mutate(() => undefined);
+    await this.#mutate(async () => {
+      for (const handoff of this.#state.handoffs) {
+        if (handoff.status !== "ready" && handoff.status !== "waiting_for_fresh_session") continue;
+        if (!(await this.#matchesCurrentCanonicalHandoff(handoff))) {
+          this.#failHandoff(handoff, "canonical_handoff_stale");
+        }
+      }
+    });
     return {
       schema_version: 2, bridge_instance_id: this.bridgeInstanceId, capabilities: this.capabilities(),
       enrollment_tickets: this.#state.enrollment_tickets.filter((ticket) => ticket.status === "pending").map((ticket) => this.#publicTicket(ticket)),

@@ -411,6 +411,25 @@ test("canonical Work Item drift durably fails an already-created handoff", async
   assert.equal(snapshot.handoffs[0].failure_code, "canonical_handoff_stale");
 });
 
+test("snapshot reconciles a removed canonical Handoff and erases its protected Plan", async (t) => {
+  const clock = await fixture(t);
+  const { lease } = await enroll(clock.store, clock.root, "plan-session", "plan", "work-plan");
+  await clock.store.handleHook(hook("UserPromptSubmit", "plan-session", clock.root, lease, { turn: "plan-turn", permission: "plan" }));
+  await clock.store.createPlanHandoff(planHandoffRequest(clock.store));
+  const path = join(clock.root, "artifacts", "af", "work-plan", "af-work-item.json");
+  const manifest = parseAfWorkItemManifest(await readFile(path, "utf8"));
+  manifest.session_handoffs = [];
+  await writeFile(path, serializeAfWorkItemManifest(manifest), "utf8");
+
+  const snapshot = await clock.store.snapshot();
+  assert.equal(snapshot.handoffs[0].status, "failed");
+  assert.equal(snapshot.handoffs[0].failure_code, "canonical_handoff_stale");
+  const persisted = JSON.parse(await readFile(clock.store.statePath, "utf8")).handoffs[0];
+  assert.equal(persisted.plan_body_ciphertext, null);
+  assert.equal(persisted.plan_body_iv, null);
+  assert.equal(persisted.plan_body_auth_tag, null);
+});
+
 test("a later Plan turn invalidates an older pending handoff", async (t) => {
   const clock = await fixture(t);
   const { lease } = await enroll(clock.store, clock.root, "plan-session", "plan", "work-plan");

@@ -5,6 +5,7 @@ import {
   createAfWorkItemManifest,
   parseAfWorkItemManifest,
   serializeAfWorkItemManifest,
+  type AfAssetDecisionRecord,
   type AfDecisionRecord,
   type AfRevisionRef,
   type AfSessionHandoff,
@@ -215,6 +216,50 @@ test("resolved decisions require complete user selection metadata", () => {
   assert.throws(
     () => parseAfWorkItemManifest(JSON.stringify(manifest)),
     /delegated_recommendation은 표시된 recommended_option만/,
+  );
+});
+
+test("superseded selection provenance retains its decision input mode", () => {
+  const manifest = createAfWorkItemManifest("req-superseded-decision");
+  manifest.decisions = [{
+    ...resolvedDecision("decision.superseded", "goal", "approved"),
+    decision_input_mode: null,
+    status: "superseded",
+  }];
+  assert.throws(
+    () => parseAfWorkItemManifest(JSON.stringify(manifest)),
+    /superseded decision의 selection metadata는 decision_input_mode를 포함해 모두 있어야/,
+  );
+
+  const assetDecision: AfAssetDecisionRecord = {
+    asset_decision_id: "asset-decision.superseded",
+    decision_revision: "3".repeat(64),
+    asset_ref: "agent.synthetic",
+    asset_type: "agent",
+    asset_version: 1,
+    required: true,
+    match_grade: "exact",
+    options: ["reuse_exact"],
+    recommended_disposition: "reuse_exact",
+    recommendation_revision: "4".repeat(64),
+    selected_disposition: "reuse_exact",
+    selected_by: "user",
+    selection_source: "explicit_option",
+    user_text_summary: "User explicitly selected disposition reuse_exact.",
+    decision_input_mode: null,
+    selection_reason: "Synthetic superseded selection.",
+    evidence_refs: [],
+    catalog_refs: ["agent.synthetic@1"],
+    session_id: "session-review",
+    turn_id: "turn-asset-superseded",
+    status: "superseded",
+    supersedes: null,
+  };
+  manifest.decisions = [];
+  manifest.asset_decisions = [assetDecision];
+  assert.throws(
+    () => parseAfWorkItemManifest(JSON.stringify(manifest)),
+    /superseded decision의 selection metadata는 decision_input_mode를 포함해 모두 있어야/,
   );
 });
 
