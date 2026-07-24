@@ -29,6 +29,7 @@ import type {
   CodexBridgeSnapshotV2,
   CompanionBridgeCapabilitiesV2,
   ContextDelivery,
+  HandoffAttachReceipt,
   HandoffContinueReceipt,
   ScopedContextDelivery,
   SelectionBundleV1,
@@ -49,6 +50,8 @@ export const RESET_CONFIRMATION = "RESET_COMPANION_STATE_V2";
 export const REVOKE_CONFIRMATION = "REVOKE_COMPANION_SESSION";
 export const ATTACH_CONFIRMATION = "ATTACH_COMPANION_SESSION";
 export const CONTINUE_CONFIRMATION = "CONTINUE_COMPANION_HANDOFF";
+export const ATTACH_HANDOFF_CONFIRMATION = "ATTACH_COMPANION_HANDOFF";
+export const CANCEL_HANDOFF_CONFIRMATION = "CANCEL_COMPANION_HANDOFF";
 
 const LEGACY_STATE_RELATIVE_DIR = ".agent-factory/codex-bridge/v1";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
@@ -166,6 +169,11 @@ export interface CreatePlanHandoffInput {
 }
 
 export interface ContinueHandoffInput { confirmation: typeof CONTINUE_CONFIRMATION }
+export interface AttachHandoffInput {
+  confirmation: typeof ATTACH_HANDOFF_CONFIRMATION;
+  target_session_id: string;
+}
+export interface CancelHandoffInput { confirmation: typeof CANCEL_HANDOFF_CONFIRMATION }
 
 export interface AttachSessionInput {
   session_id: string;
@@ -257,6 +265,7 @@ type HandoffCapsule = {
   decision_revision: string;
   plan_body_hash: string;
   canonical_cwd_digest: string;
+  target_session_id: string | null;
   expires_at: string;
 };
 
@@ -485,6 +494,20 @@ export function validateContinueHandoffInput(value: unknown): ContinueHandoffInp
   exactKeys(input, "handoff continue request", ["confirmation"]);
   if (input.confirmation !== CONTINUE_CONFIRMATION) throw new CodexBridgeValidationError(`confirmation must be ${CONTINUE_CONFIRMATION}`);
   return { confirmation: CONTINUE_CONFIRMATION };
+}
+
+export function validateAttachHandoffInput(value: unknown): AttachHandoffInput {
+  const input = object(value, "handoff attachment request");
+  exactKeys(input, "handoff attachment request", ["confirmation", "target_session_id"]);
+  if (input.confirmation !== ATTACH_HANDOFF_CONFIRMATION) throw new CodexBridgeValidationError(`confirmation must be ${ATTACH_HANDOFF_CONFIRMATION}`);
+  return { confirmation: ATTACH_HANDOFF_CONFIRMATION, target_session_id: identifier(input.target_session_id, "target_session_id") };
+}
+
+export function validateCancelHandoffInput(value: unknown): CancelHandoffInput {
+  const input = object(value, "handoff cancel request");
+  exactKeys(input, "handoff cancel request", ["confirmation"]);
+  if (input.confirmation !== CANCEL_HANDOFF_CONFIRMATION) throw new CodexBridgeValidationError(`confirmation must be ${CANCEL_HANDOFF_CONFIRMATION}`);
+  return { confirmation: CANCEL_HANDOFF_CONFIRMATION };
 }
 
 export function validateAttachSessionInput(value: unknown): AttachSessionInput {
@@ -811,9 +834,10 @@ export class CodexBridgeStore {
     let leaseToClean: string | null = null;
     try {
       return await this.#mutate(async (now) => {
-        if (this.#state.sessions.some((session) => session.session_id === input.session_id)) return null;
+        const existingSession = this.#state.sessions.find((session) => session.session_id === input.session_id) ?? null;
         const cwdDigest = sha256(cwd);
         if (parsed.kind === "enrollment") {
+          if (existingSession) return null;
           const ticket = this.#state.enrollment_tickets.find((item) => item.ticket_id === parsed.ticket_id);
           if (!ticket || ticket.status !== "pending" || Date.parse(ticket.expires_at) <= Date.parse(now)
             || parsed.workspace_id !== ticket.workspace_id || parsed.application_id !== ticket.application_id
@@ -832,7 +856,7 @@ export class CodexBridgeStore {
         }
         const handoff = this.#state.handoffs.find((item) => item.handoff_id === parsed.handoff_id);
         const source = handoff ? this.#state.sessions.find((item) => item.session_id === handoff.from_session_id) : null;
-        if (!handoff || !source || handoff.status !== "waiting_for_fresh_session" || source.participation !== "companion_active"
+        if (!handoff || !source || handoff.status !== "waiting_for_fresh_session" || source.participation !== "companion_active" || source.status !== "active" || source.role !== "plan"
           || Date.parse(handoff.expires_at) <= Date.parse(now) || input.session_id === handoff.from_session_id
           || parsed.workspace_id !== handoff.workspace_id || parsed.application_id !== handoff.application_id || parsed.work_id !== handoff.work_id
           || parsed.from_session_id !== handoff.from_session_id || parsed.from_turn_id !== handoff.from_turn_id
@@ -840,16 +864,29 @@ export class CodexBridgeStore {
           || parsed.plan_body_hash !== handoff.plan_body_hash || parsed.expires_at !== handoff.expires_at
           || parsed.canonical_cwd_digest !== source.canonical_cwd_digest || cwdDigest !== source.canonical_cwd_digest
           || !handoff.claim_token_digest || !safeEqualDigest(sha256(parsed.claim_token), handoff.claim_token_digest)
-          || !handoff.capsule_digest || !safeEqualDigest(sha256(rawCapsule), handoff.capsule_digest)) return null;
-        const lease = await this.#issueLease(input.session_id, cwdDigest, handoff.workspace_id, handoff.application_id, handoff.work_id, "materialization", "plan_handoff_capsule", now);
-        leaseToClean = this.#leasePath(input.session_id);
-        const syntheticTicket: PersistedTicket = {
-          ticket_id: `handoff:${handoff.handoff_id}`, workspace_eligibility: "factory", workspace_id: handoff.workspace_id,
-          application_id: handoff.application_id, work_id: handoff.work_id, requested_role: "materialization",
-          activation_origin: "manual_attach_confirmed", canonical_cwd_digest: cwdDigest, issued_at: now, expires_at: handoff.expires_at,
-          status: "claimed", claimed_by_session_id: input.session_id, claimed_at: now, nonce_digest: sha256("handoff"), claim_token_digest: handoff.claim_token_digest, hook_mode: "side_effect_gated",
-        };
-        this.#state.sessions.push(this.#newSession(input, cwd, syntheticTicket, lease, now, "plan_handoff_capsule"));
+          || !handoff.capsule_digest || !safeEqualDigest(sha256(rawCapsule), handoff.capsule_digest)
+          || !(await this.#currentLease(source))) return null;
+        if (parsed.target_session_id !== null) {
+          if (!existingSession || parsed.target_session_id !== input.session_id
+            || existingSession.participation !== "companion_active" || existingSession.status !== "active"
+            || existingSession.workspace_id !== handoff.workspace_id || existingSession.application_id !== handoff.application_id
+            || existingSession.work_id !== handoff.work_id || existingSession.role !== "materialization"
+            || existingSession.canonical_cwd_digest !== cwdDigest || !(await this.#currentLease(existingSession))) return null;
+          existingSession.model = input.model; existingSession.permission_mode = input.permission_mode;
+          existingSession.last_seen_at = now; existingSession.last_event = "prompt_submit";
+          existingSession.last_turn_id = handoffPrompt!.turn_id; existingSession.status = "active";
+        } else {
+          if (existingSession) return null;
+          const lease = await this.#issueLease(input.session_id, cwdDigest, handoff.workspace_id, handoff.application_id, handoff.work_id, "materialization", "plan_handoff_capsule", now);
+          leaseToClean = this.#leasePath(input.session_id);
+          const syntheticTicket: PersistedTicket = {
+            ticket_id: `handoff:${handoff.handoff_id}`, workspace_eligibility: "factory", workspace_id: handoff.workspace_id,
+            application_id: handoff.application_id, work_id: handoff.work_id, requested_role: "materialization",
+            activation_origin: "manual_attach_confirmed", canonical_cwd_digest: cwdDigest, issued_at: now, expires_at: handoff.expires_at,
+            status: "claimed", claimed_by_session_id: input.session_id, claimed_at: now, nonce_digest: sha256("handoff"), claim_token_digest: handoff.claim_token_digest, hook_mode: "side_effect_gated",
+          };
+          this.#state.sessions.push(this.#newSession(input, cwd, syntheticTicket, lease, now, "plan_handoff_capsule"));
+        }
         handoff.status = "claimed"; handoff.claimed_by_session_id = input.session_id; handoff.claimed_by_turn_id = handoffPrompt!.turn_id; handoff.claimed_at = now; handoff.failure_code = null;
         this.#recordActivity(input, now);
         this.#recordPromptReceipt(input, now);
@@ -972,11 +1009,53 @@ export class CodexBridgeStore {
         workspace_id: handoff.workspace_id, application_id: handoff.application_id, work_id: handoff.work_id,
         from_session_id: handoff.from_session_id, from_turn_id: handoff.from_turn_id,
         discovery_revision: handoff.discovery_revision, decision_revision: handoff.decision_revision,
-        plan_body_hash: handoff.plan_body_hash, canonical_cwd_digest: source.canonical_cwd_digest, expires_at: handoff.expires_at,
+        plan_body_hash: handoff.plan_body_hash, canonical_cwd_digest: source.canonical_cwd_digest,
+        target_session_id: null, expires_at: handoff.expires_at,
       };
       const activationCapsule = capsule(COMPANION_HANDOFF_CAPSULE_START, COMPANION_HANDOFF_CAPSULE_END, payload);
       handoff.status = "waiting_for_fresh_session"; handoff.claim_token_digest = sha256(token); handoff.capsule_digest = sha256(activationCapsule);
       return { handoff: this.#publicHandoff(handoff), activation_capsule: activationCapsule, command: ["codex", activationCapsule] };
+    });
+  }
+
+  async attachHandoff(handoffId: string, input: AttachHandoffInput): Promise<HandoffAttachReceipt> {
+    return this.#mutate(async (now) => {
+      const handoff = this.#state.handoffs.find((item) => item.handoff_id === handoffId);
+      if (!handoff) throw new CodexBridgeValidationError("Handoff not found", 404, "handoff_not_found");
+      if (handoff.status !== "ready" && handoff.status !== "waiting_for_fresh_session") throw new CodexBridgeValidationError("Handoff cannot be attached", 409, "handoff_not_ready");
+      if (Date.parse(handoff.expires_at) <= Date.parse(now)) throw new CodexBridgeValidationError("Handoff is expired", 409, "handoff_expired");
+      const source = this.#state.sessions.find((item) => item.session_id === handoff.from_session_id);
+      if (!source || source.participation !== "companion_active" || source.status !== "active" || source.role !== "plan") throw new CodexBridgeValidationError("Source session is not active", 409, "source_inactive");
+      if (!(await this.#currentLease(source))) throw new CodexBridgeValidationError("handoff source lease is missing, invalid, or expired", 409, "invalid_lease");
+      const target = this.#state.sessions.find((item) => item.session_id === input.target_session_id);
+      if (!target || target.session_id === source.session_id || target.participation !== "companion_active" || target.status !== "active"
+        || target.workspace_id !== handoff.workspace_id || target.application_id !== handoff.application_id
+        || target.work_id !== handoff.work_id || target.role !== "materialization") {
+        throw new CodexBridgeValidationError("handoff target must be one exact active materialization Companion session in the same scope", 409, "target_scope_mismatch");
+      }
+      if (!(await this.#currentLease(target))) throw new CodexBridgeValidationError("handoff target lease is missing, invalid, or expired", 409, "invalid_lease");
+      const token = secret();
+      const payload: HandoffCapsule = {
+        kind: "handoff", schema_version: 2, handoff_id: handoff.handoff_id, claim_token: token,
+        workspace_id: handoff.workspace_id, application_id: handoff.application_id, work_id: handoff.work_id,
+        from_session_id: handoff.from_session_id, from_turn_id: handoff.from_turn_id,
+        discovery_revision: handoff.discovery_revision, decision_revision: handoff.decision_revision,
+        plan_body_hash: handoff.plan_body_hash, canonical_cwd_digest: source.canonical_cwd_digest,
+        target_session_id: target.session_id, expires_at: handoff.expires_at,
+      };
+      const activationCapsule = capsule(COMPANION_HANDOFF_CAPSULE_START, COMPANION_HANDOFF_CAPSULE_END, payload);
+      handoff.status = "waiting_for_fresh_session"; handoff.claim_token_digest = sha256(token); handoff.capsule_digest = sha256(activationCapsule);
+      return { handoff: this.#publicHandoff(handoff), target_session_id: target.session_id, activation_capsule: activationCapsule };
+    });
+  }
+
+  async cancelHandoff(handoffId: string, _input: CancelHandoffInput): Promise<PlanHandoff> {
+    return this.#mutate(() => {
+      const handoff = this.#state.handoffs.find((item) => item.handoff_id === handoffId);
+      if (!handoff) throw new CodexBridgeValidationError("Handoff not found", 404, "handoff_not_found");
+      if (handoff.status !== "ready" && handoff.status !== "waiting_for_fresh_session") throw new CodexBridgeValidationError("Only pending handoffs can be canceled", 409, "handoff_not_pending");
+      handoff.status = "canceled"; handoff.claim_token_digest = null; handoff.capsule_digest = null;
+      return this.#publicHandoff(handoff);
     });
   }
 
@@ -1008,6 +1087,11 @@ export class CodexBridgeStore {
       if (found.participation === "revoked") return clone(found);
       found.participation = "revoked"; found.revoked_at = now; found.revoke_reason = input.reason;
       for (const delivery of this.#state.deliveries) if (delivery.target_session_id === sessionId && delivery.status === "queued") delivery.status = "canceled";
+      for (const handoff of this.#state.handoffs) {
+        if (handoff.from_session_id === sessionId && (handoff.status === "ready" || handoff.status === "waiting_for_fresh_session")) {
+          handoff.status = "canceled"; handoff.claim_token_digest = null; handoff.capsule_digest = null;
+        }
+      }
       return clone(found);
     });
     await rm(this.#leasePath(sessionId), { force: true });

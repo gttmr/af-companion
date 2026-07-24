@@ -758,6 +758,8 @@
 .connection-state-label.is-failed,
 .connection-state-label.is-canceled { border-color: var(--danger-line); background: var(--danger-soft); color: var(--danger-text); }
 .connection-row-actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.handoff-attach-control { display: grid; grid-template-columns: minmax(150px, 1fr) auto; gap: var(--space-xs); }
+.handoff-attach-control select { min-height: 30px; height: 30px; max-width: 210px; font-size: var(--fs-2xs); }
 .connection-row-actions button,
 .connection-table-scroll td > button { min-height: 30px; height: 30px; padding: 0 var(--space-sm); font-size: var(--fs-2xs); transition: opacity var(--transition-fast), transform var(--transition-fast), background-color var(--transition-fast); }
 .connection-row-actions button:hover:not(:disabled),
@@ -1106,6 +1108,8 @@
   .connection-register-head > p,
   .connection-register-head > strong { grid-column: 1; grid-row: auto; }
   .connection-command-receipt { grid-template-columns: 1fr; }
+  .handoff-attach-control { grid-template-columns: 1fr; }
+  .handoff-attach-control select { max-width: none; }
   .enrollment-setup,
   .hook-diagnostics { padding-right: 0; padding-left: 0; }
   .enrollment-setup form { grid-template-columns: 1fr; }

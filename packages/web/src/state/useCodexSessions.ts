@@ -3,6 +3,7 @@ import type {
   CodexCompanionSnapshotV2,
   EnrollmentReceipt,
   EnrollmentRequest,
+  HandoffAttachReceipt,
   HandoffContinueReceipt,
   ScopedContextDelivery,
   VscodeLaunchReceipt,
@@ -17,6 +18,11 @@ interface UseCodexSessionsOptions {
 interface SessionPreferencesInput {
   sessionId: string;
   alias: string | null;
+}
+
+interface HandoffAttachmentInput {
+  handoffId: string;
+  targetSessionId: string;
 }
 
 export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {}) {
@@ -79,6 +85,15 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     onSuccess: invalidateSnapshot,
   });
 
+  const attachHandoffMutation = useMutation<HandoffAttachReceipt, Error, HandoffAttachmentInput>({
+    mutationFn: ({ handoffId, targetSessionId }) => postCompanion<HandoffAttachReceipt>(
+      `/handoffs/${encodeURIComponent(handoffId)}/attach`,
+      { target_session_id: targetSessionId },
+      "기존 Companion session에 Plan Handoff를 연결하지 못했습니다.",
+    ),
+    onSuccess: invalidateSnapshot,
+  });
+
   const cancelHandoffMutation = useMutation<unknown, Error, string>({
     mutationFn: (handoffId) => postCompanion<unknown>(
       `/handoffs/${encodeURIComponent(handoffId)}/cancel`,
@@ -121,6 +136,10 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     continuePendingHandoffId: continueHandoffMutation.isPending ? continueHandoffMutation.variables ?? null : null,
     continueReceipt: continueHandoffMutation.data ?? null,
     continueError: mutationMessage(continueHandoffMutation.error),
+    attachHandoff: (input: HandoffAttachmentInput) => attachHandoffMutation.mutateAsync(input),
+    attachPendingHandoffId: attachHandoffMutation.isPending ? attachHandoffMutation.variables?.handoffId ?? null : null,
+    attachReceipt: attachHandoffMutation.data ?? null,
+    attachError: mutationMessage(attachHandoffMutation.error),
     cancelHandoff: (handoffId: string) => cancelHandoffMutation.mutateAsync(handoffId),
     cancelPendingHandoffId: cancelHandoffMutation.isPending ? cancelHandoffMutation.variables ?? null : null,
     cancelHandoffError: mutationMessage(cancelHandoffMutation.error),

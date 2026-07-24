@@ -192,3 +192,9 @@ export interface HandoffContinueReceipt {
   activation_capsule: string;
   command: string[];
 }
+
+export interface HandoffAttachReceipt {
+  handoff: ScopedPlanHandoff;
+  target_session_id: string;
+  activation_capsule: string;
+}

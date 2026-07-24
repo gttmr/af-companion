@@ -10,7 +10,9 @@ import {
   CodexBridgeValidationError,
   type CodexBridgeEndpoint,
   type CodexBridgeStoreOptions,
+  validateAttachHandoffInput,
   validateAttachSessionInput,
+  validateCancelHandoffInput,
   validateCodexHookInput,
   validateContinueHandoffInput,
   validateCreateDeliveryInput,
@@ -187,6 +189,22 @@ async function route(
   if (continueMatch) {
     const handoffId = decodePathIdentifier(continueMatch[1], "handoff_id");
     json(response, 200, await store.continueHandoff(handoffId, validateContinueHandoffInput(postBody)));
+    return;
+  }
+  const attachHandoffMatch = request.method === "POST"
+    ? /^\/v1\/handoffs\/([^/]+)\/attach$/.exec(url.pathname)
+    : null;
+  if (attachHandoffMatch) {
+    const handoffId = decodePathIdentifier(attachHandoffMatch[1], "handoff_id");
+    json(response, 200, await store.attachHandoff(handoffId, validateAttachHandoffInput(postBody)));
+    return;
+  }
+  const cancelHandoffMatch = request.method === "POST"
+    ? /^\/v1\/handoffs\/([^/]+)\/cancel$/.exec(url.pathname)
+    : null;
+  if (cancelHandoffMatch) {
+    const handoffId = decodePathIdentifier(cancelHandoffMatch[1], "handoff_id");
+    json(response, 200, await store.cancelHandoff(handoffId, validateCancelHandoffInput(postBody)));
     return;
   }
   const revokeMatch = request.method === "POST" ? /^\/v1\/sessions\/([^/]+)\/revoke$/.exec(url.pathname) : null;

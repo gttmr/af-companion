@@ -21,6 +21,8 @@ import { ArtifactRootStore, ArtifactValidationError, REQ_ID_PATTERN } from "./ar
 import { isRecord, readJsonBody, sendJson } from "./httpApi";
 import {
   CONTINUE_CONFIRMATION,
+  ATTACH_HANDOFF_CONFIRMATION,
+  CANCEL_HANDOFF_CONFIRMATION,
   CodexBridgeValidationError,
   RESET_CONFIRMATION,
   REVOKE_CONFIRMATION,
@@ -124,6 +126,23 @@ export function createCodexCompanionMiddleware(repoRoot: string, options: CodexC
         const id = decodeIdentifier(continueMatch[1], "handoff_id");
         await mutationBody(request, (value) => { emptyObject(value); return value; });
         sendJson(response, 200, await brokerRequest(repoRoot, `/v1/handoffs/${encodeURIComponent(id)}/continue`, { method: "POST", body: { confirmation: CONTINUE_CONFIRMATION } })); return;
+      }
+      const attachHandoffMatch = request.method === "POST" ? /^\/handoffs\/([^/]+)\/attach$/.exec(path) : null;
+      if (attachHandoffMatch) {
+        const id = decodeIdentifier(attachHandoffMatch[1], "handoff_id");
+        const input = await mutationBody(request, (value) => {
+          if (!isRecord(value) || Object.keys(value).length !== 1 || !("target_session_id" in value)) {
+            throw new CompanionApiError(400, "target_session_required", "target_session_id 하나만 지정해야 합니다.");
+          }
+          return { target_session_id: requiredString(value.target_session_id, "target_session_id", 256) };
+        });
+        sendJson(response, 200, await brokerRequest(repoRoot, `/v1/handoffs/${encodeURIComponent(id)}/attach`, { method: "POST", body: { confirmation: ATTACH_HANDOFF_CONFIRMATION, target_session_id: input.target_session_id } })); return;
+      }
+      const cancelHandoffMatch = request.method === "POST" ? /^\/handoffs\/([^/]+)\/cancel$/.exec(path) : null;
+      if (cancelHandoffMatch) {
+        const id = decodeIdentifier(cancelHandoffMatch[1], "handoff_id");
+        await mutationBody(request, (value) => { emptyObject(value); return value; });
+        sendJson(response, 200, await brokerRequest(repoRoot, `/v1/handoffs/${encodeURIComponent(id)}/cancel`, { method: "POST", body: { confirmation: CANCEL_HANDOFF_CONFIRMATION } })); return;
       }
       if (request.method === "POST" && path === "/sessions/attach") {
         sendJson(response, 200, await brokerRequest(repoRoot, "/v1/sessions/attach", { method: "POST", body: await mutationBody(request, validateAttachSessionInput) })); return;

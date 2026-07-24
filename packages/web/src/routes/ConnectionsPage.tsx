@@ -7,6 +7,7 @@ import type {
   CompanionSessionRole,
   EnrollmentReceipt,
   EnrollmentRequest,
+  HandoffAttachReceipt,
   HandoffContinueReceipt,
   SessionEnrollmentTicket,
 } from "../companion/types";
@@ -23,6 +24,7 @@ export default function ConnectionsPage() {
   const [workId, setWorkId] = useState("");
   const [role, setRole] = useState<CompanionSessionRole>("materialization");
   const [launchTarget, setLaunchTarget] = useState<EnrollmentLaunchTarget>("cli");
+  const [handoffTargetById, setHandoffTargetById] = useState<Record<string, string>>({});
 
   const sessions = useMemo(
     () => [...(snapshot?.sessions ?? [])]
@@ -42,12 +44,12 @@ export default function ConnectionsPage() {
     [snapshot?.deliveries],
   );
   const pendingTickets = snapshot?.enrollment_tickets.filter((ticket) => ticket.status === "pending") ?? [];
-  const supportsHandoffCancel = capabilityFlag(snapshot?.capabilities, "handoff_cancel");
   const actionErrors = [
     codex.enrollmentError,
     codex.preferencesError,
     codex.revokeError,
     codex.continueError,
+    codex.attachError,
     codex.cancelHandoffError,
     codex.cancelError,
     codex.launchError,
@@ -153,13 +155,26 @@ export default function ConnectionsPage() {
             onCopy={copyText}
           />
         ) : null}
+        {codex.attachReceipt ? (
+          <TargetedHandoffReceipt receipt={codex.attachReceipt} onCopy={copyText} />
+        ) : null}
         {handoffs.length ? (
           <div className="connection-table-scroll">
             <table className="companion-handoff-table">
-              <thead><tr><th>Plan revision / hash</th><th>Transport</th><th>Status</th><th>Destination</th><th>Expiry</th><th>Actions</th></tr></thead>
-              <tbody>{handoffs.map((handoff) => (
-                <tr key={handoff.handoff_id}>
-                  <td><strong>discovery {compactDigest(handoff.discovery_revision)}</strong><code title={handoff.decision_revision}>decision {compactDigest(handoff.decision_revision)}</code><code title={handoff.plan_body_hash}>plan {compactDigest(handoff.plan_body_hash)}</code></td>
+              <thead><tr><th>Plan source / revision</th><th>Transport</th><th>Status</th><th>Destination</th><th>Expiry</th><th>Actions</th></tr></thead>
+              <tbody>{handoffs.map((handoff) => {
+                const eligibleTargets = sessions.filter((session) => (
+                  session.participation === "companion_active"
+                  && session.status === "active"
+                  && session.session_id !== handoff.from_session_id
+                  && session.workspace_id === handoff.workspace_id
+                  && session.application_id === handoff.application_id
+                  && session.work_id === handoff.work_id
+                  && session.role === "materialization"
+                ));
+                const selectedTarget = handoffTargetById[handoff.handoff_id] ?? "";
+                return <tr key={handoff.handoff_id}>
+                  <td><strong>{compactId(handoff.from_session_id)} · {compactId(handoff.from_turn_id)}</strong><code title={handoff.discovery_revision}>discovery {compactDigest(handoff.discovery_revision)}</code><code title={handoff.decision_revision}>decision {compactDigest(handoff.decision_revision)}</code><code title={handoff.plan_body_hash}>plan {compactDigest(handoff.plan_body_hash)}</code></td>
                   <td><span className="connection-state-label">{handoff.transport_capability}</span><code>{compactId(handoff.handoff_id)}</code></td>
                   <td><span className={`connection-state-label is-${handoff.status}`}>{handoff.status}</span></td>
                   <td><strong>{handoff.application_id}/{handoff.work_id}</strong><code>{handoff.target_skill}</code></td>
@@ -170,15 +185,30 @@ export default function ConnectionsPage() {
                       disabled={codex.continuePendingHandoffId === handoff.handoff_id}
                       onClick={() => void codex.continueHandoff(handoff.handoff_id).catch(() => undefined)}
                     >{codex.continuePendingHandoffId === handoff.handoff_id ? "Preparing…" : "Continue"}</button>
-                    {supportsHandoffCancel ? <button
+                    <div className="handoff-attach-control">
+                      <select
+                        aria-label={`${handoff.handoff_id} existing Companion target`}
+                        value={selectedTarget}
+                        onChange={(event) => setHandoffTargetById((current) => ({ ...current, [handoff.handoff_id]: event.currentTarget.value }))}
+                      >
+                        <option value="">Existing session 선택…</option>
+                        {eligibleTargets.map((session) => <option key={session.session_id} value={session.session_id}>{session.alias || compactId(session.session_id)}</option>)}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={!selectedTarget || codex.attachPendingHandoffId === handoff.handoff_id}
+                        onClick={() => void codex.attachHandoff({ handoffId: handoff.handoff_id, targetSessionId: selectedTarget }).catch(() => undefined)}
+                      >{codex.attachPendingHandoffId === handoff.handoff_id ? "Attaching…" : "Attach existing"}</button>
+                    </div>
+                    <button
                       type="button"
                       className="is-danger"
                       disabled={codex.cancelPendingHandoffId === handoff.handoff_id}
                       onClick={() => void codex.cancelHandoff(handoff.handoff_id).catch(() => undefined)}
-                    >{codex.cancelPendingHandoffId === handoff.handoff_id ? "Canceling…" : "Cancel"}</button> : null}
+                    >{codex.cancelPendingHandoffId === handoff.handoff_id ? "Canceling…" : "Cancel"}</button>
                   </div></td>
-                </tr>
-              ))}</tbody>
+                </tr>;
+              })}</tbody>
             </table>
           </div>
         ) : <ConnectionEmpty title="대기 중인 Handoff 없음" detail="ready 또는 waiting_for_fresh_session 상태의 Handoff만 이 register에 표시합니다. raw marker text는 해석하지 않습니다." />}
@@ -332,6 +362,13 @@ function CommandReceipt({ eyebrow, title, receipt, onCopy }: {
   return <div className="connection-command-receipt is-handoff"><div><span>{eyebrow}</span><strong>{title}</strong><code>{receipt.handoff.handoff_id}</code></div><pre>{command}</pre><div className="connection-row-actions"><button type="button" onClick={() => void onCopy(command, "Continue command")}>Copy command</button><button type="button" onClick={() => void onCopy(receipt.activation_capsule, "Handoff capsule")}>Copy capsule</button></div></div>;
 }
 
+function TargetedHandoffReceipt({ receipt, onCopy }: {
+  receipt: HandoffAttachReceipt;
+  onCopy: (value: string, label: string) => Promise<void>;
+}) {
+  return <div className="connection-command-receipt is-handoff"><div><span>Existing session attachment</span><strong>{receipt.handoff.application_id}/{receipt.handoff.work_id}</strong><code>{receipt.target_session_id}</code></div><pre>{receipt.activation_capsule}</pre><div className="connection-row-actions"><button type="button" onClick={() => void onCopy(receipt.activation_capsule, "Targeted handoff capsule")}>Copy capsule</button></div></div>;
+}
+
 function DiagnosticAggregate({ label, value }: { label: string; value: number }) {
   return <div><span>{label}</span><strong>{value}</strong></div>;
 }
@@ -342,10 +379,6 @@ function Capability({ label, value, tone = "neutral" }: { label: string; value: 
 
 function ConnectionEmpty({ title, detail }: { title: string; detail: string }) {
   return <div className="connection-empty"><strong>{title}</strong><p>{detail}</p></div>;
-}
-
-function capabilityFlag(capabilities: object | null | undefined, key: string): boolean {
-  return Boolean(capabilities && (capabilities as Record<string, unknown>)[key] === true);
 }
 
 function originLabel(origin: ActivationOrigin): string {

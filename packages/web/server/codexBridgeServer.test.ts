@@ -4,7 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { CONTINUE_CONFIRMATION, REVOKE_CONFIRMATION, RESET_CONFIRMATION } from "./codexBridgeStore.ts";
+import {
+  ATTACH_HANDOFF_CONFIRMATION,
+  CANCEL_HANDOFF_CONFIRMATION,
+  CONTINUE_CONFIRMATION,
+  REVOKE_CONFIRMATION,
+  RESET_CONFIRMATION,
+} from "./codexBridgeStore.ts";
 import { startCodexBridgeServer } from "./codexBridgeServer.ts";
 
 async function fixture(t: test.TestContext) {
@@ -107,6 +113,61 @@ test("direct handoff Continue rotates a claim and only an exact distinct session
   const snapshot = await (await request("/v1/snapshot")).json();
   assert.equal(snapshot.handoffs[0].status, "claimed");
   assert.equal(snapshot.handoffs[0].claimed_by_session_id, "fresh-session");
+});
+
+test("direct handoff attachment targets one existing Companion session and cancel is explicit", async (t) => {
+  const { root, running, request } = await fixture(t);
+  let response = await request("/v1/enrollments", { application_id: "app-1", work_id: "work-plan", requested_role: "plan", activation_origin: "af_cli_launch" });
+  const planEnrollment = await response.json();
+  await request("/v1/hooks", sessionHook(root, "plan-session", { kind: "activation", activation_capsule: planEnrollment.activation_capsule }, "plan"));
+  const planLease = await running.store.leaseProofForTesting("plan-session");
+  await request("/v1/hooks", sessionHook(root, "plan-session", planLease, "plan", "plan-turn"));
+
+  for (const sessionId of ["materialization-a", "materialization-b"]) {
+    response = await request("/v1/enrollments", { application_id: "app-1", work_id: "work-plan", requested_role: "materialization", activation_origin: "af_cli_launch" });
+    const enrollment = await response.json();
+    await request("/v1/hooks", sessionHook(root, sessionId, { kind: "activation", activation_capsule: enrollment.activation_capsule }));
+  }
+
+  const createHandoff = () => request("/v1/handoffs", {
+    workspace_id: running.store.workspaceId, application_id: "app-1", work_id: "work-plan", from_session_id: "plan-session", from_turn_id: "plan-turn",
+    discovery_revision: "a".repeat(64), decision_revision: "b".repeat(64), plan_body_hash: "c".repeat(64), transport_capability: "client_dependent", expires_at: "2030-01-01T00:10:00.000Z",
+  });
+
+  response = await createHandoff();
+  const attachedHandoff = await response.json();
+  response = await request(`/v1/handoffs/${attachedHandoff.handoff_id}/attach`, {
+    confirmation: ATTACH_HANDOFF_CONFIRMATION,
+    target_session_id: "materialization-a",
+  });
+  assert.equal(response.status, 200);
+  const attachment = await response.json();
+  assert.equal(attachment.target_session_id, "materialization-a");
+  assert.equal(typeof attachment.activation_capsule, "string");
+  assert.equal("command" in attachment, false);
+
+  response = await request("/v1/hooks", sessionHook(root, "materialization-b", { kind: "activation", activation_capsule: attachment.activation_capsule }, "default", "wrong-turn"));
+  assert.equal(response.status, 204);
+  response = await request("/v1/hooks", sessionHook(root, "materialization-a", { kind: "activation", activation_capsule: attachment.activation_capsule }, "default", "claim-turn"));
+  assert.equal(response.status, 200);
+  assert.equal((await (await request("/v1/snapshot")).json()).handoffs[0].claimed_by_session_id, "materialization-a");
+
+  response = await createHandoff();
+  const canceledHandoff = await response.json();
+  response = await request(`/v1/handoffs/${canceledHandoff.handoff_id}/cancel`, {});
+  assert.equal(response.status, 400);
+  response = await request(`/v1/handoffs/${canceledHandoff.handoff_id}/cancel`, { confirmation: CANCEL_HANDOFF_CONFIRMATION });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).status, "canceled");
+  response = await request(`/v1/handoffs/${canceledHandoff.handoff_id}/continue`, { confirmation: CONTINUE_CONFIRMATION });
+  assert.equal(response.status, 409);
+
+  response = await createHandoff();
+  const revokeCanceledHandoff = await response.json();
+  response = await request("/v1/sessions/plan-session/revoke", { confirmation: REVOKE_CONFIRMATION, reason: "plan complete" });
+  assert.equal(response.status, 200);
+  const snapshot = await (await request("/v1/snapshot")).json();
+  assert.equal(snapshot.handoffs.find((item: { handoff_id: string }) => item.handoff_id === revokeCanceledHandoff.handoff_id).status, "canceled");
 });
 
 test("preferences are alias-only, reset needs confirmation, and one bridge owns a workspace", async (t) => {

@@ -137,7 +137,7 @@ test("Facade enrollment and direct scoped delivery preserve SelectionBundleV1", 
   assert.equal((await response.json()).bundle.schema_version, 1);
 });
 
-test("Facade maps bounded empty Continue and Revoke actions to exact Bridge confirmations", async (t) => {
+test("Facade maps bounded Continue, attach, cancel, and Revoke actions to exact Bridge confirmations", async (t) => {
   const { root, bridge, facade, direct } = await fixture(t);
   assert.ok(bridge);
   let response = await facade("/enrollments", { application_id: "app-1", work_id: "work-plan", requested_role: "plan", activation_origin: "af_cli_launch" });
@@ -154,6 +154,18 @@ test("Facade maps bounded empty Continue and Revoke actions to exact Bridge conf
   assert.equal(response.status, 200);
   const continued = await response.json();
   assert.deepEqual(continued.command, ["codex", continued.activation_capsule]);
+
+  response = await facade("/enrollments", { application_id: "app-1", work_id: "work-plan", requested_role: "materialization", activation_origin: "af_cli_launch" });
+  const targetEnrollment = await response.json();
+  await direct("/v1/hooks", sessionHook(root, "materialization-session", { kind: "activation", activation_capsule: targetEnrollment.activation_capsule }));
+  response = await facade(`/handoffs/${handoff.handoff_id}/attach`, { target_session_id: "materialization-session" });
+  assert.equal(response.status, 200);
+  const attachment = await response.json();
+  assert.equal(attachment.target_session_id, "materialization-session");
+  assert.equal(typeof attachment.activation_capsule, "string");
+  response = await facade(`/handoffs/${handoff.handoff_id}/cancel`, {});
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).status, "canceled");
 
   response = await facade("/sessions/plan-session/revoke", {});
   assert.equal(response.status, 200);
