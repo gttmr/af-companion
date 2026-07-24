@@ -1,5 +1,5 @@
 {
-  "description": "Portable bootstrap for Agent Factory external Codex activity projection and next-prompt context delivery.",
+  "description": "Portable bootstrap for lease-gated Agent Factory Codex activity projection and next-prompt context delivery. Matching Hook definitions remain additive.",
   "hooks": {
     "SessionStart": [
       {
