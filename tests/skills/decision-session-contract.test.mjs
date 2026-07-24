@@ -82,3 +82,15 @@ test("durable work and evidence require exact enrolled materialization scope", (
   assert.match(scaffold, /exact `workspace_id`, `application_id`, `work_id`, `role: materialization` attachment/);
   assert.match(verify, /Never auto-import commands, observations, approvals, or evidence from an ordinary/);
 });
+
+test("current fallback instructions use scoped Companion commands only", () => {
+  const currentInstructions = [
+    read(".agents/skills/_shared/work-item-and-external-codex.md"),
+    read(".agents/skills/af-workflow/SKILL.md"),
+    read(".agents/skills/af-discover-assets/SKILL.md"),
+    read(".agents/skills/af-discover-assets/references/analysis-result-output.md"),
+    read(".agents/skills/af-verify-runtime/references/verification-commands.md"),
+  ].join("\n");
+  assert.match(currentInstructions, /companion join --application/);
+  assert.doesNotMatch(currentInstructions, /node scripts\/af\.mjs work attach-session/);
+});
