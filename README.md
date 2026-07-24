@@ -54,15 +54,17 @@ node scripts/af.mjs companion start --application <application-id> --work <work-
 node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization
 ```
 
+Ticket issuance reads the strict canonical Work Item and binds its ETag. Activation re-reads that same Work Item and rejects a deleted or changed ledger instead of creating a phantom session.
+
 Plan handoff continuation is also explicit:
 
 ```bash
 node scripts/af.mjs companion continue --handoff <handoff-id>
 ```
 
-`/connections` additionally allows a user to durably attach a pending Handoff to one explicitly selected, already-enrolled materialization session with the same exact scope, or cancel it. Attach returns no raw Capsule; the named session claims the Handoff on its next leased prompt, and no candidate is ever preselected.
+The Bridge accepts only the exact canonical Work Item Handoff ID and marker, recomputes the canonical Plan body hash, and keeps the bounded body encrypted in ignored local state until one successful claim. `/connections` additionally allows a user to durably attach that pending Handoff to one explicitly selected, already-enrolled materialization session with the same exact scope, or cancel it. Attach returns no raw Capsule or Plan body; the named session receives the verified body on its next leased prompt, and no candidate is ever preselected.
 
-A queued Graph/context delivery is attached once only when the active lease and delivery scope match the exact workspace, application, Work Item, and allowed role. The workbench does not choose a default target, start a turn, or steer an in-flight turn.
+A queued Graph/context delivery is attached once only when the active lease and delivery scope match the exact workspace, application, Work Item, and allowed role. Its canonical source revision is checked again at consume time. The workbench does not choose a default target, start a turn, or steer an in-flight turn.
 
 Review project Hook sources and hashes with `/hooks` in Codex before trusting them. Hook definitions are additive, so profile selection alone is not a session-isolation boundary.
 

@@ -4,19 +4,19 @@
 
 ## Main flow
 
-1. CLI or `/connections` creates a one-time enrollment ticket for an exact workspace, application, Work Item, and role.
+1. CLI or `/connections` reads the strict Work Item and creates a one-time enrollment ticket bound to its ETag and exact workspace, application, Work Item, and role.
 2. The new Codex session carries the activation Capsule. The local Hook gate validates workspace and Capsule before endpoint discovery.
-3. The Bridge consumes the ticket once, persists only the activated Companion session, and writes an exact-session lease bound to the current Bridge instance.
+3. The Bridge re-reads the unchanged Work Item, consumes the ticket once, persists only the activated Companion session, and writes an exact-session lease bound to the current Bridge instance.
 4. Later lifecycle Hooks resolve that contained lease locally. Unmanaged, revoked, expired, wrong-workspace, and subagent events no-op before Agent Factory network/state.
-5. Exact-scope deliveries may be consumed once by the next eligible prompt. Ordinary sessions are never candidate targets.
+5. Exact-scope deliveries recheck canonical source revision and may be consumed once by the next eligible prompt. Ordinary sessions are never candidate targets.
 
 The bridge stores bounded session, role, receipt, handoff, delivery, and activity metadata. It does not store prompts, transcripts, tool arguments, tool output, plaintext durable claim tokens, or unmanaged session rows.
 
 ## Handoff and decisions
 
-Plan handoff creation requires a current canonical Work Item Handoff, leased Plan session, and exact latest turn. A distinct fresh prompt claims one exact signed Capsule once; wrong scope, missing/duplicate Capsule, canonical revision drift, expiry, replay, same-session, and subagent claims fail closed. Automatic client transport is not assumed: `node scripts/af.mjs companion continue --handoff <id>` and `/connections` Continue return the explicit launch/copy fallback. A separate `/connections` action durably records one user-selected, same-scope leased materialization target without returning a Capsule; only its next leased prompt can claim the Handoff. No candidate is preselected. Pending handoffs can be canceled, target revocation detaches them, and source revocation/staleness or Bridge restart closes their authority.
+Plan handoff creation requires the exact canonical Work Item Handoff ID/marker, leased Plan session, exact latest turn, and complete canonical Plan body. The Bridge recomputes its hash, encrypts the bounded body locally, and omits it from public state. A distinct fresh prompt claims one exact signed Capsule once and receives those verified bytes; wrong scope/marker, missing or duplicate Capsule, canonical revision drift, expiry, replay, same-session, and subagent claims fail closed. Automatic client transport is not assumed: `node scripts/af.mjs companion continue --handoff <id>` and `/connections` Continue return the explicit launch/copy fallback. A separate `/connections` action durably records one user-selected, same-scope leased materialization target without returning a Capsule or Plan body; only its next leased prompt receives the Handoff. No candidate is preselected. Pending handoffs can be canceled, target revocation detaches them, and source revocation/staleness or Bridge restart closes their authority and erases body ciphertext.
 
-Work Skills choose structured decision input only from tools actually exposed in the current turn. Otherwise they ask one conversational question and stop at `waiting_for_input`. Both adapters preserve one decision ID/revision/option/provenance contract, and an ambiguous answer or stale recommendation does not write a user decision. An executable semantic fixture proves schema-valid output parity and protected-gate blocking; live two-client-path execution remains capability-dependent.
+Work Skills choose structured decision input only from tools actually exposed in the current turn. Otherwise they ask one conversational question and stop at `waiting_for_input`. Both adapters preserve one decision ID/option meaning plus durable decision/recommendation revisions, selection source, bounded answer summary, input mode, and exact session/turn; an ambiguous answer or stale recommendation does not write a user decision. An executable semantic fixture proves strict-parser roundtrip, path-independent semantics, delegated-recommendation binding, and protected-gate blocking; live two-client-path execution remains capability-dependent.
 
 ## Projection
 

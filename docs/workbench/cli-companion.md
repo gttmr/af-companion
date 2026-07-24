@@ -69,7 +69,7 @@ node scripts/af.mjs companion join \
   --role materialization
 ```
 
-`start` carries the enrollment Capsule in the new CLI process environment. `join` is the explicit Capsule path for a new session. Ticket claim is consume-once and checks exact canonical cwd, workspace, application, Work Item, role, session, expiry, and claim token before issuing the lease.
+`start` carries the enrollment Capsule in the new CLI process environment. `join` is the explicit Capsule path for a new session. Ticket issuance reads the strict canonical Work Item and binds its ETag. Ticket claim is consume-once, re-reads that same Work Item, and checks the unchanged ETag plus exact canonical cwd, workspace, application, Work Item, role, session, expiry, and claim token before issuing the lease. A deleted or changed Work Item revokes the pending ticket.
 
 The same action is available from `/connections` Setup/Diagnostics. A VS Code command being accepted proves only editor launch. Participation is proven only after a fresh eligible Hook event claims the ticket and the v2 snapshot shows the exact leased session.
 
@@ -107,11 +107,13 @@ participation == companion_active
 + current bundle revision
 ```
 
-The next eligible prompt consumes a delivery once. Consumption is Hook-side context insertion, not model acknowledgement. A delivery failure is surfaced separately and never broadens the target.
+The next eligible prompt re-reads the strict Work Item and current canonical repository/Graph source revision before consuming a delivery once. Missing source state or revision drift fails that delivery without inserting context. Consumption is Hook-side context insertion, not model acknowledgement. A delivery failure is surfaced separately and never broadens the target.
 
 ## Plan-to-materialization handoff
 
-A Plan handoff binds the exact source session and latest turn, workspace, application, canonical Work Item Handoff, discovery and decision revisions, canonical Plan body hash, target skill, expiry, and consume-once claim. Capsule metadata is excluded from the canonical Plan body hash. Bridge creation and every later authority-producing action recheck the current strict Work Item and revision tuple.
+A Plan handoff binds the exact source session and latest turn, workspace, application, canonical Work Item Handoff ID and marker digest, discovery and decision revisions, canonical Plan body hash, target skill, expiry, and consume-once claim. Creation includes the complete bounded canonical Plan body. The Bridge canonicalizes it, recomputes the hash, rejects a mismatch or embedded Capsule, and rechecks the exact current strict Work Item Handoff tuple before authority exists. Capsule metadata is excluded from the Plan body hash.
+
+The verified Plan body is encrypted in ignored local Bridge state, omitted from public snapshots and receipts, and injected only into the successful fresh claim or named existing target's next leased prompt. It is erased on claim, cancellation, failure, expiry, supersession, source revocation, or restart. Every later authority-producing action rechecks the same canonical ID, marker, revisions, hash, target, and expiry.
 
 Automatic built-in transfer to a fresh context is not assumed. The default supported path is an explicit Companion Continue action:
 
@@ -119,15 +121,15 @@ Automatic built-in transfer to a fresh context is not assumed. The default suppo
 node scripts/af.mjs companion continue --handoff <handoff-id>
 ```
 
-`/connections` exposes the same action and a copyable returned Capsule. A claim succeeds only for one different fresh session with the exact Capsule and scope. Wrong-session, same-session, duplicate, expired, superseded, ambiguous, and subagent claims fail closed. The Bridge never claims a handoff merely because one candidate is pending.
+`/connections` exposes the same action and a copyable returned Capsule. The Capsule contains identity, revision, expiry, and consume-once claim metadata, not the Plan body. A claim succeeds only for one different fresh session with the exact Capsule and scope, then receives the verified body through Hook `additionalContext`. Wrong-session, same-session, duplicate, expired, superseded, ambiguous, and subagent claims fail closed. The Bridge never claims a handoff merely because one candidate is pending.
 
-When a fresh client cannot be launched, `/connections` can durably attach the pending Handoff to one user-selected existing materialization Companion session. The target must have a current lease and the exact workspace/application/Work Item scope; no candidate is preselected, no raw Capsule is returned, and only the named session can claim context on its next leased prompt. Reload preserves the target. Pending handoffs can also be canceled explicitly. Target revoke detaches; source revoke/staleness, source-turn drift, canonical revision drift, or Bridge restart closes pending authority.
+When a fresh client cannot be launched, `/connections` can durably attach the pending Handoff to one user-selected existing materialization Companion session. The target must have a current lease and the exact workspace/application/Work Item scope; no candidate is preselected, no raw Capsule or Plan body is returned, and only the named session can receive the verified context on its next leased prompt. Reload preserves the target. Pending handoffs can also be canceled explicitly. Target revoke detaches; source revoke/staleness, source-turn drift, canonical ID/marker/revision drift, or Bridge restart closes pending authority.
 
 If a client strips the Capsule, keep the handoff waiting and use Continue or Copy Capsule again. Do not infer participation from `cwd`, editor launch, or an observed prompt.
 
 ## Decision input
 
-The Work Skills inspect tools exposed in the current turn. When `request_user_input` is actually available they use the structured adapter; otherwise they ask exactly one conversational question, set `waiting_for_input`, and end the turn. Both paths preserve the same decision ID, option IDs, revision, recommendation revision, selected value, and session/turn provenance. `tests/skills/decision-input-fixture.mjs` behaviorally proves normalization parity against the strict Work Item parser; this does not replace a live current-turn client capability check.
+The Work Skills inspect tools exposed in the current turn. When `request_user_input` is actually available they use the structured adapter; otherwise they ask exactly one conversational question, set `waiting_for_input`, and end the turn. Both paths preserve the same decision ID, option IDs, decision/recommendation revisions, selected value, selection source, bounded non-verbatim answer summary, and exact session/turn. The strict record also preserves whether the input mode was `structured` or `conversational`. `tests/skills/decision-input-fixture.mjs` behaviorally proves semantic normalization parity and strict Work Item roundtrip; this does not replace a live current-turn client capability check.
 
 “추천대로 진행” is user consent only when it unambiguously names the currently displayed recommendation revision. Ambiguous answers trigger one clarification and no write. Recommendations, defaults, validator output, and prior-session assumptions never satisfy a hard gate.
 

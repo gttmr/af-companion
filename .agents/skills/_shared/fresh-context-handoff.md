@@ -30,7 +30,7 @@ A handoff identifies exactly:
 - creation and expiry times;
 - claim session, turn, and time after a successful claim.
 
-The Companion-local record and Work Item handoff record use their current schema-owned field names. Correlate them by identity and digest; do not copy unsupported fields into either record.
+The Companion create request names the exact canonical Work Item `handoff_id` and `marker_digest`; the Bridge does not allocate a replacement identity. It also receives the complete canonical Plan body, recomputes `plan_body_hash`, and rejects any byte mismatch before authority exists. The bounded Plan body is encrypted in ignored local state, omitted from snapshots and receipts, injected only into the exact successful claim's `additionalContext`, and erased on claim, cancellation, failure, expiry, supersession, source revoke, or restart.
 
 ## Transport and fallback order
 
@@ -40,16 +40,16 @@ Use this fallback order:
 
 1. **Companion Continue** — the primary explicit fresh-session action for the exact handoff and scope;
 2. **Copy Capsule** — copy the exact returned capsule byte-for-byte and present it in the fresh session's first prompt;
-3. **Exact confirmed attach** — name the exact session and scope, confirm the resulting current attachment, and provide the complete canonical Plan body and revisions.
+3. **Exact confirmed attach** — name the exact session and scope; its next leased prompt receives the same verified canonical Plan body and revisions without returning raw Capsule or Plan bytes to the browser.
 
-The third path is attachment, not an automatic handoff claim. It does not relax Plan-body, revision, decision, target, expiry, role, or provenance checks.
+The third path is an explicit durable target selection, not an automatic candidate claim. It does not relax Plan-body, marker identity, revision, decision, target, expiry, role, or provenance checks.
 
 ## Claim rules
 
 A claim succeeds only on the first prompt of a distinct fresh session when current evidence proves:
 
 - current Companion enrollment and exact materialization scope;
-- one exact unexpired handoff selected by ID/capsule, not by list position;
+- one exact unexpired canonical Work Item handoff selected by matching ID and marker digest/capsule, not by list position;
 - application, workspace, Work Item, target, Plan hash, discovery revision, and decision revision match;
 - the claim session differs from the source Plan session;
 - claim session/turn/time and first-prompt receipt are present;
@@ -65,7 +65,7 @@ A resumed or forked session is not materialization-authorized until current part
 
 ## Verification
 
-Verify canonical Plan bytes independently, recompute the hash, inspect capsule separation, check expiry and exact scope/revisions/target, and correlate first-prompt plus claim receipts. Record transport capability as observed; use `unverified` when carriage was not proven.
+Verify canonical Plan bytes independently, recompute the hash, prove local state and public receipts contain no plaintext Plan body, inspect capsule separation, check exact Work Item Handoff ID/marker, expiry and scope/revisions/target, and correlate first-prompt plus claim receipts. Record transport capability as observed; use `unverified` when built-in carriage was not proven.
 
 ## Stop conditions
 
@@ -75,6 +75,8 @@ Stop when the Plan body contains a capsule, a hash differs, built-in carriage is
 
 - `packages/web/src/companion/sessionContract.ts`
 - `packages/web/src/companion/sessionContract.test.ts`
+- `packages/web/server/codexBridgeStore.ts`
+- `packages/web/server/codexBridgeStore.test.ts`
 - `schemas/af-work-item.schema.json`
 
 ## Checked date

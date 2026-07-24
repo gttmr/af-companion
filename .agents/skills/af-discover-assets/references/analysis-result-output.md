@@ -78,13 +78,13 @@ An automatic claim is accepted only when an explicitly identified handoff and al
 - a distinct fresh session and its first claiming turn;
 - unexpired, non-superseded, not-previously-claimed status.
 
-Built-in fresh-context carriage is `unverified` without current first-prompt proof. Use Companion Continue, then Copy Capsule, then a new exact-scope Join. The implemented final fallback is:
+Built-in fresh-context carriage is `unverified` without current first-prompt proof. Companion Continue and Copy Capsule claim an exact Bridge Handoff whose encrypted, hash-verified Plan body is injected into the claiming prompt. Exact existing-session Attach injects the same body into only the named session's next leased prompt. A bare new exact-scope Join remains the final enrollment-only fallback:
 
 ```bash
 node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization [--root PATH]
 ```
 
-This command launches a new enrollment for the named application/work/role. Confirm the resulting exact session/application/workspace/work state. It does not guess a session, claim a handoff, or replace revision/Plan verification. The user must provide the complete Decision Plan and Capsule in the new session when automatic claim context is absent.
+This command launches a new enrollment for the named application/work/role. Confirm the resulting exact session/application/workspace/work state. It does not guess a session, claim a handoff, or replace revision/Plan verification. Only this bare Join path requires the user to provide the complete Decision Plan and Capsule when no exact Handoff claim/Attach context exists.
 
 ## Phase B preflight
 
