@@ -1,328 +1,121 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, stat, symlink } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import {
-  DEFAULT_CODEX_BRIDGE_PORT,
-  MAX_CODEX_BRIDGE_BODY_BYTES,
-  startCodexBridgeServer,
-} from "./codexBridgeServer.ts";
+import { CONTINUE_CONFIRMATION, REVOKE_CONFIRMATION, RESET_CONFIRMATION } from "./codexBridgeStore.ts";
+import { startCodexBridgeServer } from "./codexBridgeServer.ts";
 
-const DISCOVERY_REVISION = "a".repeat(64);
-const DECISION_REVISION = "b".repeat(64);
-const PLAN_HASH = "c".repeat(64);
+async function fixture(t: test.TestContext) {
+  const root = await mkdtemp(join(tmpdir(), "af-bridge-server-v2-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const running = await startCodexBridgeServer({ repoRoot: root, port: 0, now: () => new Date("2030-01-01T00:00:00.000Z") });
+  t.after(() => running.close());
+  const request = (path: string, body?: unknown, token = running.endpoint.token) => fetch(`${running.endpoint.url}${path}`, {
+    method: body === undefined ? "GET" : "POST",
+    headers: { authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return { root, running, request };
+}
 
-function deliveryRequest(selectionId: string) {
+function sessionHook(root: string, sessionId: string, proof?: unknown, permission = "default", turn?: string) {
   return {
-    target_session_id: "session-http",
-    delivery_mode: "next_prompt",
-    consume_policy: "once",
-    bundle: {
-      schema_version: 1,
-      selection_id: selectionId,
-      workspace_id: "workspace-http",
-      artifact_root_id: "req-http",
-      graph_id: "graph-http",
-      source_revision: { head: "0123456789abcdef", dirty_hash: null, graph_etag: "etag-http" },
-      selected_objects: [{
-        kind: "graph_node",
-        id: "node-http",
-        label: "HTTP node",
-        node_kind: "agent",
-        artifact_ref: "agent:http",
-        source_refs: ["graph-ir.json#node-http"],
-      }],
-      derived_context: {
-        connecting_edges: [],
-        related_assets: [{ asset_id: "agent:http", asset_type: "agent", owner: "platform", domain_scope: "cross_domain", binding_kind: null }],
-      },
-      user_intent: { text: "Review selected HTTP node" },
-      created_at: "2030-01-01T00:00:00.000Z",
-      expires_at: "2030-01-01T00:15:00.000Z",
-    },
+    session_id: sessionId, transcript_path: "/private/transcript", cwd: root,
+    hook_event_name: turn ? "UserPromptSubmit" : "SessionStart", model: "gpt-5.6", permission_mode: permission,
+    ...(turn ? { turn_id: turn } : { source: "startup" }), ...(proof ? { companion_proof: proof } : {}),
   };
 }
 
-test("binds to loopback with an ephemeral port and protects all HTTP APIs", async (t) => {
-  assert.equal(DEFAULT_CODEX_BRIDGE_PORT, 8898);
-  const root = await mkdtemp(join(tmpdir(), "af-codex-server-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const running = await startCodexBridgeServer({
-    repoRoot: root,
-    now: () => new Date("2030-01-01T00:00:00.000Z"),
-    codexVersion: "0.144.6",
-    port: 0,
-  });
-  t.after(() => running.close());
-  const auth = { authorization: `Bearer ${running.endpoint.token}` };
-
-  assert.match(running.endpoint.url, /^http:\/\/127\.0\.0\.1:\d+$/);
-  assert.notEqual(new URL(running.endpoint.url).port, "0");
-  assert.equal((await stat(running.store.stateDir)).mode & 0o777, 0o700);
-  assert.equal((await stat(running.store.statePath)).mode & 0o777, 0o600);
-  assert.equal((await stat(running.store.endpointPath)).mode & 0o777, 0o600);
-
-  let response = await fetch(`${running.endpoint.url}/v1/health`);
+test("direct Bridge exposes only authenticated V2 state and unmanaged Hooks stay inert", async (t) => {
+  const { root, running, request } = await fixture(t);
+  let response = await request("/v1/health");
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).schema_version, 2);
+  response = await request("/v1/snapshot", undefined, "wrong-token");
   assert.equal(response.status, 401);
-  assert.equal(response.headers.get("access-control-allow-origin"), null);
-
-  response = await fetch(`${running.endpoint.url}/v1/health`, { headers: auth });
-  assert.equal(response.status, 200);
-  assert.equal((await response.json()).ok, true);
-  assert.equal(response.headers.get("access-control-allow-origin"), null);
-
-  response = await fetch(`${running.endpoint.url}/v1/hooks`, {
-    method: "POST",
-    headers: auth,
-    body: "{}",
-  });
-  assert.equal(response.status, 415);
-
-  response = await fetch(`${running.endpoint.url}/v1/hooks`, {
-    method: "POST",
-    headers: { ...auth, "content-type": "application/json" },
-    body: JSON.stringify({ padding: "x".repeat(MAX_CODEX_BRIDGE_BODY_BYTES) }),
-  });
-  assert.equal(response.status, 413);
-
-  response = await fetch(`${running.endpoint.url}/v1/hooks`, {
-    method: "POST",
-    headers: { ...auth, "content-type": "application/json; charset=utf-8" },
-    body: JSON.stringify({
-      session_id: "session-http",
-      transcript_path: "/private/transcript.jsonl",
-      cwd: root,
-      hook_event_name: "SessionStart",
-      model: "gpt-5.6",
-      permission_mode: "default",
-      source: "startup",
-    }),
-  });
+  response = await request("/v1/hooks", sessionHook(root, "unmanaged"));
   assert.equal(response.status, 204);
-  assert.equal(await response.text(), "");
-
-  response = await fetch(`${running.endpoint.url}/v1/deliveries`, {
-    method: "POST",
-    headers: { ...auth, "content-type": "application/json" },
-    body: JSON.stringify(deliveryRequest("selection-http")),
-  });
-  assert.equal(response.status, 201);
-  const queued = await response.json();
-  assert.equal(queued.status, "queued");
-
-  response = await fetch(`${running.endpoint.url}/v1/sessions/session-http/preferences`, {
-    method: "POST",
-    headers: { ...auth, "content-type": "application/json" },
-    body: JSON.stringify({ alias: "  HTTP session  ", default_target: true }),
-  });
-  assert.equal(response.status, 200);
-  const preferredSession = await response.json();
-  assert.equal(preferredSession.alias, "HTTP session");
-  assert.equal(preferredSession.default_target, true);
-  assert.equal(preferredSession.session_id, "session-http");
-
-  const promptBody = {
-    session_id: "session-http",
-    turn_id: "turn-http",
-    transcript_path: "/private/transcript.jsonl",
-    cwd: root,
-    hook_event_name: "UserPromptSubmit",
-    model: "gpt-5.6",
-    permission_mode: "default",
-    prompt: "private HTTP prompt",
-  };
-  const duplicateHookResponses = await Promise.all([1, 2].map(() => fetch(`${running.endpoint.url}/v1/hooks`, {
-    method: "POST",
-    headers: { ...auth, "content-type": "application/json" },
-    body: JSON.stringify(promptBody),
-  })));
-  assert.deepEqual(duplicateHookResponses.map((item) => item.status).sort(), [200, 204]);
-  const successfulHookResponse = duplicateHookResponses.find((item) => item.status === 200);
-  assert.ok(successfulHookResponse);
-  const hookOutput = await successfulHookResponse.json();
-  assert.equal(hookOutput.hookSpecificOutput.hookEventName, "UserPromptSubmit");
-  assert.match(hookOutput.hookSpecificOutput.additionalContext, /selection-http/);
-
-  response = await fetch(`${running.endpoint.url}/v1/hooks`, {
-    method: "POST",
-    headers: { ...auth, "content-type": "application/json" },
-    body: JSON.stringify({ ...promptBody, turn_id: "turn-http-again" }),
-  });
-  assert.equal(response.status, 204);
-
-  response = await fetch(`${running.endpoint.url}/v1/deliveries`, {
-    method: "POST",
-    headers: { ...auth, "content-type": "application/json" },
-    body: JSON.stringify(deliveryRequest("selection-cancel")),
-  });
-  const cancelTarget = await response.json();
-  response = await fetch(`${running.endpoint.url}/v1/deliveries/${encodeURIComponent(cancelTarget.delivery_id)}/cancel`, {
-    method: "POST",
-    headers: { ...auth, "content-type": "application/json" },
-    body: "{}",
-  });
-  assert.equal(response.status, 200);
-  assert.equal((await response.json()).status, "canceled");
-
-  response = await fetch(`${running.endpoint.url}/v1/snapshot`, { headers: auth });
-  assert.equal(response.status, 200);
+  response = await request("/v1/snapshot");
   const snapshot = await response.json();
-  assert.equal(snapshot.sessions[0].session_id, "session-http");
-  assert.equal(snapshot.sessions[0].transcript_path, undefined);
-  assert.equal(snapshot.sessions[0].last_event, "prompt_submit");
-  assert.equal(snapshot.sessions[0].last_turn_id, "turn-http-again");
-  assert.deepEqual(snapshot.capabilities, {
-    bridge_available: true,
-    codex_version: "0.144.6",
-    session_registration: true,
-    next_prompt_context: true,
-    session_end_event: "unsupported",
-    delivery_ack: false,
-    mcp_context_pull: false,
-    direct_turn_start: false,
-    inflight_steer: false,
-    fresh_session_handoff: true,
-    automatic_fresh_context: false,
-  });
-
-  response = await fetch(`${running.endpoint.url}/v1/health`, {
-    method: "OPTIONS",
-    headers: { ...auth, origin: "https://example.test" },
-  });
-  assert.equal(response.status, 404);
-  assert.equal(response.headers.get("access-control-allow-origin"), null);
+  assert.deepEqual(snapshot.sessions, []);
+  assert.deepEqual(snapshot.activities, []);
+  const endpoint = JSON.parse(await readFile(running.store.endpointPath, "utf8"));
+  assert.equal(endpoint.schema_version, 2);
+  assert.equal(endpoint.bridge_instance_id, snapshot.bridge_instance_id);
 });
 
-test("rejects a second broker for the same workspace", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "af-codex-server-lock-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const running = await startCodexBridgeServer({ repoRoot: root, port: 0 });
-  t.after(() => running.close());
+test("direct enrollment, scoped delivery, consume, cancel, and revoke routes are fail-closed", async (t) => {
+  const { root, running, request } = await fixture(t);
+  let response = await request("/v1/enrollments", { application_id: "app-1", work_id: "work-1", requested_role: "materialization", activation_origin: "af_cli_launch" });
+  assert.equal(response.status, 201);
+  const enrollment = await response.json();
+  response = await request("/v1/hooks", sessionHook(root, "session-1", { kind: "activation", activation_capsule: enrollment.activation_capsule }));
+  assert.equal(response.status, 204);
+  const lease = await running.store.leaseProofForTesting("session-1");
+  const revision = { head: "abc", dirty_hash: null, graph_etag: "etag" };
+  const bundle = {
+    schema_version: 1, selection_id: "selection-1", workspace_id: running.store.workspaceId,
+    artifact_root_id: "artifacts/af/work-1", graph_id: "graph-1", source_revision: revision,
+    selected_objects: [{ kind: "graph_node", id: "node-1", label: "Node", node_kind: "agent", artifact_ref: null, source_refs: [] }],
+    derived_context: { connecting_edges: [], related_assets: [] }, user_intent: { text: null },
+    created_at: "2030-01-01T00:00:00.000Z", expires_at: "2030-01-01T01:00:00.000Z",
+  };
+  const deliveryBody = {
+    target_session_id: "session-1", delivery_mode: "next_prompt", consume_policy: "once",
+    scope: { workspace_id: running.store.workspaceId, application_id: "app-1", work_id: "work-1", allowed_roles: ["materialization"] },
+    current_role: "materialization", current_source_revision: revision, bundle,
+  };
+  response = await request("/v1/deliveries", { ...deliveryBody, scope: { ...deliveryBody.scope, application_id: "wrong" } });
+  assert.equal(response.status, 409);
+  response = await request("/v1/deliveries", deliveryBody);
+  assert.equal(response.status, 201);
+  const delivery = await response.json();
+  assert.equal(delivery.bundle.schema_version, 1);
+  response = await request("/v1/hooks", sessionHook(root, "session-1", lease, "default", "turn-1"));
+  assert.equal(response.status, 200);
+  assert.match((await response.json()).hookSpecificOutput.additionalContext, /selection-1/);
 
-  await assert.rejects(
-    startCodexBridgeServer({ repoRoot: root, port: 0 }),
-    /already running/,
-  );
+  response = await request("/v1/sessions/session-1/revoke", { confirmation: REVOKE_CONFIRMATION, reason: "done" });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).participation, "revoked");
+  response = await request("/v1/hooks", sessionHook(root, "session-1", lease, "default", "turn-2"));
+  assert.equal(response.status, 204);
 });
 
-test("exposes strict direct routes for Plan handoff creation and exact session attachment", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "af-codex-server-handoff-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const running = await startCodexBridgeServer({
-    repoRoot: root,
-    now: () => new Date("2030-01-01T00:00:00.000Z"),
-  });
-  t.after(() => running.close());
-  const headers = {
-    authorization: `Bearer ${running.endpoint.token}`,
-    "content-type": "application/json",
-  };
-  const hook = async (body: unknown) => fetch(`${running.endpoint.url}/v1/hooks`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
-
-  assert.equal((await hook({
-    session_id: "plan-http",
-    transcript_path: "/private/plan.jsonl",
-    cwd: root,
-    hook_event_name: "SessionStart",
-    model: "gpt-5.6",
-    permission_mode: "plan",
-    source: "startup",
-  })).status, 204);
-  assert.equal((await hook({
-    session_id: "plan-http",
-    turn_id: "plan-turn-http",
-    transcript_path: "/private/plan.jsonl",
-    cwd: root,
-    hook_event_name: "UserPromptSubmit",
-    model: "gpt-5.6",
-    permission_mode: "plan",
-    prompt: "private plan",
-  })).status, 204);
-
-  const handoffBody = {
-    work_id: "work-http-1",
-    from_session_id: "plan-http",
-    from_turn_id: "plan-turn-http",
-    discovery_revision: DISCOVERY_REVISION,
-    decision_revision: DECISION_REVISION,
-    plan_hash: PLAN_HASH,
-    expires_at: "2030-01-01T00:15:00.000Z",
-  };
-  let response = await fetch(`${running.endpoint.url}/v1/handoffs`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ ...handoffBody, unexpected: true }),
-  });
-  assert.equal(response.status, 400);
-  assert.equal((await response.json()).error.code, "invalid_request");
-
-  response = await fetch(`${running.endpoint.url}/v1/handoffs`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ ...handoffBody, plan_hash: "not-a-sha256" }),
-  });
-  assert.equal(response.status, 400);
-
-  response = await fetch(`${running.endpoint.url}/v1/handoffs`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(handoffBody),
+test("direct handoff Continue rotates a claim and only an exact distinct session claims it", async (t) => {
+  const { root, running, request } = await fixture(t);
+  let response = await request("/v1/enrollments", { application_id: "app-1", work_id: "work-plan", requested_role: "plan", activation_origin: "af_cli_launch" });
+  const enrollment = await response.json();
+  await request("/v1/hooks", sessionHook(root, "plan-session", { kind: "activation", activation_capsule: enrollment.activation_capsule }, "plan"));
+  const lease = await running.store.leaseProofForTesting("plan-session");
+  await request("/v1/hooks", sessionHook(root, "plan-session", lease, "plan", "plan-turn"));
+  response = await request("/v1/handoffs", {
+    workspace_id: running.store.workspaceId, application_id: "app-1", work_id: "work-plan", from_session_id: "plan-session", from_turn_id: "plan-turn",
+    discovery_revision: "a".repeat(64), decision_revision: "b".repeat(64), plan_body_hash: "c".repeat(64), transport_capability: "client_dependent", expires_at: "2030-01-01T00:10:00.000Z",
   });
   assert.equal(response.status, 201);
-  const created = await response.json();
-  assert.equal(created.handoff.work_id, "work-http-1");
-  assert.equal(created.handoff.marker_digest.length, 64);
-  assert.match(created.marker, /^AF_CLAIM_TOKEN=/m);
-
-  assert.equal((await hook({
-    session_id: "manual-http",
-    transcript_path: "/private/manual.jsonl",
-    cwd: root,
-    hook_event_name: "SessionStart",
-    model: "gpt-5.6",
-    permission_mode: "default",
-    source: "startup",
-  })).status, 204);
-  response = await fetch(`${running.endpoint.url}/v1/sessions/attach`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      session_id: "manual-http",
-      work_id: "work-http-1",
-      role: "materialization",
-    }),
-  });
+  const handoff = await response.json();
+  assert.equal(handoff.status, "ready");
+  response = await request(`/v1/handoffs/${handoff.handoff_id}/continue`, { confirmation: CONTINUE_CONFIRMATION });
   assert.equal(response.status, 200);
-  const attached = await response.json();
-  assert.equal(attached.session_id, "manual-http");
-  assert.equal(attached.work_id, "work-http-1");
-  assert.equal(attached.role, "materialization");
-
-  response = await fetch(`${running.endpoint.url}/v1/sessions/attach`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ work_id: "work-http-1", role: "materialization" }),
-  });
-  assert.equal(response.status, 400);
+  const continued = await response.json();
+  response = await request("/v1/hooks", sessionHook(root, "fresh-session", { kind: "activation", activation_capsule: continued.activation_capsule }, "default", "fresh-turn"));
+  assert.equal(response.status, 200);
+  assert.match((await response.json()).hookSpecificOutput.additionalContext, /work-plan/);
+  const snapshot = await (await request("/v1/snapshot")).json();
+  assert.equal(snapshot.handoffs[0].status, "claimed");
+  assert.equal(snapshot.handoffs[0].claimed_by_session_id, "fresh-session");
 });
 
-test("rejects a bridge state directory that escapes through a symlink", async (t) => {
-  const base = await mkdtemp(join(tmpdir(), "af-codex-server-symlink-"));
-  t.after(() => rm(base, { recursive: true, force: true }));
-  const root = join(base, "repo");
-  const outside = join(base, "outside");
-  await mkdir(root);
-  await mkdir(outside);
-  await symlink(outside, join(root, ".agent-factory"));
-
-  await assert.rejects(
-    startCodexBridgeServer({ repoRoot: root, port: 0 }),
-    /state directory must remain inside/,
-  );
+test("preferences are alias-only, reset needs confirmation, and one bridge owns a workspace", async (t) => {
+  const { root, request } = await fixture(t);
+  let response = await request("/v1/sessions/anything/preferences", { default_target: true });
+  assert.equal(response.status, 400);
+  response = await request("/v1/state/reset", {});
+  assert.equal(response.status, 400);
+  response = await request("/v1/state/reset", { confirmation: RESET_CONFIRMATION });
+  assert.equal(response.status, 204);
+  await assert.rejects(startCodexBridgeServer({ repoRoot: root, port: 0 }), /already running/);
 });

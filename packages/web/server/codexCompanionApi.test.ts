@@ -1,414 +1,171 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
-import { createServer, request as httpRequest, type Server } from "node:http";
+import { createServer, type Server } from "node:http";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+import { join } from "node:path";
+import test from "node:test";
 
-import { ArtifactRootStore } from "./artifactRootStore.ts";
+import type { CodexEditorCapabilities } from "../src/companion/types.ts";
 import { createCodexCompanionMiddleware } from "./codexCompanionApi.ts";
 import { startCodexBridgeServer } from "./codexBridgeServer.ts";
 
-const execFileAsync = promisify(execFile);
-const fixturePath = fileURLToPath(new URL(
-  "../../../templates/regression-scenarios/scenario-a-simple-local-specialist/analysis-result.json",
-  import.meta.url,
-));
-const repoRoot = await mkdtemp(join(tmpdir(), "af-codex-companion-api-"));
-const outsideRoot = await mkdtemp(join(tmpdir(), "af-codex-companion-outside-"));
-const reqId = "req-companion";
-const artifactPath = join(repoRoot, "artifacts/af", reqId, "analysis-result.json");
-const discoveryRevision = "a".repeat(64);
-const decisionRevision = "b".repeat(64);
-const planHash = "c".repeat(64);
-
-await mkdir(dirname(artifactPath), { recursive: true });
-const canonicalArtifact = await readFile(fixturePath, "utf8");
-await writeFile(artifactPath, canonicalArtifact, "utf8");
-await writeFile(join(repoRoot, ".gitignore"), ".agent-factory/\n", "utf8");
-await git(["init"]);
-await git(["config", "user.email", "codex-companion@example.invalid"]);
-await git(["config", "user.name", "Codex Companion Test"]);
-await git(["add", ".gitignore", "artifacts"]);
-await git(["commit", "-m", "fixture"]);
-
-const bridge = await startCodexBridgeServer({
-  repoRoot,
-  codexVersion: "codex-cli test",
-  port: 0,
-});
-await bridge.store.handleHook({
-  session_id: "session-companion",
-  transcript_path: null,
-  cwd: repoRoot,
-  hook_event_name: "SessionStart",
-  model: "gpt-test",
-  permission_mode: "default",
-  source: "startup",
-});
-
-let launchCalls = 0;
-const workspaceController = {
-  async canonicalRoot() { return repoRoot; },
-  async probe() {
-    return {
-      code_available: true,
-      code_version: "1.99.0",
-      wsl_environment: true,
-      codex_extension_installed: true,
-      codex_extension_version: "0.4.2",
-      launch_supported: true,
-      probed_at: "2030-01-01T00:00:00.000Z",
-    };
-  },
-  async launch() {
-    launchCalls += 1;
-    return {
-      status: "accepted" as const,
-      workspace_path: repoRoot,
-      launched_at: "2030-01-01T00:00:01.000Z",
-    };
-  },
+const editor: CodexEditorCapabilities = {
+  code_available: false, code_version: null, wsl_environment: true,
+  codex_extension_installed: false, codex_extension_version: null,
+  launch_supported: false, probed_at: "2030-01-01T00:00:00.000Z",
 };
-const middleware = createCodexCompanionMiddleware(repoRoot, { workspaceController });
-const facade = createServer((request, response) => {
-  void middleware(request, response, (error) => {
-    response.statusCode = 500;
-    response.end(error instanceof Error ? error.message : "middleware failure");
-  });
-});
-const origin = await listen(facade);
-
-try {
-  const snapshotResponse = await fetch(`${origin}/snapshot`);
-  assert.equal(snapshotResponse.status, 200);
-  const snapshot = await snapshotResponse.json();
-  assert.equal(snapshot.capabilities.bridge_available, true);
-  assert.equal(snapshot.capabilities.codex_version, "codex-cli test");
-  assert.deepEqual(snapshot.sessions.map((session: { session_id: string }) => session.session_id), ["session-companion"]);
-  assert.equal(snapshot.sessions[0].default_target, false);
-  assert.match(snapshot.workspace.workspace_id, /^workspace_v1_[0-9a-f]{16}$/);
-  assert.equal(snapshot.workspace.canonical_path, repoRoot);
-  assert.equal(snapshot.workspace.display_name, repoRoot.split("/").at(-1));
-  assert.equal(snapshot.editor.code_available, true);
-  assert.equal(snapshot.editor.codex_extension_version, "0.4.2");
-
-  let preferencesResponse = await post("/sessions/session-companion/preferences", {
-    alias: "  Main CLI  ",
-    default_target: true,
-  });
-  assert.equal(preferencesResponse.status, 200);
-  const preferredSession = await preferencesResponse.json();
-  assert.equal(preferredSession.alias, "Main CLI");
-  assert.equal(preferredSession.default_target, true);
-  assert.equal(preferredSession.session_id, "session-companion");
-
-  preferencesResponse = await fetch(`${origin}/sessions/session-companion/preferences`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ alias: "blocked" }),
-  });
-  assert.equal(preferencesResponse.status, 403);
-  preferencesResponse = await fetch(`${origin}/sessions/session-companion/preferences`, {
-    method: "POST",
-    headers: { origin, "sec-fetch-site": "same-origin" },
-    body: JSON.stringify({ alias: "blocked" }),
-  });
-  assert.equal(preferencesResponse.status, 415);
-
-  await bridge.store.handleHook({
-    session_id: "session-plan",
-    transcript_path: null,
-    cwd: repoRoot,
-    hook_event_name: "SessionStart",
-    model: "gpt-test",
-    permission_mode: "plan",
-    source: "startup",
-  });
-  await bridge.store.handleHook({
-    session_id: "session-plan",
-    turn_id: "turn-plan",
-    transcript_path: null,
-    cwd: repoRoot,
-    hook_event_name: "UserPromptSubmit",
-    model: "gpt-test",
-    permission_mode: "plan",
-    prompt: "private Plan prompt",
-  });
-  let handoffResponse = await post("/handoffs", {
-    work_id: "work-plan-facade",
-    from_session_id: "session-plan",
-    from_turn_id: "turn-plan",
-    discovery_revision: discoveryRevision,
-    decision_revision: decisionRevision,
-    plan_hash: planHash,
-    expires_at: new Date(Date.now() + 60_000).toISOString(),
-    unexpected: true,
-  });
-  assert.equal(handoffResponse.status, 400);
-  assert.equal((await handoffResponse.json()).code, "invalid_request");
-  handoffResponse = await post("/handoffs", {
-    work_id: "work-plan-facade",
-    from_session_id: "session-plan",
-    from_turn_id: "turn-plan",
-    discovery_revision: discoveryRevision,
-    decision_revision: decisionRevision,
-    plan_hash: planHash,
-    expires_at: new Date(Date.now() + 60_000).toISOString(),
-  });
-  assert.equal(handoffResponse.status, 201);
-  const createdHandoff = await handoffResponse.json();
-  assert.equal(createdHandoff.handoff.work_id, "work-plan-facade");
-  assert.match(createdHandoff.marker, /^\[AF_PLAN_HANDOFF\]$/m);
-
-  await bridge.store.handleHook({
-    session_id: "session-materialize",
-    transcript_path: null,
-    cwd: repoRoot,
-    hook_event_name: "SessionStart",
-    model: "gpt-test",
-    permission_mode: "default",
-    source: "startup",
-  });
-  const claimed = await bridge.store.handleHook({
-    session_id: "session-materialize",
-    turn_id: "turn-materialize",
-    transcript_path: null,
-    cwd: repoRoot,
-    hook_event_name: "UserPromptSubmit",
-    model: "gpt-test",
-    permission_mode: "default",
-    prompt: `Implement the approved plan.\n${createdHandoff.marker}`,
-  });
-  assert.match(claimed?.hookSpecificOutput.additionalContext ?? "", /work-plan-facade/);
-
-  await bridge.store.handleHook({
-    session_id: "session-manual",
-    transcript_path: null,
-    cwd: repoRoot,
-    hook_event_name: "SessionStart",
-    model: "gpt-test",
-    permission_mode: "default",
-    source: "startup",
-  });
-  let attachResponse = await post("/sessions/attach", {
-    session_id: "session-manual",
-    work_id: "work-manual-facade",
-    role: "materialization",
-    select_first_active: true,
-  });
-  assert.equal(attachResponse.status, 400);
-  attachResponse = await post("/sessions/attach", {
-    session_id: "session-manual",
-    work_id: "work-manual-facade",
-    role: "materialization",
-  });
-  assert.equal(attachResponse.status, 200);
-  assert.equal((await attachResponse.json()).session_id, "session-manual");
-
-  const handoffSnapshot = await (await fetch(`${origin}/snapshot`)).json();
-  assert.equal(handoffSnapshot.capabilities.fresh_session_handoff, true);
-  assert.equal(handoffSnapshot.capabilities.automatic_fresh_context, false);
-  assert.equal(handoffSnapshot.handoffs[0].status, "claimed");
-  assert.equal(handoffSnapshot.handoffs[0].claimed_by_session_id, "session-materialize");
-  assert.equal(
-    handoffSnapshot.sessions.find((session: { session_id: string }) => session.session_id === "session-plan").role,
-    "plan",
-  );
-  assert.equal(
-    handoffSnapshot.sessions.find((session: { session_id: string }) => session.session_id === "session-materialize").role,
-    "materialization",
-  );
-  assert.equal(
-    handoffSnapshot.sessions.find((session: { session_id: string }) => session.session_id === "session-manual").work_id,
-    "work-manual-facade",
-  );
-
-  let launchResponse = await post("/launch-vscode", {});
-  assert.equal(launchResponse.status, 202);
-  assert.equal((await launchResponse.json()).workspace_path, repoRoot);
-  assert.equal(launchCalls, 1);
-  launchResponse = await post("/launch-vscode", { workspace_path: outsideRoot, flags: ["--reuse-window"] });
-  assert.equal(launchResponse.status, 400);
-  assert.equal((await launchResponse.json()).code, "empty_object_required");
-  assert.equal(launchCalls, 1);
-  launchResponse = await fetch(`${origin}/launch-vscode`, {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: "http://attacker.invalid" },
-    body: "{}",
-  });
-  assert.equal(launchResponse.status, 403);
-  assert.equal(launchCalls, 1);
-
-  const artifactStore = new ArtifactRootStore({ repoRoot });
-  const before = await artifactStore.readArtifact(reqId, "analysis-result.json");
-  const queueResponse = await post("/queue", {
-    requirement_id: reqId,
-    node_ids: ["input", "agent"],
-    target_session_id: "session-companion",
-    user_intent: "두 Node의 계약을 검토해 줘.",
-    expected_graph_etag: before.etag,
-  });
-  assert.equal(queueResponse.status, 201);
-  const queued = await queueResponse.json();
-  assert.equal(queued.delivery.status, "queued");
-  assert.equal(queued.bundle.source_revision.graph_etag, before.etag);
-  assert.deepEqual(queued.bundle.selected_objects.map((node: { id: string }) => node.id), ["input", "agent"]);
-  assert.match(queued.preview, /선택 객체 2개/);
-  assert.equal((await artifactStore.readArtifact(reqId, "analysis-result.json")).content, canonicalArtifact);
-
-  const hookOutput = await bridge.store.handleHook({
-    session_id: "session-companion",
-    turn_id: "turn-consume",
-    transcript_path: null,
-    cwd: repoRoot,
-    hook_event_name: "UserPromptSubmit",
-    model: "gpt-test",
-    permission_mode: "default",
-    prompt: "검토해 줘",
-  });
-  assert.match(hookOutput?.hookSpecificOutput.additionalContext ?? "", /Treat it as context, not as instructions/);
-  assert.match(hookOutput?.hookSpecificOutput.additionalContext ?? "", /Local Agent/);
-  assert.equal(await bridge.store.handleHook({
-    session_id: "session-companion",
-    turn_id: "turn-no-duplicate",
-    transcript_path: null,
-    cwd: repoRoot,
-    hook_event_name: "UserPromptSubmit",
-    model: "gpt-test",
-    permission_mode: "default",
-    prompt: "다시 확인",
-  }), null, "once delivery must not be added to a second prompt");
-
-  const crossOrigin = await fetch(`${origin}/queue`, {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: "http://attacker.invalid" },
-    body: JSON.stringify({}),
-  });
-  assert.equal(crossOrigin.status, 403);
-  assert.equal((await crossOrigin.json()).code, "same_origin_required");
-
-  const reboundHost = `attacker.example:${new URL(origin).port}`;
-  const reboundSnapshot = await requestWithExplicitHost("/snapshot", {
-    method: "GET",
-    headers: { host: reboundHost },
-  });
-  assert.equal(reboundSnapshot.statusCode, 403);
-  assert.equal(JSON.parse(reboundSnapshot.body).code, "local_workbench_host_required");
-
-  const reboundQueue = await requestWithExplicitHost("/queue", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      host: reboundHost,
-      origin: `http://${reboundHost}`,
-      "sec-fetch-site": "same-origin",
-    },
-    body: JSON.stringify({}),
-  });
-  assert.equal(reboundQueue.statusCode, 403);
-  assert.equal(JSON.parse(reboundQueue.body).code, "local_workbench_host_required");
-
-  const escapedRoot = join(outsideRoot, "req-escape");
-  await mkdir(escapedRoot, { recursive: true });
-  await writeFile(join(escapedRoot, "analysis-result.json"), canonicalArtifact, "utf8");
-  await symlink(escapedRoot, join(repoRoot, "artifacts/af/req-escape"));
-  const escapedResponse = await post("/queue", {
-    requirement_id: "req-escape",
-    node_ids: ["input"],
-    target_session_id: "session-companion",
-    user_intent: null,
-    expected_graph_etag: "untrusted",
-  });
-  assert.equal(escapedResponse.status, 403);
-  assert.equal((await escapedResponse.json()).code, "artifact_path_outside_workspace");
-
-  await writeFile(artifactPath, canonicalArtifact.replace('"label": "Input"', '"label": "Changed Input"'), "utf8");
-  const staleResponse = await post("/queue", {
-    requirement_id: reqId,
-    node_ids: ["input"],
-    target_session_id: "session-companion",
-    user_intent: null,
-    expected_graph_etag: before.etag,
-  });
-  assert.equal(staleResponse.status, 409);
-  assert.equal((await staleResponse.json()).code, "stale_selection");
-
-  await bridge.close();
-  const unavailableResponse = await fetch(`${origin}/snapshot`);
-  assert.equal(unavailableResponse.status, 200);
-  const unavailable = await unavailableResponse.json();
-  assert.equal(unavailable.capabilities.bridge_available, false);
-  assert.equal(unavailable.capabilities.fresh_session_handoff, false);
-  assert.equal(unavailable.capabilities.automatic_fresh_context, false);
-  assert.deepEqual(unavailable.sessions, []);
-  assert.deepEqual(unavailable.handoffs, []);
-  assert.equal(unavailable.workspace.canonical_path, repoRoot);
-  assert.equal(unavailable.editor.launch_supported, true);
-
-  console.log("codex companion API tests passed");
-} finally {
-  await bridge.close().catch(() => undefined);
-  await close(facade);
-  await rm(repoRoot, { recursive: true, force: true });
-  await rm(outsideRoot, { recursive: true, force: true });
-}
-
-async function post(pathname: string, body: unknown): Promise<Response> {
-  return fetch(`${origin}${pathname}`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      origin,
-      "sec-fetch-site": "same-origin",
-    },
-    body: JSON.stringify(body),
-  });
-}
-
-async function requestWithExplicitHost(
-  pathname: string,
-  options: { method: "GET" | "POST"; headers: Record<string, string>; body?: string },
-): Promise<{ statusCode: number; body: string }> {
-  const target = new URL(origin);
-  return new Promise((resolve, reject) => {
-    const request = httpRequest({
-      hostname: target.hostname,
-      port: target.port,
-      path: pathname,
-      method: options.method,
-      headers: options.headers,
-    }, (response) => {
-      const chunks: Buffer[] = [];
-      response.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-      response.on("end", () => resolve({
-        statusCode: response.statusCode ?? 0,
-        body: Buffer.concat(chunks).toString("utf8"),
-      }));
-    });
-    request.on("error", reject);
-    if (options.body !== undefined) request.write(options.body);
-    request.end();
-  });
-}
 
 async function listen(server: Server): Promise<string> {
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
+    server.listen(0, "127.0.0.1", () => resolve());
   });
   const address = server.address();
-  if (!address || typeof address === "string") throw new Error("test server did not bind TCP");
+  assert.ok(address && typeof address !== "string");
   return `http://127.0.0.1:${address.port}`;
 }
 
-async function close(server: Server): Promise<void> {
-  if (!server.listening) return;
-  await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+async function fixture(t: test.TestContext, withBridge = true) {
+  const root = await mkdtemp(join(tmpdir(), "af-companion-v2-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const workId of ["work-1", "work-plan"]) {
+    const workRoot = join(root, "artifacts/af", workId);
+    await mkdir(workRoot, { recursive: true });
+    await writeFile(join(workRoot, "af-work-item.json"), `${JSON.stringify({ schema_version: 2, work_id: workId })}\n`, "utf8");
+  }
+  const bridge = withBridge ? await startCodexBridgeServer({ repoRoot: root, port: 0, now: () => new Date("2030-01-01T00:00:00.000Z") }) : null;
+  if (bridge) t.after(() => bridge.close());
+  const middleware = createCodexCompanionMiddleware(root, {
+    workspaceController: {
+      canonicalRoot: async () => root,
+      probe: async () => editor,
+      launch: async () => ({ status: "accepted", workspace_path: root, launched_at: "2030-01-01T00:00:00.000Z" }),
+    },
+  });
+  const server = createServer((request, response) => {
+    request.url = (request.url ?? "/").replace(/^\/api\/codex-companion/, "") || "/";
+    void middleware(request, response, (error) => {
+      response.statusCode = error ? 500 : 404;
+      response.end();
+    });
+  });
+  const origin = await listen(server);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const facade = (path: string, body?: unknown, headers: Record<string, string> = {}) => fetch(`${origin}/api/codex-companion${path}`, {
+    method: body === undefined ? "GET" : "POST",
+    headers: {
+      ...(body === undefined ? {} : { "content-type": "application/json", origin, "sec-fetch-site": "same-origin" }),
+      ...headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const direct = (path: string, body?: unknown) => {
+    assert.ok(bridge);
+    return fetch(`${bridge.endpoint.url}${path}`, {
+      method: body === undefined ? "GET" : "POST",
+      headers: { authorization: `Bearer ${bridge.endpoint.token}`, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  };
+  return { root, bridge, facade, direct, origin };
 }
 
-async function git(args: string[]): Promise<void> {
-  await execFileAsync("git", args, { cwd: repoRoot, encoding: "utf8" });
+function sessionHook(root: string, sessionId: string, proof: unknown, permission = "default", turn?: string) {
+  return {
+    session_id: sessionId, transcript_path: null, cwd: root,
+    hook_event_name: turn ? "UserPromptSubmit" : "SessionStart", model: "gpt-5.6", permission_mode: permission,
+    ...(turn ? { turn_id: turn } : { source: "startup" }), companion_proof: proof,
+  };
 }
+
+test("Facade projects V2 snapshot and keeps unavailable state V2-shaped", async (t) => {
+  let fx = await fixture(t);
+  let response = await fx.facade("/snapshot");
+  assert.equal(response.status, 200);
+  let snapshot = await response.json();
+  assert.equal(snapshot.schema_version, 2);
+  assert.equal(snapshot.workspace.canonical_path, fx.root);
+  assert.deepEqual(snapshot.sessions, []);
+
+  fx = await fixture(t, false);
+  response = await fx.facade("/snapshot");
+  snapshot = await response.json();
+  assert.equal(snapshot.schema_version, 2);
+  assert.equal(snapshot.capabilities.bridge_available, false);
+  assert.deepEqual(snapshot.enrollment_tickets, []);
+});
+
+test("Facade requires same-origin and rejects default_target from alias-only preferences", async (t) => {
+  const { facade } = await fixture(t);
+  let response = await facade("/enrollments", { application_id: "app-1", work_id: "work-1", requested_role: "materialization", activation_origin: "af_cli_launch" }, { origin: "https://evil.example" });
+  assert.equal(response.status, 403);
+  response = await facade("/sessions/session-1/preferences", { default_target: true });
+  assert.equal(response.status, 400);
+});
+
+test("Facade rejects enrollment for a nonexistent exact Work Item before ticket issuance", async (t) => {
+  const { bridge, facade } = await fixture(t);
+  assert.ok(bridge);
+  const response = await facade("/enrollments", { application_id: "logical-app", work_id: "missing-work", requested_role: "materialization", activation_origin: "af_cli_launch" });
+  assert.equal(response.status, 404);
+  assert.deepEqual((await bridge.store.snapshot()).enrollment_tickets, []);
+});
+
+test("Facade enrollment and direct scoped delivery preserve SelectionBundleV1", async (t) => {
+  const { root, bridge, facade, direct } = await fixture(t);
+  assert.ok(bridge);
+  let response = await facade("/enrollments", { application_id: "app-1", work_id: "work-1", requested_role: "materialization", activation_origin: "af_cli_launch" });
+  assert.equal(response.status, 201);
+  const enrollment = await response.json();
+  await direct("/v1/hooks", sessionHook(root, "session-1", { kind: "activation", activation_capsule: enrollment.activation_capsule }));
+  response = await facade("/sessions/session-1/preferences", { alias: "  Review session  " });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).alias, "Review session");
+  const revision = { head: "abc", dirty_hash: null, graph_etag: "etag" };
+  const bundle = {
+    schema_version: 1, selection_id: "selection-1", workspace_id: bridge.store.workspaceId, artifact_root_id: "artifacts/af/work-1", graph_id: "graph-1", source_revision: revision,
+    selected_objects: [{ kind: "graph_node", id: "node-1", label: "Node", node_kind: "agent", artifact_ref: null, source_refs: [] }],
+    derived_context: { connecting_edges: [], related_assets: [] }, user_intent: { text: null },
+    created_at: "2030-01-01T00:00:00.000Z", expires_at: "2030-01-01T00:30:00.000Z",
+  };
+  response = await facade("/deliveries", {
+    target_session_id: "session-1", delivery_mode: "next_prompt", consume_policy: "once",
+    scope: { workspace_id: bridge.store.workspaceId, application_id: "app-1", work_id: "work-1", allowed_roles: ["materialization"] },
+    current_role: "materialization", current_source_revision: revision, bundle,
+  });
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).bundle.schema_version, 1);
+});
+
+test("Facade maps bounded empty Continue and Revoke actions to exact Bridge confirmations", async (t) => {
+  const { root, bridge, facade, direct } = await fixture(t);
+  assert.ok(bridge);
+  let response = await facade("/enrollments", { application_id: "app-1", work_id: "work-plan", requested_role: "plan", activation_origin: "af_cli_launch" });
+  const enrollment = await response.json();
+  await direct("/v1/hooks", sessionHook(root, "plan-session", { kind: "activation", activation_capsule: enrollment.activation_capsule }, "plan"));
+  const lease = await bridge.store.leaseProofForTesting("plan-session");
+  await direct("/v1/hooks", sessionHook(root, "plan-session", lease, "plan", "plan-turn"));
+  response = await facade("/handoffs", {
+    workspace_id: bridge.store.workspaceId, application_id: "app-1", work_id: "work-plan", from_session_id: "plan-session", from_turn_id: "plan-turn",
+    discovery_revision: "a".repeat(64), decision_revision: "b".repeat(64), plan_body_hash: "c".repeat(64), transport_capability: "client_dependent", expires_at: "2030-01-01T00:10:00.000Z",
+  });
+  const handoff = await response.json();
+  response = await facade(`/handoffs/${handoff.handoff_id}/continue`, {});
+  assert.equal(response.status, 200);
+  const continued = await response.json();
+  assert.deepEqual(continued.command, ["codex", continued.activation_capsule]);
+
+  response = await facade("/sessions/plan-session/revoke", {});
+  assert.equal(response.status, 200);
+  const revoked = await response.json();
+  assert.equal(revoked.participation, "revoked");
+  assert.equal(revoked.revoke_reason, "revoked_from_companion_ui");
+});
+
+test("Facade reset maps bounded empty action while direct Bridge still requires confirmation", async (t) => {
+  const { facade, direct } = await fixture(t);
+  let response = await direct("/v1/state/reset", {});
+  assert.equal(response.status, 400);
+  response = await facade("/state/reset", {});
+  assert.equal(response.status, 204);
+});

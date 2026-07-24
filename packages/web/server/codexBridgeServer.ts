@@ -3,7 +3,7 @@ import { chmod, mkdir, open, readFile, realpath, rm, type FileHandle } from "nod
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { isAbsolute, join, relative, sep } from "node:path";
 
-import { CODEX_BRIDGE_SCHEMA_VERSION } from "../src/companion/types.ts";
+import { COMPANION_SESSION_CONTRACT_VERSION } from "../src/companion/sessionContract.ts";
 import {
   CodexBridgeStore,
   CODEX_BRIDGE_STATE_RELATIVE_DIR,
@@ -12,9 +12,13 @@ import {
   type CodexBridgeStoreOptions,
   validateAttachSessionInput,
   validateCodexHookInput,
+  validateContinueHandoffInput,
   validateCreateDeliveryInput,
+  validateCreateEnrollmentInput,
   validateCreatePlanHandoffInput,
-  validateSessionPreferencesInput,
+  validateResetStateInput,
+  validateRevokeSessionInput,
+  validateSessionAliasInput,
 } from "./codexBridgeStore.ts";
 
 export const CODEX_BRIDGE_HOST = "127.0.0.1";
@@ -144,7 +148,8 @@ async function route(
   if (request.method === "GET" && url.pathname === "/v1/health") {
     json(response, 200, {
       ok: true,
-      schema_version: CODEX_BRIDGE_SCHEMA_VERSION,
+      schema_version: COMPANION_SESSION_CONTRACT_VERSION,
+      bridge_instance_id: endpoint.bridge_instance_id,
       pid: endpoint.pid,
       started_at: endpoint.started_at,
     });
@@ -160,6 +165,10 @@ async function route(
     else json(response, 200, hookOutput);
     return;
   }
+  if (request.method === "POST" && url.pathname === "/v1/enrollments") {
+    json(response, 201, await store.createEnrollment(validateCreateEnrollmentInput(postBody)));
+    return;
+  }
   if (request.method === "POST" && url.pathname === "/v1/deliveries") {
     json(response, 201, await store.createDelivery(validateCreateDeliveryInput(postBody)));
     return;
@@ -172,15 +181,24 @@ async function route(
     json(response, 200, await store.attachSession(validateAttachSessionInput(postBody)));
     return;
   }
-  const preferencesMatch = request.method === "POST"
-    ? /^\/v1\/sessions\/([^/]+)\/preferences$/.exec(url.pathname)
+  const continueMatch = request.method === "POST"
+    ? /^\/v1\/handoffs\/([^/]+)\/continue$/.exec(url.pathname)
     : null;
+  if (continueMatch) {
+    const handoffId = decodePathIdentifier(continueMatch[1], "handoff_id");
+    json(response, 200, await store.continueHandoff(handoffId, validateContinueHandoffInput(postBody)));
+    return;
+  }
+  const revokeMatch = request.method === "POST" ? /^\/v1\/sessions\/([^/]+)\/revoke$/.exec(url.pathname) : null;
+  if (revokeMatch) {
+    const sessionId = decodePathIdentifier(revokeMatch[1], "session_id");
+    json(response, 200, await store.revokeSession(sessionId, validateRevokeSessionInput(postBody)));
+    return;
+  }
+  const preferencesMatch = request.method === "POST" ? /^\/v1\/sessions\/([^/]+)\/preferences$/.exec(url.pathname) : null;
   if (preferencesMatch) {
     const sessionId = decodePathIdentifier(preferencesMatch[1], "session_id");
-    json(response, 200, await store.updateSessionPreferences(
-      sessionId,
-      validateSessionPreferencesInput(postBody),
-    ));
+    json(response, 200, await store.updateSessionAlias(sessionId, validateSessionAliasInput(postBody)));
     return;
   }
   const cancelMatch = request.method === "POST" ? /^\/v1\/deliveries\/([^/]+)\/cancel$/.exec(url.pathname) : null;
@@ -189,10 +207,15 @@ async function route(
     json(response, 200, await store.cancelDelivery(deliveryId));
     return;
   }
+  if (request.method === "POST" && url.pathname === "/v1/state/reset") {
+    await store.resetState(validateResetStateInput(postBody));
+    empty(response);
+    return;
+  }
   throw new HttpError(404, "not_found", "Route not found");
 }
 
-function decodePathIdentifier(value: string, field: "delivery_id" | "session_id"): string {
+function decodePathIdentifier(value: string, field: "delivery_id" | "session_id" | "handoff_id"): string {
   let decoded: string;
   try {
     decoded = decodeURIComponent(value);
@@ -271,11 +294,12 @@ export async function startCodexBridgeServer(options: StartCodexBridgeServerOpti
     throw new Error("Codex Bridge did not receive a TCP listen address");
   }
   endpoint = {
-    schema_version: CODEX_BRIDGE_SCHEMA_VERSION,
+    schema_version: COMPANION_SESSION_CONTRACT_VERSION,
     url: `http://${CODEX_BRIDGE_HOST}:${address.port}`,
     token,
     pid: process.pid,
     started_at: startedAt,
+    bridge_instance_id: store.bridgeInstanceId,
   };
   try {
     await store.writeEndpoint(endpoint);
