@@ -71,7 +71,7 @@ npm run dev:companion-bridge
 ./scripts/start-manual-web-test.sh
 ```
 
-The only supported manual URL is `http://127.0.0.1:5173/`. The launcher reuses that port only when `/api/workspace/identity` proves it belongs to this exact canonical repository.
+The only supported manual URL is `http://127.0.0.1:8890/`. The launcher reuses that port only when `/api/workspace/identity` proves it belongs to this exact canonical repository. Local Agent Factory services stay within the reserved `8890` through `8900` range.
 
 Validate artifacts from the repository root:
 

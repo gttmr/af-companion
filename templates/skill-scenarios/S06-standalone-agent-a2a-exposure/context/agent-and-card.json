@@ -11,7 +11,7 @@
   "agent_card_example": {
     "name": "Synthetic Policy QA",
     "description": "Synthetic card for local contract review",
-    "url": "http://127.0.0.1:18080",
+    "url": "http://127.0.0.1:8896",
     "version": "0.1.0",
     "capabilities": { "streaming": false },
     "defaultInputModes": ["text"],

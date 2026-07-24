@@ -16,10 +16,10 @@ no real endpoint. ADK A2A deps are needed on both sides.
 python3 -m venv .venv && . .venv/bin/activate
 pip install "google-adk[a2a]" "a2a-sdk[http-server]" uvicorn
 
-# 2) start the mock remote A2A server on :8001
+# 2) start the mock remote A2A server on :8896
 cd mock_remote
-uvicorn serve_app:a2a_app --host localhost --port 8001
-# card: http://localhost:8001/.well-known/agent-card.json
+uvicorn serve_app:a2a_app --host localhost --port 8896
+# card: http://localhost:8896/.well-known/agent-card.json
 
 # 3) generate the runnable bundle from this scenario and run it; the generated
 #    RemoteA2aAgent (agent_card = the mock card URL) calls the mock and returns

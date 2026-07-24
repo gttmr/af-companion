@@ -5,7 +5,11 @@ import { delimiter, isAbsolute, join, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 
-import { startCodexBridgeServer, type RunningCodexBridgeServer } from "./codexBridgeServer.ts";
+import {
+  DEFAULT_CODEX_BRIDGE_PORT,
+  startCodexBridgeServer,
+  type RunningCodexBridgeServer,
+} from "./codexBridgeServer.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -37,10 +41,10 @@ function parseRepoRoot(argv: string[]): string {
 }
 
 function parsePort(value: string | undefined): number {
-  if (value === undefined || value === "") return 0;
-  if (!/^\d+$/.test(value)) throw new Error("AF_CODEX_BRIDGE_PORT must be an integer from 0 to 65535");
+  if (value === undefined || value === "") return DEFAULT_CODEX_BRIDGE_PORT;
+  if (!/^\d+$/.test(value)) throw new Error("AF_CODEX_BRIDGE_PORT must be an integer from 8890 to 8900");
   const port = Number(value);
-  if (!Number.isSafeInteger(port) || port > 65_535) throw new Error("AF_CODEX_BRIDGE_PORT must be an integer from 0 to 65535");
+  if (!Number.isSafeInteger(port) || port < 8_890 || port > 8_900) throw new Error("AF_CODEX_BRIDGE_PORT must be an integer from 8890 to 8900");
   return port;
 }
 

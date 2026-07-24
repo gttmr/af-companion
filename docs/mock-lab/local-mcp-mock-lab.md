@@ -25,7 +25,7 @@ Mock Lab 성공은 Tool의 Catalog 승인, 실제 backend 연결, 운영 준비 
 
 ### 실행 경로
 
-Mock Lab은 `packages/mock-lab`의 standalone 앱으로 실행한다. Agent Factory Companion의 5173 화면은 외부 Codex 작업을 투영하며 Mock Lab 편집 route를 제공하지 않는다.
+Mock Lab은 `packages/mock-lab`의 standalone 앱으로 실행한다. Agent Factory Companion의 8890 화면은 외부 Codex 작업을 투영하며 Mock Lab 편집 route를 제공하지 않는다.
 
 ```bash
 cd packages/mock-lab
@@ -33,7 +33,7 @@ npm install
 npm run dev
 ```
 
-개발 앱 URL은 `http://127.0.0.1:5176/`이다. 5176 앱은 별도 자산 유형이나 별도 운영 Mock 서비스를 뜻하지 않는다.
+개발 앱 URL은 `http://127.0.0.1:8891/`이다. 8891 앱은 별도 자산 유형이나 별도 운영 Mock 서비스를 뜻하지 않는다.
 
 ### Catalog Prefill
 

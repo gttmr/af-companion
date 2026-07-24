@@ -73,13 +73,13 @@
       "contract_status": "approved",
       "agent_card": {
         "discovery_method": "well-known",
-        "agent_card_url": "http://127.0.0.1:8011/.well-known/agent-card.json",
+        "agent_card_url": "http://127.0.0.1:8893/.well-known/agent-card.json",
         "version": "1.0",
         "notes": "Synthetic regression Agent Card"
       },
       "supported_interfaces": [
         {
-          "url": "http://127.0.0.1:8011/.well-known/agent-card.json",
+          "url": "http://127.0.0.1:8893/.well-known/agent-card.json",
           "protocol_binding": "jsonrpc",
           "protocol_version": "1.0",
           "tenant_policy": "synthetic-single-tenant"

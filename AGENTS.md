@@ -137,7 +137,7 @@ This repository is often operated from WSL while the visible Chrome window is a 
 Before Chrome DevTools navigation, DOM inspection, or screenshots, run this WSL gate:
 
 ```bash
-curl -s http://127.0.0.1:9222/json/version
+curl -s http://127.0.0.1:8899/json/version
 ```
 
 The browser tool is usable only when the response is JSON containing `webSocketDebuggerUrl`. If the gate fails, do not call Chrome DevTools navigation, evaluation, or screenshot operations and do not claim a screenshot was taken.
@@ -147,7 +147,7 @@ A known working dedicated WSL browser setup is:
 ```bash
 google-chrome-stable \
   --headless=new \
-  --remote-debugging-port=9222 \
+  --remote-debugging-port=8899 \
   --user-data-dir=/tmp/chrome-codex-devtools \
   --no-first-run \
   --no-default-browser-check \
@@ -157,19 +157,21 @@ google-chrome-stable \
 Then verify:
 
 ```bash
-curl -s http://127.0.0.1:9222/json/version
-lsof -iTCP:9222 -sTCP:LISTEN
+curl -s http://127.0.0.1:8899/json/version
+lsof -iTCP:8899 -sTCP:LISTEN
 ```
 
 Use a separate `--user-data-dir` for the automation browser. Do not retrofit the user's normal Windows Chrome session unless its debug endpoint is first proven reachable from WSL.
 
 ## Dev Server Reachability
 
-- Manual and browser testing for `packages/web` uses the fixed port `5173`.
-- Start Vite outside the agent sandbox with `npm run dev -- --host 0.0.0.0 --port 5173 --strictPort` so the user can reach it. Do not let Vite auto-increment to another port.
-- Before starting, run `lsof -iTCP:5173 -sTCP:LISTEN`. Stop an existing stale Agent Factory/Vite owner; if an unrelated process owns the port, report the blocker instead of moving ports.
-- Verify from the same network namespace with `curl -I http://127.0.0.1:5173/` and, when useful, `lsof -iTCP:5173 -sTCP:LISTEN`.
-- Report only `http://127.0.0.1:5173/` unless the user explicitly approves another port.
+- Local Agent Factory services use only the reserved `8890` through `8900` range. The fixed assignments are Companion `8890`, Mock Lab `8891`, generated ADK runtime `8892`, synthetic A2A consumer fixture `8893`, web preview `8894`, Mock Lab preview `8895`, generated A2A provider `8896`, local model API `8897`, Codex Bridge `8898`, and Chrome DevTools `8899`; `8900` remains spare.
+- Isolated automated tests may bind port `0` so the OS assigns a non-user-facing ephemeral port; this exception must not appear in manual startup instructions or persistent services.
+- Manual and browser testing for `packages/web` uses the fixed port `8890`.
+- Start Vite with `npm run dev -- --host 0.0.0.0 --port 8890 --strictPort` so the user can reach it. Do not let Vite auto-increment to another port.
+- Before starting, run `lsof -iTCP:8890 -sTCP:LISTEN`. Stop an existing stale Agent Factory/Vite owner; if an unrelated process owns the port, report the blocker instead of moving ports.
+- Verify from the same network namespace with `curl -I http://127.0.0.1:8890/` and, when useful, `lsof -iTCP:8890 -sTCP:LISTEN`.
+- Report only `http://127.0.0.1:8890/` unless the user explicitly approves another port in the reserved range.
 
 ## Verification
 

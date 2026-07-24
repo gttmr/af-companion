@@ -349,7 +349,7 @@ Companion 웹앱은 runtime process를 시작하지 않는다. 다음은 외부 
 ```bash
 adk api_server \
   --host 127.0.0.1 \
-  --port 8765 \
+  --port 8892 \
   --session_service_uri memory:// \
   --artifact_service_uri memory:// \
   --no-reload \

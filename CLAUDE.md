@@ -48,7 +48,7 @@ cd packages/web && npm run dev:companion-bridge
 ./scripts/start-manual-web-test.sh
 ```
 
-Use only `http://127.0.0.1:5173/` for manual verification.
+Use only `http://127.0.0.1:8890/` for manual verification. Keep local Agent Factory listeners within ports `8890` through `8900`.
 
 ## Editing and verification
 

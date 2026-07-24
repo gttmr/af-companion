@@ -10,6 +10,12 @@
 
 ---
 
+## 2026-07-24 · PR pending — WSL browser automation과 로컬 포트 범위 표준화
+
+- **결정**: 일상적인 단일 화면 검사, DOM·console·network 진단, screenshot에는 WSL 전용 headless Chrome의 Chrome DevTools MCP를 우선 사용한다. 반복 가능한 다중 브라우저 회귀, trace, 독립 세션이 필요한 경우에는 Playwright를 사용한다. WSL systemd user service가 전용 Chrome을 자동 기동하며 Codex는 loopback `8899` endpoint에 연결한다. Agent Factory의 개발자용 고정 listener는 `8890`부터 `8900`까지만 사용한다.
+- **배경**: Windows Chrome은 WSL에서 debug endpoint가 보장되지 않아 DevTools 연결 실패 때마다 Playwright로 우회했고, 흔한 `3000`·`5173` 계열 포트는 다른 저장소와 충돌했다. WSL 내부 전용 profile과 자동 기동 endpoint를 사용하면 DevTools의 가벼운 단일-browser 상호작용을 안정적으로 재사용할 수 있다.
+- **영향**: Companion `8890`, Mock Lab `8891`, ADK runtime `8892`, synthetic A2A consumer `8893`, previews `8894`·`8895`, A2A provider `8896`, local model API `8897`, Codex Bridge `8898`, Chrome DevTools `8899`, spare `8900`으로 배치한다. 활성 실행 스크립트, generator output, fixtures, package/root agent instructions와 개발 문서를 같은 범위로 맞춘다. 역사 자료의 과거 포트 기록은 변경하지 않는다.
+
 ## 2026-07-24 · PR pending — Plan-driven Discovery, versioned Asset Registry, re-entrant Work Item Target
 
 - **결정**: Companion의 다음 계약을 `work_id` 중심의 반복 가능한 lifecycle로 전환한다. `af-work-item.json`은 `focus_skill`, `active_runs`, revision/cycle, structured decision, Asset disposition, root executable, revision-bound gate, staleness, session handoff를 가진 breaking v2가 되며 v1 호환 reader는 두지 않는다. Web canonical write는 Graph IR과 Asset Registry로 한정하고, Registry는 Agent·Workflow·Tool의 draft/reviewed/published/deprecated version을 단일 Web/CLI service로 관리한다. Discover는 Plan conversation과 materialization을 분리하고 Compose·Scaffold·Verify에서 owning phase로 돌아갈 수 있다. Solution control strategy와 root executable은 서로 다른 명시적 사용자 결정이다. 설치된 ADK 2.3에서는 선택된 Agent 또는 Workflow object를 생성하고 관례적 `root_agent` symbol을 그 exact object에 연결하며, strategy/root/Graph 불일치는 fail-closed한다. Scaffold는 승인된 Decision subject hash, 각 포함 Asset의 resolved user disposition과 exact version을 current Registry snapshot에 대조하고 project draft와 Registry Asset을 구분하며 duplicate Registry version binding을 거부한다. Local `reuse_exact`은 reviewed `python:module#symbol` object를 import하고 source가 없는 published contract를 재생성하지 않는다. (대체: 2026-07-23 항목의 선형 lifecycle, `active_skill`, Graph-only Web mutation, read-only Catalog 결정)

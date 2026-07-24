@@ -18,7 +18,7 @@ import {
 } from "./codexBridgeStore.ts";
 
 export const CODEX_BRIDGE_HOST = "127.0.0.1";
-export const DEFAULT_CODEX_BRIDGE_PORT = 0;
+export const DEFAULT_CODEX_BRIDGE_PORT = 8898;
 export const MAX_CODEX_BRIDGE_BODY_BYTES = 256 * 1_024;
 const CODEX_BRIDGE_LOCK_FILE = "broker.lock";
 

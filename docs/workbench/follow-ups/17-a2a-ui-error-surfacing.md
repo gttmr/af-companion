@@ -21,6 +21,6 @@
 
 ## 검증
 
-- fixed-port Workbench(`http://127.0.0.1:5173/`)에서 새 root 생성 → import 실패 fixture → 오류 detail 확인.
+- fixed-port Workbench(`http://127.0.0.1:8890/`)에서 새 root 생성 → import 실패 fixture → 오류 detail 확인.
 - local A2A provider import flow 재실행 시 console에 예상 가능한 404/React Flow 경고가 남지 않는지 확인.
 - `cd packages/web && npm run build && npm run test:analyzer`.

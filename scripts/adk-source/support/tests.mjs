@@ -52,7 +52,7 @@ ${assetBindings.map((binding) => `    assert '"decision_id": "${binding.decision
 def test_runtime_chat_smoke_contract_is_present():
     smoke = (ROOT / "runtime-chat-smoke.json").read_text(encoding="utf-8")
     assert '"appName": "${packageName}"' in smoke
-    assert '"port": 8765' in smoke
+    assert '"port": 8892' in smoke
 
 
 ${a2aProviderEnabled ? `def test_a2a_launcher_forces_new_executor_for_terminal_task_state():
@@ -120,6 +120,6 @@ ${assetBindings.map((binding) => `    assert '"decision_id": "${binding.decision
 def test_runtime_chat_smoke_contract_is_present():
     smoke = (ROOT / "runtime-chat-smoke.json").read_text(encoding="utf-8")
     assert '"appName": "${packageName}"' in smoke
-    assert '"port": 8765' in smoke
+    assert '"port": 8892' in smoke
 `;
 }

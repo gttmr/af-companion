@@ -11,7 +11,7 @@ external Codex CLI / VS Code
           └── repository files and Git state
                     │
                     v
-web companion on 127.0.0.1:5173
+web companion on 127.0.0.1:8890
   projects Work Items, decisions, revisions, files, diffs, evidence, and sessions
   writes guarded Graph IR and Asset Registry only
 ```

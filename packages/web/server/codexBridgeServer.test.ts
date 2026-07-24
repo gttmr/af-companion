@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { MAX_CODEX_BRIDGE_BODY_BYTES, startCodexBridgeServer } from "./codexBridgeServer.ts";
+import {
+  DEFAULT_CODEX_BRIDGE_PORT,
+  MAX_CODEX_BRIDGE_BODY_BYTES,
+  startCodexBridgeServer,
+} from "./codexBridgeServer.ts";
 
 const DISCOVERY_REVISION = "a".repeat(64);
 const DECISION_REVISION = "b".repeat(64);
@@ -42,12 +46,14 @@ function deliveryRequest(selectionId: string) {
 }
 
 test("binds to loopback with an ephemeral port and protects all HTTP APIs", async (t) => {
+  assert.equal(DEFAULT_CODEX_BRIDGE_PORT, 8898);
   const root = await mkdtemp(join(tmpdir(), "af-codex-server-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const running = await startCodexBridgeServer({
     repoRoot: root,
     now: () => new Date("2030-01-01T00:00:00.000Z"),
     codexVersion: "0.144.6",
+    port: 0,
   });
   t.after(() => running.close());
   const auth = { authorization: `Bearer ${running.endpoint.token}` };
@@ -192,11 +198,11 @@ test("binds to loopback with an ephemeral port and protects all HTTP APIs", asyn
 test("rejects a second broker for the same workspace", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "af-codex-server-lock-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const running = await startCodexBridgeServer({ repoRoot: root });
+  const running = await startCodexBridgeServer({ repoRoot: root, port: 0 });
   t.after(() => running.close());
 
   await assert.rejects(
-    startCodexBridgeServer({ repoRoot: root }),
+    startCodexBridgeServer({ repoRoot: root, port: 0 }),
     /already running/,
   );
 });
@@ -316,7 +322,7 @@ test("rejects a bridge state directory that escapes through a symlink", async (t
   await symlink(outside, join(root, ".agent-factory"));
 
   await assert.rejects(
-    startCodexBridgeServer({ repoRoot: root }),
+    startCodexBridgeServer({ repoRoot: root, port: 0 }),
     /state directory must remain inside/,
   );
 });
