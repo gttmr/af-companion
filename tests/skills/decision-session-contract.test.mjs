@@ -4,6 +4,17 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import {
+  createAfWorkItemManifest,
+  parseAfWorkItemManifest,
+  serializeAfWorkItemManifest,
+} from "../../packages/web/src/analyzer/afWorkItem.ts";
+import {
+  createDecisionTurn,
+  normalizeDecisionAnswer,
+  selectDecisionInputMode,
+} from "./decision-input-fixture.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const skillsRoot = path.join(root, ".agents", "skills");
 
@@ -54,6 +65,94 @@ test("decision adapter is turn-capability based and path independent", () => {
   assert.match(adapter, /required decision has no default or assumption path/);
   assert.doesNotMatch(discoveryReference, /request_user_input` in small groups/);
   assert.match(discoveryReference, /Ask exactly one question per turn/);
+});
+
+const decisionPrompt = {
+  decision_id: "decision.control_strategy",
+  revision: "a".repeat(64),
+  title: "실행 제어 구조",
+  question: "A/B/C 중 하나를 선택하거나 수정 조건을 말씀해 주세요.",
+  required: true,
+  protected_gate: false,
+  options: [
+    { id: "single_agent", label: "Single Agent", consequences: "한 Agent가 전체 실행을 소유합니다." },
+    { id: "explicit_workflow", label: "Explicit Workflow", consequences: "Workflow가 실행 순서를 소유합니다." },
+    { id: "hybrid", label: "Hybrid", consequences: "Workflow와 Agent가 경계를 나눕니다." },
+  ],
+  recommendation: {
+    option_id: "hybrid",
+    revision: "b".repeat(64),
+    reason: "명시적 흐름과 Agent 자율성을 함께 보존합니다.",
+  },
+  evidence_refs: ["analysis-result.json#control"],
+};
+
+test("structured and conversational turns carry one identical canonical decision", () => {
+  assert.equal(selectDecisionInputMode(["request_user_input"]), "structured");
+  assert.equal(selectDecisionInputMode(["apply_patch"]), "conversational");
+  const structured = createDecisionTurn(decisionPrompt, ["request_user_input"]);
+  const conversational = createDecisionTurn(decisionPrompt, ["apply_patch"]);
+  assert.deepEqual(structured.canonical, conversational.canonical);
+  assert.equal(structured.presentation.questions.length, 1);
+  assert.match(conversational.presentation.message, /decision\.control_strategy/);
+  assert.match(conversational.presentation.message, new RegExp(decisionPrompt.revision));
+  assert.match(conversational.presentation.message, new RegExp(decisionPrompt.recommendation.revision));
+  assert.equal(structured.outcome, "waiting_for_input");
+  assert.equal(conversational.outcome, "waiting_for_input");
+});
+
+test("both paths normalize an exact answer to the same schema-shaped Decision Record", () => {
+  const provenance = { session_id: "session-review", turn_id: "turn-answer" };
+  const answer = {
+    text: "hybrid",
+    displayed_decision_revision: decisionPrompt.revision,
+    displayed_recommendation_revision: decisionPrompt.recommendation.revision,
+  };
+  const structuredRecord = normalizeDecisionAnswer(decisionPrompt, answer, provenance).record;
+  const conversationalRecord = normalizeDecisionAnswer(decisionPrompt, { ...answer, text: "C" }, provenance).record;
+  assert.deepEqual(structuredRecord, conversationalRecord);
+  assert.equal(structuredRecord.status, "resolved");
+  assert.equal(structuredRecord.selected_option, "hybrid");
+  assert.equal(structuredRecord.selected_by, "user");
+  assert.equal(structuredRecord.session_id, "session-review");
+  assert.equal(structuredRecord.turn_id, "turn-answer");
+  for (const record of [structuredRecord, conversationalRecord]) {
+    const manifest = createAfWorkItemManifest("decision-parity");
+    manifest.decisions.push(record);
+    assert.deepEqual(parseAfWorkItemManifest(serializeAfWorkItemManifest(manifest)).decisions, [record]);
+  }
+});
+
+test("ambiguous, stale recommendation, and protected-gate shorthand remain open", () => {
+  const provenance = { session_id: "session-review", turn_id: "turn-answer" };
+  const baseAnswer = {
+    displayed_decision_revision: decisionPrompt.revision,
+    displayed_recommendation_revision: decisionPrompt.recommendation.revision,
+  };
+  const ambiguous = normalizeDecisionAnswer(decisionPrompt, { ...baseAnswer, text: "A와 C 중간" }, provenance);
+  assert.equal(ambiguous.outcome, "waiting_for_input");
+  assert.equal(ambiguous.record.status, "open");
+
+  const stale = normalizeDecisionAnswer(decisionPrompt, {
+    ...baseAnswer,
+    text: "추천대로",
+    displayed_recommendation_revision: "c".repeat(64),
+  }, provenance);
+  assert.equal(stale.reason, "stale_recommendation_revision");
+  assert.equal(stale.record.selected_option, null);
+
+  const protectedPrompt = { ...decisionPrompt, decision_id: "decision.production_deploy", protected_gate: true };
+  const delegated = normalizeDecisionAnswer(protectedPrompt, { ...baseAnswer, text: "추천대로" }, provenance);
+  assert.equal(delegated.reason, "protected_gate_requires_named_confirmation");
+  assert.equal(delegated.record.status, "open");
+  const namedWithoutConfirmation = normalizeDecisionAnswer(protectedPrompt, { ...baseAnswer, text: "hybrid" }, provenance);
+  assert.equal(namedWithoutConfirmation.record.status, "open");
+  const confirmed = normalizeDecisionAnswer(protectedPrompt, {
+    ...baseAnswer,
+    text: "hybrid",
+    confirmed_material_consequence: true,
+  }, provenance);
+  assert.equal(confirmed.record.status, "resolved");
 });
 
 test("fresh-context handoff hashes only the canonical Plan body and fails closed", () => {
