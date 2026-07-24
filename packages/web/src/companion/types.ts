@@ -1,4 +1,26 @@
 import type { AssetType, GraphChannel, GraphControlKind, NodeKind } from "../analyzer/types";
+import type {
+  ActivationOrigin,
+  CompanionDeliveryScope,
+  CompanionDiagnostics,
+  CompanionHookMode,
+  CompanionSession,
+  CompanionSessionRole,
+  HandoffTransportCapability,
+  PlanHandoff as ScopedPlanHandoff,
+  SessionEnrollmentTicket,
+} from "./sessionContract";
+
+export type {
+  ActivationOrigin,
+  CompanionDeliveryScope,
+  CompanionDiagnostics,
+  CompanionHookMode,
+  CompanionSession,
+  CompanionSessionRole,
+  HandoffTransportCapability,
+  SessionEnrollmentTicket,
+} from "./sessionContract";
 
 export const CODEX_BRIDGE_SCHEMA_VERSION = 1 as const;
 
@@ -177,4 +199,64 @@ export interface VscodeLaunchReceipt {
   status: "accepted";
   workspace_path: string;
   launched_at: string;
+}
+
+export interface ScopedContextDelivery extends ContextDelivery {
+  scope: CompanionDeliveryScope;
+}
+
+export interface CompanionBridgeCapabilitiesV2 {
+  bridge_available: boolean;
+  codex_version: string | null;
+  hook_side_effect_isolation: boolean;
+  strict_no_hook_mode: "verified" | "unverified" | "unsupported";
+  session_enrollment: boolean;
+  session_lease: boolean;
+  next_prompt_context: boolean;
+  session_end_event: "supported" | "unsupported";
+  delivery_ack: boolean;
+  direct_turn_start: boolean;
+  inflight_steer: boolean;
+  fresh_session_handoff: boolean;
+  fresh_context_transport: HandoffTransportCapability;
+  cli_environment_enrollment: "verified" | "unverified" | "unsupported";
+  vscode_environment_enrollment: "verified" | "unverified" | "unsupported";
+}
+
+export interface CodexBridgeSnapshotV2 {
+  schema_version: 2;
+  bridge_instance_id: string;
+  capabilities: CompanionBridgeCapabilitiesV2;
+  enrollment_tickets: SessionEnrollmentTicket[];
+  sessions: CompanionSession[];
+  deliveries: ScopedContextDelivery[];
+  handoffs: ScopedPlanHandoff[];
+  activities: CodexActivity[];
+  diagnostics: CompanionDiagnostics;
+}
+
+export interface CodexCompanionSnapshotV2 extends CodexBridgeSnapshotV2 {
+  workspace: CodexWorkspaceDescriptor;
+  editor: CodexEditorCapabilities;
+}
+
+export interface EnrollmentRequest {
+  application_id: string;
+  work_id: string;
+  requested_role: CompanionSessionRole;
+  activation_origin: Exclude<ActivationOrigin, "plan_handoff_capsule">;
+  hook_mode?: CompanionHookMode;
+  expires_at?: string;
+}
+
+export interface EnrollmentReceipt {
+  ticket: SessionEnrollmentTicket;
+  activation_capsule: string;
+  command: string[];
+}
+
+export interface HandoffContinueReceipt {
+  handoff: ScopedPlanHandoff;
+  activation_capsule: string;
+  command: string[];
 }
