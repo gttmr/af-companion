@@ -1,6 +1,6 @@
 # Agent Factory Mock Lab
 
-Mock Lab defines, saves, runs, and tests synthetic MCP stdio mock servers from `MockSpec` files. It is a standalone development app at `http://127.0.0.1:5176/`; Agent Factory Companion does not embed or proxy its UI.
+Mock Lab defines, saves, runs, and tests synthetic MCP stdio mock servers from `MockSpec` files. It is a standalone development app at `http://127.0.0.1:8891/`; Agent Factory Companion does not embed or proxy its UI.
 
 These mocks are local MCP test doubles for Tool assets defined by [Taxonomy](../../docs/workbench/taxonomy.md). Catalog prefill is selected with the `tool` query key.
 
@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:5176/` for the standalone development app. The Companion on port 5173 exposes no Mock Lab route or API.
+Open `http://127.0.0.1:8891/` for the standalone development app. The Companion on port 8890 exposes no Mock Lab route or API.
 
 ## Guardrails
 

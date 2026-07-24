@@ -37,6 +37,7 @@ await git(["commit", "-m", "fixture"]);
 const bridge = await startCodexBridgeServer({
   repoRoot,
   codexVersion: "codex-cli test",
+  port: 0,
 });
 await bridge.store.handleHook({
   session_id: "session-companion",

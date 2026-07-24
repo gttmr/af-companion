@@ -37,7 +37,7 @@ test("Graph PUT edits only Graph projections, invalidates downstream state, and 
   await git(repoRoot, ["add", "."]);
   await git(repoRoot, ["commit", "-m", "fixture"]);
 
-  const bridge = await startCodexBridgeServer({ repoRoot, codexVersion: "test" });
+  const bridge = await startCodexBridgeServer({ repoRoot, codexVersion: "test", port: 0 });
   t.after(() => bridge.close().catch(() => undefined));
   await bridge.store.handleHook({
     session_id: "session-exact",

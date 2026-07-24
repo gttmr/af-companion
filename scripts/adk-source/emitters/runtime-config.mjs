@@ -197,7 +197,7 @@ def _mcp_url(asset_id: str, server_ref: str) -> str:
     configured = _tool_cfg(asset_id, "url", None)
     if configured:
         return str(configured)
-    base = os.environ.get("AF_MOCK_LAB_MCP_URL", "http://127.0.0.1:5176/api/mock-lab/mcp").rstrip("/")
+    base = os.environ.get("AF_MOCK_LAB_MCP_URL", "http://127.0.0.1:8891/api/mock-lab/mcp").rstrip("/")
     return f"{base}/{server_ref}"
 `;
 }

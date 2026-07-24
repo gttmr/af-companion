@@ -151,4 +151,4 @@ cd packages/web
 npm run build
 ```
 
-Then verify the real fixed-port screen at `http://127.0.0.1:5173/`, exercise all main routes, enter Graph edit mode, inspect responsive behavior, and capture a screenshot. Removed stage UI must not remain in a parent shell, shared component, or imported stylesheet.
+Then verify the real fixed-port screen at `http://127.0.0.1:8890/`, exercise all main routes, enter Graph edit mode, inspect responsive behavior, and capture a screenshot. Removed stage UI must not remain in a parent shell, shared component, or imported stylesheet.

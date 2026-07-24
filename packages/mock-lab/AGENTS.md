@@ -4,7 +4,7 @@
 
 `packages/mock-lab` is the standalone development package for local MCP test
 doubles. It serves Tool assets only and runs independently at
-`http://127.0.0.1:5176/`. Agent Factory Companion does not embed or proxy its UI.
+`http://127.0.0.1:8891/`. Agent Factory Companion does not embed or proxy its UI.
 
 Tool and MCP meanings are canonical in [Taxonomy](../../docs/workbench/taxonomy.md)
 and [Graph IR](../../docs/workbench/graph-ir.md).
@@ -45,6 +45,6 @@ npm run test
 npm run build
 ```
 
-Standalone development and browser testing use fixed port 5176. The Companion
-on 5173 owns Registry lifecycle operations but does not mount Mock Lab routes or
+Standalone development and browser testing use fixed port 8891. The Companion
+on 8890 owns Registry lifecycle operations but does not mount Mock Lab routes or
 APIs. Mock Lab itself remains a read-only Registry consumer.

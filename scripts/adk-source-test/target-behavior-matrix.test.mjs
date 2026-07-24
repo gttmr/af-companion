@@ -915,7 +915,7 @@ function a2aFixture() {
     { id: "remote", node_kind: "agent", agent_ref: remote.asset_id, available_tools: [] },
     { id: "output", node_kind: "output" }
   ], [targetEdge("input", "local"), targetEdge("local", "remote"), targetEdge("remote", "output")], [], [
-    targetA2aContract({ agentRef: remote.asset_id, url: "http://127.0.0.1:8011/a2a/remote/.well-known/agent-card.json" })
+    targetA2aContract({ agentRef: remote.asset_id, url: "http://127.0.0.1:8893/a2a/remote/.well-known/agent-card.json" })
   ]);
   data.runtimeContracts = [targetRuntimeContract({
     contractId: "rtc-a2a-consumer",
@@ -940,7 +940,7 @@ function a2aExposureFixture() {
       contractId,
       agentRef: exposed.asset_id,
       name: exposed.name,
-      url: "http://127.0.0.1:8001/a2a/exposed/.well-known/agent-card.json"
+      url: "http://127.0.0.1:8896/a2a/exposed/.well-known/agent-card.json"
     })
   ]);
   data.runtimeContracts = [targetRuntimeContract({

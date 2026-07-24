@@ -214,13 +214,13 @@
       "contract_status": "approved",
       "agent_card": {
         "discovery_method": "localhost Agent Card supplied with the scenario context",
-        "agent_card_url": "http://127.0.0.1:18081/.well-known/agent-card.json",
+        "agent_card_url": "http://127.0.0.1:8893/.well-known/agent-card.json",
         "version": "0.1.0",
         "notes": "The card and endpoint are local synthetic test fixtures."
       },
       "supported_interfaces": [
         {
-          "url": "http://127.0.0.1:18081",
+          "url": "http://127.0.0.1:8893",
           "protocol_binding": "HTTP+JSON",
           "protocol_version": "A2A test contract 1.0",
           "tenant_policy": "single synthetic test tenant"

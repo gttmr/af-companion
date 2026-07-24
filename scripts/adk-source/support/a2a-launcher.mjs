@@ -44,7 +44,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Reviewed workbench ADK A2A launcher")
     parser.add_argument("agents_dir", nargs="?", default=".")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8001)
+    parser.add_argument("--port", type=int, default=8896)
     parser.add_argument("--session_service_uri", default=None)
     parser.add_argument("--artifact_service_uri", default=None)
     parser.add_argument("--memory_service_uri", default=None)

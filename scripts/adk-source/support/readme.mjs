@@ -56,7 +56,7 @@ ${buildSampleDialogueMarkdown(context)}
 ## Tool과 synthetic MCP provider
 
 연결된 Tool은 streamable-HTTP로 실행 중인 synthetic MCP tool을 호출합니다
-(\`AF_MOCK_LAB_MCP_URL\` base, 기본값 \`http://127.0.0.1:5176/api/mock-lab/mcp\`).
+(\`AF_MOCK_LAB_MCP_URL\` base, 기본값 \`http://127.0.0.1:8891/api/mock-lab/mcp\`).
 이 결과는 \`${RUNTIME_MCP_LABEL}\` 라벨과 함께 payload와 \`workflow_manifest.json\`에 기록됩니다.
 synthetic MCP server가 binding/running 상태가 아닌 Tool은 reviewed synthetic mock output을 반환하는 TODO stub으로 남고,
 \`workflow_manifest.json\`의 \`runtime.unconnected_tools\`에 표시됩니다.
@@ -65,10 +65,10 @@ synthetic MCP server가 binding/running 상태가 아닌 Tool은 reviewed synthe
 
 \`\`\`bash
 AF_RUNTIME_ENV_FILE=${runtimeEnvPath} \\
-AF_MOCK_LAB_MCP_URL=http://127.0.0.1:5176/api/mock-lab/mcp \\
-adk web --host 127.0.0.1 --port 8765 --no-reload .
-curl -X POST http://127.0.0.1:8765/apps/${packageName}/users/af-reviewer/sessions/af-smoke -H "Content-Type: application/json" -d '{}'
-curl -X POST http://127.0.0.1:8765/run -H "Content-Type: application/json" -d @runtime-chat-smoke.json
+AF_MOCK_LAB_MCP_URL=http://127.0.0.1:8891/api/mock-lab/mcp \\
+adk web --host 127.0.0.1 --port 8892 --no-reload .
+curl -X POST http://127.0.0.1:8892/apps/${packageName}/users/af-reviewer/sessions/af-smoke -H "Content-Type: application/json" -d '{}'
+curl -X POST http://127.0.0.1:8892/run -H "Content-Type: application/json" -d @runtime-chat-smoke.json
 \`\`\`
 
 ${buildA2aProviderMarkdown(context, runtimeEnvPath)}
@@ -97,9 +97,9 @@ Windows에서는 \`py -3 -m venv .agent-factory\\runtime\\.venv\` 후 \`.agent-f
 비공개 endpoint, credential, 배포 script, 실제 업무 로직은 포함하지 않습니다.
 
 \`\`\`bash
-adk api_server --host 127.0.0.1 --port 8765 --session_service_uri memory:// --artifact_service_uri memory:// --no-reload --with_ui .
-curl -X POST http://127.0.0.1:8765/apps/${packageName}/users/af-reviewer/sessions/af-smoke -H "Content-Type: application/json" -d '{}'
-curl -X POST http://127.0.0.1:8765/run -H "Content-Type: application/json" -d @runtime-chat-smoke.json
+adk api_server --host 127.0.0.1 --port 8892 --session_service_uri memory:// --artifact_service_uri memory:// --no-reload --with_ui .
+curl -X POST http://127.0.0.1:8892/apps/${packageName}/users/af-reviewer/sessions/af-smoke -H "Content-Type: application/json" -d '{}'
+curl -X POST http://127.0.0.1:8892/run -H "Content-Type: application/json" -d @runtime-chat-smoke.json
 \`\`\`
 `;
 }
@@ -110,9 +110,9 @@ function buildA2aProviderMarkdown(context, runtimeEnvPath) {
 
 \`\`\`bash
 AF_RUNTIME_ENV_FILE=${runtimeEnvPath} \\
-AF_MOCK_LAB_MCP_URL=http://127.0.0.1:5176/api/mock-lab/mcp \\
-python af_adk_a2a_server.py --host 127.0.0.1 --port 8001 --session_service_uri memory:// --artifact_service_uri memory:// --no-reload --with_ui .
-curl http://127.0.0.1:8001/a2a/${context.packageName}/.well-known/agent-card.json
+AF_MOCK_LAB_MCP_URL=http://127.0.0.1:8891/api/mock-lab/mcp \\
+python af_adk_a2a_server.py --host 127.0.0.1 --port 8896 --session_service_uri memory:// --artifact_service_uri memory:// --no-reload --with_ui .
+curl http://127.0.0.1:8896/a2a/${context.packageName}/.well-known/agent-card.json
 \`\`\`
 
 \`af_adk_a2a_server.py\` uses ADK's FastAPI/Web runner and A2A executor, but applies a local in-memory compatibility patch for ADK CLI versions whose \`api_server --a2a\` path fails before registering \`agent.json\`.
@@ -231,17 +231,17 @@ function buildMockLabRunMarkdown(context) {
 From the repo root, start the existing synthetic MCP package on its fixed standalone port and run the saved spec:
 
 \`\`\`bash
-npm run dev --prefix packages/mock-lab -- --host 0.0.0.0 --port 5176 --strictPort
-curl -X POST http://127.0.0.1:5176/api/mock-lab/${mockId}/server/start
-curl 'http://127.0.0.1:5176/api/mock-lab/mcp-discovery?server=${mockId}'
+npm run dev --prefix packages/mock-lab -- --host 0.0.0.0 --port 8891 --strictPort
+curl -X POST http://127.0.0.1:8891/api/mock-lab/${mockId}/server/start
+curl 'http://127.0.0.1:8891/api/mock-lab/mcp-discovery?server=${mockId}'
 \`\`\`
 
 Then run the ADK development UI from this generated output root with the standalone synthetic MCP URL explicit, so it wins over any central runtime default:
 
 \`\`\`bash
 AF_RUNTIME_ENV_FILE=${runtimeEnvRelativePath(context)} \\
-AF_MOCK_LAB_MCP_URL=http://127.0.0.1:5176/api/mock-lab/mcp \\
-adk web --host 127.0.0.1 --port 8765 --no-reload .
+AF_MOCK_LAB_MCP_URL=http://127.0.0.1:8891/api/mock-lab/mcp \\
+adk web --host 127.0.0.1 --port 8892 --no-reload .
 \`\`\`
 
 Direct stdio smoke for the same saved spec:

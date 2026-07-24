@@ -5,13 +5,13 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 WEB_ROOT="$REPO_ROOT/packages/web"
-PORT=5173
+PORT=8890
 
 usage() {
   cat <<'EOF'
 Usage: ./scripts/start-manual-web-test.sh
 
-Starts Agent Factory Companion on http://127.0.0.1:5173/.
+Starts Agent Factory Companion on http://127.0.0.1:8890/.
 This script does not create, reset, or delete artifact roots.
 EOF
 }
@@ -49,7 +49,7 @@ fi
 print_ready_url() {
   cat <<'EOF'
 
-수동 테스트 URL: http://127.0.0.1:5173/
+수동 테스트 URL: http://127.0.0.1:8890/
 EOF
 }
 

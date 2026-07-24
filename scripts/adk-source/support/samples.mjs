@@ -33,7 +33,7 @@ export function buildRuntimeChatSmoke({ assets, normalizedRequirement, outputMod
       : `${normalizedRequirement.title}에 대한 합성 ADK chat smoke를 실행하세요.`;
   return {
     host: "127.0.0.1",
-    port: 8765,
+    port: 8892,
     appName: packageName,
     userId: "af-reviewer",
     sessionId: "af-smoke",

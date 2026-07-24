@@ -34,7 +34,7 @@ Asset meanings come from [Taxonomy](../../docs/workbench/taxonomy.md), Graph sem
 - Read [Design System](../../docs/visualization/design-system.md) before visible changes.
 - Keep strict shapes aligned across TypeScript, schemas, validators, templates, tests, and docs.
 - Re-read canonical files immediately before a Graph save; do not overwrite concurrent external edits.
-- Use fixed port `5173` and verify the exact workspace identity before reusing a server.
+- Use fixed port `8890` and verify the exact workspace identity before reusing a server.
 
 ## Verification
 
@@ -45,4 +45,4 @@ npm run test:companion
 npm run build
 ```
 
-Visible changes require browser verification and a screenshot at `http://127.0.0.1:5173/`.
+Visible changes require browser verification and a screenshot at `http://127.0.0.1:8890/`.

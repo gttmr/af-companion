@@ -1,5 +1,5 @@
 """Synthetic A2A remote agent for local smoke (no Gemini, no real data).
-Serve: uvicorn serve_app:a2a_app --host localhost --port 8001
+Serve: uvicorn serve_app:a2a_app --host localhost --port 8896
 """
 from __future__ import annotations
 
@@ -31,4 +31,4 @@ root_agent = MockRemoteCreditAgent(
     description="Synthetic A2A remote credit analyzer for local smoke (no real data).",
 )
 
-a2a_app = to_a2a(root_agent, port=8001)
+a2a_app = to_a2a(root_agent, port=8896)

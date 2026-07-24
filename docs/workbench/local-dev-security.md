@@ -13,4 +13,4 @@ The companion is local-only and must not be exposed to an untrusted network.
 - Registry mutations require strict payloads, current `If-Match`, process locking, atomic replacement, and explicit decision evidence. Published contract bytes are immutable.
 - Never place credentials, private endpoints, real customer data, or production secrets in artifacts, Hook payloads, demos, or screenshots.
 
-The fixed development URL is `http://127.0.0.1:5173/`. Reuse an occupied port only when `/api/workspace/identity` proves it belongs to the same canonical repository.
+The fixed development URL is `http://127.0.0.1:8890/`. Local Agent Factory listeners use only the reserved `8890` through `8900` range. Reuse an occupied port only when `/api/workspace/identity` proves it belongs to the same canonical repository.
