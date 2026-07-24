@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import {
@@ -247,6 +247,38 @@ async function resolveWorkItemPath(root, value) {
   }
 }
 
+async function requireCompanionWorkItem(root, workId) {
+  const path = resolve(root, "artifacts", "af", workId, "af-work-item.json");
+  let canonicalRoot;
+  let canonicalPath;
+  let source;
+  try {
+    canonicalRoot = await realpath(root);
+    const entry = await lstat(path);
+    if (entry.isSymbolicLink() || !entry.isFile()) {
+      validation("invalid_work_item", "Companion Work Item must be a regular file inside the repository", { path });
+    }
+    canonicalPath = await realpath(path);
+    if (!isContained(canonicalRoot, canonicalPath) || !(await stat(canonicalPath)).isFile()) {
+      validation("invalid_work_item", "Companion Work Item must be a regular file inside the repository", { path });
+    }
+    source = await readFile(canonicalPath, "utf8");
+  } catch (error) {
+    if (error instanceof CliError) throw error;
+    throw fileError(error, "Companion Work Item not found", path);
+  }
+  let manifest;
+  try {
+    manifest = parseAfWorkItemManifest(source, canonicalPath);
+  } catch (error) {
+    validation("work_item_validation_failed", error instanceof Error ? error.message : "Work Item validation failed", { path: canonicalPath });
+  }
+  if (manifest.work_id !== workId || manifest.artifact_root !== `artifacts/af/${workId}`) {
+    validation("invalid_work_item", "Companion Work Item scope does not match --work", { path: canonicalPath });
+  }
+  return manifest;
+}
+
 async function workValidate(args) {
   const { options, positionals } = parseOptions(args, ROOT_OPTIONS);
   requirePositionals(positionals, 1, "work validate <work-id-or-path> [--root PATH]");
@@ -418,6 +450,7 @@ function companionScopeOptions(args, synopsis) {
 async function companionEnroll(args, mode) {
   const synopsis = `companion ${mode} --application ID --work ID --role plan|materialization [--root PATH]`;
   const { options, root } = companionScopeOptions(args, synopsis);
+  await requireCompanionWorkItem(root, options.workId);
   const endpoint = await readCompanionEndpoint(root);
   const activationOrigin = mode === "start" ? "af_cli_launch" : "explicit_join_capsule";
   const receipt = await bridgePost(endpoint, "/v1/enrollments", {

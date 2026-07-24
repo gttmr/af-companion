@@ -156,7 +156,7 @@ export default function ConnectionsPage() {
           />
         ) : null}
         {codex.attachReceipt ? (
-          <TargetedHandoffReceipt receipt={codex.attachReceipt} onCopy={copyText} />
+          <TargetedHandoffReceipt receipt={codex.attachReceipt} />
         ) : null}
         {handoffs.length ? (
           <div className="connection-table-scroll">
@@ -172,12 +172,20 @@ export default function ConnectionsPage() {
                   && session.work_id === handoff.work_id
                   && session.role === "materialization"
                 ));
-                const selectedTarget = handoffTargetById[handoff.handoff_id] ?? "";
+                const selectedTarget = handoffTargetById[handoff.handoff_id] ?? handoff.target_session_id ?? "";
+                const persistedTarget = handoff.target_session_id
+                  ? sessions.find((session) => session.session_id === handoff.target_session_id)
+                  : null;
+                const targetIsAttached = Boolean(handoff.target_session_id && selectedTarget === handoff.target_session_id);
                 return <tr key={handoff.handoff_id}>
                   <td><strong>{compactId(handoff.from_session_id)} · {compactId(handoff.from_turn_id)}</strong><code title={handoff.discovery_revision}>discovery {compactDigest(handoff.discovery_revision)}</code><code title={handoff.decision_revision}>decision {compactDigest(handoff.decision_revision)}</code><code title={handoff.plan_body_hash}>plan {compactDigest(handoff.plan_body_hash)}</code></td>
                   <td><span className="connection-state-label">{handoff.transport_capability}</span><code>{compactId(handoff.handoff_id)}</code></td>
                   <td><span className={`connection-state-label is-${handoff.status}`}>{handoff.status}</span></td>
-                  <td><strong>{handoff.application_id}/{handoff.work_id}</strong><code>{handoff.target_skill}</code></td>
+                  <td>
+                    <strong>{handoff.application_id}/{handoff.work_id}</strong>
+                    <code>{persistedTarget ? `attached · ${persistedTarget.alias || compactId(persistedTarget.session_id)}` : "not attached"}</code>
+                    <code>{handoff.target_skill}</code>
+                  </td>
                   <td><time dateTime={handoff.expires_at}>{formatDateTime(handoff.expires_at)}</time></td>
                   <td><div className="connection-row-actions">
                     <button
@@ -205,9 +213,9 @@ export default function ConnectionsPage() {
                       </select>
                       <button
                         type="button"
-                        disabled={!selectedTarget || codex.attachPendingHandoffId === handoff.handoff_id}
+                        disabled={!selectedTarget || targetIsAttached || codex.attachPendingHandoffId === handoff.handoff_id}
                         onClick={() => void codex.attachHandoff({ handoffId: handoff.handoff_id, targetSessionId: selectedTarget }).catch(() => undefined)}
-                      >{codex.attachPendingHandoffId === handoff.handoff_id ? "Attaching…" : "Attach existing"}</button>
+                      >{codex.attachPendingHandoffId === handoff.handoff_id ? "Attaching…" : targetIsAttached ? "Attached" : "Attach existing"}</button>
                     </div>
                   </div></td>
                 </tr>;
@@ -365,11 +373,10 @@ function CommandReceipt({ eyebrow, title, receipt, onCopy }: {
   return <div className="connection-command-receipt is-handoff"><div><span>{eyebrow}</span><strong>{title}</strong><code>{receipt.handoff.handoff_id}</code></div><pre>{command}</pre><div className="connection-row-actions"><button type="button" onClick={() => void onCopy(command, "Continue command")}>Copy command</button><button type="button" onClick={() => void onCopy(receipt.activation_capsule, "Handoff capsule")}>Copy capsule</button></div></div>;
 }
 
-function TargetedHandoffReceipt({ receipt, onCopy }: {
+function TargetedHandoffReceipt({ receipt }: {
   receipt: HandoffAttachReceipt;
-  onCopy: (value: string, label: string) => Promise<void>;
 }) {
-  return <div className="connection-command-receipt is-handoff"><div><span>Existing session attachment</span><strong>{receipt.handoff.application_id}/{receipt.handoff.work_id}</strong><code>{receipt.target_session_id}</code></div><pre>{receipt.activation_capsule}</pre><div className="connection-row-actions"><button type="button" onClick={() => void onCopy(receipt.activation_capsule, "Targeted handoff capsule")}>Copy capsule</button></div></div>;
+  return <div className="connection-command-receipt is-handoff"><div><span>Existing session attached</span><strong>{receipt.handoff.application_id}/{receipt.handoff.work_id}</strong><code>{receipt.target_session_id}</code></div><p>이 session의 다음 prompt가 exact Handoff context를 한 번 받습니다.</p></div>;
 }
 
 function DiagnosticAggregate({ label, value }: { label: string; value: number }) {

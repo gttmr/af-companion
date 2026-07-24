@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -452,6 +452,17 @@ test("companion start and join enroll exact scopes and launch fixed Codex argv w
     "companion", "start", "--application", "app.cli", "--work", "work-cli",
     "--role", "plan", "--root", root,
   ], { env: fake.env });
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /Companion Work Item not found/);
+  assert.equal(received.length, 0, "a missing Work Item must fail before contacting the Bridge");
+
+  result = runCli(root, ["work", "init", "work-cli", "--root", root]);
+  assert.equal(result.code, 0, result.stderr);
+
+  result = await runCliAsync(root, [
+    "companion", "start", "--application", "app.cli", "--work", "work-cli",
+    "--role", "plan", "--root", root,
+  ], { env: fake.env });
   assert.equal(result.code, 0, result.stderr);
   assert.equal(result.stderr, "");
   assert.equal(result.output.ticket.ticket_id, "ticket-1");
@@ -508,6 +519,25 @@ test("companion start and join enroll exact scopes and launch fixed Codex argv w
   assert.equal(result.stderr.includes(token), false);
   assert.equal(result.stdout.includes("AF_COMPANION_ENROLLMENT_V2"), false);
   assert.equal(result.stdout.includes("must-never-be-printed"), false);
+});
+
+test("companion start rejects a symbolic-link Work Item before endpoint discovery", async (t) => {
+  const root = await tempRepository(t);
+  let result = runCli(root, ["work", "init", "work-link", "--root", root]);
+  assert.equal(result.code, 0, result.stderr);
+  const workRoot = join(root, "artifacts", "af", "work-link");
+  const workItem = join(workRoot, "af-work-item.json");
+  const realWorkItem = join(workRoot, "real-af-work-item.json");
+  await rename(workItem, realWorkItem);
+  await symlink(realWorkItem, workItem);
+
+  result = runCli(root, [
+    "companion", "start", "--application", "app.cli", "--work", "work-link",
+    "--role", "plan", "--root", root,
+  ]);
+  assert.notEqual(result.code, 0);
+  assert.equal(result.error.error.code, "invalid_work_item");
+  assert.match(result.error.error.message, /regular file/);
 });
 
 test("companion continue names one handoff and launches only the Bridge-returned capsule command", async (t) => {

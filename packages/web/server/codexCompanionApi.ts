@@ -1,9 +1,7 @@
 import { createHash } from "node:crypto";
-import { execFile } from "node:child_process";
 import { readFile, realpath } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { basename, isAbsolute, join, relative, sep } from "node:path";
-import { promisify } from "node:util";
 
 import { parseTargetAnalysisResult } from "../src/analyzer/targetAnalysisResult";
 import type { AssetCandidate, GraphIR } from "../src/analyzer/types";
@@ -26,6 +24,7 @@ import {
   CodexBridgeValidationError,
   RESET_CONFIRMATION,
   REVOKE_CONFIRMATION,
+  readRepositorySourceRevision,
   validateAttachSessionInput,
   validateCreateDeliveryInput,
   validateCreateEnrollmentInput,
@@ -34,7 +33,6 @@ import {
 } from "./codexBridgeStore";
 import { VscodeWorkspaceLauncher, VscodeWorkspaceLauncherError } from "./vscodeWorkspaceLauncher";
 
-const execFileAsync = promisify(execFile);
 const ENDPOINT_RELATIVE_PATH = `${COMPANION_STATE_RELATIVE_DIR}/endpoint.json`;
 const BODY_LIMIT = 32 * 1_024;
 const BROKER_TIMEOUT_MS = 1_000;
@@ -314,14 +312,11 @@ async function assertArtifactContained(root: string, path: string): Promise<void
 async function assertWorkItemExists(root: string, store: ArtifactRootStore, workId: string): Promise<void> {
   const path = store.resolveArtifactPath(workId, "af-work-item.json", "read");
   await assertArtifactContained(root, path);
-  await store.readArtifact(workId, "af-work-item.json");
+  await store.readWorkItem(workId);
 }
 async function readSourceRevision(root: string): Promise<{ head: string | null; dirtyHash: string | null }> {
-  const head = await git(root, ["rev-parse", "HEAD"]).catch(() => null); const status = await git(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
-  if (!status) return { head, dirtyHash: null }; const diff = head ? await git(root, ["diff", "--no-ext-diff", "--binary", "HEAD", "--"]).catch(() => "") : "";
-  return { head, dirtyHash: createHash("sha256").update(status).update("\0").update(diff).digest("hex") };
+  return readRepositorySourceRevision(root);
 }
-async function git(root: string, args: string[]): Promise<string> { const { stdout } = await execFileAsync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }); return stdout.trim(); }
 function handleError(error: unknown, response: ServerResponse, next: MiddlewareNext): void {
   if (error instanceof CompanionApiError || error instanceof CodexBridgeValidationError) { sendJson(response, error.statusCode, { error: error.message, code: error.code }); return; }
   if (error instanceof ArtifactValidationError) { sendJson(response, error.statusCode, { error: error.message, code: "artifact_error" }); return; }

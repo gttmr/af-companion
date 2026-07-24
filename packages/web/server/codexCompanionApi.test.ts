@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import type { CodexEditorCapabilities } from "../src/companion/types.ts";
+import { TEST_SOURCE_REVISION, writeCompanionWorkItems } from "./companionTestFixtures.ts";
 import { createCodexCompanionMiddleware } from "./codexCompanionApi.ts";
 import { startCodexBridgeServer } from "./codexBridgeServer.ts";
 
@@ -28,12 +29,13 @@ async function listen(server: Server): Promise<string> {
 async function fixture(t: test.TestContext, withBridge = true) {
   const root = await mkdtemp(join(tmpdir(), "af-companion-v2-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  for (const workId of ["work-1", "work-plan"]) {
-    const workRoot = join(root, "artifacts/af", workId);
-    await mkdir(workRoot, { recursive: true });
-    await writeFile(join(workRoot, "af-work-item.json"), `${JSON.stringify({ schema_version: 2, work_id: workId })}\n`, "utf8");
-  }
-  const bridge = withBridge ? await startCodexBridgeServer({ repoRoot: root, port: 0, now: () => new Date("2030-01-01T00:00:00.000Z") }) : null;
+  await writeCompanionWorkItems(root);
+  const bridge = withBridge ? await startCodexBridgeServer({
+    repoRoot: root,
+    port: 0,
+    now: () => new Date("2030-01-01T00:00:00.000Z"),
+    readCurrentSourceRevision: async () => structuredClone(TEST_SOURCE_REVISION),
+  }) : null;
   if (bridge) t.after(() => bridge.close());
   const middleware = createCodexCompanionMiddleware(root, {
     workspaceController: {
@@ -121,7 +123,7 @@ test("Facade enrollment and direct scoped delivery preserve SelectionBundleV1", 
   response = await facade("/sessions/session-1/preferences", { alias: "  Review session  " });
   assert.equal(response.status, 200);
   assert.equal((await response.json()).alias, "Review session");
-  const revision = { head: "abc", dirty_hash: null, graph_etag: "etag" };
+  const revision = structuredClone(TEST_SOURCE_REVISION);
   const bundle = {
     schema_version: 1, selection_id: "selection-1", workspace_id: bridge.store.workspaceId, artifact_root_id: "artifacts/af/work-1", graph_id: "graph-1", source_revision: revision,
     selected_objects: [{ kind: "graph_node", id: "node-1", label: "Node", node_kind: "agent", artifact_ref: null, source_refs: [] }],
@@ -162,7 +164,9 @@ test("Facade maps bounded Continue, attach, cancel, and Revoke actions to exact 
   assert.equal(response.status, 200);
   const attachment = await response.json();
   assert.equal(attachment.target_session_id, "materialization-session");
-  assert.equal(typeof attachment.activation_capsule, "string");
+  assert.equal("activation_capsule" in attachment, false);
+  assert.equal("command" in attachment, false);
+  assert.equal(attachment.handoff.target_session_id, "materialization-session");
   response = await facade(`/handoffs/${handoff.handoff_id}/cancel`, {});
   assert.equal(response.status, 200);
   assert.equal((await response.json()).status, "canceled");

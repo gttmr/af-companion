@@ -163,6 +163,7 @@ export interface PlanHandoff {
   claimed_by_session_id: string | null;
   claimed_by_turn_id: string | null;
   claimed_at: string | null;
+  target_session_id: string | null;
   failure_code: string | null;
 }
 

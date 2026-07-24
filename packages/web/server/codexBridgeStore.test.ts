@@ -5,8 +5,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { parseAfWorkItemManifest, serializeAfWorkItemManifest } from "../src/analyzer/afWorkItem.ts";
 import type { CompanionHookProof } from "../src/companion/sessionContract.ts";
 import type { SelectionBundleV1 } from "../src/companion/types.ts";
+import {
+  TEST_DECISION_REVISION,
+  TEST_DISCOVERY_REVISION,
+  TEST_PLAN_HASH,
+  TEST_SOURCE_REVISION,
+  writeCompanionWorkItems,
+} from "./companionTestFixtures.ts";
 import {
   ATTACH_CONFIRMATION,
   CONTINUE_CONFIRMATION,
@@ -21,20 +29,29 @@ import {
   validateRevokeSessionInput,
 } from "./codexBridgeStore.ts";
 
-const DISCOVERY = "a".repeat(64);
-const DECISIONS = "b".repeat(64);
-const PLAN = "c".repeat(64);
+const DISCOVERY = TEST_DISCOVERY_REVISION;
+const DECISIONS = TEST_DECISION_REVISION;
+const PLAN = TEST_PLAN_HASH;
 
-async function fixture(t: test.TestContext) {
+async function fixture(t: test.TestContext, options: { sessionTtlMs?: number } = {}) {
   const root = await mkdtemp(join(tmpdir(), "af-bridge-v2-"));
   t.after(() => rm(root, { recursive: true, force: true }));
+  await writeCompanionWorkItems(root);
   let nowMs = Date.parse("2030-01-01T00:00:00.000Z");
+  let currentSourceRevision = structuredClone(TEST_SOURCE_REVISION);
   const now = () => new Date(nowMs);
   return {
     root,
     now,
     advance(ms: number) { nowMs += ms; },
-    store: await CodexBridgeStore.open(root, { now, enrollmentTtlMs: 1_000, leaseTtlMs: 2 * 60 * 60 * 1_000 }),
+    setCurrentSourceRevision(revision: typeof TEST_SOURCE_REVISION) { currentSourceRevision = structuredClone(revision); },
+    store: await CodexBridgeStore.open(root, {
+      now,
+      sessionTtlMs: options.sessionTtlMs,
+      enrollmentTtlMs: 1_000,
+      leaseTtlMs: 2 * 60 * 60 * 1_000,
+      readCurrentSourceRevision: async () => structuredClone(currentSourceRevision),
+    }),
   };
 }
 
@@ -111,6 +128,27 @@ function delivery(store: CodexBridgeStore, overrides: Record<string, unknown> = 
     ...overrides,
   });
 }
+
+async function driftCanonicalDecisionRevision(root: string): Promise<void> {
+  const path = join(root, "artifacts", "af", "work-plan", "af-work-item.json");
+  const manifest = parseAfWorkItemManifest(await readFile(path, "utf8"));
+  manifest.revisions.decision = {
+    digest: "e".repeat(64),
+    subjects: [{ ref: "af-work-item.json#decisions", sha256: "e".repeat(64) }],
+    registry_revision: null,
+  };
+  await writeFile(path, serializeAfWorkItemManifest(manifest), "utf8");
+}
+
+test("enrollment rejects a missing canonical Work Item", async (t) => {
+  const { store } = await fixture(t);
+  await assert.rejects(store.createEnrollment(validateCreateEnrollmentInput({
+    application_id: "app-1",
+    work_id: "missing-work",
+    requested_role: "materialization",
+    activation_origin: "af_cli_launch",
+  })), /Work Item/i);
+});
 
 function rewriteCapsule(raw: string, mutate: (payload: Record<string, unknown>) => void): string {
   const lines = raw.split("\n");
@@ -210,7 +248,11 @@ test("negative: delivery fails closed for workspace, application, work, role, re
     { ...base, scope: { ...base.scope, work_id: "work-other" } },
     { ...base, current_role: "plan" as const },
     { ...base, current_source_revision: { ...base.current_source_revision, graph_etag: "stale" } },
-  ]) await assert.rejects(clock.store.createDelivery(candidate), /delivery rejected|role|scope|revision/i);
+  ]) await assert.rejects(clock.store.createDelivery(candidate), /delivery rejected|role|scope|revision|Work Item/i);
+
+  clock.setCurrentSourceRevision({ ...TEST_SOURCE_REVISION, graph_etag: "canonical-new-etag" });
+  await assert.rejects(clock.store.createDelivery(base), /canonical source revision is stale/i);
+  clock.setCurrentSourceRevision(TEST_SOURCE_REVISION);
 
   const queued = await clock.store.createDelivery(base);
   assert.equal(queued.bundle.schema_version, 1);
@@ -243,21 +285,89 @@ test("negative: delivery and handoff creation revalidate deleted or scope-tamper
     expires_at: "2030-01-01T00:10:00.000Z",
   });
   const created = await handoffClock.store.createPlanHandoff(handoffRequest);
+  await assert.rejects(handoffClock.store.createPlanHandoff(handoffRequest), /already exists/);
   await rm(join(handoffClock.store.leaseDir, `${createHash("sha256").update("plan-session").digest("hex")}.json`));
   await assert.rejects(handoffClock.store.createPlanHandoff(handoffRequest), /lease is missing, invalid, or expired/);
   await assert.rejects(handoffClock.store.continueHandoff(created.handoff_id, validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION })), /lease is missing, invalid, or expired/);
 });
 
-test("restart invalidates prior leases, expires sessions, and cancels queued delivery", async (t) => {
+test("restart invalidates prior leases and pending interaction authority", async (t) => {
   const clock = await fixture(t);
   const { lease } = await enroll(clock.store, clock.root, "session-1");
   await clock.store.createDelivery(delivery(clock.store));
+  const { lease: planLease } = await enroll(clock.store, clock.root, "plan-session", "plan", "work-plan");
+  await clock.store.handleHook(hook("UserPromptSubmit", "plan-session", clock.root, planLease, { turn: "plan-turn", permission: "plan" }));
+  const handoff = await clock.store.createPlanHandoff(validateCreatePlanHandoffInput({
+    workspace_id: clock.store.workspaceId, application_id: "app-1", work_id: "work-plan",
+    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: DISCOVERY,
+    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
+    expires_at: "2030-01-01T00:10:00.000Z",
+  }));
+  await clock.store.continueHandoff(handoff.handoff_id, validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION }));
   const restarted = await CodexBridgeStore.open(clock.root, { now: clock.now });
   const snapshot = await restarted.snapshot();
-  assert.equal(snapshot.sessions[0].participation, "expired");
+  assert.ok(snapshot.sessions.every((session) => session.participation === "expired"));
   assert.equal(snapshot.deliveries[0].status, "canceled");
+  assert.equal(snapshot.handoffs[0].status, "failed");
+  assert.equal(snapshot.handoffs[0].failure_code, "bridge_restarted");
   assert.notEqual(snapshot.bridge_instance_id, (await clock.store.snapshot()).bridge_instance_id);
   assert.equal(await restarted.handleHook(hook("UserPromptSubmit", "session-1", clock.root, lease)), null);
+});
+
+test("stale Plan source fails pending handoffs before Continue can issue authority", async (t) => {
+  const clock = await fixture(t, { sessionTtlMs: 1_000 });
+  const { lease } = await enroll(clock.store, clock.root, "plan-session", "plan", "work-plan");
+  await clock.store.handleHook(hook("UserPromptSubmit", "plan-session", clock.root, lease, { turn: "plan-turn", permission: "plan" }));
+  const handoff = await clock.store.createPlanHandoff(validateCreatePlanHandoffInput({
+    workspace_id: clock.store.workspaceId, application_id: "app-1", work_id: "work-plan",
+    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: DISCOVERY,
+    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
+    expires_at: "2030-01-01T00:10:00.000Z",
+  }));
+  clock.advance(1_001);
+  const snapshot = await clock.store.snapshot();
+  assert.equal(snapshot.handoffs[0].status, "failed");
+  assert.equal(snapshot.handoffs[0].failure_code, "source_inactive");
+  await assert.rejects(
+    clock.store.continueHandoff(handoff.handoff_id, validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION })),
+    /cannot be continued/,
+  );
+});
+
+test("canonical Work Item drift durably fails an already-created handoff", async (t) => {
+  const clock = await fixture(t);
+  const { lease } = await enroll(clock.store, clock.root, "plan-session", "plan", "work-plan");
+  await clock.store.handleHook(hook("UserPromptSubmit", "plan-session", clock.root, lease, { turn: "plan-turn", permission: "plan" }));
+  const handoff = await clock.store.createPlanHandoff(validateCreatePlanHandoffInput({
+    workspace_id: clock.store.workspaceId, application_id: "app-1", work_id: "work-plan",
+    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: DISCOVERY,
+    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
+    expires_at: "2030-01-01T00:10:00.000Z",
+  }));
+  await driftCanonicalDecisionRevision(clock.root);
+  await assert.rejects(
+    clock.store.continueHandoff(handoff.handoff_id, validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION })),
+    /canonical Work Item revision is stale/,
+  );
+  const snapshot = await clock.store.snapshot();
+  assert.equal(snapshot.handoffs[0].status, "failed");
+  assert.equal(snapshot.handoffs[0].failure_code, "canonical_handoff_stale");
+});
+
+test("a later Plan turn invalidates an older pending handoff", async (t) => {
+  const clock = await fixture(t);
+  const { lease } = await enroll(clock.store, clock.root, "plan-session", "plan", "work-plan");
+  await clock.store.handleHook(hook("UserPromptSubmit", "plan-session", clock.root, lease, { turn: "plan-turn", permission: "plan" }));
+  await clock.store.createPlanHandoff(validateCreatePlanHandoffInput({
+    workspace_id: clock.store.workspaceId, application_id: "app-1", work_id: "work-plan",
+    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: DISCOVERY,
+    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
+    expires_at: "2030-01-01T00:10:00.000Z",
+  }));
+  await clock.store.handleHook(hook("UserPromptSubmit", "plan-session", clock.root, lease, { turn: "later-plan-turn", permission: "plan" }));
+  const snapshot = await clock.store.snapshot();
+  assert.equal(snapshot.handoffs[0].status, "failed");
+  assert.equal(snapshot.handoffs[0].failure_code, "source_turn_stale");
 });
 
 test("lease expiry marks participation expired and removes the lease file", async (t) => {
@@ -274,6 +384,12 @@ test("distinct fresh non-subagent session claims the exact continued handoff ato
   const { root, store } = await fixture(t);
   const { lease } = await enroll(store, root, "plan-session", "plan", "work-plan");
   await store.handleHook(hook("UserPromptSubmit", "plan-session", root, lease, { turn: "plan-turn", permission: "plan" }));
+  await assert.rejects(store.createPlanHandoff(validateCreatePlanHandoffInput({
+    workspace_id: store.workspaceId, application_id: "app-1", work_id: "work-plan",
+    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: "e".repeat(64),
+    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
+    expires_at: "2030-01-01T00:10:00.000Z",
+  })), /canonical Work Item handoff/i);
   const created = await store.createPlanHandoff(validateCreatePlanHandoffInput({
     workspace_id: store.workspaceId, application_id: "app-1", work_id: "work-plan",
     from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: DISCOVERY,
