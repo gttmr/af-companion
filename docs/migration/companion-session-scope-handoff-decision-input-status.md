@@ -117,7 +117,7 @@ Evidence:
 | Hook/Launcher/CLI | Agent C | `agent/session-scope-hook-cli` | integrated and closed | Hook/CLI 17/17; plugin validator pass |
 | Decision Adapter/Skills | Agent D | `agent/decision-input-skills` | integrated and closed | skill validator: 46 files, zero errors/warnings; decision/session contract 9/9 |
 | Handoff/Connections UI | Agent E | `agent/session-handoff-ui` | integrated and closed | build, Companion tests, and real fixed-port desktop/narrow browser acceptance |
-| Independent acceptance | Agent F | read-only after integration | complete and closed | five canonical-state, stale-authority, durable-attach, and evidence-strength findings reviewed |
+| Independent acceptance | read-only reviewers | after integration and remediation | complete and closed | three review rounds; every finding reproduced/remediated and the final re-review returned no findings |
 
 Only targeted-test-passing commits are eligible for Parent review and
 cherry-pick. This table is updated after each result is captured.
@@ -152,6 +152,10 @@ authority and erases protected Plan bytes, superseded selection provenance is
 all-or-none including `decision_input_mode`, and both direct and facade Handoff
 requests use one 512 KiB transport envelope while canonical Plan text remains
 strictly bounded to 64 KiB.
+
+The final read-only re-review of the integrated source, schema, validators,
+tests, and active documentation returned no additional findings. Its residual
+limitations match the explicit client and Hook-process limits below.
 
 ## Acceptance evidence
 
