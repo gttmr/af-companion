@@ -11,6 +11,9 @@ import type { SelectionBundleV1 } from "../src/companion/types.ts";
 import {
   TEST_DECISION_REVISION,
   TEST_DISCOVERY_REVISION,
+  TEST_HANDOFF_ID,
+  TEST_MARKER_DIGEST,
+  TEST_PLAN_BODY,
   TEST_PLAN_HASH,
   TEST_SOURCE_REVISION,
   writeCompanionWorkItems,
@@ -32,6 +35,25 @@ import {
 const DISCOVERY = TEST_DISCOVERY_REVISION;
 const DECISIONS = TEST_DECISION_REVISION;
 const PLAN = TEST_PLAN_HASH;
+
+function planHandoffRequest(store: CodexBridgeStore, overrides: Record<string, unknown> = {}) {
+  return validateCreatePlanHandoffInput({
+    handoff_id: TEST_HANDOFF_ID,
+    marker_digest: TEST_MARKER_DIGEST,
+    workspace_id: store.workspaceId,
+    application_id: "app-1",
+    work_id: "work-plan",
+    from_session_id: "plan-session",
+    from_turn_id: "plan-turn",
+    discovery_revision: DISCOVERY,
+    decision_revision: DECISIONS,
+    plan_body_hash: PLAN,
+    plan_body: TEST_PLAN_BODY,
+    transport_capability: "client_dependent",
+    expires_at: "2030-01-01T00:10:00.000Z",
+    ...overrides,
+  });
+}
 
 async function fixture(t: test.TestContext, options: { sessionTtlMs?: number } = {}) {
   const root = await mkdtemp(join(tmpdir(), "af-bridge-v2-"));
@@ -150,6 +172,46 @@ test("enrollment rejects a missing canonical Work Item", async (t) => {
   })), /Work Item/i);
 });
 
+test("enrollment activation rechecks the exact canonical Work Item", async (t) => {
+  const { root, store } = await fixture(t);
+  const ticket = await store.createEnrollment(validateCreateEnrollmentInput({
+    application_id: "app-1",
+    work_id: "work-1",
+    requested_role: "materialization",
+    activation_origin: "af_cli_launch",
+  }));
+  await rm(join(root, "artifacts", "af", "work-1", "af-work-item.json"));
+
+  assert.equal(await store.handleHook(hook("SessionStart", "phantom-session", root, {
+    kind: "activation",
+    activation_capsule: ticket.activation_capsule,
+  })), null);
+  assert.deepEqual((await store.snapshot()).sessions, []);
+});
+
+test("enrollment activation rejects a valid Work Item changed after ticket issuance", async (t) => {
+  const { root, store } = await fixture(t);
+  const ticket = await store.createEnrollment(validateCreateEnrollmentInput({
+    application_id: "app-1",
+    work_id: "work-1",
+    requested_role: "materialization",
+    activation_origin: "af_cli_launch",
+  }));
+  const path = join(root, "artifacts", "af", "work-1", "af-work-item.json");
+  const manifest = parseAfWorkItemManifest(await readFile(path, "utf8"));
+  manifest.ledger_revision += 1;
+  await writeFile(path, serializeAfWorkItemManifest(manifest), "utf8");
+
+  assert.equal(await store.handleHook(hook("SessionStart", "stale-ticket-session", root, {
+    kind: "activation",
+    activation_capsule: ticket.activation_capsule,
+  })), null);
+  const snapshot = await store.snapshot();
+  assert.deepEqual(snapshot.sessions, []);
+  const persisted = JSON.parse(await readFile(store.statePath, "utf8"));
+  assert.equal(persisted.enrollment_tickets[0].status, "revoked");
+});
+
 function rewriteCapsule(raw: string, mutate: (payload: Record<string, unknown>) => void): string {
   const lines = raw.split("\n");
   const payload = JSON.parse(Buffer.from(lines[1], "base64url").toString("utf8"));
@@ -266,6 +328,21 @@ test("negative: delivery fails closed for workspace, application, work, role, re
   assert.equal((await lstat(join(clock.store.leaseDir, `${createHash("sha256").update("session-1").digest("hex")}.json`)).catch(() => null)), null);
 });
 
+test("queued delivery rechecks the canonical source revision at consume time", async (t) => {
+  const clock = await fixture(t);
+  const { lease } = await enroll(clock.store, clock.root, "session-1");
+  await clock.store.createDelivery(delivery(clock.store));
+  clock.setCurrentSourceRevision({ ...TEST_SOURCE_REVISION, graph_etag: "changed-after-queue" });
+
+  assert.equal(
+    await clock.store.handleHook(hook("UserPromptSubmit", "session-1", clock.root, lease, { turn: "stale-consume" })),
+    null,
+  );
+  const [queued] = (await clock.store.snapshot()).deliveries;
+  assert.equal(queued.status, "failed");
+  assert.equal(queued.error, "stale_revision");
+});
+
 test("negative: delivery and handoff creation revalidate deleted or scope-tampered lease files", async (t) => {
   const deliveryClock = await fixture(t);
   await enroll(deliveryClock.store, deliveryClock.root, "session-1");
@@ -278,12 +355,7 @@ test("negative: delivery and handoff creation revalidate deleted or scope-tamper
   const handoffClock = await fixture(t);
   const { lease } = await enroll(handoffClock.store, handoffClock.root, "plan-session", "plan", "work-plan");
   await handoffClock.store.handleHook(hook("UserPromptSubmit", "plan-session", handoffClock.root, lease, { turn: "plan-turn", permission: "plan" }));
-  const handoffRequest = validateCreatePlanHandoffInput({
-    workspace_id: handoffClock.store.workspaceId, application_id: "app-1", work_id: "work-plan",
-    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: DISCOVERY,
-    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
-    expires_at: "2030-01-01T00:10:00.000Z",
-  });
+  const handoffRequest = planHandoffRequest(handoffClock.store);
   const created = await handoffClock.store.createPlanHandoff(handoffRequest);
   await assert.rejects(handoffClock.store.createPlanHandoff(handoffRequest), /already exists/);
   await rm(join(handoffClock.store.leaseDir, `${createHash("sha256").update("plan-session").digest("hex")}.json`));
@@ -297,12 +369,7 @@ test("restart invalidates prior leases and pending interaction authority", async
   await clock.store.createDelivery(delivery(clock.store));
   const { lease: planLease } = await enroll(clock.store, clock.root, "plan-session", "plan", "work-plan");
   await clock.store.handleHook(hook("UserPromptSubmit", "plan-session", clock.root, planLease, { turn: "plan-turn", permission: "plan" }));
-  const handoff = await clock.store.createPlanHandoff(validateCreatePlanHandoffInput({
-    workspace_id: clock.store.workspaceId, application_id: "app-1", work_id: "work-plan",
-    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: DISCOVERY,
-    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
-    expires_at: "2030-01-01T00:10:00.000Z",
-  }));
+  const handoff = await clock.store.createPlanHandoff(planHandoffRequest(clock.store));
   await clock.store.continueHandoff(handoff.handoff_id, validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION }));
   const restarted = await CodexBridgeStore.open(clock.root, { now: clock.now });
   const snapshot = await restarted.snapshot();
@@ -318,12 +385,7 @@ test("stale Plan source fails pending handoffs before Continue can issue authori
   const clock = await fixture(t, { sessionTtlMs: 1_000 });
   const { lease } = await enroll(clock.store, clock.root, "plan-session", "plan", "work-plan");
   await clock.store.handleHook(hook("UserPromptSubmit", "plan-session", clock.root, lease, { turn: "plan-turn", permission: "plan" }));
-  const handoff = await clock.store.createPlanHandoff(validateCreatePlanHandoffInput({
-    workspace_id: clock.store.workspaceId, application_id: "app-1", work_id: "work-plan",
-    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: DISCOVERY,
-    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
-    expires_at: "2030-01-01T00:10:00.000Z",
-  }));
+  const handoff = await clock.store.createPlanHandoff(planHandoffRequest(clock.store));
   clock.advance(1_001);
   const snapshot = await clock.store.snapshot();
   assert.equal(snapshot.handoffs[0].status, "failed");
@@ -338,12 +400,7 @@ test("canonical Work Item drift durably fails an already-created handoff", async
   const clock = await fixture(t);
   const { lease } = await enroll(clock.store, clock.root, "plan-session", "plan", "work-plan");
   await clock.store.handleHook(hook("UserPromptSubmit", "plan-session", clock.root, lease, { turn: "plan-turn", permission: "plan" }));
-  const handoff = await clock.store.createPlanHandoff(validateCreatePlanHandoffInput({
-    workspace_id: clock.store.workspaceId, application_id: "app-1", work_id: "work-plan",
-    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: DISCOVERY,
-    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
-    expires_at: "2030-01-01T00:10:00.000Z",
-  }));
+  const handoff = await clock.store.createPlanHandoff(planHandoffRequest(clock.store));
   await driftCanonicalDecisionRevision(clock.root);
   await assert.rejects(
     clock.store.continueHandoff(handoff.handoff_id, validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION })),
@@ -358,12 +415,7 @@ test("a later Plan turn invalidates an older pending handoff", async (t) => {
   const clock = await fixture(t);
   const { lease } = await enroll(clock.store, clock.root, "plan-session", "plan", "work-plan");
   await clock.store.handleHook(hook("UserPromptSubmit", "plan-session", clock.root, lease, { turn: "plan-turn", permission: "plan" }));
-  await clock.store.createPlanHandoff(validateCreatePlanHandoffInput({
-    workspace_id: clock.store.workspaceId, application_id: "app-1", work_id: "work-plan",
-    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: DISCOVERY,
-    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
-    expires_at: "2030-01-01T00:10:00.000Z",
-  }));
+  await clock.store.createPlanHandoff(planHandoffRequest(clock.store));
   await clock.store.handleHook(hook("UserPromptSubmit", "plan-session", clock.root, lease, { turn: "later-plan-turn", permission: "plan" }));
   const snapshot = await clock.store.snapshot();
   assert.equal(snapshot.handoffs[0].status, "failed");
@@ -384,19 +436,26 @@ test("distinct fresh non-subagent session claims the exact continued handoff ato
   const { root, store } = await fixture(t);
   const { lease } = await enroll(store, root, "plan-session", "plan", "work-plan");
   await store.handleHook(hook("UserPromptSubmit", "plan-session", root, lease, { turn: "plan-turn", permission: "plan" }));
-  await assert.rejects(store.createPlanHandoff(validateCreatePlanHandoffInput({
-    workspace_id: store.workspaceId, application_id: "app-1", work_id: "work-plan",
-    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: "e".repeat(64),
-    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
-    expires_at: "2030-01-01T00:10:00.000Z",
-  })), /canonical Work Item handoff/i);
-  const created = await store.createPlanHandoff(validateCreatePlanHandoffInput({
-    workspace_id: store.workspaceId, application_id: "app-1", work_id: "work-plan",
-    from_session_id: "plan-session", from_turn_id: "plan-turn", discovery_revision: DISCOVERY,
-    decision_revision: DECISIONS, plan_body_hash: PLAN, transport_capability: "client_dependent",
-    expires_at: "2030-01-01T00:10:00.000Z",
-  }));
+  assert.throws(
+    () => planHandoffRequest(store, { plan_body: "# Different Plan\n" }),
+    /plan_body_hash does not match/,
+  );
+  await assert.rejects(
+    store.createPlanHandoff(planHandoffRequest(store, { handoff_id: "wrong-canonical-handoff" })),
+    /canonical Work Item handoff/i,
+  );
+  await assert.rejects(
+    store.createPlanHandoff(planHandoffRequest(store, { marker_digest: "f".repeat(64) })),
+    /canonical Work Item handoff/i,
+  );
+  const created = await store.createPlanHandoff(planHandoffRequest(store));
   assert.equal(created.status, "ready");
+  assert.equal(created.handoff_id, TEST_HANDOFF_ID);
+  assert.equal(created.marker_digest, TEST_MARKER_DIGEST);
+  assert.equal("plan_body" in created, false);
+  const protectedState = await readFile(store.statePath, "utf8");
+  assert.doesNotMatch(protectedState, /Implement the exact approved materialization/);
+  assert.match(protectedState, /plan_body_ciphertext/);
   const first = await store.continueHandoff(created.handoff_id, validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION }));
   const rotated = await store.continueHandoff(created.handoff_id, validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION }));
   assert.notEqual(first.activation_capsule, rotated.activation_capsule);
@@ -414,10 +473,17 @@ test("distinct fresh non-subagent session claims the exact continued handoff ato
     store.handleHook(hook("UserPromptSubmit", "fresh-b", root, proof, { turn: "fresh-b-turn" })),
   ]);
   assert.equal(results.filter(Boolean).length, 1);
+  const claimedContext = results.find((result) => result !== null)?.hookSpecificOutput.additionalContext ?? "";
+  assert.match(claimedContext, /Canonical Discovery Decision Plan/);
+  assert.ok(claimedContext.includes(TEST_PLAN_BODY));
   const snapshot = await store.snapshot();
   const claimed = snapshot.handoffs[0];
   assert.equal(claimed.status, "claimed");
   assert.ok(["fresh-a", "fresh-b"].includes(claimed.claimed_by_session_id ?? ""));
+  const persistedClaimed = JSON.parse(await readFile(store.statePath, "utf8")).handoffs[0];
+  assert.equal(persistedClaimed.plan_body_ciphertext, null);
+  assert.equal(persistedClaimed.plan_body_iv, null);
+  assert.equal(persistedClaimed.plan_body_auth_tag, null);
   assert.equal(snapshot.sessions.filter((session) => session.role === "materialization").length, 1);
   const persisted = await readFile(store.statePath, "utf8");
   assert.doesNotMatch(persisted, new RegExp(rotatedToken));

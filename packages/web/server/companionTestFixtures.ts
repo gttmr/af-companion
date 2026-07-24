@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -7,10 +8,14 @@ import {
   type AfRevisionRef,
 } from "../src/analyzer/afWorkItem.ts";
 import type { SelectionSourceRevision } from "../src/companion/types.ts";
+import { canonicalizePlanBody } from "../src/companion/sessionContract.ts";
 
 export const TEST_DISCOVERY_REVISION = "a".repeat(64);
 export const TEST_DECISION_REVISION = "b".repeat(64);
-export const TEST_PLAN_HASH = "c".repeat(64);
+export const TEST_PLAN_BODY = canonicalizePlanBody("# Discovery Decision Plan\n\nImplement the exact approved materialization.\n");
+export const TEST_PLAN_HASH = createHash("sha256").update(TEST_PLAN_BODY, "utf8").digest("hex");
+export const TEST_HANDOFF_ID = "ledger-handoff-plan";
+export const TEST_MARKER_DIGEST = "d".repeat(64);
 export const TEST_GRAPH_ETAG = "etag-1";
 export const TEST_SOURCE_REVISION: SelectionSourceRevision = {
   head: "abc123",
@@ -33,7 +38,7 @@ export async function writeCompanionWorkItems(root: string): Promise<void> {
       manifest.revisions.discovery = revision("analysis-result.json", TEST_DISCOVERY_REVISION);
       manifest.revisions.decision = revision("af-work-item.json#decisions", TEST_DECISION_REVISION);
       manifest.session_handoffs.push({
-        handoff_id: "ledger-handoff-plan",
+        handoff_id: TEST_HANDOFF_ID,
         work_id: workId,
         from_session_id: "plan-session",
         from_turn_id: "plan-turn",
@@ -44,7 +49,7 @@ export async function writeCompanionWorkItems(root: string): Promise<void> {
         status: "pending",
         created_at: "2030-01-01T00:00:00.000Z",
         expires_at: "2030-01-01T00:10:00.000Z",
-        marker_digest: "d".repeat(64),
+        marker_digest: TEST_MARKER_DIGEST,
         claimed_by_session_id: null,
         claimed_turn_id: null,
         claimed_at: null,

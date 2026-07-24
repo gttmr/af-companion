@@ -35,6 +35,7 @@ import { VscodeWorkspaceLauncher, VscodeWorkspaceLauncherError } from "./vscodeW
 
 const ENDPOINT_RELATIVE_PATH = `${COMPANION_STATE_RELATIVE_DIR}/endpoint.json`;
 const BODY_LIMIT = 32 * 1_024;
+const HANDOFF_BODY_LIMIT = 96 * 1_024;
 const BROKER_TIMEOUT_MS = 1_000;
 const SELECTION_TTL_MS = 15 * 60 * 1_000;
 const MAX_SELECTED_NODE_IDS = 20;
@@ -115,7 +116,7 @@ export function createCodexCompanionMiddleware(repoRoot: string, options: CodexC
         sendJson(response, 201, await brokerRequest(repoRoot, "/v1/enrollments", { method: "POST", body: input })); return;
       }
       if (request.method === "POST" && path === "/handoffs") {
-        const input = await mutationBody(request, validateCreatePlanHandoffInput);
+        const input = await mutationBody(request, validateCreatePlanHandoffInput, HANDOFF_BODY_LIMIT);
         await assertWorkItemExists(repoRoot, artifactStore, input.work_id);
         sendJson(response, 201, await brokerRequest(repoRoot, "/v1/handoffs", { method: "POST", body: input })); return;
       }
@@ -196,9 +197,9 @@ export function createCodexCompanionMiddleware(repoRoot: string, options: CodexC
   };
 }
 
-async function mutationBody<T>(request: IncomingMessage, validate: (value: unknown) => T): Promise<T> {
+async function mutationBody<T>(request: IncomingMessage, validate: (value: unknown) => T, maxBytes = BODY_LIMIT): Promise<T> {
   assertSameOrigin(request); assertJson(request);
-  return validate(await readJsonBody(request, { maxBytes: BODY_LIMIT, sizeLimitMessage: "Companion 요청은 32 KiB를 넘을 수 없습니다." }));
+  return validate(await readJsonBody(request, { maxBytes, sizeLimitMessage: `Companion 요청은 ${Math.floor(maxBytes / 1_024)} KiB를 넘을 수 없습니다.` }));
 }
 
 async function queueScopedDelivery(repoRoot: string, targetSessionId: string, workId: string, bundle: SelectionBundleV1): Promise<ScopedContextDelivery> {

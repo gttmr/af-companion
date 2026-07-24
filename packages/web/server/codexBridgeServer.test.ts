@@ -6,6 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { parseAfWorkItemManifest, serializeAfWorkItemManifest } from "../src/analyzer/afWorkItem.ts";
+import { canonicalizePlanBody } from "../src/companion/sessionContract.ts";
 import {
   ATTACH_HANDOFF_CONFIRMATION,
   CANCEL_HANDOFF_CONFIRMATION,
@@ -14,7 +15,14 @@ import {
   RESET_CONFIRMATION,
 } from "./codexBridgeStore.ts";
 import { startCodexBridgeServer } from "./codexBridgeServer.ts";
-import { TEST_SOURCE_REVISION, writeCompanionWorkItems } from "./companionTestFixtures.ts";
+import {
+  TEST_HANDOFF_ID,
+  TEST_MARKER_DIGEST,
+  TEST_PLAN_BODY,
+  TEST_PLAN_HASH,
+  TEST_SOURCE_REVISION,
+  writeCompanionWorkItems,
+} from "./companionTestFixtures.ts";
 
 async function fixture(t: test.TestContext) {
   const root = await mkdtemp(join(tmpdir(), "af-bridge-server-v2-"));
@@ -132,8 +140,10 @@ test("direct handoff Continue rotates a claim and only an exact distinct session
   const lease = await running.store.leaseProofForTesting("plan-session");
   await request("/v1/hooks", sessionHook(root, "plan-session", lease, "plan", "plan-turn"));
   response = await request("/v1/handoffs", {
+    handoff_id: TEST_HANDOFF_ID, marker_digest: TEST_MARKER_DIGEST,
     workspace_id: running.store.workspaceId, application_id: "app-1", work_id: "work-plan", from_session_id: "plan-session", from_turn_id: "plan-turn",
-    discovery_revision: "a".repeat(64), decision_revision: "b".repeat(64), plan_body_hash: "c".repeat(64), transport_capability: "client_dependent", expires_at: "2030-01-01T00:10:00.000Z",
+    discovery_revision: "a".repeat(64), decision_revision: "b".repeat(64), plan_body_hash: TEST_PLAN_HASH, plan_body: TEST_PLAN_BODY,
+    transport_capability: "client_dependent", expires_at: "2030-01-01T00:10:00.000Z",
   });
   assert.equal(response.status, 201);
   const handoff = await response.json();
@@ -143,7 +153,9 @@ test("direct handoff Continue rotates a claim and only an exact distinct session
   const continued = await response.json();
   response = await request("/v1/hooks", sessionHook(root, "fresh-session", { kind: "activation", activation_capsule: continued.activation_capsule }, "default", "fresh-turn"));
   assert.equal(response.status, 200);
-  assert.match((await response.json()).hookSpecificOutput.additionalContext, /work-plan/);
+  const context = (await response.json()).hookSpecificOutput.additionalContext;
+  assert.match(context, /work-plan/);
+  assert.ok(context.includes(TEST_PLAN_BODY));
   const snapshot = await (await request("/v1/snapshot")).json();
   assert.equal(snapshot.handoffs[0].status, "claimed");
   assert.equal(snapshot.handoffs[0].claimed_by_session_id, "fresh-session");
@@ -163,9 +175,17 @@ test("direct handoff attachment targets one existing Companion session and cance
     await request("/v1/hooks", sessionHook(root, sessionId, { kind: "activation", activation_capsule: enrollment.activation_capsule }));
   }
 
-  const createHandoff = (turnId = "plan-turn", planHash = "c".repeat(64)) => request("/v1/handoffs", {
+  const createHandoff = (
+    turnId = "plan-turn",
+    handoffId = TEST_HANDOFF_ID,
+    planBody = TEST_PLAN_BODY,
+    markerDigest = handoffId === TEST_HANDOFF_ID ? TEST_MARKER_DIGEST : createHash("sha256").update(handoffId).digest("hex"),
+  ) => request("/v1/handoffs", {
+    handoff_id: handoffId, marker_digest: markerDigest,
     workspace_id: running.store.workspaceId, application_id: "app-1", work_id: "work-plan", from_session_id: "plan-session", from_turn_id: turnId,
-    discovery_revision: "a".repeat(64), decision_revision: "b".repeat(64), plan_body_hash: planHash, transport_capability: "client_dependent", expires_at: "2030-01-01T00:10:00.000Z",
+    discovery_revision: "a".repeat(64), decision_revision: "b".repeat(64),
+    plan_body_hash: createHash("sha256").update(planBody).digest("hex"), plan_body: planBody,
+    transport_capability: "client_dependent", expires_at: "2030-01-01T00:10:00.000Z",
   });
 
   response = await createHandoff();
@@ -188,11 +208,14 @@ test("direct handoff attachment targets one existing Companion session and cance
   const materializationALease = await running.store.leaseProofForTesting("materialization-a");
   response = await request("/v1/hooks", sessionHook(root, "materialization-a", materializationALease, "default", "claim-turn"));
   assert.equal(response.status, 200);
+  assert.ok(((await response.json()).hookSpecificOutput.additionalContext as string).includes(TEST_PLAN_BODY));
   assert.equal((await (await request("/v1/snapshot")).json()).handoffs[0].claimed_by_session_id, "materialization-a");
 
-  await addCanonicalPlanHandoff(root, "plan-turn-2", "f".repeat(64), "ledger-handoff-plan-2");
+  const planBody2 = canonicalizePlanBody("# Discovery Decision Plan 2\n\nCancel this exact handoff.\n");
+  const planHash2 = createHash("sha256").update(planBody2).digest("hex");
+  await addCanonicalPlanHandoff(root, "plan-turn-2", planHash2, "ledger-handoff-plan-2");
   await request("/v1/hooks", sessionHook(root, "plan-session", planLease, "plan", "plan-turn-2"));
-  response = await createHandoff("plan-turn-2", "f".repeat(64));
+  response = await createHandoff("plan-turn-2", "ledger-handoff-plan-2", planBody2);
   const canceledHandoff = await response.json();
   response = await request(`/v1/handoffs/${canceledHandoff.handoff_id}/cancel`, {});
   assert.equal(response.status, 400);
@@ -202,9 +225,11 @@ test("direct handoff attachment targets one existing Companion session and cance
   response = await request(`/v1/handoffs/${canceledHandoff.handoff_id}/continue`, { confirmation: CONTINUE_CONFIRMATION });
   assert.equal(response.status, 409);
 
-  await addCanonicalPlanHandoff(root, "plan-turn-3", "9".repeat(64), "ledger-handoff-plan-3");
+  const planBody3 = canonicalizePlanBody("# Discovery Decision Plan 3\n\nDetach this exact target.\n");
+  const planHash3 = createHash("sha256").update(planBody3).digest("hex");
+  await addCanonicalPlanHandoff(root, "plan-turn-3", planHash3, "ledger-handoff-plan-3");
   await request("/v1/hooks", sessionHook(root, "plan-session", planLease, "plan", "plan-turn-3"));
-  response = await createHandoff("plan-turn-3", "9".repeat(64));
+  response = await createHandoff("plan-turn-3", "ledger-handoff-plan-3", planBody3);
   const revokeCanceledHandoff = await response.json();
   response = await request(`/v1/handoffs/${revokeCanceledHandoff.handoff_id}/attach`, {
     confirmation: ATTACH_HANDOFF_CONFIRMATION,

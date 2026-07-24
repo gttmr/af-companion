@@ -6,7 +6,14 @@ import { join } from "node:path";
 import test from "node:test";
 
 import type { CodexEditorCapabilities } from "../src/companion/types.ts";
-import { TEST_SOURCE_REVISION, writeCompanionWorkItems } from "./companionTestFixtures.ts";
+import {
+  TEST_HANDOFF_ID,
+  TEST_MARKER_DIGEST,
+  TEST_PLAN_BODY,
+  TEST_PLAN_HASH,
+  TEST_SOURCE_REVISION,
+  writeCompanionWorkItems,
+} from "./companionTestFixtures.ts";
 import { createCodexCompanionMiddleware } from "./codexCompanionApi.ts";
 import { startCodexBridgeServer } from "./codexBridgeServer.ts";
 
@@ -148,8 +155,10 @@ test("Facade maps bounded Continue, attach, cancel, and Revoke actions to exact 
   const lease = await bridge.store.leaseProofForTesting("plan-session");
   await direct("/v1/hooks", sessionHook(root, "plan-session", lease, "plan", "plan-turn"));
   response = await facade("/handoffs", {
+    handoff_id: TEST_HANDOFF_ID, marker_digest: TEST_MARKER_DIGEST,
     workspace_id: bridge.store.workspaceId, application_id: "app-1", work_id: "work-plan", from_session_id: "plan-session", from_turn_id: "plan-turn",
-    discovery_revision: "a".repeat(64), decision_revision: "b".repeat(64), plan_body_hash: "c".repeat(64), transport_capability: "client_dependent", expires_at: "2030-01-01T00:10:00.000Z",
+    discovery_revision: "a".repeat(64), decision_revision: "b".repeat(64), plan_body_hash: TEST_PLAN_HASH, plan_body: TEST_PLAN_BODY,
+    transport_capability: "client_dependent", expires_at: "2030-01-01T00:10:00.000Z",
   });
   const handoff = await response.json();
   response = await facade(`/handoffs/${handoff.handoff_id}/continue`, {});

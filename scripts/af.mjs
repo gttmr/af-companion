@@ -70,6 +70,7 @@ const PUBLIC_HANDOFF_FIELDS = [
   "discovery_revision",
   "decision_revision",
   "plan_body_hash",
+  "marker_digest",
   "capsule_digest",
   "target_skill",
   "transport_capability",
@@ -79,6 +80,7 @@ const PUBLIC_HANDOFF_FIELDS = [
   "claimed_by_session_id",
   "claimed_by_turn_id",
   "claimed_at",
+  "target_session_id",
   "failure_code",
 ];
 

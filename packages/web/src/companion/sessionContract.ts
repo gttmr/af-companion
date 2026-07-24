@@ -154,6 +154,7 @@ export interface PlanHandoff {
   discovery_revision: string;
   decision_revision: string;
   plan_body_hash: string;
+  marker_digest: string;
   capsule_digest: string | null;
   target_skill: "af-discover-assets.materialize";
   transport_capability: HandoffTransportCapability;
