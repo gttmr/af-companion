@@ -57,13 +57,13 @@ Do not replace this with `catalog-delta.yaml`, direct Registry JSON, or Catalog 
 
 ## Session continuity evidence
 
-There is no standalone CLI command that proves an automatic fresh-session claim. Inspect the current `session_handoffs[]` record and correlated Hook/Bridge/session evidence for exact Work Item, marker/plan digest, target, expiry, claim session/turn/time, cwd, and first-prompt delivery. Use `work attach-session` only as the documented manual fallback when the user requests attachment:
+There is no standalone CLI command that proves an automatic fresh-session claim. Inspect the current `session_handoffs[]` record and correlated Hook/Bridge/session evidence for exact Work Item, marker/plan digest, target, expiry, claim session/turn/time, cwd, and first-prompt delivery. If a new explicit materialization enrollment is required, use the implemented Join path:
 
 ```bash
-node scripts/af.mjs work attach-session --session <session-id> --work-id <work-id> --role materialization --root <repo-root>
+node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization --root <repo-root>
 ```
 
-Do not run the fallback merely to make an automatic-claim test pass.
+Join is not claim proof. Do not run it merely to make an automatic-claim test pass, and do not invent the removed `work attach-session` command.
 
 ## Environment failures
 

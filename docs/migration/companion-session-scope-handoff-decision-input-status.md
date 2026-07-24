@@ -114,9 +114,9 @@ Evidence:
 | Shared contract | Parent | `agent/session-scope-handoff-decision-input` | complete | contract tests and build pass |
 | Capability research | Agent A | read-only | complete and closed | installed CLI/IDE source plus official Codex docs |
 | Enrollment/Bridge/API | Agent B | `agent/session-scope-bridge` | active | pending targeted tests |
-| Hook/Launcher/CLI | Agent C | `agent/session-scope-hook-cli` | active | pending targeted tests |
-| Decision Adapter/Skills | Agent D | `agent/decision-input-skills` | active | pending skill validation |
-| Handoff/Connections UI | Agent E | `agent/session-handoff-ui` | active | pending build/browser integration |
+| Hook/Launcher/CLI | Agent C | `agent/session-scope-hook-cli` | integrated and closed | Hook/CLI 16/16; plugin validator pass |
+| Decision Adapter/Skills | Agent D | `agent/decision-input-skills` | integrated and closed | skill validator 46/46; decision/session contract 4/4 |
+| Handoff/Connections UI | Agent E | `agent/session-handoff-ui` | integrated and closed | build + Companion tests; legacy fail-closed browser check at desktop/narrow |
 | Independent acceptance | Agent F | read-only after integration | pending | negative/security/locator review |
 
 Only targeted-test-passing commits are eligible for Parent review and

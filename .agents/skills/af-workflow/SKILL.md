@@ -39,13 +39,13 @@ Read the selected Work Skill in full before executing it.
 1. Confirm the canonical repository root plus exact `workspace_id`, `application_id`, and `work_id`; never choose the newest directory, sole pending candidate, default target, or first active session.
 2. Require current `companion_active` participation, active status, an unexpired matching lease, canonical cwd digest, and exact application/workspace/work/role attachment. An ordinary session may inspect and report, but it cannot become a lifecycle actor or create durable evidence.
 3. Validate `<artifact-root>/af-work-item.json` against the current schema and reconcile its refs with current files, Registry revision, Git state, Companion scope, and Bridge receipts.
-4. When explicit attachment is needed, name the exact session and confirm the resulting Companion state. The currently implemented fallback command may be:
+4. When a new explicit materialization enrollment is needed, name the exact application/Work Item/role and confirm the resulting Companion state. The implemented safe fallback is:
 
    ```bash
-   node scripts/af.mjs work attach-session --session <session-id> --work-id <work-id> --role <plan|materialization> [--root <path>]
+   node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization [--root <path>]
    ```
 
-   The command request is not attachment proof. Re-read the exact application/workspace/work/role state before proceeding.
+   The launch request is not activation or attachment proof. Re-read the exact session/application/workspace/work/role and current lease before proceeding. There is no current `work attach-session` CLI.
 5. Use `focus_skill` for the user's current Work Skill surface. Add `active_runs` only for enrolled lifecycle actors and preserve unrelated runs.
 6. Before Discover Phase A, verify both `role: plan` and actual Plan collaboration mode. If either cannot be confirmed, make no repository or Work Item write, explain the required enrollment/mode transition, and stop. Do not assume the agent can change modes.
 7. Discover Phase B, Compose, Scaffold, and Verify durable work require `role: materialization` in the exact scope. Default/Coding mode alone is insufficient.

@@ -1,5 +1,5 @@
 {
-  "description": "Project external Codex session and tool lifecycle metadata, and attach explicitly queued Agent Factory context to the next prompt.",
+  "description": "Invoke the workspace adapter for lifecycle events; only an exact Companion activation capsule or lease may produce Agent Factory side effects or consume scoped context.",
   "hooks": {
     "SessionStart": [
       {

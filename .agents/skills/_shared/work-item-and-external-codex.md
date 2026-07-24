@@ -129,10 +129,20 @@ The complete `work` command set currently dispatched by `scripts/af.mjs` is:
 node scripts/af.mjs work init <work-id> [--root <path>]
 node scripts/af.mjs work validate <work-id-or-path> [--root <path>]
 node scripts/af.mjs work revision <ref=path>... --registry-revision <sha256|null> [--root <path>]
-node scripts/af.mjs work attach-session --session <id> --work-id <id> --role <unassigned|plan|materialization> [--root <path>]
 ```
 
-`work init` fails if the Work Item exists. `work revision` requires repository-relative `ref=path` subjects and returns a revision object without mutating the ledger. `work attach-session` requires the current loopback Bridge endpoint. There is no current CLI subcommand for gate approval, handoff creation/claim, focus change, run change, or generic Work Item mutation; do not invent one.
+`work init` fails if the Work Item exists. `work revision` requires repository-relative `ref=path` subjects and returns a revision object without mutating the ledger. There is no current `work attach-session` command or CLI subcommand for gate approval, handoff creation/claim, focus change, run change, or generic Work Item mutation; do not invent one.
+
+The separate explicit Companion command set is:
+
+```bash
+node scripts/af.mjs companion start --application <id> --work <id> --role <plan|materialization> [--root <path>]
+node scripts/af.mjs companion join --application <id> --work <id> --role <plan|materialization> [--root <path>]
+node scripts/af.mjs companion continue --handoff <id> [--root <path>]
+node scripts/af.mjs companion reset --confirm [--root <path>]
+```
+
+Start/Join intent is not participation proof. Re-read the activated session, current lease, and exact scope before lifecycle work.
 
 ## Verification
 

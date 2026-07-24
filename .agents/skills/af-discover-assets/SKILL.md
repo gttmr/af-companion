@@ -124,13 +124,13 @@ These four keys identify the portable Plan-to-materialization request. Work Item
 
 The marker is a claim request, not proof of attachment. Built-in fresh-context carriage is `unverified` by default. Use Companion Continue, then Copy Capsule, then exact confirmed attach. Automatic continuation is valid only when a fresh session's first prompt claims the explicitly identified handoff and the observed session/turn, application/workspace/work, Plan hash, target, expiry, and revisions match. A fork, resumed Plan session, Bridge health, one pending candidate, or a marker pasted into an unrelated cwd is not a fresh-session claim.
 
-When the fallback sequence reaches exact confirmed attach after Companion Continue and Copy Capsule are unavailable, request attachment for the explicitly identified session with the actual command:
+When Companion Continue and Copy Capsule are unavailable or stripped, launch one new explicitly scoped materialization session with the implemented safe command:
 
 ```bash
-node scripts/af.mjs work attach-session --session <session-id> --work-id <work-id> --role materialization [--root PATH]
+node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization [--root PATH]
 ```
 
-Manual attachment never selects the first active session and does not by itself prove Plan/revision identity. Confirm the exact resulting application/workspace/work/materialization scope; Phase B must still verify the complete Decision Plan and exact revisions.
+Join never selects the first active session and does not by itself prove Plan/revision identity or claim the handoff. Confirm the newly activated exact session/application/workspace/work/materialization scope and provide the complete Decision Plan plus revisions in that session. There is no current `work attach-session` CLI.
 
 ## Phase B — Default-mode materialization
 

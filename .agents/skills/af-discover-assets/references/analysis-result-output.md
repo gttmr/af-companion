@@ -78,13 +78,13 @@ An automatic claim is accepted only when an explicitly identified handoff and al
 - a distinct fresh session and its first claiming turn;
 - unexpired, non-superseded, not-previously-claimed status.
 
-Built-in fresh-context carriage is `unverified` without current first-prompt proof. Use Companion Continue, then Copy Capsule, then exact confirmed attachment. The final fallback may use:
+Built-in fresh-context carriage is `unverified` without current first-prompt proof. Use Companion Continue, then Copy Capsule, then a new exact-scope Join. The implemented final fallback is:
 
 ```bash
-node scripts/af.mjs work attach-session --session <session-id> --work-id <work-id> --role materialization [--root PATH]
+node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization [--root PATH]
 ```
 
-This command requests attachment only for the named session and role. Confirm the resulting exact application/workspace/work state. It does not guess a session, claim a handoff, or replace revision/Plan verification. The user must provide the complete Decision Plan and marker in the attached session when automatic claim context is absent.
+This command launches a new enrollment for the named application/work/role. Confirm the resulting exact session/application/workspace/work state. It does not guess a session, claim a handoff, or replace revision/Plan verification. The user must provide the complete Decision Plan and Capsule in the new session when automatic claim context is absent.
 
 ## Phase B preflight
 

@@ -49,6 +49,6 @@ cd packages/web && npm run test:companion
 cd packages/web && npm run build
 ```
 
-Visible UI changes additionally require a fixed-port browser check and screenshot. A VS Code launch receipt proves only that the editor command was accepted; a fresh Hook-observed prompt and state receipt are still required before claiming a Codex session is connected.
+Visible UI changes additionally require a fixed-port browser check and screenshot. A VS Code launch receipt proves only that the editor command was accepted; a fresh eligible Hook prompt plus current lease/session receipt are still required before claiming a Companion session is connected.
 
 Strict suppression of the Hook process itself and automatic built-in fresh-context Capsule transport are not claimed. The supported safety boundary is zero Agent Factory side effect for an unmanaged invocation plus explicit Companion Continue when transport is unavailable or unverified.
