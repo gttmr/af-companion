@@ -57,6 +57,26 @@ test("projects Work Items, Git changes, diffs, and metadata-only filesystem acti
   await writeFile(join(repoRoot, "packages", "sample", "secret.ts"), "do-not-persist-this-content\n", "utf8");
   await activityPromise;
 
+  const codexActivityPromise = new Promise<void>((resolveActivity, rejectActivity) => {
+    const timer = setTimeout(() => rejectActivity(new Error("Companion v2 activity timeout")), 5_000);
+    const unsubscribe = projection.subscribe((event) => {
+      if (event.activity?.kind === "codex") {
+        clearTimeout(timer);
+        unsubscribe();
+        assert.equal(event.activity.action, "Bash · tool_start");
+        assert.equal(event.activity.path, null);
+        resolveActivity();
+      }
+    });
+  });
+  const bridgeStateDir = join(repoRoot, ".agent-factory", "codex-bridge", "v2");
+  await mkdir(bridgeStateDir, { recursive: true });
+  await writeFile(join(bridgeStateDir, "state.json"), `${JSON.stringify({
+    schema_version: 2,
+    activities: [{ event: "tool_start", tool_name: "Bash" }],
+  })}\n`, "utf8");
+  await codexActivityPromise;
+
   await assert.rejects(
     projection.diff("../outside"),
     (error: unknown) => error instanceof WorkspaceProjectionError && error.code === "path_outside_workspace",
