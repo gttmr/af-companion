@@ -1,6 +1,6 @@
 # Phase B Spike 보고: MCP vs Hook vs Hybrid
 
-상태: **Phase B 완료, Phase C 미착수**
+상태: **Phase B 완료, post-report VS Code evidence 반영**
 
 실행일: 2026-07-27 (KST)
 
@@ -30,8 +30,9 @@ Google AI Studio API key는 기존 runtime environment에서 프로세스 환경
 임시 root에 key literal이 없음을 검색했고, Codex 인증을 위해 만들었던 임시
 `auth.json` symlink도 측정 직후 제거했다.
 
-VS Code 수동 probe가 남아 있어 `/tmp/af-phase-b-spike`는 그 한 번의 확인 전까지만
-유지한다. 확인 후 전체 root를 삭제하는 것이 경계다.
+VS Code 수동 probe는 보고서 작성 후 완료됐다. `/tmp/af-phase-b-spike`의 임시
+prototype, config, clone, audit, log는 probe evidence일 뿐 retain 또는 merge 대상이
+아니다. Phase C 문서 작업은 이 root를 production source로 승격하거나 추적하지 않는다.
 
 ## Experiment matrix
 
@@ -62,8 +63,10 @@ evidence를 사용했다. B/C의 Tool schema와 C의 최소 Hook pointer만 조�
   `claimed_by_session_id=null`; spike에서 claim하지 않음
 - Codex CLI: `0.145.0`
 - Codex connection-only model: `gpt-5.6-sol`
-- VS Code: `1.130.0`; Remote-WSL extension
+- VS Code: `1.130.0`; Remote-WSL `Ubuntu-24.04`; probe extension host
   `openai.chatgpt@26.715.61943`
+- Extension의 Codex app-server와 `agent_factory_phase_b` MCP stdio server는 모두
+  WSL process로 실행됨
 - Model experiment: Google AI Studio API key +
   `google-genai==2.14.0`, requested and every response에서 observed
   `gemini-2.5-flash`
@@ -185,6 +188,31 @@ Hybrid는 Tool 선택률이나 end-to-end 유효 record 비율을 MCP-only보다
 않았다. 대신 MCP가 자체 제공하지 않는 Codex session/turn과 selection provenance를
 최소 payload로 보존했다.
 
+### Post-report VS Code Remote-WSL probe
+
+보고서 작성 후 실제 VS Code Codex turn을 한 번 실행했다.
+
+- Screenshot: `/mnt/c/Users/ilmas/OneDrive/사진/Screenshots/스크린샷 2026-07-27 021150.png`
+- 사용자 prompt는 `agent_factory_phase_b.af_get_context`를
+  `task=ocr_asset_disposition`으로 정확히 한 번 호출하도록 요청함
+- 사용자가 MCP Tool 실행을 승인했고, Extension log는
+  `mcpServer/elicitation/request` 응답의 `persist=always`를 기록함
+- Codex가 실제 `af_get_context`를 호출했고 화면 응답은
+  `phase-b-context-r2`였음
+- `/tmp/af-phase-b-spike/audit/codex-hybrid.jsonl`의 대응 record는
+  `at=2026-07-26T17:08:10.521791+00:00`, `condition=hybrid`,
+  `outcome=success`, `duration_ms=4.149`,
+  `workspace=/tmp/af-phase-b-spike/app-hybrid`임
+- 같은 prompt 시각 이후
+  `/tmp/af-phase-b-spike/audit/minimal-hook.jsonl`의 새
+  `UserPromptSubmit` record는 0건임
+
+따라서 이 probe는 VS Code Remote-WSL의 project-scoped MCP, MCP approval UX,
+app-server와 MCP server의 WSL 실행을 **verified**로 올린다. Minimal Hook은
+**unverified/not observed**이고, VS Code 전체 Hybrid는 **partial**이다. 기존 CLI
+Hybrid의 session/turn/selection evidence는 계속 **verified**지만 VS Code까지
+일반화하지 않는다.
+
 ## Comparison
 
 토큰 수는 각 run에서 Google AI Studio가 반환한 usage다. “max prompt”는 multi-step
@@ -208,7 +236,7 @@ Tool loop 중 가장 큰 prompt token count의 5-run median이고, “cumulative
 | Cumulative total tokens | `1,968` | `5,444` | `7,813` |
 | Local Tool time/run median | `0ms` | `21.439ms` | `25.157ms` |
 | Cold-start user gates observed | 0, but nonfunctional | workspace trust + MCP approval: 2 | workspace trust + Hook trust + MCP approval: 3 |
-| VS Code Remote-WSL | unverified | unverified | unverified |
+| VS Code Remote-WSL | Current Hook 미검증 | project-scoped MCP·approval·WSL 실행 verified | MCP leg verified, Minimal Hook 미관찰; 전체 partial |
 
 Latency는 `n=5`이고 각 MCP arm에 16–17초 outlier가 하나씩 있어 순위보다 범위를
 같이 봐야 한다. Local Tool 실행은 수십 ms뿐이어서 지연 대부분은 model round-trip과
@@ -247,21 +275,20 @@ Codex CLI:
 
 VS Code Remote-WSL:
 
-- Extension 설치는 확인했지만 `code --status`상 실행 중인 VS Code window가 없었고,
-  이 실행 환경에는 Extension chat을 조작할 수단이 없었음
-- Codex 문서는 CLI와 IDE가 같은 config 계층을 사용한다고 설명하지만, contract
-  또는 설치 사실만으로 MCP/Hook 연결 성공을 선언하지 않음
-- 따라서 **unverified**로 남김
+- VS Code `1.130.0`, Remote-WSL `Ubuntu-24.04`, 실제 probe extension
+  `openai.chatgpt@26.715.61943`에서 실행
+- Extension의 Codex app-server와 project MCP server가 WSL에서 실행됨
+- app-hybrid project config의 `agent_factory_phase_b`가 노출되고 실제
+  `af_get_context(task=ocr_asset_disposition)` 호출까지 완료됨
+- 사용자의 MCP approval과 Extension log의 `persist=always`가 확인됨
+- Tool event, temp audit, 화면의 `phase-b-context-r2`가 같은 probe를 지지함
+- 같은 prompt에 대응하는 Minimal Hook `UserPromptSubmit` audit는 없음
+- 따라서 project-scoped MCP와 approval UX는 **verified**, Minimal Hook은
+  **unverified/not observed**, 전체 Hybrid는 **partial**임
 
-남은 수동 조작은 하나다: VS Code Remote-WSL에서
-`/tmp/af-phase-b-spike/app-hybrid`를 열어 trust 요청을 승인한 뒤 새 Codex chat에
-다음 prompt를 한 번 제출한다.
-
-> Call `agent_factory_phase_b.af_get_context` exactly once with
-> `task=ocr_asset_disposition`. Return only `context_revision`.
-
-MCP Tool event와 `phase-b-context-r2` 응답, 그리고 최소 Hook audit의 같은 turn
-기록이 함께 보일 때만 VS Code Hybrid를 verified로 바꿀 수 있다.
+VS Code에서 unrelated-repository non-exposure까지 반복한 것은 아니다. 그 negative
+scope evidence는 CLI probe가 소유하며, VS Code의 positive claim은 app-hybrid에서
+project config가 로드되고 MCP Tool이 실행된 범위로 제한한다.
 
 관련 Codex 계약 문서:
 
@@ -319,7 +346,8 @@ cryptographic/session-bound proof가 아니다. 이 한계를 숨기지 않는�
    수 있다는 가정: deep-copy가 asyncio Future에서 실패해 문서화된 dict config를 사용.
 7. Gemini CLI에서 요청한 model label이 그대로 실행된다는 가정: smoke가 다른 model로
    remap되어 direct AI Studio SDK로 교체하고 해당 smoke를 제외.
-8. CLI 성공이 VS Code 성공을 대신한다는 가정: 실제 Extension turn이 없어 unverified.
+8. CLI 성공이 VS Code 성공을 대신한다는 가정: post-report Extension turn은 MCP
+   leg만 확인했다. Minimal Hook event가 관찰되지 않아 전체 Hybrid는 여전히 partial.
 
 ## Recommendation
 
@@ -333,23 +361,25 @@ cryptographic/session-bound proof가 아니다. 이 한계를 숨기지 않는�
 - 그러나 MCP-only는 Codex session/turn을 제공하지 않는다.
 - Hybrid는 상세 evidence를 MCP에 남기면서 Hook을 224-char session/selection pointer로
   제한했고, actual Codex session/turn과 selection preservation을 증명했다.
+- 다만 그 Hybrid 증거는 CLI에 한정된다. post-report VS Code probe는 MCP와 approval은
+  확인했지만 Minimal Hook을 관찰하지 못했다.
 - Hybrid의 18% median latency, 44% cumulative token overhead와 Hook trust gate는
   명확한 비용이다. Session provenance가 필요 없다고 Phase C에서 판단하면 MCP-only가
   더 경제적인 fallback이다.
 
-이 추천으로 Architecture Decision을 확정하지 않는다. VS Code 수동 probe와 enum/domain
-failure 계약은 Phase C에서 구조를 결정하기 전의 명시적 미확인/리스크다. 이 보고서
-작성 후 Phase B를 중단하며 Phase C 또는 Production Integration으로 자동 진행하지
-않는다.
+이 추천으로 Architecture Decision을 확정하지 않는다. 특히 VS Code Minimal Hook
+미관찰과 enum/domain failure 계약은 Phase C가 독립적으로 판단할 리스크다. Phase B는
+Production Integration을 승인하지 않는다. 최종 선택과 지원 경계는
+[Phase C Architecture Decision](mcp-hook-hybrid-architecture-decision.md)이 소유한다.
 
 ## Prototype files to discard
 
-수동 VS Code probe가 끝나면 다음 하나의 root를 통째로 삭제한다.
+완료된 VS Code probe를 포함한 다음 root 전체가 discard 단위다.
 
 ```text
 /tmp/af-phase-b-spike
 ```
 
 그 안의 임시 server, model harness, Hook, cloned apps, project configs, audit/evidence,
-state, debug files 어느 것도 merge 대상이 아니다. Phase A generated app과 완료된
-Work Item ledger에는 변경이 없다.
+state, debug files 어느 것도 merge 대상이 아니다. Phase C는 이 root를 삭제·복사·승격
+하지 않으며, Phase A generated app과 완료된 Work Item ledger를 변경하지 않는다.
