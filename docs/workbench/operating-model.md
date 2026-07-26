@@ -50,6 +50,7 @@ artifacts/af/<work-id>/
 `af-work-item.json` with `schema_version: 2` is the lifecycle source of truth. It stores:
 
 - primary `work_id`, monotonically increasing `ledger_revision`, and UI/routing `focus_skill`;
+- `normalizedRequirement.id` and downstream `source_requirement_id` values equal that primary `work_id` and use the same lowercase identifier grammar;
 - zero or more `active_runs`, including session and role, rather than overloading focus as execution state;
 - four Work Skill states with input/output revisions, output refs/roots, blockers, and timestamps;
 - content-addressed revisions for requirement, decisions, Asset decisions, discovery, Registry snapshot, Graph, Root Executable, runtime contracts, composition, scaffold, and verification;

@@ -24,6 +24,7 @@ test("schema, root validator registry, and web analyzer agree on strict enums an
   const candidate = schema("asset-candidate.schema.json");
   const graph = schema("graph.schema.json");
   const normalized = schema("normalized-requirement.schema.json");
+  const workItem = schema("af-work-item.schema.json");
   const enumAgreements = [
     ["assetTypes", rootEnums.assetTypes, candidate.properties.asset_type.enum],
     ["domainScopes", rootEnums.domainScopes, candidate.properties.domain_scope.enum],
@@ -48,6 +49,7 @@ test("schema, root validator registry, and web analyzer agree on strict enums an
   assert.deepEqual(tsConstArray(webValidatorSource, "TOP_LEVEL_KEYS"), analysis.required);
   assert.deepEqual(tsConstArray(webValidatorSource, "REQUIRED_CANDIDATE_KEYS"), candidate.required);
   assert.deepEqual(tsConstArray(webValidatorSource, "NORMALIZED_REQUIREMENT_KEYS"), normalized.required);
+  assert.equal(normalized.properties.id.pattern, workItem.$defs.workId.pattern, "normalized requirement/work ID grammar");
   assert.deepEqual(tsConstArray(webValidatorSource, "EVIDENCE_KEYS"), Object.keys(analysis.$defs.evidence.properties));
   assert.deepEqual(analysis.$defs.evidence.required, tsConstArray(webValidatorSource, "EVIDENCE_KEYS").filter((key) => key !== "accepted_missing_information"));
   assert.deepEqual(inlineRequiredKeys(webValidatorSource, "validateGraph"), graph.required);
@@ -136,6 +138,26 @@ test("validator validates normalized-requirement.json when present", () => {
     writeJson(join(root, "analysis-result.json"), analysis);
     writeJson(join(root, "normalized-requirement.json"), normalized);
     assert.match(fail(root), /normalized-requirement\.json\.raw_text is required/);
+  });
+});
+
+test("validator accepts a matching Work Item and normalized requirement ID without a req prefix", () => {
+  withRoot((root, analysis) => {
+    const workId = "product-truth-vertical-slice";
+    analysis.normalizedRequirement.id = workId;
+    analysis.assetCandidates.forEach((asset) => { asset.source_requirement_id = workId; });
+    analysis.graph.source_requirement_id = workId;
+
+    const manifest = completedScaffoldWorkItem(analysis);
+    manifest.work_id = workId;
+    manifest.artifact_root = `artifacts/af/${workId}`;
+
+    writeJson(join(root, "analysis-result.json"), analysis);
+    mkdirSync(join(root, "runtime-stub"));
+    writeFileSync(join(root, "runtime-stub", "agent.py"), "# generated runtime\n");
+    writeJson(join(root, "af-work-item.json"), manifest);
+
+    assert.match(run(root), /Artifact validation OK/);
   });
 });
 
