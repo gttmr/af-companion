@@ -10,6 +10,12 @@
 
 ---
 
+## 2026-07-27 · PR pending — 외부 Application 통합 채널을 project-scoped MCP 중심으로 결정
+
+- **결정**: 외부 Application Workspace에서 Agent Factory의 상세 context, Asset, Handbook evidence를 제공하는 Target 통합 채널은 project-scoped MCP를 중심으로 둔다. Minimal Hook은 공통 baseline에서 제외하고, canonical Work Item Decision write는 provenance와 enum/domain validation 후속 조건이 충족되기 전까지 현행 Work Skill 소유로 유지한다. 기존 exact Session, scoped next-prompt delivery, Companion Continue Hook 계약은 제거하거나 변경하지 않는다.
+- **배경**: Phase B에서 MCP-only와 Minimal Hook + MCP Hybrid는 모두 Tool 선택 5/5, valid temporary decision record 4/5였지만 Hybrid는 median latency가 약 18%, cumulative token이 약 44% 높았다. MCP는 Codex CLI와 VS Code Remote-WSL에서 실제 project-scoped call과 approval이 확인된 반면, VS Code Minimal Hook은 같은 prompt에서 관찰되지 않아 전체 Hybrid는 partial이었다. Current Hook은 외부 app에서 0-byte no-op였고 Tool 없는 arm은 5회 중 4회 fabricated provenance를 생성했다.
+- **영향**: 이 항목은 docs-only Phase C 결정이며 Production Integration이나 Phase D를 승인하지 않는다. 향후 production 작업은 project trust와 MCP approval을 명시적 gate로 유지하고 Tool-call success와 valid domain side effect를 분리해야 한다. MCP 자체가 제공하지 않는 `session_id`/`turn_id`를 추측하지 않으며, Native Windows와 Direct Turn/Steering은 계속 제외한다. 세부 fallback, 지원 환경, 재검토 조건은 [MCP 중심 External Application 통합 Architecture Decision](migration/mcp-hook-hybrid-architecture-decision.md)이 소유한다.
+
 ## 2026-07-27 · PR pending — Scaffold 완료 조건을 선언된 output root에 결합
 
 - **결정**: `af-scaffold-runtime` 완료 여부는 artifact-local `runtime-stub/`의 존재가 아니라 Work Item에 선언된 모든 `output_roots`가 비어 있지 않은지로 검증한다. 상대 경로는 Work Item artifact root에서 해석하고, 절대 경로는 승인된 외부 application workspace 경계로 유지한다.
