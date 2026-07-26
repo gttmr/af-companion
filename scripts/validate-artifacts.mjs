@@ -88,8 +88,16 @@ function validateWorkItem(manifest, label, path) {
   if (manifest.review_gates?.composition?.status === "approved" && compose?.status !== "complete") {
     push(`${label}.review_gates.composition approval requires af-compose-solution complete.`);
   }
-  if (scaffold?.status === "complete" && !containsRegularFile(join(dirname(path), "runtime-stub"))) {
-    push(`${label}.skills.af-scaffold-runtime complete requires a non-empty runtime-stub directory.`);
+  if (scaffold?.status === "complete") {
+    const outputRoots = Array.isArray(scaffold.output_roots) ? scaffold.output_roots : [];
+    if (!outputRoots.length) {
+      push(`${label}.skills.af-scaffold-runtime complete requires at least one declared output root.`);
+    }
+    for (const outputRoot of outputRoots) {
+      if (!containsRegularFile(resolve(dirname(path), outputRoot))) {
+        push(`${label}.skills.af-scaffold-runtime.output_roots ${outputRoot} must reference a non-empty output root.`);
+      }
+    }
   }
   if (manifest.verification?.outcome === "passed" && verify?.status !== "complete") {
     push(`${label}.verification.outcome passed requires af-verify-runtime complete.`);

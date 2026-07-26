@@ -478,17 +478,20 @@ test("validator requires every Agent A2A binding or exposure ref to resolve to a
   });
 });
 
-test("validator requires a non-empty runtime stub when Scaffold is complete", () => {
+test("validator requires each declared Scaffold output root to be non-empty", () => {
   withRoot((root, analysis) => {
+    const manifest = completedScaffoldWorkItem(analysis);
+    manifest.skills["af-scaffold-runtime"].output_roots = [];
+    manifest.generated_output_roots = [];
     writeJson(join(root, "analysis-result.json"), analysis);
-    writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(analysis));
-    assert.match(fail(root), /af-scaffold-runtime complete requires a non-empty runtime-stub/);
+    writeJson(join(root, "af-work-item.json"), manifest);
+    assert.match(fail(root), /af-scaffold-runtime complete requires at least one declared output root/);
   });
   withRoot((root, analysis) => {
     writeJson(join(root, "analysis-result.json"), analysis);
     mkdirSync(join(root, "runtime-stub"));
     writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(analysis));
-    assert.match(fail(root), /af-scaffold-runtime complete requires a non-empty runtime-stub/);
+    assert.match(fail(root), /output_roots runtime-stub must reference a non-empty output root/);
   });
   withRoot((root, analysis) => {
     writeJson(join(root, "analysis-result.json"), analysis);
@@ -497,6 +500,35 @@ test("validator requires a non-empty runtime stub when Scaffold is complete", ()
     writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(analysis));
     assert.match(run(root), /Artifact validation OK/);
   });
+});
+
+test("validator accepts a non-empty external Scaffold output root", () => {
+  const externalRoot = mkdtempSync(join(tmpdir(), "af-validator-output-"));
+  try {
+    withRoot((root, analysis) => {
+      const manifest = completedScaffoldWorkItem(analysis);
+      const source = "# generated external runtime\n";
+      const scaffoldRevision = revision(
+        [{ ref: "agent.py", content: source }],
+        manifest.revisions.catalog_snapshot.registry_revision
+      );
+      manifest.revisions.scaffold = scaffoldRevision;
+      manifest.skills["af-scaffold-runtime"].output_revision = scaffoldRevision;
+      manifest.skills["af-scaffold-runtime"].output_refs = ["agent.py"];
+      manifest.skills["af-scaffold-runtime"].output_roots = [externalRoot];
+      manifest.generated_output_roots = [externalRoot];
+      manifest.artifact_refs = ["analysis-result.json", "agent.py"];
+
+      writeJson(join(root, "analysis-result.json"), analysis);
+      writeJson(join(root, "af-work-item.json"), manifest);
+      assert.match(fail(root), /must reference a non-empty output root/);
+
+      writeFileSync(join(externalRoot, "agent.py"), source);
+      assert.match(run(root), /Artifact validation OK/);
+    });
+  } finally {
+    rmSync(externalRoot, { recursive: true, force: true });
+  }
 });
 
 test("validator rejects scaffold plans that drift from approved Target assets", () => {

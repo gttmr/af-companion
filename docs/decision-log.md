@@ -10,6 +10,12 @@
 
 ---
 
+## 2026-07-27 · PR pending — Scaffold 완료 조건을 선언된 output root에 결합
+
+- **결정**: `af-scaffold-runtime` 완료 여부는 artifact-local `runtime-stub/`의 존재가 아니라 Work Item에 선언된 모든 `output_roots`가 비어 있지 않은지로 검증한다. 상대 경로는 Work Item artifact root에서 해석하고, 절대 경로는 승인된 외부 application workspace 경계로 유지한다.
+- **배경**: Scaffold 계약은 명시적인 외부 output root를 지원하지만 root validator는 항상 `runtime-stub/`만 검사했다. 그 결과 별도 Git workspace에 정상 생성·실행·평가된 ADK application도 Scaffold complete로 기록할 수 없었다.
+- **영향**: artifact-local handoff는 기존처럼 해당 root의 파일 존재를 요구한다. 외부 application은 artifact tree에 소스를 복제하지 않아도 되며, compile·import·test·runtime 증거는 계속 그 외부 workspace에서 수집한다. Registry, Graph IR, 생성기 lowering 계약은 변경하지 않는다.
+
 ## 2026-07-26 · PR pending — Compose aggregate 변경과 Discovery 승인 수명 분리
 
 - **결정**: 정상 Compose가 `analysis-result.json`의 Graph·Runtime Contract를 갱신해도 승인된 Discovery gate는 유지한다. Discovery `artifact_etag`는 승인 시점의 bound `discovery_revision` 안 `analysis-result.json` subject를 계속 식별하고, 현재 aggregate bytes는 `revisions.composition`과 Composition review ETag가 소유한다. 현재 파일은 composition revision이 존재하면 그 subject에, 없으면 discovery revision subject에 일치해야 한다.

@@ -126,6 +126,8 @@ Enrollment activation rechecks the exact Work Item ETag captured when its ticket
 
 Scaffold consumes current approved revisions, resolved required decisions, an explicit Root Executable, an approved scaffold plan with `raw_requirement_to_code=false`, and explicit output roots.
 
+Scaffold may write to an artifact-local handoff tree or an explicitly declared external application workspace. Completion requires every declared output root to resolve to a non-empty source or handoff tree; relative roots resolve from the Work Item artifact root, while absolute roots preserve the reviewed external workspace boundary. `runtime-stub/` is one possible output root, not a universal completion requirement.
+
 - `smoke` creates importable review structure and explicit TODO seams.
 - `runnable` adds only reviewed synthetic/local behavior for agreed scenarios.
 
