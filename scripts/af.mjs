@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { readFile, realpath, stat, writeFile, mkdir } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { lstat, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import {
@@ -34,10 +35,54 @@ const SIDE_EFFECT_CLASSES = ["none", "read_only", "write", "external_action"];
 const DOMAIN_SCOPES = ["domain_specific", "cross_domain", "domain_neutral"];
 const BINDING_KINDS = ["function", "mcp", "built_in", "a2a", "unresolved", "none"];
 const EXPOSURE_PROTOCOLS = ["a2a", "none"];
-const SESSION_ROLES = ["unassigned", "plan", "materialization"];
+const COMPANION_ROLES = ["plan", "materialization"];
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const WORK_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
-const ENDPOINT_PATH = ".agent-factory/codex-bridge/v1/endpoint.json";
+const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const COMPANION_CONTRACT_VERSION = 2;
+const ENDPOINT_PATH = ".agent-factory/codex-bridge/v2/endpoint.json";
+const ENROLLMENT_START = "[AF_COMPANION_ENROLLMENT_V2]";
+const ENROLLMENT_END = "[/AF_COMPANION_ENROLLMENT_V2]";
+const HANDOFF_START = "[AF_COMPANION_HANDOFF_V2]";
+const HANDOFF_END = "[/AF_COMPANION_HANDOFF_V2]";
+const PUBLIC_TICKET_FIELDS = [
+  "ticket_id",
+  "workspace_eligibility",
+  "workspace_id",
+  "application_id",
+  "work_id",
+  "requested_role",
+  "activation_origin",
+  "canonical_cwd_digest",
+  "issued_at",
+  "expires_at",
+  "status",
+  "claimed_by_session_id",
+  "claimed_at",
+];
+const PUBLIC_HANDOFF_FIELDS = [
+  "handoff_id",
+  "workspace_id",
+  "application_id",
+  "work_id",
+  "from_session_id",
+  "from_turn_id",
+  "discovery_revision",
+  "decision_revision",
+  "plan_body_hash",
+  "marker_digest",
+  "capsule_digest",
+  "target_skill",
+  "transport_capability",
+  "status",
+  "created_at",
+  "expires_at",
+  "claimed_by_session_id",
+  "claimed_by_turn_id",
+  "claimed_at",
+  "target_session_id",
+  "failure_code",
+];
 
 class CliError extends Error {
   constructor(code, message, exitCode, details) {
@@ -204,6 +249,38 @@ async function resolveWorkItemPath(root, value) {
   }
 }
 
+async function requireCompanionWorkItem(root, workId) {
+  const path = resolve(root, "artifacts", "af", workId, "af-work-item.json");
+  let canonicalRoot;
+  let canonicalPath;
+  let source;
+  try {
+    canonicalRoot = await realpath(root);
+    const entry = await lstat(path);
+    if (entry.isSymbolicLink() || !entry.isFile()) {
+      validation("invalid_work_item", "Companion Work Item must be a regular file inside the repository", { path });
+    }
+    canonicalPath = await realpath(path);
+    if (!isContained(canonicalRoot, canonicalPath) || !(await stat(canonicalPath)).isFile()) {
+      validation("invalid_work_item", "Companion Work Item must be a regular file inside the repository", { path });
+    }
+    source = await readFile(canonicalPath, "utf8");
+  } catch (error) {
+    if (error instanceof CliError) throw error;
+    throw fileError(error, "Companion Work Item not found", path);
+  }
+  let manifest;
+  try {
+    manifest = parseAfWorkItemManifest(source, canonicalPath);
+  } catch (error) {
+    validation("work_item_validation_failed", error instanceof Error ? error.message : "Work Item validation failed", { path: canonicalPath });
+  }
+  if (manifest.work_id !== workId || manifest.artifact_root !== `artifacts/af/${workId}`) {
+    validation("invalid_work_item", "Companion Work Item scope does not match --work", { path: canonicalPath });
+  }
+  return manifest;
+}
+
 async function workValidate(args) {
   const { options, positionals } = parseOptions(args, ROOT_OPTIONS);
   requirePositionals(positionals, 1, "work validate <work-id-or-path> [--root PATH]");
@@ -286,7 +363,9 @@ async function workRevision(args) {
 
 function validatedEndpoint(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) validation("invalid_bridge_endpoint", "bridge endpoint must be an object");
-  if (value.schema_version !== 1 || typeof value.token !== "string" || value.token.length < 32) {
+  if (value.schema_version !== COMPANION_CONTRACT_VERSION
+    || typeof value.token !== "string" || value.token.length < 32
+    || typeof value.bridge_instance_id !== "string" || !value.bridge_instance_id) {
     validation("invalid_bridge_endpoint", "bridge endpoint contract is invalid");
   }
   let url;
@@ -300,7 +379,7 @@ function validatedEndpoint(value) {
     || (url.pathname !== "/" && url.pathname !== "")) {
     validation("invalid_bridge_endpoint", "bridge endpoint must be a loopback HTTP origin");
   }
-  return { url: url.origin, token: value.token };
+  return { url: url.origin, token: value.token, bridgeInstanceId: value.bridge_instance_id };
 }
 
 function redactSecret(value, secret) {
@@ -312,24 +391,15 @@ function redactSecret(value, secret) {
   return value;
 }
 
-async function workAttachSession(args) {
-  const { options, positionals } = parseOptions(args, {
-    ...ROOT_OPTIONS,
-    "--session": valueOption("session"),
-    "--work-id": valueOption("workId"),
-    "--role": valueOption("role"),
-  });
-  requirePositionals(positionals, 0, "work attach-session --session ID --work-id ID --role ROLE [--root PATH]");
-  if (!options.session) usage("--session is required");
-  if (!options.workId || !WORK_ID_PATTERN.test(options.workId)) usage("--work-id must be a valid Work Item identifier");
-  requireEnum(options.role, SESSION_ROLES, "--role");
-  if (!options.role) usage("--role is required");
-  const endpointPath = resolve(rootFrom(options), ENDPOINT_PATH);
-  const endpoint = validatedEndpoint(await readJsonFile(endpointPath, "Codex Bridge endpoint"));
-  const payload = { session_id: options.session, work_id: options.workId, role: options.role };
+async function readCompanionEndpoint(root) {
+  const endpointPath = resolve(root, ENDPOINT_PATH);
+  return validatedEndpoint(await readJsonFile(endpointPath, "Codex Bridge endpoint"));
+}
+
+async function bridgePost(endpoint, pathname, payload, fallbackMessage) {
   let response;
   try {
-    response = await fetch(`${endpoint.url}/v1/sessions/attach`, {
+    response = await fetch(`${endpoint.url}${pathname}`, {
       method: "POST",
       headers: {
         authorization: `Bearer ${endpoint.token}`,
@@ -340,7 +410,7 @@ async function workAttachSession(args) {
       signal: AbortSignal.timeout(5_000),
     });
   } catch {
-    throw new CliError("bridge_unavailable", "Codex Bridge attach request failed", EXIT.bridge);
+    throw new CliError("bridge_unavailable", fallbackMessage, EXIT.bridge);
   }
   const source = await response.text();
   let body;
@@ -353,11 +423,182 @@ async function workAttachSession(args) {
   if (!response.ok) {
     const bridgeError = safeBody?.error;
     const code = typeof bridgeError?.code === "string" ? bridgeError.code : "bridge_request_failed";
-    const message = typeof bridgeError?.message === "string" ? bridgeError.message : "Codex Bridge rejected session attachment";
+    const message = typeof bridgeError?.message === "string" ? bridgeError.message : fallbackMessage;
     const exitCode = response.status === 404 ? EXIT.notFound : response.status === 409 ? EXIT.conflict : EXIT.bridge;
     throw new CliError(code, message, exitCode, { status: response.status });
   }
-  return safeBody;
+  return body;
+}
+
+function companionScopeOptions(args, synopsis) {
+  const { options, positionals } = parseOptions(args, {
+    ...ROOT_OPTIONS,
+    "--application": valueOption("applicationId"),
+    "--work": valueOption("workId"),
+    "--role": valueOption("role"),
+  });
+  requirePositionals(positionals, 0, synopsis);
+  if (!options.applicationId || !IDENTIFIER_PATTERN.test(options.applicationId)) {
+    usage("--application must be an explicit application identifier");
+  }
+  if (!options.workId || !WORK_ID_PATTERN.test(options.workId)) {
+    usage("--work must be a valid Work Item identifier");
+  }
+  requireEnum(options.role, COMPANION_ROLES, "--role");
+  if (!options.role) usage("--role is required");
+  return { options, root: rootFrom(options) };
+}
+
+async function companionEnroll(args, mode) {
+  const synopsis = `companion ${mode} --application ID --work ID --role plan|materialization [--root PATH]`;
+  const { options, root } = companionScopeOptions(args, synopsis);
+  await requireCompanionWorkItem(root, options.workId);
+  const endpoint = await readCompanionEndpoint(root);
+  const activationOrigin = mode === "start" ? "af_cli_launch" : "explicit_join_capsule";
+  const receipt = await bridgePost(endpoint, "/v1/enrollments", {
+    application_id: options.applicationId,
+    work_id: options.workId,
+    requested_role: options.role,
+    activation_origin: activationOrigin,
+  }, "Codex Bridge enrollment request failed");
+  const validated = validatedEnrollmentReceipt(receipt, {
+    applicationId: options.applicationId,
+    workId: options.workId,
+    role: options.role,
+    activationOrigin,
+  });
+  const launch = await launchCodex(root, [], validated.activationCapsule);
+  return { launched: true, ticket: validated.ticket, command: ["codex"], exit_code: launch.exitCode };
+}
+
+async function companionContinue(args) {
+  const { options, positionals } = parseOptions(args, {
+    ...ROOT_OPTIONS,
+    "--handoff": valueOption("handoffId"),
+  });
+  requirePositionals(positionals, 0, "companion continue --handoff ID [--root PATH]");
+  if (!options.handoffId || !IDENTIFIER_PATTERN.test(options.handoffId)) {
+    usage("--handoff must be an explicit handoff identifier");
+  }
+  const root = rootFrom(options);
+  const endpoint = await readCompanionEndpoint(root);
+  const encodedHandoff = encodeURIComponent(options.handoffId);
+  const receipt = await bridgePost(
+    endpoint,
+    `/v1/handoffs/${encodedHandoff}/continue`,
+    { confirmation: "CONTINUE_COMPANION_HANDOFF" },
+    "Codex Bridge handoff continuation request failed",
+  );
+  const validated = validatedContinueReceipt(receipt, options.handoffId);
+  const launch = await launchCodex(root, validated.command.slice(1), null);
+  return {
+    launched: true,
+    handoff: validated.handoff,
+    command: ["codex", "[handoff-capsule]"],
+    exit_code: launch.exitCode,
+  };
+}
+
+async function companionReset(args) {
+  const { options, positionals } = parseOptions(args, {
+    ...ROOT_OPTIONS,
+    "--confirm": booleanOption("confirm"),
+  });
+  requirePositionals(positionals, 0, "companion reset --confirm [--root PATH]");
+  if (!options.confirm) usage("companion reset requires --confirm");
+  const endpoint = await readCompanionEndpoint(rootFrom(options));
+  const result = await bridgePost(
+    endpoint,
+    "/v1/state/reset",
+    { confirmation: "RESET_COMPANION_STATE_V2" },
+    "Codex Bridge state reset failed",
+  );
+  return redactSecret(result, endpoint.token);
+}
+
+function validatedEnrollmentReceipt(value, expected) {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || !value.ticket || typeof value.ticket !== "object" || Array.isArray(value.ticket)) {
+    validation("invalid_bridge_response", "Codex Bridge returned an invalid enrollment receipt");
+  }
+  const ticket = value.ticket;
+  if (typeof ticket.ticket_id !== "string" || !ticket.ticket_id
+    || ticket.application_id !== expected.applicationId
+    || ticket.work_id !== expected.workId
+    || ticket.requested_role !== expected.role
+    || ticket.activation_origin !== expected.activationOrigin
+    || ticket.status !== "pending") {
+    validation("invalid_bridge_response", "Codex Bridge enrollment receipt does not match the requested scope");
+  }
+  const activationCapsule = requireCapsule(value.activation_capsule, ENROLLMENT_START, ENROLLMENT_END);
+  requireCommandArray(value.command);
+  return { ticket: publicFields(ticket, PUBLIC_TICKET_FIELDS), activationCapsule };
+}
+
+function validatedContinueReceipt(value, handoffId) {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || !value.handoff || typeof value.handoff !== "object" || Array.isArray(value.handoff)
+    || value.handoff.handoff_id !== handoffId) {
+    validation("invalid_bridge_response", "Codex Bridge returned an invalid handoff receipt");
+  }
+  const capsule = requireCapsule(value.activation_capsule, HANDOFF_START, HANDOFF_END);
+  const command = requireContinueCommand(value.command, capsule);
+  return { handoff: publicFields(value.handoff, PUBLIC_HANDOFF_FIELDS), command };
+}
+
+function requireCapsule(value, start, end) {
+  if (typeof value !== "string" || value !== value.trim() || !value.startsWith(start) || !value.endsWith(end)) {
+    validation("invalid_bridge_response", "Codex Bridge returned an invalid activation capsule");
+  }
+  const body = value.slice(start.length, -end.length);
+  if (!body.trim()) {
+    validation("invalid_bridge_response", "Codex Bridge returned an invalid activation capsule");
+  }
+  return value;
+}
+
+function requireCommandArray(value) {
+  if (!Array.isArray(value) || value.length === 0 || value.some((entry) => typeof entry !== "string")) {
+    validation("invalid_bridge_response", "Codex Bridge returned an invalid Codex command");
+  }
+  return value;
+}
+
+function requireContinueCommand(value, capsule) {
+  requireCommandArray(value);
+  if (value.length !== 2 || value[0] !== "codex" || value[1] !== capsule) {
+    validation("invalid_bridge_response", "Codex Bridge command does not carry the activation capsule");
+  }
+  return value;
+}
+
+function publicFields(value, fields) {
+  return Object.fromEntries(fields.filter((field) => Object.hasOwn(value, field)).map((field) => [field, value[field]]));
+}
+
+async function launchCodex(root, args, enrollmentCapsule) {
+  const environment = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith("AF_COMPANION_")),
+  );
+  if (enrollmentCapsule !== null) environment.AF_COMPANION_ENROLLMENT = enrollmentCapsule;
+  return new Promise((resolveLaunch, rejectLaunch) => {
+    const child = spawn("codex", args, { cwd: root, env: environment, stdio: "inherit" });
+    child.once("error", () => rejectLaunch(new CliError(
+      "codex_launch_failed",
+      "unable to launch Codex",
+      EXIT.io,
+    )));
+    child.once("close", (exitCode, signal) => {
+      if (signal || exitCode !== 0) {
+        rejectLaunch(new CliError("codex_exit_failed", "Codex exited unsuccessfully", EXIT.io, {
+          exit_code: exitCode,
+          signal,
+        }));
+        return;
+      }
+      resolveLaunch({ exitCode });
+    });
+  });
 }
 
 function parseContractRequirement(value, flag) {
@@ -532,8 +773,14 @@ function dispatchWork(command, args) {
   if (command === "init") return workInit(args);
   if (command === "validate") return workValidate(args);
   if (command === "revision") return workRevision(args);
-  if (command === "attach-session") return workAttachSession(args);
   usage(`unknown work command: ${command ?? "(missing)"}`);
+}
+
+function dispatchCompanion(command, args) {
+  if (command === "start" || command === "join") return companionEnroll(args, command);
+  if (command === "continue") return companionContinue(args);
+  if (command === "reset") return companionReset(args);
+  usage(`unknown companion command: ${command ?? "(missing)"}`);
 }
 
 function dispatchAsset(command, args) {
@@ -552,7 +799,8 @@ async function dispatch(args) {
   const [group, command, ...rest] = args;
   if (group === "work") return dispatchWork(command, rest);
   if (group === "asset") return dispatchAsset(command, rest);
-  usage("expected command group: work or asset");
+  if (group === "companion") return dispatchCompanion(command, rest);
+  usage("expected command group: work, asset, or companion");
 }
 
 function normalizeError(error) {

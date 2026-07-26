@@ -246,6 +246,37 @@
         { "type": "null" }
       ]
     },
+    "selectionSource": {
+      "type": "string",
+      "enum": ["explicit_option", "delegated_recommendation"]
+    },
+    "nullableSelectionSource": {
+      "anyOf": [
+        { "$ref": "#/$defs/selectionSource" },
+        { "type": "null" }
+      ]
+    },
+    "userTextSummary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "nullableUserTextSummary": {
+      "anyOf": [
+        { "$ref": "#/$defs/userTextSummary" },
+        { "type": "null" }
+      ]
+    },
+    "decisionInputMode": {
+      "type": "string",
+      "enum": ["structured", "conversational"]
+    },
+    "nullableDecisionInputMode": {
+      "anyOf": [
+        { "$ref": "#/$defs/decisionInputMode" },
+        { "type": "null" }
+      ]
+    },
     "stringArray": {
       "type": "array",
       "items": { "$ref": "#/$defs/nonEmptyString" }
@@ -412,11 +443,13 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "decision_id", "topic", "required", "options", "recommended_option", "selected_option", "selected_by",
+        "decision_id", "decision_revision", "topic", "required", "options", "recommended_option", "recommendation_revision",
+        "selected_option", "selected_by", "selection_source", "user_text_summary", "decision_input_mode",
         "selection_reason", "evidence_refs", "catalog_refs", "session_id", "turn_id", "status", "supersedes"
       ],
       "properties": {
         "decision_id": { "$ref": "#/$defs/nonEmptyString" },
+        "decision_revision": { "$ref": "#/$defs/sha256" },
         "topic": { "$ref": "#/$defs/nonEmptyString" },
         "required": { "type": "boolean" },
         "options": {
@@ -426,6 +459,7 @@
           "items": { "$ref": "#/$defs/nonEmptyString" }
         },
         "recommended_option": { "$ref": "#/$defs/nullableString" },
+        "recommendation_revision": { "$ref": "#/$defs/nullableSha256" },
         "selected_option": { "$ref": "#/$defs/nullableString" },
         "selected_by": {
           "anyOf": [
@@ -433,6 +467,9 @@
             { "type": "null" }
           ]
         },
+        "selection_source": { "$ref": "#/$defs/nullableSelectionSource" },
+        "user_text_summary": { "$ref": "#/$defs/nullableUserTextSummary" },
+        "decision_input_mode": { "$ref": "#/$defs/nullableDecisionInputMode" },
         "selection_reason": { "$ref": "#/$defs/nullableString" },
         "evidence_refs": { "$ref": "#/$defs/stringArray" },
         "catalog_refs": { "$ref": "#/$defs/stringArray" },
@@ -448,6 +485,8 @@
             "properties": {
               "selected_option": { "type": "null" },
               "selected_by": { "type": "null" },
+              "selection_source": { "type": "null" },
+              "user_text_summary": { "type": "null" },
               "selection_reason": { "type": "null" },
               "session_id": { "type": "null" },
               "turn_id": { "type": "null" }
@@ -460,11 +499,49 @@
             "properties": {
               "selected_option": { "$ref": "#/$defs/nonEmptyString" },
               "selected_by": { "const": "user" },
+              "selection_source": { "$ref": "#/$defs/selectionSource" },
+              "user_text_summary": { "$ref": "#/$defs/userTextSummary" },
+              "decision_input_mode": { "$ref": "#/$defs/decisionInputMode" },
               "selection_reason": { "$ref": "#/$defs/nonEmptyString" },
               "session_id": { "$ref": "#/$defs/nonEmptyString" },
               "turn_id": { "$ref": "#/$defs/nonEmptyString" }
             }
           }
+        },
+        {
+          "if": { "properties": { "status": { "const": "superseded" } }, "required": ["status"] },
+          "then": {
+            "oneOf": [
+              {
+                "properties": {
+                  "selected_option": { "type": "null" },
+                  "selected_by": { "type": "null" },
+                  "selection_source": { "type": "null" },
+                  "user_text_summary": { "type": "null" },
+                  "selection_reason": { "type": "null" },
+                  "session_id": { "type": "null" },
+                  "turn_id": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "selected_option": { "$ref": "#/$defs/nonEmptyString" },
+                  "selected_by": { "const": "user" },
+                  "selection_source": { "$ref": "#/$defs/selectionSource" },
+                  "user_text_summary": { "$ref": "#/$defs/userTextSummary" },
+                  "decision_input_mode": { "$ref": "#/$defs/decisionInputMode" },
+                  "selection_reason": { "$ref": "#/$defs/nonEmptyString" },
+                  "session_id": { "$ref": "#/$defs/nonEmptyString" },
+                  "turn_id": { "$ref": "#/$defs/nonEmptyString" }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": { "properties": { "recommended_option": { "type": "null" } }, "required": ["recommended_option"] },
+          "then": { "properties": { "recommendation_revision": { "type": "null" } } },
+          "else": { "properties": { "recommendation_revision": { "$ref": "#/$defs/sha256" } } }
         }
       ]
     },
@@ -489,12 +566,14 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "asset_decision_id", "asset_ref", "asset_type", "asset_version", "required", "match_grade", "options",
-        "recommended_disposition", "selected_disposition", "selected_by", "selection_reason", "evidence_refs",
+        "asset_decision_id", "decision_revision", "asset_ref", "asset_type", "asset_version", "required", "match_grade", "options",
+        "recommended_disposition", "recommendation_revision", "selected_disposition", "selected_by", "selection_source",
+        "user_text_summary", "decision_input_mode", "selection_reason", "evidence_refs",
         "catalog_refs", "session_id", "turn_id", "status", "supersedes"
       ],
       "properties": {
         "asset_decision_id": { "$ref": "#/$defs/nonEmptyString" },
+        "decision_revision": { "$ref": "#/$defs/sha256" },
         "asset_ref": { "$ref": "#/$defs/nonEmptyString" },
         "asset_type": { "enum": ["agent", "workflow", "tool"] },
         "asset_version": {
@@ -512,6 +591,7 @@
           "items": { "$ref": "#/$defs/disposition" }
         },
         "recommended_disposition": { "$ref": "#/$defs/nullableDisposition" },
+        "recommendation_revision": { "$ref": "#/$defs/nullableSha256" },
         "selected_disposition": { "$ref": "#/$defs/nullableDisposition" },
         "selected_by": {
           "anyOf": [
@@ -519,6 +599,9 @@
             { "type": "null" }
           ]
         },
+        "selection_source": { "$ref": "#/$defs/nullableSelectionSource" },
+        "user_text_summary": { "$ref": "#/$defs/nullableUserTextSummary" },
+        "decision_input_mode": { "$ref": "#/$defs/nullableDecisionInputMode" },
         "selection_reason": { "$ref": "#/$defs/nullableString" },
         "evidence_refs": { "$ref": "#/$defs/stringArray" },
         "catalog_refs": { "$ref": "#/$defs/stringArray" },
@@ -534,6 +617,8 @@
             "properties": {
               "selected_disposition": { "type": "null" },
               "selected_by": { "type": "null" },
+              "selection_source": { "type": "null" },
+              "user_text_summary": { "type": "null" },
               "selection_reason": { "type": "null" },
               "session_id": { "type": "null" },
               "turn_id": { "type": "null" }
@@ -546,11 +631,49 @@
             "properties": {
               "selected_disposition": { "$ref": "#/$defs/disposition" },
               "selected_by": { "const": "user" },
+              "selection_source": { "$ref": "#/$defs/selectionSource" },
+              "user_text_summary": { "$ref": "#/$defs/userTextSummary" },
+              "decision_input_mode": { "$ref": "#/$defs/decisionInputMode" },
               "selection_reason": { "$ref": "#/$defs/nonEmptyString" },
               "session_id": { "$ref": "#/$defs/nonEmptyString" },
               "turn_id": { "$ref": "#/$defs/nonEmptyString" }
             }
           }
+        },
+        {
+          "if": { "properties": { "status": { "const": "superseded" } }, "required": ["status"] },
+          "then": {
+            "oneOf": [
+              {
+                "properties": {
+                  "selected_disposition": { "type": "null" },
+                  "selected_by": { "type": "null" },
+                  "selection_source": { "type": "null" },
+                  "user_text_summary": { "type": "null" },
+                  "selection_reason": { "type": "null" },
+                  "session_id": { "type": "null" },
+                  "turn_id": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "selected_disposition": { "$ref": "#/$defs/disposition" },
+                  "selected_by": { "const": "user" },
+                  "selection_source": { "$ref": "#/$defs/selectionSource" },
+                  "user_text_summary": { "$ref": "#/$defs/userTextSummary" },
+                  "decision_input_mode": { "$ref": "#/$defs/decisionInputMode" },
+                  "selection_reason": { "$ref": "#/$defs/nonEmptyString" },
+                  "session_id": { "$ref": "#/$defs/nonEmptyString" },
+                  "turn_id": { "$ref": "#/$defs/nonEmptyString" }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": { "properties": { "recommended_disposition": { "type": "null" } }, "required": ["recommended_disposition"] },
+          "then": { "properties": { "recommendation_revision": { "type": "null" } } },
+          "else": { "properties": { "recommendation_revision": { "$ref": "#/$defs/sha256" } } }
         }
       ]
     },

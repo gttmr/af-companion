@@ -8,6 +8,8 @@ Keep external Codex work reviewable in a re-entrant lifecycle: explore and decid
 
 Read this reference at the start of every canonical Work Skill, after context compaction, before a gate decision, and before any forward or backward transition.
 
+Apply [Companion Session Participation](companion-session-participation.md), [Decision Input Adapter](decision-input-adapter.md), [Fresh-context Handoff](fresh-context-handoff.md), and [Session and Work Item Provenance](session-and-work-item-provenance.md) at every session, question, handoff, and durable-write boundary.
+
 ## State graph
 
 The five canonical skill IDs remain `af-workflow` plus:
@@ -26,7 +28,7 @@ The arrows do not authorize gate skipping. The normal path still requires curren
 - `raw_requirement_to_code=false`.
 - Discover Phase A requires confirmed Plan Mode and is non-mutating: targeted exploration, Registry search, options, questions, and a Discovery Decision Plan only.
 - Discover Phase B runs in Default/Coding mode and materializes an approved Plan into canonical Work Item/artifact state.
-- Required decisions and Asset dispositions never default. A recommendation is not selected until the user explicitly accepts it; record session and turn provenance.
+- Required decisions and Asset dispositions never default. Structured and conversational paths ask exactly one question per turn and normalize to the same Decision Record semantics. A recommendation is not selected until the user explicitly accepts the displayed matching revision; record session and turn provenance.
 - Discovery identifies Agent, Workflow, and Tool candidates. It does not finalize Graph topology or runtime APIs.
 - Composition preserves the selected `solution_control_strategy`, chooses an Agent or Workflow `root_executable`, and owns Graph/runtime contracts. It does not silently revise a Discover decision.
 - Scaffolding consumes current approved composition artifacts only. Verification records observations and cannot create a prior approval.
@@ -66,10 +68,10 @@ Compose returns to Discover by recording the current composition revision, missi
 
 ## Plan and session continuity
 
-- Bind every run to one explicit repository, `work_id`, session, role, and input revision.
+- Bind every run to one explicit repository, `workspace_id`, `application_id`, `work_id`, enrolled Companion session, role, and input revision. Ordinary sessions are not lifecycle actors.
 - A Plan-to-materialization handoff targets only `af-discover-assets.materialize` and is bound to the Work Item, Plan hash, discovery revision, decision revision, marker digest, expiry, and source session/turn.
-- A fresh session may materialize only after one exact pending handoff is claimed with complete new session/turn provenance. Reject stale, expired, ambiguous, mismatched, same-session, or duplicate claims.
-- Bridge health is not delivery proof. Use current first-prompt receipts and Work Item/Bridge handoff state; otherwise require explicit manual session attachment.
+- A fresh session may materialize only after one explicitly identified exact pending handoff is claimed with complete new session/turn provenance. Reject stale, expired, ambiguous, mismatched, same-session, or duplicate claims; never infer identity from a sole pending candidate.
+- Bridge health is not delivery proof. Use current first-prompt receipts and Work Item/Bridge handoff state; otherwise follow Companion Continue, Copy Capsule, then exact confirmed attachment.
 - After compaction or resume, re-read the Work Item, current Plan/decisions, Registry revision, and selected skill before writing.
 
 ## Required evidence

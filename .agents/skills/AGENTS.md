@@ -27,6 +27,10 @@ Only these five IDs are valid. Do not add aliases, compatibility entrypoints, or
 | Truth hierarchy and Target/Current/Blocker labels | `_shared/source-of-truth.md` |
 | Re-entrant lifecycle, raw→code prohibition, review and invalidation invariants | `_shared/lifecycle-invariants.md` |
 | Work Item, external Codex ownership, session handoff, review provenance, web write boundary | `_shared/work-item-and-external-codex.md` |
+| Companion enrollment, ordinary-session exclusion, lease and exact-scope write gate | `_shared/companion-session-participation.md` |
+| Structured/conversational decision input and normalized Decision Record semantics | `_shared/decision-input-adapter.md` |
+| Canonical Plan body hashing, fresh-context carriage, claim, and fallback order | `_shared/fresh-context-handoff.md` |
+| Application/workspace/work attachment and durable session/turn provenance | `_shared/session-and-work-item-provenance.md` |
 | Asset taxonomy summary (canonical: docs/workbench/taxonomy.md) | `_shared/taxonomy.md` |
 | Graph IR summary (canonical: docs/workbench/graph-ir.md) | `_shared/graph-ir.md` |
 | Strict Target Contract v2 artifact shape | `_shared/target-contract-v2.md` |
@@ -45,7 +49,7 @@ Only these five IDs are valid. Do not add aliases, compatibility entrypoints, or
 - New canonical artifacts write only strict Target v2 fields from `_shared/target-contract-v2.md`; do not emit retired fields or accept retired artifact shapes.
 - Use `focus_skill` for the user's current surface and `active_runs` for live Plan, planning-subagent, materializer, Compose, Scaffold, and Verify actors.
 - Each executing skill updates its own state and revision evidence without erasing unrelated runs or prior cycles. Review gates change only after an explicit user/reviewer decision with current Codex session and turn provenance.
-- Required decisions never receive a model-selected default. A recommendation becomes a decision only after the user explicitly selects it, including “use the recommendation.”
+- Required decisions never receive a model-selected default. “Use the recommendation” resolves only the displayed matching recommendation revision and never resolves a hard, credential, deployment, security, or irreversible gate.
 - The workbench is a live projection with exactly two canonical write surfaces: Graph IR and the versioned Asset Registry. Lifecycle artifacts and source remain external-Codex writes.
 - Web and CLI Registry mutations use the shared Asset Registry service with the current `registry_revision`; never edit the Registry file or `catalog/*.yaml` directly.
 - A changed requirement, decision, Asset selection, Registry snapshot, Graph, root executable, runtime contract, scaffold, or verification subject must reset the owning review gate or stale downstream gates/evidence bound to the old revision.

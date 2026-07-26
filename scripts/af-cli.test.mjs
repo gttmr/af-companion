@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -38,11 +38,11 @@ function runCli(root, args) {
   };
 }
 
-function runCliAsync(root, args) {
+function runCliAsync(root, args, options = {}) {
   return new Promise((resolveResult, rejectResult) => {
     const child = spawn(process.execPath, [CLI_PATH, ...args], {
       cwd: root,
-      env: { ...process.env, NO_COLOR: "1" },
+      env: { ...process.env, NO_COLOR: "1", ...options.env },
       stdio: ["ignore", "pipe", "pipe"],
     });
     const stdout = [];
@@ -138,6 +138,36 @@ async function writeRegistry(root, assets = []) {
 async function writeJson(path, value) {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+async function fakeCodex(root) {
+  const bin = join(root, "fake-bin");
+  const executable = join(bin, "codex");
+  const capture = join(root, "codex-launches.jsonl");
+  await mkdir(bin, { recursive: true });
+  await writeFile(executable, `#!/usr/bin/env node
+const { appendFileSync } = require("node:fs");
+appendFileSync(process.env.CODEX_CAPTURE_PATH, JSON.stringify({
+  argv: process.argv.slice(2),
+  cwd: process.cwd(),
+  enrollment: process.env.AF_COMPANION_ENROLLMENT ?? null,
+  stale: process.env.AF_COMPANION_STALE ?? null,
+}) + "\\n");
+`);
+  await chmod(executable, 0o755);
+  return {
+    capture,
+    env: {
+      PATH: `${bin}:${process.env.PATH}`,
+      CODEX_CAPTURE_PATH: capture,
+      AF_COMPANION_STALE: "must-not-reach-child",
+    },
+  };
+}
+
+async function readLaunches(path) {
+  const source = await readFile(path, "utf8");
+  return source.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
 }
 
 async function repositoryFiles(root) {
@@ -363,27 +393,45 @@ test("asset mutations require explicit inputs, preserve decisions, and reject st
   assert.equal(result.output.asset.lifecycle.deprecation_decision.decision_id, "decision-deprecate-cli");
 });
 
-test("work attach-session posts the exact bridge contract without token leakage", async (t) => {
+test("companion start and join enroll exact scopes and launch fixed Codex argv with only enrollment proof", async (t) => {
   const root = await tempRepository(t);
+  const fake = await fakeCodex(root);
   const token = "bridge-secret-token-".padEnd(43, "x");
-  let received;
+  const received = [];
   const bridge = createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
-    received = {
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    received.push({
       method: request.method,
       url: request.url,
       authorization: request.headers.authorization,
       contentType: request.headers["content-type"],
-      body: JSON.parse(Buffer.concat(chunks).toString("utf8")),
-    };
-    response.statusCode = 200;
+      body,
+    });
+    const capsule = `[AF_COMPANION_ENROLLMENT_V2]ticket-${received.length}[/AF_COMPANION_ENROLLMENT_V2]`;
+    response.statusCode = 201;
     response.setHeader("content-type", "application/json");
     response.end(JSON.stringify({
-      session_id: "session-cli",
-      work_id: "work-cli",
-      role: "materialization",
-      diagnostic: token,
+      ticket: {
+        ticket_id: `ticket-${received.length}`,
+        workspace_eligibility: "factory",
+        workspace_id: "workspace-cli",
+        application_id: body.application_id,
+        work_id: body.work_id,
+        requested_role: body.requested_role,
+        activation_origin: body.activation_origin,
+        canonical_cwd_digest: "a".repeat(64),
+        issued_at: "2026-07-24T00:00:00.000Z",
+        expires_at: "2036-07-24T00:00:00.000Z",
+        status: "pending",
+        claimed_by_session_id: null,
+        claimed_at: null,
+        claim_token: "must-never-be-printed",
+        diagnostic: token,
+      },
+      activation_capsule: capsule,
+      command: ["codex"],
     }));
   });
   await new Promise((resolveListen, rejectListen) => {
@@ -393,34 +441,201 @@ test("work attach-session posts the exact bridge contract without token leakage"
   t.after(() => new Promise((resolveClose) => bridge.close(resolveClose)));
   const address = bridge.address();
   assert.notEqual(typeof address, "string");
-
-  const endpointPath = join(root, ".agent-factory", "codex-bridge", "v1", "endpoint.json");
-  await writeJson(endpointPath, {
-    schema_version: 1,
+  await writeJson(join(root, ".agent-factory", "codex-bridge", "v2", "endpoint.json"), {
+    schema_version: 2,
+    bridge_instance_id: "bridge-cli-v2",
     url: `http://127.0.0.1:${address.port}`,
     token,
-    pid: process.pid,
-    started_at: new Date().toISOString(),
+  });
+
+  let result = await runCliAsync(root, [
+    "companion", "start", "--application", "app.cli", "--work", "work-cli",
+    "--role", "plan", "--root", root,
+  ], { env: fake.env });
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /Companion Work Item not found/);
+  assert.equal(received.length, 0, "a missing Work Item must fail before contacting the Bridge");
+
+  result = runCli(root, ["work", "init", "work-cli", "--root", root]);
+  assert.equal(result.code, 0, result.stderr);
+
+  result = await runCliAsync(root, [
+    "companion", "start", "--application", "app.cli", "--work", "work-cli",
+    "--role", "plan", "--root", root,
+  ], { env: fake.env });
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.stderr, "");
+  assert.equal(result.output.ticket.ticket_id, "ticket-1");
+  assert.deepEqual(result.output.command, ["codex"]);
+
+  result = await runCliAsync(root, [
+    "companion", "join", "--application", "app.cli", "--work", "work-cli",
+    "--role", "materialization", "--root", root,
+  ], { env: fake.env });
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.output.ticket.ticket_id, "ticket-2");
+
+  assert.deepEqual(received, [
+    {
+      method: "POST",
+      url: "/v1/enrollments",
+      authorization: `Bearer ${token}`,
+      contentType: "application/json",
+      body: {
+        application_id: "app.cli",
+        work_id: "work-cli",
+        requested_role: "plan",
+        activation_origin: "af_cli_launch",
+      },
+    },
+    {
+      method: "POST",
+      url: "/v1/enrollments",
+      authorization: `Bearer ${token}`,
+      contentType: "application/json",
+      body: {
+        application_id: "app.cli",
+        work_id: "work-cli",
+        requested_role: "materialization",
+        activation_origin: "explicit_join_capsule",
+      },
+    },
+  ]);
+  assert.deepEqual(await readLaunches(fake.capture), [
+    {
+      argv: [],
+      cwd: root,
+      enrollment: "[AF_COMPANION_ENROLLMENT_V2]ticket-1[/AF_COMPANION_ENROLLMENT_V2]",
+      stale: null,
+    },
+    {
+      argv: [],
+      cwd: root,
+      enrollment: "[AF_COMPANION_ENROLLMENT_V2]ticket-2[/AF_COMPANION_ENROLLMENT_V2]",
+      stale: null,
+    },
+  ]);
+  assert.equal(result.stdout.includes(token), false);
+  assert.equal(result.stderr.includes(token), false);
+  assert.equal(result.stdout.includes("AF_COMPANION_ENROLLMENT_V2"), false);
+  assert.equal(result.stdout.includes("must-never-be-printed"), false);
+});
+
+test("companion start rejects a symbolic-link Work Item before endpoint discovery", async (t) => {
+  const root = await tempRepository(t);
+  let result = runCli(root, ["work", "init", "work-link", "--root", root]);
+  assert.equal(result.code, 0, result.stderr);
+  const workRoot = join(root, "artifacts", "af", "work-link");
+  const workItem = join(workRoot, "af-work-item.json");
+  const realWorkItem = join(workRoot, "real-af-work-item.json");
+  await rename(workItem, realWorkItem);
+  await symlink(realWorkItem, workItem);
+
+  result = runCli(root, [
+    "companion", "start", "--application", "app.cli", "--work", "work-link",
+    "--role", "plan", "--root", root,
+  ]);
+  assert.notEqual(result.code, 0);
+  assert.equal(result.error.error.code, "invalid_work_item");
+  assert.match(result.error.error.message, /regular file/);
+});
+
+test("companion continue names one handoff and launches only the Bridge-returned capsule command", async (t) => {
+  const root = await tempRepository(t);
+  const fake = await fakeCodex(root);
+  const capsule = "[AF_COMPANION_HANDOFF_V2]handoff-claim[/AF_COMPANION_HANDOFF_V2]";
+  let received;
+  const bridge = createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    received = {
+      method: request.method,
+      url: request.url,
+      body: JSON.parse(Buffer.concat(chunks).toString("utf8")),
+    };
+    response.statusCode = 200;
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({
+      handoff: { handoff_id: "handoff-cli", status: "waiting_for_fresh_session" },
+      activation_capsule: capsule,
+      command: ["codex", capsule],
+    }));
+  });
+  await new Promise((resolveListen, rejectListen) => {
+    bridge.once("error", rejectListen);
+    bridge.listen(0, "127.0.0.1", resolveListen);
+  });
+  t.after(() => new Promise((resolveClose) => bridge.close(resolveClose)));
+  const address = bridge.address();
+  assert.notEqual(typeof address, "string");
+  await writeJson(join(root, ".agent-factory", "codex-bridge", "v2", "endpoint.json"), {
+    schema_version: 2,
+    bridge_instance_id: "bridge-cli-v2",
+    url: `http://127.0.0.1:${address.port}`,
+    token: "t".repeat(43),
   });
 
   const result = await runCliAsync(root, [
-    "work", "attach-session", "--session", "session-cli", "--work-id", "work-cli",
-    "--role", "materialization", "--root", root,
-  ]);
+    "companion", "continue", "--handoff", "handoff-cli", "--root", root,
+  ], { env: fake.env });
   assert.equal(result.code, 0, result.stderr);
-  assert.equal(result.stderr, "");
   assert.deepEqual(received, {
     method: "POST",
-    url: "/v1/sessions/attach",
-    authorization: `Bearer ${token}`,
-    contentType: "application/json",
-    body: {
-      session_id: "session-cli",
-      work_id: "work-cli",
-      role: "materialization",
-    },
+    url: "/v1/handoffs/handoff-cli/continue",
+    body: { confirmation: "CONTINUE_COMPANION_HANDOFF" },
   });
-  assert.equal(result.output.diagnostic, "[redacted]");
-  assert.equal(result.stdout.includes(token), false);
-  assert.equal(result.stderr.includes(token), false);
+  assert.deepEqual(result.output.command, ["codex", "[handoff-capsule]"]);
+  assert.equal(result.stdout.includes(capsule), false);
+  assert.deepEqual(await readLaunches(fake.capture), [{
+    argv: [capsule],
+    cwd: root,
+    enrollment: null,
+    stale: null,
+  }]);
+});
+
+test("companion reset is explicit and no companion command auto-selects scope", async (t) => {
+  const root = await tempRepository(t);
+  let resetCount = 0;
+  const bridge = createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : null;
+    if (request.method === "POST" && request.url === "/v1/state/reset") {
+      assert.deepEqual(body, { confirmation: "RESET_COMPANION_STATE_V2" });
+      resetCount += 1;
+    }
+    response.statusCode = 200;
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({ reset: true, schema_version: 2 }));
+  });
+  await new Promise((resolveListen, rejectListen) => {
+    bridge.once("error", rejectListen);
+    bridge.listen(0, "127.0.0.1", resolveListen);
+  });
+  t.after(() => new Promise((resolveClose) => bridge.close(resolveClose)));
+  const address = bridge.address();
+  assert.notEqual(typeof address, "string");
+  await writeJson(join(root, ".agent-factory", "codex-bridge", "v2", "endpoint.json"), {
+    schema_version: 2,
+    bridge_instance_id: "bridge-cli-v2",
+    url: `http://127.0.0.1:${address.port}`,
+    token: "r".repeat(43),
+  });
+
+  let result = runCli(root, ["companion", "start", "--root", root]);
+  assert.equal(result.code, 2);
+  assert.match(result.error.error.message, /--application/);
+  result = runCli(root, ["companion", "continue", "--root", root]);
+  assert.equal(result.code, 2);
+  assert.match(result.error.error.message, /--handoff/);
+  result = runCli(root, ["companion", "reset", "--root", root]);
+  assert.equal(result.code, 2);
+  assert.match(result.error.error.message, /--confirm/);
+  assert.equal(resetCount, 0);
+
+  result = await runCliAsync(root, ["companion", "reset", "--confirm", "--root", root]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(result.output, { reset: true, schema_version: 2 });
+  assert.equal(resetCount, 1);
 });

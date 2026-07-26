@@ -29,10 +29,14 @@ Read these before either phase:
 1. [Source of Truth](../_shared/source-of-truth.md)
 2. [Lifecycle Invariants](../_shared/lifecycle-invariants.md)
 3. [Work Item and External Codex](../_shared/work-item-and-external-codex.md)
-4. [Taxonomy](../_shared/taxonomy.md)
-5. [Evidence and Candidate Discovery](references/evidence-and-candidate-discovery.md)
-6. [Analysis Result Output](references/analysis-result-output.md)
-7. [Target Contract v2](../_shared/target-contract-v2.md), before any JSON write
+4. [Companion Session Participation](../_shared/companion-session-participation.md)
+5. [Decision Input Adapter](../_shared/decision-input-adapter.md)
+6. [Fresh-context Handoff](../_shared/fresh-context-handoff.md)
+7. [Session and Work Item Provenance](../_shared/session-and-work-item-provenance.md)
+8. [Taxonomy](../_shared/taxonomy.md)
+9. [Evidence and Candidate Discovery](references/evidence-and-candidate-discovery.md)
+10. [Analysis Result Output](references/analysis-result-output.md)
+11. [Target Contract v2](../_shared/target-contract-v2.md), before any JSON write
 
 Read [Missing Information](../_shared/missing-information.md) when evidence or a candidate contract is incomplete. Read [Catalog and Reuse](../_shared/catalog-and-reuse.md) whenever an Asset disposition is in scope; Registry comparison is part of normal Phase A discovery.
 
@@ -40,11 +44,11 @@ Before Phase B writes, reopen `schemas/af-work-item.schema.json`, `schemas/analy
 
 ## Mode gate
 
-Determine the active Codex collaboration mode from the current mode indicator or tool context. A request containing the word “plan,” an internal task list, or the availability of planning tools is not proof of Plan Mode.
+Determine the active Codex collaboration mode from the current mode indicator or tool context, and separately verify current Companion participation plus exact application/workspace/work attachment. A request containing the word “plan,” an internal task list, or the availability of planning tools is not proof of Plan Mode or enrollment.
 
-- A raw or revised discovery request starts Phase A only when the active collaboration mode is actually Plan.
+- A raw or revised discovery request starts Phase A only when the active collaboration mode is actually Plan and the enrolled session has the exact `plan` scope.
 - If Phase A is requested outside Plan Mode, make no repository-tracked write, do not initialize a Work Item, and ask the user to enter Plan Mode. Do not assume the mode can be changed automatically.
-- Phase B runs only in Default/coding mode and only from a complete Discovery Decision Plan with an exact handoff/revision claim.
+- Phase B runs only in Default/coding mode from a complete Discovery Decision Plan, with current `companion_active` participation and exact `materialization` scope plus an exact handoff/revision claim or exact confirmed attachment.
 - If a materialization request arrives while still in Plan Mode, make no repository-tracked write and ask the user to continue in Default/coding mode.
 
 ## Phase A — Plan Conversation
@@ -84,7 +88,9 @@ Planning subagents are execution helpers; they do not imply a multi-Agent runtim
 
 ### 3. Obtain every required decision
 
-Use `request_user_input` in Plan Mode for unresolved decisions, in small groups. Present evidence, materially distinct options, trade-offs, and a recommendation when justified. A recommendation is not a selection, and no required decision has a default.
+For every unresolved decision, use [Decision Input Adapter](../_shared/decision-input-adapter.md). Detect `request_user_input` only from the tools actually callable in the current turn; never guess from version or configuration. Structured and conversational paths present the same `decision_id`, decision/recommendation revision, options, recommendation, evidence, and trade-offs, and normalize to the same Decision Record semantics.
+
+Ask exactly one interactive question per turn. The conversational fallback must emit the question, mark the turn `waiting_for_input`, stop, and perform no materialization or Compose work. Ambiguous, partial, conditional, or contradictory answers require a normalized confirmation as another one-question stopped turn. A recommendation is not a selection, and no required decision has a default or assumption.
 
 Resolve all applicable decisions with explicit user input:
 
@@ -97,11 +103,13 @@ Resolve all applicable decisions with explicit user input:
 - local versus Remote A2A boundary, when applicable;
 - side-effect, authentication, authorization, and audit choices wherever the selected capability can read protected data, write state, or cause an external action.
 
-“추천대로 진행” counts as an explicit user selection of the recommendations currently presented. Record it with `selected_by: "user"`, selection reason, current session/turn provenance, and the exact recommended options it accepted. Silence, tool timeout, model preference, and prior defaults do not count. Keep unresolved decisions open and do not complete the plan or emit a handoff marker.
+“추천대로 진행” counts only for the displayed matching decision and recommendation revision. It never resolves a hard, credential, deployment, security, or irreversible gate; require an explicit named option and consequence confirmation for those. Record a valid resolution with `selected_by: "user"`, selection reason, current enrolled session/turn provenance, and the exact recommended option it accepted. Silence, tool timeout, model preference, and prior defaults do not count. Keep unresolved decisions open and do not complete the plan or emit a handoff marker.
 
 ### 4. Produce the Discovery Decision Plan
 
-After every required decision is resolved, return the in-conversation **Discovery Decision Plan** defined in [Analysis Result Output](references/analysis-result-output.md). It must include evidence, Registry search results, selected and rejected alternatives, exact Asset dispositions, Resources/Dependencies, user provenance, Compose handoff constraints, and Work Item/revision/handoff metadata. It is a decision plan, not a code-change plan.
+After every required decision is resolved, return the in-conversation **Discovery Decision Plan** defined in [Analysis Result Output](references/analysis-result-output.md). It must include evidence, Registry search results, selected and rejected alternatives, exact Asset dispositions, Resources/Dependencies, open/resolved decision refs and recommendation revisions, user provenance, Compose handoff constraints, and exact application/workspace/work/revision/target/expiry metadata. It is a decision plan, not a code-change plan.
+
+Canonicalize and hash only the Plan body as specified by [Fresh-context Handoff](../_shared/fresh-context-handoff.md). Exclude the Companion capsule from the Plan body; keep its digest separate. The Companion `plan_body_hash` and Work Item `plan_hash` identify the same canonical bytes.
 
 End the plan with this exact portable marker shape:
 
@@ -114,15 +122,15 @@ AF_TARGET=materialize-discovery
 
 These four keys identify the portable Plan-to-materialization request. Work Item v2 separately serializes `session_handoffs[].target_skill` as `"af-discover-assets.materialize"`; do not copy the portable `AF_TARGET` value into that schema field. If Companion creates a larger signed claim marker, preserve that returned marker byte-for-byte alongside the portable marker; do not reconstruct claim tokens or internal fields.
 
-The marker is a claim request, not proof of attachment. Automatic continuation is valid only when a fresh session's first prompt claims the exact pending handoff and the observed session/turn, plan hash, Work Item, and revisions match. A fork, resumed Plan session, bridge health, or a marker pasted into an unrelated cwd is not a fresh-session claim.
+The marker is a claim request, not proof of attachment. Built-in fresh-context carriage is `unverified` by default. Use Companion Continue, then Copy Capsule, then exact confirmed attach. Automatic continuation is valid only when a fresh session's first prompt claims the explicitly identified handoff and the observed session/turn, application/workspace/work, Plan hash, target, expiry, and revisions match. A fork, resumed Plan session, Bridge health, one pending candidate, or a marker pasted into an unrelated cwd is not a fresh-session claim.
 
-When automatic claim is unavailable, attach the explicitly identified session with the actual fallback command:
+When Companion Continue and Copy Capsule are unavailable or stripped, launch one new explicitly scoped materialization session with the implemented safe command:
 
 ```bash
-node scripts/af.mjs work attach-session --session <session-id> --work-id <work-id> --role materialization [--root PATH]
+node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization [--root PATH]
 ```
 
-Manual attachment never selects the first active session and does not by itself prove plan/revision identity; Phase B must still verify the complete Decision Plan and exact revisions.
+Join never selects the first active session and does not by itself prove Plan/revision identity or claim the handoff. Confirm the newly activated exact session/application/workspace/work/materialization scope and provide the complete Decision Plan plus revisions in that session. There is no current `work attach-session` CLI.
 
 ## Phase B — Default-mode materialization
 
@@ -131,10 +139,10 @@ Manual attachment never selects the first active session and does not by itself 
 Before any write:
 
 1. verify the active mode is Default/coding, not Plan;
-2. verify the canonical repository root and exact `work_id`/artifact root;
-3. read the complete Discovery Decision Plan and compare its Work Item, handoff ID, discovery revision digest, decision revision, plan hash, selected Asset refs/versions, and Registry snapshot;
-4. require an exact fresh-session claim receipt or an explicit manual attachment plus the complete plan; reject expired, superseded, duplicate, ambiguous, wrong-cwd, or mismatched claims;
-5. re-read an existing Work Item and any `return_to_discover` record; never choose the newest root by guesswork.
+2. verify current Companion participation, lease freshness, exact `workspace_id`, `application_id`, `work_id`, `role: materialization`, canonical repository root, and artifact root;
+3. read the complete canonical Discovery Decision Plan and compare its handoff ID, discovery/decision revisions, Plan-body hash, open/resolved decision refs, recommendation revisions, selected Asset refs/versions, and Registry snapshot;
+4. require an exact fresh-session claim receipt or exact confirmed attachment plus the complete Plan; reject expired, superseded, duplicate, ambiguous, wrong-scope, wrong-cwd, or mismatched claims;
+5. re-read an existing Work Item and any `return_to_discover` record; preserve its scope and decision provenance and never choose the newest root by guesswork.
 
 Use only current Work Item CLI commands:
 
@@ -175,6 +183,8 @@ On a changed discovery revision:
 - preserve the previous Graph as stale evidence, but do not merge, rewrite, or finalize it;
 - require a new discovery review before Compose re-entry.
 
+Across Return-to-Discover, preserve application/workspace/work identity, artifact root, open and resolved decision refs, and their recommendation revisions. Do not attribute the new cycle to the Compose session; require the current Plan/materialization participant for each corresponding action.
+
 ### 4. Validate and request review
 
 Use `node scripts/af.mjs work revision --registry-revision <sha-or-null> <ref=path>... [--root PATH]` only to compute file-backed revision objects. The command prints a revision; it does not update `af-work-item.json`, and it does not hash an invented JSON-pointer projection. Serialize revision subjects exactly as supported by the active schema and current materialized bytes.
@@ -198,11 +208,11 @@ Set Discover to `waiting_for_review` with the current output revision and refs. 
 
 ## Write boundary
 
-Phase A writes no repository-tracked file. Phase B writes only the confirmed Work Item root. Discover never writes runtime source, Graph topology, Catalog/Registry mutations, deployment files, or workbench state.
+Phase A writes no repository-tracked file. Phase B writes only the confirmed Work Item root and only from exact materialization scope. Discover never writes runtime source, Graph topology, Catalog/Registry mutations, deployment files, or workbench state. Ordinary-session observations are not durable lifecycle evidence.
 
 ## Stop conditions
 
-Stop when mode is unverified or wrong for the requested phase; Work Item, handoff, session, turn, plan hash, revision, or Registry snapshot is ambiguous; a required user decision is open; evidence would require invention; a candidate hard gate is hidden; a claim is expired/duplicate/mismatched; strict v2 cannot represent the result; validation fails; or a write would escape the confirmed artifact root.
+Stop when mode, participation, lease, application/workspace/work/role scope, Work Item, handoff, session, turn, Plan hash, recommendation revision, revision, or Registry snapshot is unverified or ambiguous; a required user decision is open; evidence would require invention; a candidate hard gate is hidden; a claim is expired/duplicate/mismatched; strict v2 cannot represent the result; validation fails; or a write would escape the confirmed artifact root.
 
 ## Completion report
 

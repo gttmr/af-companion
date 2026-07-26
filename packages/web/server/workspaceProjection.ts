@@ -5,6 +5,7 @@ import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import chokidar, { type FSWatcher } from "chokidar";
 
+import { COMPANION_STATE_RELATIVE_DIR } from "../src/companion/sessionContract";
 import type {
   WorkspaceActivity,
   WorkspaceActivityKind,
@@ -22,6 +23,7 @@ const MAX_ACTIVITY = 200;
 const MAX_DIFF_BYTES = 256 * 1_024;
 const STATE_RELATIVE_DIR = ".agent-factory/workspace-projection";
 const STATE_FILE = "activity.json";
+const CODEX_STATE_RELATIVE_PATH = `${COMPANION_STATE_RELATIVE_DIR}/state.json`;
 
 interface PersistedProjectionState {
   schema_version: 1;
@@ -39,6 +41,7 @@ export class WorkspaceProjection {
   #startPromise: Promise<void> | null = null;
   #sequence = 0;
   #activities: WorkspaceActivity[] = [];
+  #seenCodexActivityIds = new Set<string>();
   #persistChain: Promise<void> = Promise.resolve();
 
   constructor(repoRoot: string, options: { now?: () => Date } = {}) {
@@ -187,6 +190,11 @@ export class WorkspaceProjection {
   async #start(): Promise<void> {
     const repoRoot = await this.canonicalRoot();
     await this.#loadState(repoRoot);
+    const localStateRoot = join(repoRoot, ".agent-factory");
+    await mkdir(localStateRoot, { recursive: true, mode: 0o700 });
+    await chmod(localStateRoot, 0o700);
+    const initialCodexActivity = await readLatestCodexActivity(join(repoRoot, CODEX_STATE_RELATIVE_PATH));
+    if (initialCodexActivity) this.#seenCodexActivityIds.add(initialCodexActivity.id);
     const watched = [
       join(repoRoot, "artifacts", "af"),
       join(repoRoot, "packages"),
@@ -196,7 +204,7 @@ export class WorkspaceProjection {
       join(repoRoot, "scripts"),
       join(repoRoot, "docs"),
       join(repoRoot, ".codex", "hooks.json"),
-      join(repoRoot, ".agent-factory", "codex-bridge", "v1", "state.json"),
+      localStateRoot,
       join(repoRoot, "AGENTS.md"),
       join(repoRoot, "CLAUDE.md"),
       join(repoRoot, "STATUS.md"),
@@ -208,13 +216,16 @@ export class WorkspaceProjection {
     });
     const onChange = (action: string, absolutePath: string) => {
       const relativePath = normalizeRelative(repoRoot, absolutePath);
-      const isCodexState = relativePath === ".agent-factory/codex-bridge/v1/state.json";
+      const isCodexState = relativePath === CODEX_STATE_RELATIVE_PATH;
       if (isCodexState) {
-        void readLatestCodexAction(absolutePath).then((codexAction) => {
-          this.record("codex", codexAction, null, "codex");
+        void readLatestCodexActivity(absolutePath).then((activity) => {
+          if (!activity || this.#seenCodexActivityIds.has(activity.id)) return;
+          this.#seenCodexActivityIds.add(activity.id);
+          this.record("codex", activity.action, null, "codex");
         });
         return;
       }
+      if (relativePath === ".agent-factory" || relativePath.startsWith(".agent-factory/")) return;
       const kind = relativePath.startsWith("artifacts/af/") ? "artifact" : "source";
       this.record(kind, action, relativePath, "filesystem");
     };
@@ -261,20 +272,20 @@ export class WorkspaceProjection {
   }
 }
 
-async function readLatestCodexAction(path: string): Promise<string> {
+async function readLatestCodexActivity(path: string): Promise<{ id: string; action: string } | null> {
   try {
     const value = JSON.parse(await readFile(path, "utf8")) as {
-      activities?: Array<{ event?: unknown; tool_name?: unknown }>;
+      activities?: Array<{ activity_id?: unknown; event?: unknown; tool_name?: unknown }>;
     };
     const activities = value.activities ?? [];
     const latest = activities[activities.length - 1];
-    if (!latest || typeof latest.event !== "string") return "session activity";
+    if (!latest || typeof latest.activity_id !== "string" || !latest.activity_id || typeof latest.event !== "string") return null;
     if (typeof latest.tool_name === "string" && latest.tool_name) {
-      return `${latest.tool_name} · ${latest.event}`;
+      return { id: latest.activity_id, action: `${latest.tool_name} · ${latest.event}` };
     }
-    return latest.event;
+    return { id: latest.activity_id, action: latest.event };
   } catch {
-    return "session activity";
+    return null;
   }
 }
 
@@ -364,7 +375,17 @@ function isContainedPath(root: string, candidate: string): boolean {
 
 function isIgnoredWatchPath(path: string): boolean {
   const normalized = path.split(sep).join("/");
-  if (normalized.endsWith("/.agent-factory/codex-bridge/v1/state.json")) return false;
+  const bridgeRootSuffix = "/.agent-factory/codex-bridge";
+  if (
+    normalized.endsWith(bridgeRootSuffix)
+    || normalized.endsWith(`${bridgeRootSuffix}/v2`)
+    || normalized.endsWith(`/${CODEX_STATE_RELATIVE_PATH}`)
+  ) {
+    return false;
+  }
+  if (normalized.includes(`${bridgeRootSuffix}/`)) {
+    return true;
+  }
   return /\/(?:\.git|node_modules|dist|\.vite|\.venv|__pycache__|\.pytest_cache)(?:\/|$)/.test(normalized)
     || normalized.includes("/.agent-factory/workspace-projection/")
     || normalized.includes("/.agent-factory/editor-diffs/")

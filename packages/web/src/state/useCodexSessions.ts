@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
-  CodexCompanionSnapshot,
-  CodexSession,
-  CodexSessionRole,
-  ContextDelivery,
-  VscodeLaunchReceipt
+  CodexCompanionSnapshotV2,
+  EnrollmentReceipt,
+  EnrollmentRequest,
+  HandoffAttachReceipt,
+  HandoffContinueReceipt,
+  ScopedContextDelivery,
+  VscodeLaunchReceipt,
 } from "../companion/types";
 
 export const CODEX_COMPANION_SNAPSHOT_QUERY_KEY = ["codex-companion", "snapshot"] as const;
@@ -15,96 +17,99 @@ interface UseCodexSessionsOptions {
 
 interface SessionPreferencesInput {
   sessionId: string;
-  preferences: {
-    alias?: string | null;
-    default_target?: boolean;
-  };
+  alias: string | null;
 }
 
-interface SessionAttachmentInput {
-  sessionId: string;
-  workId: string;
-  role: Exclude<CodexSessionRole, "unassigned">;
+interface HandoffAttachmentInput {
+  handoffId: string;
+  targetSessionId: string;
 }
 
 export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {}) {
   const queryClient = useQueryClient();
-  const snapshotQuery = useQuery<CodexCompanionSnapshot>({
+  const snapshotQuery = useQuery<CodexCompanionSnapshotV2>({
     queryKey: CODEX_COMPANION_SNAPSHOT_QUERY_KEY,
     queryFn: fetchCodexCompanionSnapshot,
     enabled,
     refetchInterval: 2_000,
     refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true
+    refetchOnWindowFocus: true,
   });
 
+  const invalidateSnapshot = async () => {
+    await queryClient.invalidateQueries({ queryKey: CODEX_COMPANION_SNAPSHOT_QUERY_KEY });
+  };
+
   const launchMutation = useMutation<VscodeLaunchReceipt>({
-    mutationFn: async () => {
-      const response = await fetch("/api/codex-companion/launch-vscode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
-      });
-      if (!response.ok) {
-        throw new Error(await codexCompanionResponseMessage(response, "VS Code Worktree 열기 요청에 실패했습니다."));
-      }
-      return (await response.json()) as VscodeLaunchReceipt;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: CODEX_COMPANION_SNAPSHOT_QUERY_KEY });
-    }
+    mutationFn: () => postCompanion<VscodeLaunchReceipt>(
+      "/launch-vscode",
+      {},
+      "VS Code Worktree 열기 요청에 실패했습니다.",
+    ),
+    onSuccess: invalidateSnapshot,
+  });
+
+  const enrollmentMutation = useMutation<EnrollmentReceipt, Error, EnrollmentRequest>({
+    mutationFn: (input) => postCompanion<EnrollmentReceipt>(
+      "/enrollments",
+      input,
+      "Companion enrollment ticket을 만들지 못했습니다.",
+    ),
+    onSuccess: invalidateSnapshot,
   });
 
   const preferencesMutation = useMutation<unknown, Error, SessionPreferencesInput>({
-    mutationFn: async ({ sessionId, preferences }) => {
-      const response = await fetch(`/api/codex-companion/sessions/${encodeURIComponent(sessionId)}/preferences`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(preferences)
-      });
-      if (!response.ok) {
-        throw new Error(await codexCompanionResponseMessage(response, "Codex session 설정을 저장하지 못했습니다."));
-      }
-      if (response.status === 204) return null;
-      return response.json().catch(() => null);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: CODEX_COMPANION_SNAPSHOT_QUERY_KEY });
-    }
+    mutationFn: ({ sessionId, alias }) => postCompanion<unknown>(
+      `/sessions/${encodeURIComponent(sessionId)}/preferences`,
+      { alias },
+      "Companion session 별칭을 저장하지 못했습니다.",
+    ),
+    onSuccess: invalidateSnapshot,
   });
 
-  const cancelMutation = useMutation<{ delivery: ContextDelivery }, Error, string>({
-    mutationFn: async (deliveryId) => {
-      const response = await fetch(`/api/codex-companion/deliveries/${encodeURIComponent(deliveryId)}/cancel`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
-      });
-      if (!response.ok) {
-        throw new Error(await codexCompanionResponseMessage(response, "대기 중인 Context 전달을 취소하지 못했습니다."));
-      }
-      return (await response.json()) as { delivery: ContextDelivery };
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: CODEX_COMPANION_SNAPSHOT_QUERY_KEY });
-    }
+  const revokeMutation = useMutation<unknown, Error, string>({
+    mutationFn: (sessionId) => postCompanion<unknown>(
+      `/sessions/${encodeURIComponent(sessionId)}/revoke`,
+      {},
+      "Companion session을 revoke하지 못했습니다.",
+    ),
+    onSuccess: invalidateSnapshot,
   });
 
-  const attachmentMutation = useMutation<CodexSession, Error, SessionAttachmentInput>({
-    mutationFn: async ({ sessionId, workId, role }) => {
-      const response = await fetch("/api/codex-companion/sessions/attach", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId, work_id: workId, role })
-      });
-      if (!response.ok) {
-        throw new Error(await codexCompanionResponseMessage(response, "Codex session을 Work Item에 연결하지 못했습니다."));
-      }
-      return (await response.json()) as CodexSession;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: CODEX_COMPANION_SNAPSHOT_QUERY_KEY });
-    }
+  const continueHandoffMutation = useMutation<HandoffContinueReceipt, Error, string>({
+    mutationFn: (handoffId) => postCompanion<HandoffContinueReceipt>(
+      `/handoffs/${encodeURIComponent(handoffId)}/continue`,
+      {},
+      "Plan Handoff의 fresh-session command를 만들지 못했습니다.",
+    ),
+    onSuccess: invalidateSnapshot,
+  });
+
+  const attachHandoffMutation = useMutation<HandoffAttachReceipt, Error, HandoffAttachmentInput>({
+    mutationFn: ({ handoffId, targetSessionId }) => postCompanion<HandoffAttachReceipt>(
+      `/handoffs/${encodeURIComponent(handoffId)}/attach`,
+      { target_session_id: targetSessionId },
+      "기존 Companion session에 Plan Handoff를 연결하지 못했습니다.",
+    ),
+    onSuccess: invalidateSnapshot,
+  });
+
+  const cancelHandoffMutation = useMutation<unknown, Error, string>({
+    mutationFn: (handoffId) => postCompanion<unknown>(
+      `/handoffs/${encodeURIComponent(handoffId)}/cancel`,
+      {},
+      "Plan Handoff를 취소하지 못했습니다.",
+    ),
+    onSuccess: invalidateSnapshot,
+  });
+
+  const cancelDeliveryMutation = useMutation<{ delivery: ScopedContextDelivery }, Error, string>({
+    mutationFn: (deliveryId) => postCompanion<{ delivery: ScopedContextDelivery }>(
+      `/deliveries/${encodeURIComponent(deliveryId)}/cancel`,
+      {},
+      "대기 중인 Context 전달을 취소하지 못했습니다.",
+    ),
+    onSuccess: invalidateSnapshot,
   });
 
   return {
@@ -115,26 +120,66 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     launchVscode: () => launchMutation.mutateAsync(),
     launchPending: launchMutation.isPending,
     launchReceipt: launchMutation.data ?? null,
-    launchError: launchMutation.error instanceof Error ? launchMutation.error.message : null,
+    launchError: mutationMessage(launchMutation.error),
+    createEnrollment: (input: EnrollmentRequest) => enrollmentMutation.mutateAsync(input),
+    enrollmentPending: enrollmentMutation.isPending,
+    enrollmentReceipt: enrollmentMutation.data ?? null,
+    enrollmentError: mutationMessage(enrollmentMutation.error),
     updatePreferences: (input: SessionPreferencesInput) => preferencesMutation.mutateAsync(input),
     preferencesPending: preferencesMutation.isPending,
     preferencesSessionId: preferencesMutation.variables?.sessionId ?? null,
-    preferencesError: preferencesMutation.error instanceof Error ? preferencesMutation.error.message : null,
-    cancelDelivery: (deliveryId: string) => cancelMutation.mutateAsync(deliveryId),
-    cancelPendingDeliveryId: cancelMutation.isPending ? cancelMutation.variables ?? null : null,
-    cancelError: cancelMutation.error instanceof Error ? cancelMutation.error.message : null,
-    attachSession: (input: SessionAttachmentInput) => attachmentMutation.mutateAsync(input),
-    attachmentPending: attachmentMutation.isPending,
-    attachmentError: attachmentMutation.error instanceof Error ? attachmentMutation.error.message : null
+    preferencesError: mutationMessage(preferencesMutation.error),
+    revokeSession: (sessionId: string) => revokeMutation.mutateAsync(sessionId),
+    revokePendingSessionId: revokeMutation.isPending ? revokeMutation.variables ?? null : null,
+    revokeError: mutationMessage(revokeMutation.error),
+    continueHandoff: (handoffId: string) => continueHandoffMutation.mutateAsync(handoffId),
+    continuePendingHandoffId: continueHandoffMutation.isPending ? continueHandoffMutation.variables ?? null : null,
+    continueReceipt: continueHandoffMutation.data ?? null,
+    continueError: mutationMessage(continueHandoffMutation.error),
+    attachHandoff: (input: HandoffAttachmentInput) => attachHandoffMutation.mutateAsync(input),
+    attachPendingHandoffId: attachHandoffMutation.isPending ? attachHandoffMutation.variables?.handoffId ?? null : null,
+    attachReceipt: attachHandoffMutation.data ?? null,
+    attachError: mutationMessage(attachHandoffMutation.error),
+    cancelHandoff: (handoffId: string) => cancelHandoffMutation.mutateAsync(handoffId),
+    cancelPendingHandoffId: cancelHandoffMutation.isPending ? cancelHandoffMutation.variables ?? null : null,
+    cancelHandoffError: mutationMessage(cancelHandoffMutation.error),
+    cancelDelivery: (deliveryId: string) => cancelDeliveryMutation.mutateAsync(deliveryId),
+    cancelPendingDeliveryId: cancelDeliveryMutation.isPending ? cancelDeliveryMutation.variables ?? null : null,
+    cancelError: mutationMessage(cancelDeliveryMutation.error),
   };
 }
 
-async function fetchCodexCompanionSnapshot(): Promise<CodexCompanionSnapshot> {
+async function fetchCodexCompanionSnapshot(): Promise<CodexCompanionSnapshotV2> {
   const response = await fetch("/api/codex-companion/snapshot");
   if (!response.ok) {
-    throw new Error(await codexCompanionResponseMessage(response, "Codex session snapshot을 가져오지 못했습니다."));
+    throw new Error(await codexCompanionResponseMessage(response, "Companion snapshot을 가져오지 못했습니다."));
   }
-  return (await response.json()) as CodexCompanionSnapshot;
+  const snapshot = (await response.json()) as Partial<CodexCompanionSnapshotV2>;
+  if (snapshot.schema_version !== 2) {
+    throw new Error("Companion facade가 필수 v2 snapshot을 반환하지 않았습니다.");
+  }
+  return snapshot as CodexCompanionSnapshotV2;
+}
+
+async function postCompanion<T>(path: string, body: unknown, fallback: string): Promise<T> {
+  const response = await fetch(`/api/codex-companion${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const detail = await codexCompanionResponseMessage(response, fallback);
+    if ([404, 405, 501].includes(response.status)) {
+      throw new Error(`현재 Companion facade에서 이 기능을 지원하지 않습니다 (HTTP ${response.status}). ${detail}`);
+    }
+    throw new Error(detail);
+  }
+  if (response.status === 204) return null as T;
+  return (await response.json().catch(() => null)) as T;
+}
+
+function mutationMessage(error: Error | null): string | null {
+  return error?.message ?? null;
 }
 
 export async function codexCompanionResponseMessage(response: Response, fallback: string): Promise<string> {

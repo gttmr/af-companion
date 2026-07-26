@@ -1,6 +1,28 @@
 import type { AssetType, GraphChannel, GraphControlKind, NodeKind } from "../analyzer/types";
+import type {
+  ActivationOrigin,
+  CompanionDeliveryScope,
+  CompanionDiagnostics,
+  CompanionHookMode,
+  CompanionSession,
+  CompanionSessionRole,
+  HandoffTransportCapability,
+  PlanHandoff as ScopedPlanHandoff,
+  SessionEnrollmentTicket,
+} from "./sessionContract";
 
-export const CODEX_BRIDGE_SCHEMA_VERSION = 1 as const;
+export type {
+  ActivationOrigin,
+  CompanionDeliveryScope,
+  CompanionDiagnostics,
+  CompanionHookMode,
+  CompanionSession,
+  CompanionSessionRole,
+  HandoffTransportCapability,
+  SessionEnrollmentTicket,
+} from "./sessionContract";
+
+export const SELECTION_BUNDLE_SCHEMA_VERSION = 1 as const;
 
 export interface SelectionSourceRevision {
   head: string | null;
@@ -34,7 +56,7 @@ export interface SelectionRelatedAsset {
 }
 
 export interface SelectionBundleV1 {
-  schema_version: typeof CODEX_BRIDGE_SCHEMA_VERSION;
+  schema_version: typeof SELECTION_BUNDLE_SCHEMA_VERSION;
   selection_id: string;
   workspace_id: string;
   artifact_root_id: string;
@@ -52,8 +74,6 @@ export interface SelectionBundleV1 {
   expires_at: string;
 }
 
-export type CodexSessionStatus = "active" | "stale";
-
 export type CodexSessionLastEvent =
   | "session_start"
   | "prompt_submit"
@@ -62,7 +82,6 @@ export type CodexSessionLastEvent =
   | "turn_stop";
 
 export type CodexActivityEvent = CodexSessionLastEvent | "session_handoff";
-export type CodexSessionRole = "unassigned" | "plan" | "materialization";
 
 export interface CodexActivity {
   activity_id: string;
@@ -73,43 +92,6 @@ export interface CodexActivity {
   work_id: string | null;
   handoff_id: string | null;
   at: string;
-}
-
-export interface CodexSession {
-  session_id: string;
-  cwd: string;
-  model: string;
-  permission_mode: string;
-  source: string;
-  started_at: string;
-  last_seen_at: string;
-  last_event: CodexSessionLastEvent;
-  last_turn_id: string | null;
-  status: CodexSessionStatus;
-  alias: string | null;
-  default_target: boolean;
-  work_id: string | null;
-  role: CodexSessionRole;
-}
-
-export type PlanHandoffStatus = "pending" | "claimed" | "expired" | "superseded";
-
-export interface PlanHandoff {
-  handoff_id: string;
-  work_id: string;
-  from_session_id: string;
-  from_turn_id: string;
-  discovery_revision: string;
-  decision_revision: string;
-  plan_hash: string;
-  marker_digest: string;
-  target_skill: "af-discover-assets.materialize";
-  status: PlanHandoffStatus;
-  created_at: string;
-  expires_at: string;
-  claimed_by_session_id: string | null;
-  claimed_by_turn_id: string | null;
-  claimed_at: string | null;
 }
 
 export type DeliveryStatus = "queued" | "consumed" | "expired" | "canceled" | "failed";
@@ -129,29 +111,6 @@ export interface ContextDelivery {
   bundle: SelectionBundleV1;
 }
 
-export interface CodexBridgeCapabilities {
-  bridge_available: boolean;
-  codex_version: string | null;
-  session_registration: boolean;
-  next_prompt_context: boolean;
-  session_end_event: "unsupported";
-  delivery_ack: boolean;
-  mcp_context_pull: boolean;
-  direct_turn_start: boolean;
-  inflight_steer: boolean;
-  fresh_session_handoff: boolean;
-  automatic_fresh_context: boolean;
-}
-
-export interface CodexBridgeSnapshot {
-  schema_version: typeof CODEX_BRIDGE_SCHEMA_VERSION;
-  capabilities: CodexBridgeCapabilities;
-  sessions: CodexSession[];
-  deliveries: ContextDelivery[];
-  handoffs: PlanHandoff[];
-  activities: CodexActivity[];
-}
-
 export interface CodexWorkspaceDescriptor {
   workspace_id: string;
   canonical_path: string;
@@ -168,13 +127,73 @@ export interface CodexEditorCapabilities {
   probed_at: string;
 }
 
-export interface CodexCompanionSnapshot extends CodexBridgeSnapshot {
-  workspace: CodexWorkspaceDescriptor;
-  editor: CodexEditorCapabilities;
-}
-
 export interface VscodeLaunchReceipt {
   status: "accepted";
   workspace_path: string;
   launched_at: string;
+}
+
+export interface ScopedContextDelivery extends ContextDelivery {
+  scope: CompanionDeliveryScope;
+}
+
+export interface CompanionBridgeCapabilitiesV2 {
+  bridge_available: boolean;
+  codex_version: string | null;
+  hook_side_effect_isolation: boolean;
+  strict_no_hook_mode: "verified" | "unverified" | "unsupported";
+  session_enrollment: boolean;
+  session_lease: boolean;
+  next_prompt_context: boolean;
+  session_end_event: "supported" | "unsupported";
+  delivery_ack: boolean;
+  direct_turn_start: boolean;
+  inflight_steer: boolean;
+  fresh_session_handoff: boolean;
+  fresh_context_transport: HandoffTransportCapability;
+  cli_environment_enrollment: "verified" | "unverified" | "unsupported";
+  vscode_environment_enrollment: "verified" | "unverified" | "unsupported";
+}
+
+export interface CodexBridgeSnapshotV2 {
+  schema_version: 2;
+  bridge_instance_id: string;
+  capabilities: CompanionBridgeCapabilitiesV2;
+  enrollment_tickets: SessionEnrollmentTicket[];
+  sessions: CompanionSession[];
+  deliveries: ScopedContextDelivery[];
+  handoffs: ScopedPlanHandoff[];
+  activities: CodexActivity[];
+  diagnostics: CompanionDiagnostics;
+}
+
+export interface CodexCompanionSnapshotV2 extends CodexBridgeSnapshotV2 {
+  workspace: CodexWorkspaceDescriptor;
+  editor: CodexEditorCapabilities;
+}
+
+export interface EnrollmentRequest {
+  application_id: string;
+  work_id: string;
+  requested_role: CompanionSessionRole;
+  activation_origin: Exclude<ActivationOrigin, "plan_handoff_capsule">;
+  hook_mode?: CompanionHookMode;
+  expires_at?: string;
+}
+
+export interface EnrollmentReceipt {
+  ticket: SessionEnrollmentTicket;
+  activation_capsule: string;
+  command: string[];
+}
+
+export interface HandoffContinueReceipt {
+  handoff: ScopedPlanHandoff;
+  activation_capsule: string;
+  command: string[];
+}
+
+export interface HandoffAttachReceipt {
+  handoff: ScopedPlanHandoff;
+  target_session_id: string;
 }

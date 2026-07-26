@@ -28,7 +28,7 @@ Do not blur the boundary. A Plan response is not durable lifecycle progress, and
 
 Phase A writes no repository-tracked file. Its final response is a **Discovery Decision Plan** with these sections:
 
-1. **Identity and mode evidence** — repository, proposed/known Work Item, observed Plan Mode, session/turn, and whether this is initial discovery or re-entry.
+1. **Identity and mode evidence** — application, workspace, repository, proposed/known Work Item, current Companion participation/role/lease observation, observed Plan Mode, session/turn, and whether this is initial discovery or re-entry.
 2. **Goal and success criteria** — explicit user-selected outcome and observable success/failure criteria.
 3. **Evidence summary** — observed evidence, assumptions, contradictions, Missing Information, and source locators kept separate.
 4. **Selected control strategy** — one user-selected value from `single_agent`, `agent_delegation`, `explicit_workflow`, or `hybrid`, plus considered alternatives and rationale.
@@ -44,11 +44,11 @@ Phase A writes no repository-tracked file. Its final response is a **Discovery D
 14. **Open decisions** — must be empty before a handoff marker is emitted.
 15. **Compose handoff** — constraints Compose must preserve and questions Compose still owns; no final Graph Node/Edge topology.
 16. **Materialization inventory** — exact files Phase B may write and checks it must run.
-17. **Work Item/revision/handoff metadata** — Work Item ID/root, requirement/decision/Asset-decision/discovery and Registry revision digests, plan hash, handoff ID, expiry/claim expectations, and target phase.
+17. **Work Item/revision/handoff metadata** — application/workspace/Work Item ID/root, requirement/decision/Asset-decision/discovery and Registry revision digests, canonical Plan-body hash, separate capsule/marker digest, handoff ID, expiry/claim expectations, and target phase.
 
-Recommendations remain distinct from selections. “추천대로 진행” is a valid explicit user selection only for the recommendations presented in that interaction and must carry user session/turn provenance.
+Recommendations remain distinct from selections. “추천대로 진행” is a valid explicit user selection only for the displayed matching decision and recommendation revision and must carry enrolled user session/turn provenance. It never resolves a hard, credential, deployment, security, or irreversible gate.
 
-If any required choice is unresolved, return the current options and next `request_user_input` question instead of a completed plan. Do not create a handoff marker.
+If any required choice is unresolved, use the Decision Input Adapter for exactly one question in that turn. Select structured input only when `request_user_input` is actually callable; otherwise output the same conversational question, mark `waiting_for_input`, and stop without materialization or Compose. Do not create a handoff marker.
 
 ## Fresh-session handoff
 
@@ -65,30 +65,32 @@ The portable marker is deliberately short. It identifies the requested continuat
 
 Current Work Item v2 stores a handoff with `work_id`, source session/turn, structured discovery and decision revisions, plan hash, timestamps, marker digest, claim metadata, and internal `target_skill: "af-discover-assets.materialize"`. The portable `AF_TARGET` and internal `target_skill` are different contract surfaces; preserve each exact value.
 
+Canonicalize the Plan body without any Companion capsule and compute Companion `plan_body_hash` from those exact bytes. The Work Item `plan_hash` equals that value. Keep application/workspace/work, revisions, target, expiry, and capsule/marker digest as separate handoff metadata.
+
 If Companion returns a signed marker containing additional decision revision, plan hash, or claim-token lines, copy that complete marker unchanged. Never invent a token, strip signed fields, or derive a claim from the first active session.
 
-An automatic claim is accepted only when all of these match:
+An automatic claim is accepted only when an explicitly identified handoff and all of these match:
 
-- exact Work Item and canonical cwd;
+- exact application, workspace, Work Item, materialization attachment, and canonical cwd;
 - exact pending handoff ID;
 - discovery and decision revisions;
 - plan hash and marker digest;
 - a distinct fresh session and its first claiming turn;
 - unexpired, non-superseded, not-previously-claimed status.
 
-If automatic claim is unavailable, use explicit session attachment:
+Built-in fresh-context carriage is `unverified` without current first-prompt proof. Companion Continue and Copy Capsule claim an exact Bridge Handoff whose encrypted, hash-verified Plan body is injected into the claiming prompt. Exact existing-session Attach injects the same body into only the named session's next leased prompt. A bare new exact-scope Join remains the final enrollment-only fallback:
 
 ```bash
-node scripts/af.mjs work attach-session --session <session-id> --work-id <work-id> --role materialization [--root PATH]
+node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization [--root PATH]
 ```
 
-This command attaches only the named session and role. It does not guess a session and does not replace revision/plan verification. The user must provide the complete Decision Plan and marker in the attached session when automatic claim context is absent.
+This command launches a new enrollment for the named application/work/role. Confirm the resulting exact session/application/workspace/work state. It does not guess a session, claim a handoff, or replace revision/Plan verification. Only this bare Join path requires the user to provide the complete Decision Plan and Capsule when no exact Handoff claim/Attach context exists.
 
 ## Phase B preflight
 
 Phase B runs only in Default/coding mode. Before writing:
 
-1. verify mode, repository, Work Item identity, artifact root, and active session/turn;
+1. verify current Companion participation/lease, exact application/workspace/work/materialization scope, mode, repository, Work Item identity, artifact root, and active session/turn;
 2. verify the exact claimed or manually attached handoff and complete Decision Plan;
 3. compare the plan hash, marker, requirement/decision/Asset-decision/discovery digests, Registry snapshot, Asset refs/versions, strategy, and Root Executable;
 4. reject expired, superseded, duplicate, ambiguous, wrong-worktree, or mismatched continuation;
@@ -186,6 +188,8 @@ When Compose returns to Discover, consume the schema-owned `composition_cycles[]
 - records new artifact refs and the new discovery revision;
 - keeps unaffected explicit decisions only when current evidence still supports them.
 
+Preserve the same application/workspace/work scope, artifact root, open and resolved decision refs, and displayed recommendation revisions. A Return-to-Discover record does not create or attach the next Plan actor.
+
 After new discovery bytes are materialized:
 
 - current discovery review is `pending` for the new binding;
@@ -201,7 +205,7 @@ Present the normalized requirement, evidence classes, candidates, Resources/Depe
 
 Discover never self-approves. Validator success, file presence, a Plan marker, or a claimed handoff is not review approval.
 
-An explicit current-session approval binds all current discovery inputs required by Work Item v2:
+An explicit approval from the current enrolled exact-scope session binds all current discovery inputs required by Work Item v2:
 
 - requirement revision;
 - decision revision;

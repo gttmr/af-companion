@@ -466,6 +466,28 @@ test("validator accepts an explicit Mock Lab MCP binding on an approved Tool pro
   });
 });
 
+test("validator rejects delegated recommendation provenance that names another option", () => {
+  withRoot((root, analysis) => {
+    const manifest = completedScaffoldWorkItem(analysis);
+    const decision = manifest.decisions[0];
+    decision.options.push("hybrid");
+    decision.selected_option = "hybrid";
+    decision.selection_source = "delegated_recommendation";
+    writeJson(join(root, "af-work-item.json"), manifest);
+    assert.match(fail(root), /delegated_recommendation must select the displayed recommendation/);
+  });
+});
+
+test("validator rejects superseded selection provenance without its input mode", () => {
+  withRoot((root, analysis) => {
+    const manifest = completedScaffoldWorkItem(analysis);
+    manifest.decisions[0].status = "superseded";
+    manifest.decisions[0].decision_input_mode = null;
+    writeJson(join(root, "af-work-item.json"), manifest);
+    assert.match(fail(root), /decision_input_mode|oneOf/);
+  });
+});
+
 test("Work Item revisions pin the canonical Registry revision and reject digest drift", () => {
   const registryUrl = new URL("../catalog/asset-registry.json", import.meta.url);
   const registrySource = readFileSync(registryUrl);
@@ -726,8 +748,13 @@ function completedScaffoldWorkItem(analysis) {
 
 function resolvedFixtureDecisions(rootRef, strategy) {
   const selected = {
+    decision_revision: "1".repeat(64),
     required: true,
     selected_by: "user",
+    recommendation_revision: "2".repeat(64),
+    selection_source: "explicit_option",
+    user_text_summary: "User explicitly selected the named synthetic fixture option.",
+    decision_input_mode: "conversational",
     selection_reason: "Approved synthetic fixture decision.",
     evidence_refs: ["analysis-result.json"],
     catalog_refs: [],

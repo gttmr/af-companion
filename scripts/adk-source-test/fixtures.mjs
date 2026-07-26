@@ -391,8 +391,13 @@ function shouldInjectFixtureWorkflow(analysis, options) {
 
 function targetDecisions(rootAsset, solutionControlStrategy) {
   const base = {
+    decision_revision: "1".repeat(64),
     required: true,
     selected_by: "user",
+    recommendation_revision: "2".repeat(64),
+    selection_source: "explicit_option",
+    user_text_summary: "User explicitly selected the named synthetic fixture option.",
+    decision_input_mode: "conversational",
     selection_reason: "Approved synthetic fixture decision.",
     evidence_refs: ["analysis-result.json"],
     catalog_refs: [],
@@ -438,6 +443,7 @@ function targetAssetDecisions(assets, registrySnapshot, options) {
       ?? 1;
     return {
       asset_decision_id: `asset-decision-${index + 1}`,
+      decision_revision: "3".repeat(64),
       asset_ref: asset.asset_id,
       asset_type: asset.asset_type,
       asset_version: assetVersion,
@@ -445,8 +451,12 @@ function targetAssetDecisions(assets, registrySnapshot, options) {
       match_grade: selectedDisposition === "reuse_exact" ? "exact" : "none",
       options: [selectedDisposition],
       recommended_disposition: selectedDisposition,
+      recommendation_revision: "4".repeat(64),
       selected_disposition: selectedDisposition,
       selected_by: "user",
+      selection_source: "explicit_option",
+      user_text_summary: `User explicitly selected disposition ${selectedDisposition}.`,
+      decision_input_mode: "conversational",
       selection_reason: "Approved synthetic fixture asset disposition.",
       evidence_refs: ["analysis-result.json"],
       catalog_refs: registryAssetId ? [`${registryAssetId}@${assetVersion}`] : [],

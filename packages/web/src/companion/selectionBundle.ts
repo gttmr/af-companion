@@ -1,6 +1,6 @@
 import type { AssetCandidate, AssetType, GraphIR, GraphNode } from "../analyzer/types";
 import {
-  CODEX_BRIDGE_SCHEMA_VERSION,
+  SELECTION_BUNDLE_SCHEMA_VERSION,
   type SelectionBundleV1,
   type SelectionRelatedAsset,
   type SelectionSourceRevision
@@ -140,7 +140,7 @@ export function buildSelectionBundleV1({
     graph_etag: graphEtag
   };
   const selectionId = `selection_v1_${fnv1a64(JSON.stringify({
-    schema_version: CODEX_BRIDGE_SCHEMA_VERSION,
+    schema_version: SELECTION_BUNDLE_SCHEMA_VERSION,
     workspace_id: workspaceId,
     artifact_root_id: artifactRootId,
     graph_id: graphId,
@@ -151,7 +151,7 @@ export function buildSelectionBundleV1({
   }))}`;
 
   return {
-    schema_version: CODEX_BRIDGE_SCHEMA_VERSION,
+    schema_version: SELECTION_BUNDLE_SCHEMA_VERSION,
     selection_id: selectionId,
     workspace_id: workspaceId,
     artifact_root_id: artifactRootId,

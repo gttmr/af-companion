@@ -4,6 +4,8 @@
 
 Define the schema-version-2 lifecycle ledger, session/run continuity, write ownership, revision-bound reviews, and re-entrant handoffs for Agent Factory work performed by an external Codex CLI or VS Code session.
 
+Use the sibling canonical references `companion-session-participation.md`, `fresh-context-handoff.md`, and `session-and-work-item-provenance.md` for enrollment, exact-scope, Plan-hash, and provenance gates. This reference describes the Work Item projection and does not make an ordinary session a lifecycle actor.
+
 ## Canonical identity
 
 Use one explicit root and ledger:
@@ -104,7 +106,7 @@ A fresh materialization session must present an exact marker on its first prompt
 
 The Bridge's observed handoff and the Work Item's durable `session_handoffs` are related evidence, not interchangeable shapes. Re-read both plus the approved Plan before writing. Bridge health alone does not prove first-prompt delivery or claim.
 
-If automatic claim is unavailable, explicitly attach the known session; never attach the first active session by guesswork.
+If automatic claim is unavailable, follow the fallback order in `fresh-context-handoff.md`. Exact attachment must be confirmed from current Companion state; never attach the first active session by guesswork.
 
 ## Ownership and web write boundary
 
@@ -127,10 +129,20 @@ The complete `work` command set currently dispatched by `scripts/af.mjs` is:
 node scripts/af.mjs work init <work-id> [--root <path>]
 node scripts/af.mjs work validate <work-id-or-path> [--root <path>]
 node scripts/af.mjs work revision <ref=path>... --registry-revision <sha256|null> [--root <path>]
-node scripts/af.mjs work attach-session --session <id> --work-id <id> --role <unassigned|plan|materialization> [--root <path>]
 ```
 
-`work init` fails if the Work Item exists. `work revision` requires repository-relative `ref=path` subjects and returns a revision object without mutating the ledger. `work attach-session` requires the current loopback Bridge endpoint. There is no current CLI subcommand for gate approval, handoff creation/claim, focus change, run change, or generic Work Item mutation; do not invent one.
+`work init` fails if the Work Item exists. `work revision` requires repository-relative `ref=path` subjects and returns a revision object without mutating the ledger. There is no current `work attach-session` command or CLI subcommand for gate approval, handoff creation/claim, focus change, run change, or generic Work Item mutation; do not invent one.
+
+The separate explicit Companion command set is:
+
+```bash
+node scripts/af.mjs companion start --application <id> --work <id> --role <plan|materialization> [--root <path>]
+node scripts/af.mjs companion join --application <id> --work <id> --role <plan|materialization> [--root <path>]
+node scripts/af.mjs companion continue --handoff <id> [--root <path>]
+node scripts/af.mjs companion reset --confirm [--root <path>]
+```
+
+Start/Join intent is not participation proof. Re-read the activated session, current lease, and exact scope before lifecycle work.
 
 ## Verification
 

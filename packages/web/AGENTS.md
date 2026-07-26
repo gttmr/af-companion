@@ -38,6 +38,22 @@ Asset meanings come from [Taxonomy](../../docs/workbench/taxonomy.md), Graph sem
 
 ## Verification
 
+Before running `npm run test:contracts` or `npm run test:all` for the first time
+in a new worktree, verify that the ADK test interpreter exists and matches the
+tested runtime baseline:
+
+```bash
+test -x .agent-factory/runtime/.venv/bin/python
+.agent-factory/runtime/.venv/bin/python -c 'from importlib.metadata import version; assert version("google-adk") == "2.3.0"'
+```
+
+Run this preflight from the repository root. If the worktree-local interpreter
+is absent, prepare the ignored worktree-local runtime before starting the test
+suite, or set `AF_TEST_PYTHON` to an explicitly verified `google-adk==2.3.0`
+interpreter for that command. Do not copy a virtual environment from another
+checkout; its scripts may contain absolute paths to the source checkout. Runtime
+preparation must not modify tracked files.
+
 ```bash
 cd packages/web
 npm run test:contracts

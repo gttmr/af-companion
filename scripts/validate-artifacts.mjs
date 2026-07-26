@@ -120,6 +120,22 @@ function validateWorkItem(manifest, label, path) {
   assertUniqueWorkItemIds(manifest.asset_decisions, "asset_decision_id", `${label}.asset_decisions`);
   assertUniqueWorkItemIds(manifest.invalidations, "invalidation_id", `${label}.invalidations`);
   assertUniqueWorkItemIds(manifest.session_handoffs, "handoff_id", `${label}.session_handoffs`);
+  for (const [collection, recommendationKey, selectionKey] of [
+    ["decisions", "recommended_option", "selected_option"],
+    ["asset_decisions", "recommended_disposition", "selected_disposition"]
+  ]) {
+    for (const [index, decision] of (manifest[collection] ?? []).entries()) {
+      if (!record(decision)) continue;
+      const decisionLabel = `${label}.${collection}[${index}]`;
+      if ((decision[recommendationKey] === null) !== (decision.recommendation_revision === null)) {
+        push(`${decisionLabel}.${recommendationKey} and recommendation_revision must be present together.`);
+      }
+      if (decision.selection_source === "delegated_recommendation"
+        && decision[selectionKey] !== decision[recommendationKey]) {
+        push(`${decisionLabel}.delegated_recommendation must select the displayed recommendation.`);
+      }
+    }
+  }
   for (const [name, cycles] of [["discovery_cycles", manifest.discovery_cycles], ["composition_cycles", manifest.composition_cycles]]) {
     if (Array.isArray(cycles) && cycles.filter((cycle) => cycle?.status === "active").length > 1) {
       push(`${label}.${name} may contain only one active cycle.`);

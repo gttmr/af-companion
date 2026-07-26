@@ -16,7 +16,7 @@ This directory holds the minimal shared TanStack Query configuration, Asset Regi
 
 - Keep lifecycle and artifact truth in repository files, never localStorage.
 - Invalidate the Asset Registry query family after successful guarded mutations; never hide ETag conflicts with an automatic write retry.
-- Codex session mutations target exact observed sessions; never auto-select the first live session.
+- Companion mutations target exact enrolled sessions and scope; never materialize unmanaged observations or auto-select the first live session.
 - Editor launch acceptance is not Hook/session connection success.
 - Keep query keys separated by workspace and Work Item identity.
 - Do not add wrappers for removed `/api/af`, stage, runtime, approval, or publish endpoints.

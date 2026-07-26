@@ -59,17 +59,6 @@ When editing inside one of these trees, read the nearest child `AGENTS.md` after
 
 Use skills as execution discipline, not ceremony.
 
-### Superpowers
-
-Use the relevant Superpowers skill before changing behavior:
-
-- Use `superpowers:brainstorming` when the user is still shaping UX, feature behavior, workflow semantics, or screen structure.
-- Use `superpowers:writing-plans` when an approved spec needs to become implementation steps.
-- Use `superpowers:systematic-debugging` when a regression, unexpected UI return, test failure, or confusing runtime behavior appears. Identify the root cause before patching.
-- Use `superpowers:verification-before-completion` before claiming work is complete, fixed, or ready for PR.
-
-Do not skip a user-review gate required by a Superpowers workflow unless the user already approved the concrete spec or plan in the same thread.
-
 ### Frontend Skill
 
 For any visible workbench UI change, apply `frontend-skill`.
@@ -133,6 +122,8 @@ Git worktrees created for isolated slices must be cleaned up after their work la
 ## WSL Browser Verification
 
 This repository is often operated from WSL while the visible Chrome window is a Windows process. Do not assume a browser automation tool can see that browser.
+
+For routine single-screen inspection, DOM, console, or network diagnosis, and screenshots, prefer Chrome DevTools. Use Playwright only when the task requires repeatable multi-browser regression, trace capture, or an independent browser session.
 
 Before Chrome DevTools navigation, DOM inspection, or screenshots, run this WSL gate:
 

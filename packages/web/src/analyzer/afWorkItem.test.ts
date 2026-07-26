@@ -5,6 +5,7 @@ import {
   createAfWorkItemManifest,
   parseAfWorkItemManifest,
   serializeAfWorkItemManifest,
+  type AfAssetDecisionRecord,
   type AfDecisionRecord,
   type AfRevisionRef,
   type AfSessionHandoff,
@@ -30,12 +31,17 @@ function resolvedDecision(
 ): AfDecisionRecord {
   return {
     decision_id: decisionId,
+    decision_revision: "1".repeat(64),
     topic,
     required: true,
     options,
     recommended_option: selectedOption,
+    recommendation_revision: "2".repeat(64),
     selected_option: selectedOption,
     selected_by: "user",
+    selection_source: "explicit_option",
+    user_text_summary: `User explicitly selected option ${selectedOption}.`,
+    decision_input_mode: "conversational",
     selection_reason: "사용자가 증거를 검토하고 선택함",
     evidence_refs: [],
     catalog_refs: [],
@@ -200,7 +206,60 @@ test("resolved decisions require complete user selection metadata", () => {
 
   assert.throws(
     () => parseAfWorkItemManifest(JSON.stringify(manifest)),
-    /resolved decision에는 user selection, reason, session_id, turn_id/,
+    /resolved decision에는 user selection, selection_source, user_text_summary, decision_input_mode/,
+  );
+
+  manifest.decisions = [resolvedDecision("decision.strategy", "solution_control_strategy", "hybrid")];
+  manifest.decisions[0].selection_source = "delegated_recommendation";
+  manifest.decisions[0].selected_option = "single_agent";
+  manifest.decisions[0].options.push("single_agent");
+  assert.throws(
+    () => parseAfWorkItemManifest(JSON.stringify(manifest)),
+    /delegated_recommendation은 표시된 recommended_option만/,
+  );
+});
+
+test("superseded selection provenance retains its decision input mode", () => {
+  const manifest = createAfWorkItemManifest("req-superseded-decision");
+  manifest.decisions = [{
+    ...resolvedDecision("decision.superseded", "goal", "approved"),
+    decision_input_mode: null,
+    status: "superseded",
+  }];
+  assert.throws(
+    () => parseAfWorkItemManifest(JSON.stringify(manifest)),
+    /superseded decision의 selection metadata는 decision_input_mode를 포함해 모두 있어야/,
+  );
+
+  const assetDecision: AfAssetDecisionRecord = {
+    asset_decision_id: "asset-decision.superseded",
+    decision_revision: "3".repeat(64),
+    asset_ref: "agent.synthetic",
+    asset_type: "agent",
+    asset_version: 1,
+    required: true,
+    match_grade: "exact",
+    options: ["reuse_exact"],
+    recommended_disposition: "reuse_exact",
+    recommendation_revision: "4".repeat(64),
+    selected_disposition: "reuse_exact",
+    selected_by: "user",
+    selection_source: "explicit_option",
+    user_text_summary: "User explicitly selected disposition reuse_exact.",
+    decision_input_mode: null,
+    selection_reason: "Synthetic superseded selection.",
+    evidence_refs: [],
+    catalog_refs: ["agent.synthetic@1"],
+    session_id: "session-review",
+    turn_id: "turn-asset-superseded",
+    status: "superseded",
+    supersedes: null,
+  };
+  manifest.decisions = [];
+  manifest.asset_decisions = [assetDecision];
+  assert.throws(
+    () => parseAfWorkItemManifest(JSON.stringify(manifest)),
+    /superseded decision의 selection metadata는 decision_input_mode를 포함해 모두 있어야/,
   );
 });
 
@@ -403,12 +462,17 @@ test("rejects duplicate IDs and ambiguous active cycles", () => {
   const manifest = createAfWorkItemManifest("req-duplicates", new Date(at));
   const open: AfDecisionRecord = {
     decision_id: "decision.same",
+    decision_revision: "5".repeat(64),
     topic: "goal",
     required: true,
     options: ["a", "b"],
     recommended_option: "a",
+    recommendation_revision: "6".repeat(64),
     selected_option: null,
     selected_by: null,
+    selection_source: null,
+    user_text_summary: null,
+    decision_input_mode: "structured",
     selection_reason: null,
     evidence_refs: [],
     catalog_refs: [],

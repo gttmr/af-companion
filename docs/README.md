@@ -23,5 +23,6 @@
 - [ADK Agent Execution Modes](workbench/adk-agent-execution-modes.md)
 - [Decision Log](decision-log.md)
 - [Plan Discovery and Asset Registry migration evidence](migration/plan-discovery-asset-registry-status.md)
+- [Companion Session scope, handoff, and decision-input evidence](migration/companion-session-scope-handoff-decision-input-status.md)
 
 `docs/archive/**`, `docs/handoff/**`, dated reviews, and migration snapshots are historical evidence. Current source remains final authority for implementation behavior.

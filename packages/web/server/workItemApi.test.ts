@@ -11,6 +11,7 @@ import test from "node:test";
 import type { AfWorkItemManifest } from "../src/analyzer/afWorkItem.ts";
 import { ArtifactRootStore } from "./artifactRootStore.ts";
 import { startCodexBridgeServer } from "./codexBridgeServer.ts";
+import { validateCreateEnrollmentInput } from "./codexBridgeStore.ts";
 import { createWorkItemMiddleware } from "./workItemApi.ts";
 import { createWorkItemRevision } from "./workItemRevision.ts";
 
@@ -39,24 +40,8 @@ test("Graph PUT edits only Graph projections, invalidates downstream state, and 
 
   const bridge = await startCodexBridgeServer({ repoRoot, codexVersion: "test", port: 0 });
   t.after(() => bridge.close().catch(() => undefined));
-  await bridge.store.handleHook({
-    session_id: "session-exact",
-    transcript_path: null,
-    cwd: repoRoot,
-    hook_event_name: "SessionStart",
-    model: "gpt-test",
-    permission_mode: "default",
-    source: "startup",
-  });
-  await bridge.store.handleHook({
-    session_id: "session-other",
-    transcript_path: null,
-    cwd: repoRoot,
-    hook_event_name: "SessionStart",
-    model: "gpt-test",
-    permission_mode: "default",
-    source: "startup",
-  });
+  await enrollSession(bridge.store, repoRoot, workId, "session-exact");
+  await enrollSession(bridge.store, repoRoot, workId, "session-other");
 
   const middleware = createWorkItemMiddleware(repoRoot);
   const server = createServer((request, response) => {
@@ -119,6 +104,31 @@ test("Graph PUT edits only Graph projections, invalidates downstream state, and 
   assert.equal(snapshot.deliveries.filter((delivery) => delivery.target_session_id === "session-other").length, 0);
 });
 
+async function enrollSession(
+  bridgeStore: Awaited<ReturnType<typeof startCodexBridgeServer>>["store"],
+  repoRoot: string,
+  workId: string,
+  sessionId: string,
+): Promise<void> {
+  const receipt = await bridgeStore.createEnrollment(validateCreateEnrollmentInput({
+    application_id: "work-item-api-test",
+    work_id: workId,
+    requested_role: "materialization",
+    activation_origin: "af_cli_launch",
+    hook_mode: "side_effect_gated",
+  }));
+  await bridgeStore.handleHook({
+    session_id: sessionId,
+    transcript_path: null,
+    cwd: repoRoot,
+    hook_event_name: "SessionStart",
+    model: "gpt-test",
+    permission_mode: "default",
+    source: "startup",
+    companion_proof: { kind: "activation", activation_capsule: receipt.activation_capsule },
+  });
+}
+
 async function approveComposition(store: ArtifactRootStore, workId: string): Promise<void> {
   const result = await store.readWorkItem(workId);
   const at = "2030-01-01T00:00:00.000Z";
@@ -127,12 +137,17 @@ async function approveComposition(store: ArtifactRootStore, workId: string): Pro
   await store.writeArtifact(workId, "graph-ir.json", graphContent, null);
   const strategyDecision = {
     decision_id: "decision-control-strategy",
+    decision_revision: "1".repeat(64),
     topic: "solution_control_strategy",
     required: true,
     options: ["single_agent"],
     recommended_option: "single_agent",
+    recommendation_revision: "2".repeat(64),
     selected_option: "single_agent",
     selected_by: "user" as const,
+    selection_source: "explicit_option" as const,
+    user_text_summary: "User explicitly selected option single_agent.",
+    decision_input_mode: "conversational" as const,
     selection_reason: "Fixture explicitly approves one local Agent.",
     evidence_refs: ["analysis-result.json"],
     catalog_refs: [],
@@ -143,12 +158,17 @@ async function approveComposition(store: ArtifactRootStore, workId: string): Pro
   };
   const rootDecision = {
     decision_id: "decision-root-executable",
+    decision_revision: "3".repeat(64),
     topic: "root_executable",
     required: true,
     options: ["agent.scenario-a"],
     recommended_option: "agent.scenario-a",
+    recommendation_revision: "4".repeat(64),
     selected_option: "agent.scenario-a",
     selected_by: "user" as const,
+    selection_source: "explicit_option" as const,
+    user_text_summary: "User explicitly selected option agent.scenario-a.",
+    decision_input_mode: "conversational" as const,
     selection_reason: "Fixture explicitly selects the approved Agent as root.",
     evidence_refs: ["analysis-result.json"],
     catalog_refs: [],
