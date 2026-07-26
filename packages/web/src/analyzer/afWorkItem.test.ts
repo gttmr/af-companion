@@ -287,7 +287,7 @@ test("revision-bound discovery gate requires complete metadata and current revis
       asset_decision_revision: assetDecision,
       discovery_revision: discovery,
       catalog_snapshot_revision: catalog,
-      artifact_etag: "6".repeat(64),
+      artifact_etag: "4".repeat(64),
     },
     decided_at: later,
     session_id: "review-session",
@@ -296,6 +296,15 @@ test("revision-bound discovery gate requires complete metadata and current revis
   };
 
   assert.equal(parseAfWorkItemManifest(JSON.stringify(manifest)).review_gates.discovery.status, "approved");
+
+  const discoveryBinding = manifest.review_gates.discovery.binding;
+  assert.ok(discoveryBinding);
+  discoveryBinding.artifact_etag = "6".repeat(64);
+  assert.throws(
+    () => parseAfWorkItemManifest(JSON.stringify(manifest)),
+    /bound discovery_revision의 analysis-result\.json subject/,
+  );
+  discoveryBinding.artifact_etag = "4".repeat(64);
 
   manifest.review_gates.discovery.session_id = null;
   assert.throws(
@@ -306,7 +315,7 @@ test("revision-bound discovery gate requires complete metadata and current revis
 
 test("stale gates retain old bindings without matching current revisions", () => {
   const manifest = createAfWorkItemManifest("req-stale-gate", new Date(at));
-  const oldRevision = revision("old.json", "7");
+  const oldRevision = revision("analysis-result.json", "7");
   const registryRevision = "f".repeat(64);
   const currentRevision = revision("current.json", "8", registryRevision);
   const catalogRevision = revision("catalog/asset-registry.json", "9", registryRevision);

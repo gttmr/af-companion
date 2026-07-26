@@ -33,3 +33,5 @@ cd packages/web && npm run build
 ```
 
 These are examples, not a complete list. Choose the command that proves the actual claim and report environment blockers honestly.
+
+For a completed Scaffold, `validate-artifacts.mjs` resolves and checks every declared `skills.af-scaffold-runtime.output_roots` entry. Relative paths are rooted at the Work Item artifact directory and absolute paths retain their reviewed external application boundary. Every declared root must contain a regular file. `validate-generated-runtime.mjs` remains the specialized wrapper for a generated artifact-local runtime bundle; an external output root instead uses compile, import, test, and runtime evidence from that workspace.

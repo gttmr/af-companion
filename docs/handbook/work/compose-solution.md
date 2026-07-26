@@ -8,7 +8,7 @@ Graph is read-only until edit mode is explicitly enabled. Save requires a select
 2. validates the complete next strict analysis;
 3. writes embedded and split Graph IR;
 4. creates a new composition cycle/revision and preserves superseded history;
-5. marks composition/Scaffold/Verify evidence stale and records invalidations;
+5. preserves current Discovery approval, then marks composition/Scaffold/Verify evidence stale and records invalidations;
 6. queues exact-session `graph_change` context and records metadata-only activity.
 
 An ETag conflict is a hard retry boundary. A delivery failure is surfaced separately and does not roll back the saved Graph. Compose-to-Discover re-entry is represented by structured cycle data; after a new approved discovery, Compose must compare prior/current revisions and never auto-merge the old Graph.

@@ -24,6 +24,7 @@ test("schema, root validator registry, and web analyzer agree on strict enums an
   const candidate = schema("asset-candidate.schema.json");
   const graph = schema("graph.schema.json");
   const normalized = schema("normalized-requirement.schema.json");
+  const workItem = schema("af-work-item.schema.json");
   const enumAgreements = [
     ["assetTypes", rootEnums.assetTypes, candidate.properties.asset_type.enum],
     ["domainScopes", rootEnums.domainScopes, candidate.properties.domain_scope.enum],
@@ -48,6 +49,7 @@ test("schema, root validator registry, and web analyzer agree on strict enums an
   assert.deepEqual(tsConstArray(webValidatorSource, "TOP_LEVEL_KEYS"), analysis.required);
   assert.deepEqual(tsConstArray(webValidatorSource, "REQUIRED_CANDIDATE_KEYS"), candidate.required);
   assert.deepEqual(tsConstArray(webValidatorSource, "NORMALIZED_REQUIREMENT_KEYS"), normalized.required);
+  assert.equal(normalized.properties.id.pattern, workItem.$defs.workId.pattern, "normalized requirement/work ID grammar");
   assert.deepEqual(tsConstArray(webValidatorSource, "EVIDENCE_KEYS"), Object.keys(analysis.$defs.evidence.properties));
   assert.deepEqual(analysis.$defs.evidence.required, tsConstArray(webValidatorSource, "EVIDENCE_KEYS").filter((key) => key !== "accepted_missing_information"));
   assert.deepEqual(inlineRequiredKeys(webValidatorSource, "validateGraph"), graph.required);
@@ -136,6 +138,68 @@ test("validator validates normalized-requirement.json when present", () => {
     writeJson(join(root, "analysis-result.json"), analysis);
     writeJson(join(root, "normalized-requirement.json"), normalized);
     assert.match(fail(root), /normalized-requirement\.json\.raw_text is required/);
+  });
+});
+
+test("validator accepts a matching Work Item and normalized requirement ID without a req prefix", () => {
+  withRoot((root, analysis) => {
+    const workId = "product-truth-vertical-slice";
+    analysis.normalizedRequirement.id = workId;
+    analysis.assetCandidates.forEach((asset) => { asset.source_requirement_id = workId; });
+    analysis.graph.source_requirement_id = workId;
+
+    const manifest = completedScaffoldWorkItem(analysis);
+    manifest.work_id = workId;
+    manifest.artifact_root = `artifacts/af/${workId}`;
+
+    writeJson(join(root, "analysis-result.json"), analysis);
+    mkdirSync(join(root, "runtime-stub"));
+    writeFileSync(join(root, "runtime-stub", "agent.py"), "# generated runtime\n");
+    writeJson(join(root, "af-work-item.json"), manifest);
+
+    assert.match(run(root), /Artifact validation OK/);
+
+    manifest.review_gates.discovery.binding.artifact_etag = "0".repeat(64);
+    writeJson(join(root, "af-work-item.json"), manifest);
+    assert.match(
+      fail(root),
+      /review_gates\.discovery\.binding\.artifact_etag must match its bound discovery_revision analysis-result\.json subject/
+    );
+  });
+});
+
+test("Compose-owned analysis changes preserve the approved Discovery binding", () => {
+  withRoot((root, discoveryAnalysis) => {
+    const manifest = completedScaffoldWorkItem(discoveryAnalysis);
+    const registryRevision = manifest.revisions.catalog_snapshot.registry_revision;
+    const composedAnalysis = structuredClone(discoveryAnalysis);
+    composedAnalysis.graph.graph_id = "graph.target.composed";
+    const composedSource = jsonBytes(composedAnalysis);
+    const composedEtag = createHash("sha256").update(composedSource).digest("hex");
+
+    manifest.revisions.graph = revision([
+      { ref: "analysis-result.json#/graph", content: jsonBytes(composedAnalysis.graph) }
+    ], registryRevision);
+    manifest.revisions.composition = revision([
+      { ref: "analysis-result.json", content: composedSource }
+    ], registryRevision);
+    manifest.skills["af-compose-solution"].output_revision = manifest.revisions.composition;
+    manifest.composition_cycles[0].revision = manifest.revisions.composition;
+    manifest.review_gates.composition.binding = {
+      discovery_revision: manifest.revisions.discovery,
+      graph_revision: manifest.revisions.graph,
+      root_executable_revision: manifest.revisions.root_executable,
+      runtime_contract_revision: manifest.revisions.runtime_contract,
+      composition_revision: manifest.revisions.composition,
+      artifact_etag: composedEtag
+    };
+
+    writeJson(join(root, "analysis-result.json"), composedAnalysis);
+    mkdirSync(join(root, "runtime-stub"));
+    writeFileSync(join(root, "runtime-stub", "agent.py"), "# generated runtime\n");
+    writeJson(join(root, "af-work-item.json"), manifest);
+
+    assert.match(run(root), /Artifact validation OK/);
   });
 });
 
@@ -414,17 +478,20 @@ test("validator requires every Agent A2A binding or exposure ref to resolve to a
   });
 });
 
-test("validator requires a non-empty runtime stub when Scaffold is complete", () => {
+test("validator requires each declared Scaffold output root to be non-empty", () => {
   withRoot((root, analysis) => {
+    const manifest = completedScaffoldWorkItem(analysis);
+    manifest.skills["af-scaffold-runtime"].output_roots = [];
+    manifest.generated_output_roots = [];
     writeJson(join(root, "analysis-result.json"), analysis);
-    writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(analysis));
-    assert.match(fail(root), /af-scaffold-runtime complete requires a non-empty runtime-stub/);
+    writeJson(join(root, "af-work-item.json"), manifest);
+    assert.match(fail(root), /af-scaffold-runtime complete requires at least one declared output root/);
   });
   withRoot((root, analysis) => {
     writeJson(join(root, "analysis-result.json"), analysis);
     mkdirSync(join(root, "runtime-stub"));
     writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(analysis));
-    assert.match(fail(root), /af-scaffold-runtime complete requires a non-empty runtime-stub/);
+    assert.match(fail(root), /output_roots runtime-stub must reference a non-empty output root/);
   });
   withRoot((root, analysis) => {
     writeJson(join(root, "analysis-result.json"), analysis);
@@ -433,6 +500,35 @@ test("validator requires a non-empty runtime stub when Scaffold is complete", ()
     writeJson(join(root, "af-work-item.json"), completedScaffoldWorkItem(analysis));
     assert.match(run(root), /Artifact validation OK/);
   });
+});
+
+test("validator accepts a non-empty external Scaffold output root", () => {
+  const externalRoot = mkdtempSync(join(tmpdir(), "af-validator-output-"));
+  try {
+    withRoot((root, analysis) => {
+      const manifest = completedScaffoldWorkItem(analysis);
+      const source = "# generated external runtime\n";
+      const scaffoldRevision = revision(
+        [{ ref: "agent.py", content: source }],
+        manifest.revisions.catalog_snapshot.registry_revision
+      );
+      manifest.revisions.scaffold = scaffoldRevision;
+      manifest.skills["af-scaffold-runtime"].output_revision = scaffoldRevision;
+      manifest.skills["af-scaffold-runtime"].output_refs = ["agent.py"];
+      manifest.skills["af-scaffold-runtime"].output_roots = [externalRoot];
+      manifest.generated_output_roots = [externalRoot];
+      manifest.artifact_refs = ["analysis-result.json", "agent.py"];
+
+      writeJson(join(root, "analysis-result.json"), analysis);
+      writeJson(join(root, "af-work-item.json"), manifest);
+      assert.match(fail(root), /must reference a non-empty output root/);
+
+      writeFileSync(join(externalRoot, "agent.py"), source);
+      assert.match(run(root), /Artifact validation OK/);
+    });
+  } finally {
+    rmSync(externalRoot, { recursive: true, force: true });
+  }
 });
 
 test("validator rejects scaffold plans that drift from approved Target assets", () => {

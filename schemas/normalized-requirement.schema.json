@@ -23,8 +23,8 @@
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^req-[a-z0-9-]+$",
-      "examples": ["req-001"]
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+      "examples": ["req-001", "product-truth-vertical-slice"]
     },
     "title": {
       "type": "string",

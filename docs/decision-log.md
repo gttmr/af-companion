@@ -10,6 +10,24 @@
 
 ---
 
+## 2026-07-27 · PR pending — Scaffold 완료 조건을 선언된 output root에 결합
+
+- **결정**: `af-scaffold-runtime` 완료 여부는 artifact-local `runtime-stub/`의 존재가 아니라 Work Item에 선언된 모든 `output_roots`가 비어 있지 않은지로 검증한다. 상대 경로는 Work Item artifact root에서 해석하고, 절대 경로는 승인된 외부 application workspace 경계로 유지한다.
+- **배경**: Scaffold 계약은 명시적인 외부 output root를 지원하지만 root validator는 항상 `runtime-stub/`만 검사했다. 그 결과 별도 Git workspace에 정상 생성·실행·평가된 ADK application도 Scaffold complete로 기록할 수 없었다.
+- **영향**: artifact-local handoff는 기존처럼 해당 root의 파일 존재를 요구한다. 외부 application은 artifact tree에 소스를 복제하지 않아도 되며, compile·import·test·runtime 증거는 계속 그 외부 workspace에서 수집한다. Registry, Graph IR, 생성기 lowering 계약은 변경하지 않는다.
+
+## 2026-07-26 · PR pending — Compose aggregate 변경과 Discovery 승인 수명 분리
+
+- **결정**: 정상 Compose가 `analysis-result.json`의 Graph·Runtime Contract를 갱신해도 승인된 Discovery gate는 유지한다. Discovery `artifact_etag`는 승인 시점의 bound `discovery_revision` 안 `analysis-result.json` subject를 계속 식별하고, 현재 aggregate bytes는 `revisions.composition`과 Composition review ETag가 소유한다. 현재 파일은 composition revision이 존재하면 그 subject에, 없으면 discovery revision subject에 일치해야 한다.
+- **배경**: Discovery와 Composition이 같은 aggregate 파일의 서로 다른 필드를 소유하지만 validator가 두 gate ETag를 모두 현재 전체 파일 SHA와 비교했다. 그 결과 정상 Compose 직후 Discovery를 stale로 만들 수밖에 없었고, schema와 generator는 동시에 approved Discovery를 요구해 Composition 승인과 Scaffold가 불가능해졌다.
+- **영향**: Work Item parser와 root artifact validator가 gate ETag를 각 bound revision subject에 대조하고, 현재 aggregate는 현재 owning revision에 대조한다. 실제 Discover 입력이 바뀌면 기존처럼 Discovery와 downstream을 stale 처리하며, Compose가 Discover-owned 필드를 바꾸는 것은 계속 금지한다.
+
+## 2026-07-26 · PR pending — Work Item과 normalized requirement 식별자 문법 정합화
+
+- **결정**: `normalizedRequirement.id`는 별도 `req-` prefix를 강제하지 않고 primary `work_id`와 동일한 `^[a-z0-9][a-z0-9_-]{0,63}$` 문법을 사용한다. 기존과 같이 두 값은 반드시 같아야 하며 Asset의 `source_requirement_id`와 Graph의 `source_requirement_id`도 이 identity를 참조한다.
+- **배경**: Work Item v2와 Companion은 `work_id`를 primary identity로 허용하면서 normalized requirement schema만 `^req-[a-z0-9-]+$`를 요구해, `product-truth-vertical-slice`처럼 유효한 Work Item은 Discover materialization에서 어떤 artifact도 만들 수 없었다.
+- **영향**: normalized requirement schema와 root validator 회귀 검증을 Work Item 문법에 맞춘다. 기존 `req-*` ID는 계속 유효하며 migration, alias, lifecycle 또는 Registry 의미는 변경하지 않는다.
+
 ## 2026-07-24 · PR pending — Opt-in Companion Session, scoped Handoff, Decision Input Adapter
 
 - **결정**: Hook 관찰만으로 Codex Session을 Agent Factory 참여자로 등록하지 않는다. Workspace Eligibility, Session Participation, Work Attachment를 독립 축으로 두고, `companion_active` Session은 one-time Enrollment Ticket과 short-lived Session Lease를 통해 exact canonical cwd·workspace·application·Work Item·role·session·Bridge instance에 결합한다. Ticket은 발급 시 strict Work Item ETag를 고정하고 activation 시 다시 읽어 변경·삭제를 거부한다. `unmanaged`는 durable Session 상태가 아니며 Hook process가 실행되더라도 AF endpoint 탐색·network·state/activity write 없이 종료한다. Context Delivery는 active participation, 유효 Lease, 동일 scope, 허용 role, canonical Work Item과 current bundle revision을 생성 시점과 consume 시점에 확인한다. Global default target과 first-active/sole-pending 자동 선택은 제거한다. Plan body hash와 signed Handoff Capsule을 분리하고, Bridge는 exact canonical Work Item Handoff ID/marker와 complete canonical Plan body를 검증한 뒤 본문을 local encrypted state에만 보존하여 exact claim/Attach target의 다음 prompt에 주입하고 terminal transition에서 지운다. Canonical Plan은 64 KiB로 제한하되 direct/facade JSON transport envelope는 worst-case escaping을 수용하도록 512 KiB로 통일하고, snapshot projection도 canonical Handoff 제거·drift를 재검사해 stale authority와 암호문을 닫는다. Built-in fresh-context 운반이 검증되기 전에는 explicit Companion Continue를 기본으로 사용한다. 별도 사용자 동작으로만 pending Handoff를 current same-scope materialization Lease에 영속 Attach할 수 있으며, 이 경로는 raw Capsule/Plan body를 반환하지 않는다. `request_user_input`은 현재 Turn에 실제로 제공될 때만 Structured Adapter로 사용하고, 없으면 한 Turn 한 질문·`waiting_for_input`·Turn 종료를 지키는 Conversational Adapter로 같은 Decision 의미를 기록한다. Strict Decision/Asset Decision record는 decision/recommendation revision, selection source, bounded answer summary, input mode, exact session/turn을 영속하며 superseded selection provenance도 input mode를 포함한 all-or-none 집합으로 유지한다. Bridge interaction state는 breaking v2이며 v1 Session을 조용히 승격하거나 migration하지 않는다. (대체: 2026-07-24 Plan-driven Discovery 항목의 Hook-observed Session 등록과 explicit marker/attach-only 경계, 2026-07-22 Project Hook Session Registry 항목의 observed-session recovery와 global default target)

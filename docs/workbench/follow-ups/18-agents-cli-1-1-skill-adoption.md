@@ -97,7 +97,7 @@
 
 1. `Work Item -> ADK Application -> Git workspace -> container image -> Kubernetes Deployment`의 1:1 기본 경계를 계약화한다.
 2. `~/work/af-apps/<app-id>` 같은 등록된 외부 source root에서 `agents-cli scaffold create --deployment-target gke`를 실행할 수 있게 한다.
-3. 현재 artifact-local `runtime-stub/` 완성 조건을 실제 application source/output revision으로 대체한다.
+3. 현재 artifact-local `runtime-stub/` 완성 조건을 실제 application source/output revision으로 대체한다. 2026-07-27에 root validator의 선언된 외부 output root 지원은 완료했으며, application workspace 등록과 source revision의 제품화는 이 Slice에 남아 있다.
 4. Agent Gateway는 optional post-deploy attachment로 기록하며 GKE, Cloud Run, Agent Runtime 대신 선택하는 target으로 노출하지 않는다.
 5. Semantic Governance는 organization policy 입력과 명시적 승인이 있을 때만 Terraform/Console handoff로 제안한다.
 

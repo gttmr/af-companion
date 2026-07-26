@@ -11,6 +11,6 @@ The parser rejects unknown/missing fields, v1 input, ambiguous identifiers, unso
 - exact discovery/composition gate bindings;
 - invalidations, session handoffs, and verification evidence.
 
-Compose may return to Discover; no global forward-order assertion forbids that. Current approved discovery still gates composition review, current approved composition gates Scaffold, and Verify complete is equivalent to a fresh `passed` outcome.
+Compose may return to Discover; no global forward-order assertion forbids that. Current approved discovery still gates composition review, current approved composition gates Scaffold, and Verify complete is equivalent to a fresh `passed` outcome. A normal Compose update preserves the approved Discovery binding: its artifact ETag identifies the bound discovery revision, while the current mutable aggregate is checked against the composition revision and Composition ETag.
 
 `schemas/af-work-item.schema.json`, `scripts/validate-artifacts.mjs`, and `scripts/af.mjs work validate` enforce the same public shape. `WorkspaceHome` lists only roots with readable valid Work Items. The browser has no general lifecycle mutation; Graph PUT creates a new composition revision/cycle and marks dependent evidence stale without deleting history.

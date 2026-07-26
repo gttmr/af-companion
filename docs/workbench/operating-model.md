@@ -50,6 +50,7 @@ artifacts/af/<work-id>/
 `af-work-item.json` with `schema_version: 2` is the lifecycle source of truth. It stores:
 
 - primary `work_id`, monotonically increasing `ledger_revision`, and UI/routing `focus_skill`;
+- `normalizedRequirement.id` and downstream `source_requirement_id` values equal that primary `work_id` and use the same lowercase identifier grammar;
 - zero or more `active_runs`, including session and role, rather than overloading focus as execution state;
 - four Work Skill states with input/output revisions, output refs/roots, blockers, and timestamps;
 - content-addressed revisions for requirement, decisions, Asset decisions, discovery, Registry snapshot, Graph, Root Executable, runtime contracts, composition, scaffold, and verification;
@@ -71,7 +72,7 @@ Review is also a human decision, not validator output or skill self-approval.
 - Discovery approval binds exact requirement, decision, Asset decision, discovery, and Registry snapshot revisions plus the artifact ETag.
 - Composition approval binds exact discovery, Graph, Root Executable, runtime contract, and composition revisions plus the artifact ETag.
 
-When an input changes, the prior binding is retained but marked `stale`; affected downstream skill/evidence records are also stale. Validators, file presence, Graph save, bridge health, or successful generation never create approval.
+When an owning input changes, the prior binding is retained but marked `stale`; affected downstream skill/evidence records are also stale. Compose-owned Graph/runtime changes do not invalidate the already approved Discovery inputs. The Discovery artifact ETag remains tied to its bound discovery revision, while the current post-Compose aggregate bytes are covered by the composition revision and Composition review ETag. Validators, file presence, Graph save, bridge health, or successful generation never create approval.
 
 ## 5. Asset Registry
 
@@ -124,6 +125,8 @@ Enrollment activation rechecks the exact Work Item ETag captured when its ticket
 ## 9. Scaffold and Runtime Handoff
 
 Scaffold consumes current approved revisions, resolved required decisions, an explicit Root Executable, an approved scaffold plan with `raw_requirement_to_code=false`, and explicit output roots.
+
+Scaffold may write to an artifact-local handoff tree or an explicitly declared external application workspace. Completion requires every declared output root to resolve to a non-empty source or handoff tree; relative roots resolve from the Work Item artifact root, while absolute roots preserve the reviewed external workspace boundary. `runtime-stub/` is one possible output root, not a universal completion requirement.
 
 - `smoke` creates importable review structure and explicit TODO seams.
 - `runnable` adds only reviewed synthetic/local behavior for agreed scenarios.
