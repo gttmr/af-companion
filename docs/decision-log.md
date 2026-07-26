@@ -10,6 +10,12 @@
 
 ---
 
+## 2026-07-26 · PR pending — Compose aggregate 변경과 Discovery 승인 수명 분리
+
+- **결정**: 정상 Compose가 `analysis-result.json`의 Graph·Runtime Contract를 갱신해도 승인된 Discovery gate는 유지한다. Discovery `artifact_etag`는 승인 시점의 bound `discovery_revision` 안 `analysis-result.json` subject를 계속 식별하고, 현재 aggregate bytes는 `revisions.composition`과 Composition review ETag가 소유한다. 현재 파일은 composition revision이 존재하면 그 subject에, 없으면 discovery revision subject에 일치해야 한다.
+- **배경**: Discovery와 Composition이 같은 aggregate 파일의 서로 다른 필드를 소유하지만 validator가 두 gate ETag를 모두 현재 전체 파일 SHA와 비교했다. 그 결과 정상 Compose 직후 Discovery를 stale로 만들 수밖에 없었고, schema와 generator는 동시에 approved Discovery를 요구해 Composition 승인과 Scaffold가 불가능해졌다.
+- **영향**: Work Item parser와 root artifact validator가 gate ETag를 각 bound revision subject에 대조하고, 현재 aggregate는 현재 owning revision에 대조한다. 실제 Discover 입력이 바뀌면 기존처럼 Discovery와 downstream을 stale 처리하며, Compose가 Discover-owned 필드를 바꾸는 것은 계속 금지한다.
+
 ## 2026-07-26 · PR pending — Work Item과 normalized requirement 식별자 문법 정합화
 
 - **결정**: `normalizedRequirement.id`는 별도 `req-` prefix를 강제하지 않고 primary `work_id`와 동일한 `^[a-z0-9][a-z0-9_-]{0,63}$` 문법을 사용한다. 기존과 같이 두 값은 반드시 같아야 하며 Asset의 `source_requirement_id`와 Graph의 `source_requirement_id`도 이 identity를 참조한다.

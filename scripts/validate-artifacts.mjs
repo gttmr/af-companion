@@ -173,10 +173,21 @@ function validateWorkItem(manifest, label, path) {
   const analysisPath = join(dirname(path), "analysis-result.json");
   if (!existsSync(analysisPath)) return;
   const actualEtag = createHash("sha256").update(readFileSync(analysisPath)).digest("hex");
-  for (const gateName of ["discovery", "composition"]) {
+  const currentAnalysisOwner = record(manifest.revisions?.composition) ? "composition" : "discovery";
+  const currentAnalysisSubject = revisionSubject(manifest.revisions?.[currentAnalysisOwner], "analysis-result.json");
+  if (!currentAnalysisSubject || currentAnalysisSubject.sha256 !== actualEtag) {
+    push(`${label}.revisions.${currentAnalysisOwner} analysis-result.json subject must match current analysis-result.json bytes.`);
+  }
+  for (const [gateName, revisionKey] of [["discovery", "discovery_revision"], ["composition", "composition_revision"]]) {
     const gate = manifest.review_gates?.[gateName];
-    if (gate?.status === "approved" && gate.binding?.artifact_etag !== actualEtag) {
-      push(`${label}.review_gates.${gateName}.binding.artifact_etag must match current analysis-result.json bytes.`);
+    if (gate?.binding) {
+      const reviewedAnalysisSubject = revisionSubject(gate.binding[revisionKey], "analysis-result.json");
+      if (!reviewedAnalysisSubject || gate.binding.artifact_etag !== reviewedAnalysisSubject.sha256) {
+        push(`${label}.review_gates.${gateName}.binding.artifact_etag must match its bound ${revisionKey} analysis-result.json subject.`);
+      }
+    }
+    if (gateName === "composition" && gate?.status === "approved" && gate.binding?.artifact_etag !== actualEtag) {
+      push(`${label}.review_gates.composition.binding.artifact_etag must match current analysis-result.json bytes.`);
     }
   }
   const analysis = readJson(analysisPath);
@@ -189,6 +200,12 @@ function validateWorkItem(manifest, label, path) {
       push(`${label}.root_executable must reference an analysis-result Agent or Workflow asset.`);
     }
   }
+}
+
+function revisionSubject(revision, ref) {
+  return record(revision) && Array.isArray(revision.subjects)
+    ? revision.subjects.find((subject) => subject?.ref === ref)
+    : undefined;
 }
 
 function validateRevision(revision, label) {

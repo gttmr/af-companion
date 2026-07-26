@@ -146,8 +146,11 @@ When the current cycle outputs are coherent and validation passes:
 - set Compose to `waiting_for_review`;
 - set the matching real Compose run to `waiting_for_review`;
 - record current `input_revision`, `output_revision`, and exact `output_refs`;
+- preserve the current approved Discovery gate and its reviewed discovery-revision artifact hash; Compose-owned aggregate changes do not make Discovery stale;
 - reset `review_gates.composition` to `pending` with null binding/decision metadata and empty `stale_reasons`;
 - never self-approve.
+
+After Compose writes `analysis-result.json`, its current bytes are covered by `revisions.composition`. The Discovery gate's `artifact_etag` continues to match the `analysis-result.json` subject in its bound `discovery_revision`; only the Composition gate binds the new current aggregate ETag.
 
 On an explicit decision from the current enrolled exact-scope session, use the Decision Input Adapter when a question is required, then bind the composition gate to the exact current `discovery`, `graph`, `root_executable`, `runtime_contract`, and `composition` revision objects plus the SHA-256 of current `analysis-result.json` bytes. Record `decided_at`, `session_id`, and `turn_id`. An ordinary-session approval is not a gate decision.
 

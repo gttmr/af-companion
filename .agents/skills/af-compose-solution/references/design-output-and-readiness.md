@@ -80,7 +80,10 @@ When outputs are coherent:
 - keep `output_roots` empty because Compose writes no source;
 - add current output paths to top-level `artifact_refs`;
 - keep actual Scaffold-generated roots out of `generated_output_roots` until Scaffold creates them;
+- preserve the current approved Discovery gate and its historical binding; Compose-owned aggregate changes do not stale Discovery;
 - reset the composition gate to a valid pending shape: null binding/decision metadata and empty `stale_reasons`.
+
+Once Compose updates `analysis-result.json`, current aggregate bytes are owned by `revisions.composition`. The Discovery `artifact_etag` remains equal to the `analysis-result.json` subject in its bound `discovery_revision`; the later Composition gate binds the current aggregate SHA-256.
 
 Record planned source-root constraints in `boundary-design.md`; do not invent an unsupported field in `scaffold-plan.json`.
 

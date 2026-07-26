@@ -158,6 +158,48 @@ test("validator accepts a matching Work Item and normalized requirement ID witho
     writeJson(join(root, "af-work-item.json"), manifest);
 
     assert.match(run(root), /Artifact validation OK/);
+
+    manifest.review_gates.discovery.binding.artifact_etag = "0".repeat(64);
+    writeJson(join(root, "af-work-item.json"), manifest);
+    assert.match(
+      fail(root),
+      /review_gates\.discovery\.binding\.artifact_etag must match its bound discovery_revision analysis-result\.json subject/
+    );
+  });
+});
+
+test("Compose-owned analysis changes preserve the approved Discovery binding", () => {
+  withRoot((root, discoveryAnalysis) => {
+    const manifest = completedScaffoldWorkItem(discoveryAnalysis);
+    const registryRevision = manifest.revisions.catalog_snapshot.registry_revision;
+    const composedAnalysis = structuredClone(discoveryAnalysis);
+    composedAnalysis.graph.graph_id = "graph.target.composed";
+    const composedSource = jsonBytes(composedAnalysis);
+    const composedEtag = createHash("sha256").update(composedSource).digest("hex");
+
+    manifest.revisions.graph = revision([
+      { ref: "analysis-result.json#/graph", content: jsonBytes(composedAnalysis.graph) }
+    ], registryRevision);
+    manifest.revisions.composition = revision([
+      { ref: "analysis-result.json", content: composedSource }
+    ], registryRevision);
+    manifest.skills["af-compose-solution"].output_revision = manifest.revisions.composition;
+    manifest.composition_cycles[0].revision = manifest.revisions.composition;
+    manifest.review_gates.composition.binding = {
+      discovery_revision: manifest.revisions.discovery,
+      graph_revision: manifest.revisions.graph,
+      root_executable_revision: manifest.revisions.root_executable,
+      runtime_contract_revision: manifest.revisions.runtime_contract,
+      composition_revision: manifest.revisions.composition,
+      artifact_etag: composedEtag
+    };
+
+    writeJson(join(root, "analysis-result.json"), composedAnalysis);
+    mkdirSync(join(root, "runtime-stub"));
+    writeFileSync(join(root, "runtime-stub", "agent.py"), "# generated runtime\n");
+    writeJson(join(root, "af-work-item.json"), manifest);
+
+    assert.match(run(root), /Artifact validation OK/);
   });
 });
 

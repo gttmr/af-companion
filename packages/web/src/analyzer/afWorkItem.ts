@@ -978,6 +978,16 @@ function assertCoherent(manifest: AfWorkItemManifest, fileName: string): void {
     runtime_contract_revision: manifest.revisions.runtime_contract,
     composition_revision: manifest.revisions.composition
   }, `${fileName}.review_gates.composition`);
+  assertGateArtifactEtag(
+    manifest.review_gates.discovery,
+    "discovery_revision",
+    `${fileName}.review_gates.discovery`,
+  );
+  assertGateArtifactEtag(
+    manifest.review_gates.composition,
+    "composition_revision",
+    `${fileName}.review_gates.composition`,
+  );
 
   if (manifest.review_gates.discovery.status === "approved" && manifest.skills["af-discover-assets"].status !== "complete") {
     throw new Error(`${fileName} approved discovery에는 complete af-discover-assets가 필요합니다.`);
@@ -1040,6 +1050,21 @@ function assertGateBindingMatches<TBinding extends object>(
     if (!revision || !bound || revision.digest !== bound.digest) {
       throw new Error(`${label}.binding.${key}은 현재 top-level revision과 일치해야 합니다.`);
     }
+  }
+}
+
+function assertGateArtifactEtag<TBinding extends object>(
+  gate: AfReviewGate<TBinding>,
+  revisionKey: "discovery_revision" | "composition_revision",
+  label: string,
+): void {
+  if (!gate.binding) return;
+  const binding = gate.binding as Record<string, unknown>;
+  const revision = binding[revisionKey] as AfRevisionRef | undefined;
+  const artifactEtag = binding.artifact_etag;
+  const analysisSubject = revision?.subjects.find((subject) => subject.ref === "analysis-result.json");
+  if (!analysisSubject || artifactEtag !== analysisSubject.sha256) {
+    throw new Error(`${label}.binding.artifact_etag은 bound ${revisionKey}의 analysis-result.json subject와 일치해야 합니다.`);
   }
 }
 

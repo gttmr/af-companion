@@ -67,7 +67,7 @@ Represent execution decisions under `control`, data and state movement under `ch
 
 - Discover and Compose outputs must parse and pass the active strict v2 validator before review.
 - External Codex owns canonical analysis and split artifacts. The web workbench has two canonical write surfaces: Graph IR and the versioned Asset Registry. Graph writes synchronize `analysis-result.json.graph` and `graph-ir.json`; Registry writes go through the shared service with the current optimistic `registry_revision`.
-- Changed discovery, decision, Asset selection, Registry snapshot, composition, Graph, root executable, or runtime contract invalidates every gate and downstream evidence bound to the old revision.
+- Changed discovery, decision, Asset selection, or Registry snapshot invalidates Discovery approval and downstream evidence bound to the old revision. Compose-owned Graph, root-executable, runtime-contract, or composition changes preserve the current approved Discovery binding, reset or stale Composition review, and invalidate Scaffold/Verify evidence.
 - Compose produces a coherent `analysis-result.json`, `graph-ir.json`, `boundary-design.md`, and `scaffold-plan.json` when readiness is achieved.
 - Scaffold consumes reviewed and approved v2 artifacts only.
 - Registry entries and versions remain Agent, Workflow, or Tool only. Skills and web/CLI callers never bypass the Asset Registry service by directly editing Registry storage or `catalog/*.yaml`.

@@ -96,7 +96,7 @@ Gate status is `pending`, `approved`, `changes_requested`, or `stale`. A pending
 
 Discovery approval binds requirement, decision, Asset-decision, discovery, and Catalog-snapshot revisions plus the reviewed artifact hash. Composition approval binds discovery, Graph, root-executable, runtime-contract, and composition revisions plus the reviewed artifact hash.
 
-A skill never self-approves. Before honoring an approval, compare every bound revision subject and Registry revision with current state. New Discover material resets the discovery gate to pending and stales composition/downstream state. New composition material leaves an undecided gate pending or marks its prior decision stale, then stales Scaffold/Verify. Append the owning invalidation and never preserve approval for unreviewed bytes.
+A skill never self-approves. Before honoring an approval, compare every bound revision subject and Registry revision with current state. New Discover material resets the discovery gate to pending and stales composition/downstream state. New composition material preserves the approved Discovery binding, leaves an undecided Composition gate pending or marks its prior decision stale, then stales Scaffold/Verify. After Compose updates the aggregate, the Discovery artifact hash remains tied to the bound historical discovery revision while the current aggregate bytes are owned by the composition revision and, after review, the Composition artifact hash. Append the owning invalidation and never preserve approval for unreviewed bytes.
 
 ## Session and Plan handoff
 
