@@ -183,6 +183,52 @@ test("POST /api/work-items rejects unsafe or non-idempotent requests before writ
   assert.equal(duplicate.suggested_work_id, "occupied-2");
 });
 
+test("POST /api/work-items resumes a failed MCP export and recreates only a missing empty ledger", async (t) => {
+  const repoRoot = await mkdtemp(join(tmpdir(), "af-work-bootstrap-recovery-repo-"));
+  const applicationsRoot = await mkdtemp(join(tmpdir(), "af-work-bootstrap-recovery-apps-"));
+  t.after(() => rm(repoRoot, { recursive: true, force: true }));
+  t.after(() => rm(applicationsRoot, { recursive: true, force: true }));
+  const commands: CapturedCommand[] = [];
+  const successfulRunner = testBootstrapCommandRunner(commands);
+  let failFirstExport = true;
+  const commandRunner: BootstrapCommandRunner = async (executable, args, options) => {
+    if (executable !== "git" && failFirstExport) {
+      failFirstExport = false;
+      commands.push({ executable, args: [...args], cwd: options.cwd });
+      throw new Error("induced export failure");
+    }
+    await successfulRunner(executable, args, options);
+  };
+  const server = bootstrapServer(createWorkItemMiddleware(repoRoot, undefined, { applicationsRoot, commandRunner }));
+  t.after(() => close(server));
+  const origin = await listen(server);
+  const body = validBootstrapBody("Recovery App");
+
+  let response = await postBootstrap(origin, body);
+  assert.equal(response.status, 500);
+  assert.equal((await response.json()).code, "mcp_export_failed");
+  const ledgerPath = join(repoRoot, "artifacts/af/recovery-app/af-work-item.json");
+  assert.equal((await stat(ledgerPath)).isFile(), true);
+  await assert.rejects(stat(join(repoRoot, ".agent-factory/applications/registry.json")), { code: "ENOENT" });
+
+  response = await postBootstrap(origin, { ...body, reuse_existing: true });
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).work_id, "recovery-app");
+  assert.equal((await stat(join(applicationsRoot, "recovery-app/.agent-factory/af-context.json"))).isFile(), true);
+
+  await rm(ledgerPath);
+  response = await postBootstrap(origin, { ...body, reuse_existing: true });
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).work_id, "recovery-app");
+  assert.equal((await stat(ledgerPath)).isFile(), true);
+
+  await writeFile(join(repoRoot, "artifacts/af/recovery-app/analysis-result.json"), "{}\n", "utf8");
+  await rm(ledgerPath);
+  response = await postBootstrap(origin, { ...body, reuse_existing: true });
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "work_item_recovery_unsafe");
+});
+
 test("Graph PUT edits only Graph projections, invalidates downstream state, and targets one explicit Codex session", async (t) => {
   const repoRoot = await mkdtemp(join(tmpdir(), "af-work-item-api-"));
   t.after(() => rm(repoRoot, { recursive: true, force: true }));

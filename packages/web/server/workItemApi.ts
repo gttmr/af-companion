@@ -248,7 +248,18 @@ async function bootstrapWorkItem(input: {
 
   return input.applicationRegistry.withLock(async () => {
     const snapshot = await input.applicationRegistry.loadSnapshot();
-    if (await identifierExists(input.store, snapshot, identifier)) {
+    const matchingRegistrations = snapshot.applications.filter((entry) => (
+      entry.application_id === identifier || entry.work_id === identifier
+    ));
+    const exactRegistration = matchingRegistrations.find((entry) => (
+      entry.application_id === identifier && entry.work_id === identifier
+    )) ?? null;
+    const manifestPath = input.store.resolveArtifactPath(identifier, "af-work-item.json", "read");
+    const manifestExists = await pathExists(manifestPath);
+    const identifierAlreadyExists = matchingRegistrations.length > 0
+      || await pathExists(input.store.resolveRootDir(identifier));
+    if ((!request.reuseExisting && identifierAlreadyExists)
+      || matchingRegistrations.some((entry) => entry !== exactRegistration)) {
       const suggestion = await nextAvailableIdentifier(input.store, input.applicationRegistry, snapshot, identifier);
       throw new WorkItemApiError(409, "identifier_conflict", `이미 존재하는 Work Item 또는 Application ID입니다: ${identifier}`, {
         suggested_application_id: suggestion,
@@ -257,6 +268,9 @@ async function bootstrapWorkItem(input: {
     }
 
     const applicationRoot = input.applicationRegistry.resolveApplicationRoot(identifier);
+    if (exactRegistration && exactRegistration.application_root !== applicationRoot) {
+      throw new WorkItemApiError(409, "application_registration_mismatch", "등록된 application 경로가 현재 applications root와 일치하지 않습니다.");
+    }
     const applicationState = await inspectApplicationRoot(input.applicationRegistry.applicationsRoot, applicationRoot);
     if (applicationState.nonEmpty && !request.reuseExisting) {
       throw new WorkItemApiError(
@@ -266,7 +280,25 @@ async function bootstrapWorkItem(input: {
       );
     }
 
-    const workItem = await input.store.createWorkItem(identifier);
+    if (request.reuseExisting && !manifestExists) {
+      const artifactEntries = await readdir(input.store.resolveRootDir(identifier)).catch((error) => {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+        throw error;
+      });
+      if (artifactEntries.length > 0) {
+        throw new WorkItemApiError(
+          409,
+          "work_item_recovery_unsafe",
+          "다른 artifact가 남아 있어 빈 Work Item을 자동으로 다시 만들 수 없습니다.",
+        );
+      }
+    }
+    const workItem = manifestExists
+      ? await input.store.readWorkItem(identifier).then(({ manifest }) => ({
+        work_id: manifest.work_id,
+        artifact_root: manifest.artifact_root,
+      }))
+      : await input.store.createWorkItem(identifier);
     await mkdir(applicationRoot, { recursive: true });
     await assertCanonicalContainment(input.applicationRegistry.applicationsRoot, applicationRoot);
 
@@ -293,12 +325,14 @@ async function bootstrapWorkItem(input: {
       throw new WorkItemApiError(500, "mcp_export_failed", "application MCP context를 내보내지 못했습니다.");
     }
 
-    await input.applicationRegistry.register({
-      application_id: identifier,
-      application_root: applicationRoot,
-      work_id: identifier,
-      created_at: new Date().toISOString(),
-    });
+    if (!exactRegistration) {
+      await input.applicationRegistry.register({
+        application_id: identifier,
+        application_root: applicationRoot,
+        work_id: identifier,
+        created_at: new Date().toISOString(),
+      });
+    }
     return {
       ...workItem,
       application_id: identifier,

@@ -192,6 +192,7 @@ test("Facade rejects enrollment for a nonexistent exact Work Item before ticket 
   assert.ok(bridge);
   const response = await facade("/enrollments", { application_id: "logical-app", work_id: "missing-work", requested_role: "materialization", activation_origin: "af_cli_launch" });
   assert.equal(response.status, 404);
+  assert.equal((await response.clone().json()).code, "work_item_missing");
   assert.deepEqual((await bridge.store.snapshot()).enrollment_tickets, []);
 });
 

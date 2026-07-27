@@ -62,6 +62,16 @@ current Decision topic and its options only when the ledger also contains a
 `waiting_for_input` active run. It does not answer the Decision. Run/test/eval
 result display remains a follow-up.
 
+`JourneyRecoveryPanel` receives a pure classification from stable API error
+codes and the current launch observation. Bridge unavailable, missing Work Item,
+VS Code unavailable/failed/cooldown, unclaimed/expired enrollment, missing prompt
+Hook, ETag activation rejection, stale revision, and MCP export failure retain
+distinct labels and actions. Because public snapshot tickets remain pending-only,
+the browser correlates a pending ticket observed for the current exact Work Item
+with later aggregate diagnostic growth; it does not infer historical ticket
+scope from a counter alone. Bridge and Trust/Task recovery remain guides, while
+bounded one-click actions reuse existing bootstrap, launch, and refresh routes.
+
 Bridge health, editor launch acceptance, ticket issuance, active lease, and prompt receipt are separate states. The UI never lists ordinary Hook-observed sessions, selects the first active session, or reports editor launch as Codex connection proof.
 
 The generated descriptor is stored under
@@ -76,7 +86,8 @@ Source:
 - `packages/web/src/companion/sessionContract.ts` (`deliveryEligibility`, `canonicalizePlanBody`)
 - `packages/web/server/workspaceProjection.ts`, `workspaceApi.ts`, `vscodeWorkspaceLauncher.ts`
 - `packages/web/src/layout/LiveRail.tsx`, `WorkLiveStrip.tsx`, `WaitingDecisionStrip.tsx`
-- `packages/web/src/routes/WorkspaceHome.tsx`, `packages/web/src/components/JourneyGuideDialog.tsx`
+- `packages/web/src/routes/WorkspaceHome.tsx`, `packages/web/src/components/JourneyGuideDialog.tsx`, `JourneyRecoveryPanel.tsx`
+- `packages/web/src/companion/journeyRecovery.ts`
 - `packages/web/server/codexBridgeStore.ts`
 - `packages/web/server/codexBridgeServer.ts`, `codexCompanionApi.ts`
 - `packages/web/src/routes/ConnectionsPage.tsx`, `packages/web/src/state/useCodexSessions.ts`

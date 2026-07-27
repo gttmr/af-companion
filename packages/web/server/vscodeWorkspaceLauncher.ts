@@ -143,9 +143,10 @@ export class VscodeWorkspaceLauncher {
       throw new VscodeWorkspaceLauncherError(429, "launch_cooldown", "VS Code launch is cooling down");
     }
 
-    const { executable, canonicalRoot } = await this.#trustedExecutable();
+    const canonicalRoot = await this.#canonicalRoot;
     const applicationRoot = await resolveTrustedApplicationRoot(input);
     const workspacePath = await writeSessionWorkspace(canonicalRoot, applicationRoot, input);
+    const { executable } = await this.#trustedExecutable();
     this.#launchInFlight = true;
     try {
       await execFileAsync(executable, ["--new-window", workspacePath], {

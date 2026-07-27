@@ -105,7 +105,7 @@ Registry search does not select a reuse outcome. Each required Asset receives ex
 
 The app does not expose arbitrary artifact PUT, source edit, stage/commit, existing Work Item field/approval mutation outside guarded Graph invalidation, runtime execution, or model-owned publication.
 
-`POST /api/work-items` requires loopback, same origin, `application/json` no larger than 4 KiB, `application_root_confirmed: true`, and `confirmation: "CREATE_WORK_ITEM"`. It creates only the unchanged strict v2 default ledger, then initializes the server-derived application root with `git init` and the existing MCP context export. ID/path collisions and non-empty directories fail before writes unless reuse of that directory is explicit. The application binding is stored in ignored mode-`0600` `.agent-factory/applications/registry.json`; it is not added to the Work Item schema and grants no enrollment or workspace eligibility.
+`POST /api/work-items` requires loopback, same origin, `application/json` no larger than 4 KiB, `application_root_confirmed: true`, and `confirmation: "CREATE_WORK_ITEM"`. It creates only the unchanged strict v2 default ledger, then initializes the server-derived application root with `git init` and the existing MCP context export. ID/path collisions and non-empty directories fail before writes unless reuse of that directory is explicit. Explicit `reuse_existing: true` may finish a partial bootstrap without modifying its existing ledger, or recreate the strict empty ledger when the exact local registration remains and no other artifact is present; a nonempty orphaned artifact root fails closed. The application binding is stored in ignored mode-`0600` `.agent-factory/applications/registry.json`; it is not added to the Work Item schema and grants no enrollment or workspace eligibility.
 
 `POST /api/codex-companion/vscode-sessions` in Plan mode resolves that local
 binding, verifies the Work Item and live Bridge, generates an ignored private
@@ -122,6 +122,15 @@ VS Code start action. A new application path is confirmed before the create
 request; Trust and MCP guidance follows launch without treating editor
 acceptance as Session proof. Browser components do not call enrollment or
 fresh-session Continue and do not render activation Capsules or launch commands.
+
+Home classifies launch/recovery UI from stable response codes plus current
+snapshot evidence. A pending ticket is remembered only in browser state for the
+current launch; increases in the aggregate expired/invalid/ignored diagnostics
+then distinguish expiration, ETag-bound activation rejection, and missing Hook
+observation without exposing claimed/revoked ticket history. Recovery uses the
+existing Work Item bootstrap, VS Code launch, and read/refetch endpoints. The
+browser never spawns the Bridge or starts a turn, and stale revisions are
+re-read rather than blindly retried.
 
 When Home or a `/work/:workId/*` route selects an exact Work Item, its workspace
 SSE includes that Work ID. If its noncanonical Application Registry binding exists,

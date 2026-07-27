@@ -171,3 +171,29 @@ test("generates a private multi-root session workspace and launches only that de
     ["--new-window", receipt.workspace_path],
   ]);
 });
+
+test("keeps a generated manual workspace when the host code executable is unavailable", async (t) => {
+  const base = await mkdtemp(join(tmpdir(), "af-vscode-unavailable-"));
+  t.after(() => rm(base, { recursive: true, force: true }));
+  const repoRoot = join(base, "factory");
+  const applicationsRoot = join(base, "applications");
+  const applicationRoot = join(applicationsRoot, "sample-app");
+  const emptyBin = join(base, "empty-bin");
+  await mkdir(repoRoot);
+  await mkdir(applicationRoot, { recursive: true });
+  await mkdir(emptyBin);
+  const launcher = new VscodeWorkspaceLauncher(repoRoot, { env: { ...process.env, PATH: emptyBin } });
+
+  await assert.rejects(launcher.launchSessionWorkspace({
+    applicationId: "sample-app",
+    applicationRoot,
+    applicationsRoot,
+    workId: "sample-work",
+    role: "plan",
+  }), { code: "code_unavailable" });
+
+  const workspacePath = join(repoRoot, ".agent-factory", "vscode", "sample-work.code-workspace");
+  const descriptor = JSON.parse(await readFile(workspacePath, "utf8"));
+  assert.equal(descriptor.folders[0].path, applicationRoot);
+  assert.equal((await lstat(workspacePath)).mode & 0o777, 0o600);
+});

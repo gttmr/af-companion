@@ -8,6 +8,18 @@ import type {
 
 export const CODEX_COMPANION_SNAPSHOT_QUERY_KEY = ["codex-companion", "snapshot"] as const;
 
+export class CodexCompanionRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+    readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "CodexCompanionRequestError";
+  }
+}
+
 interface UseCodexSessionsOptions {
   enabled?: boolean;
 }
@@ -96,10 +108,13 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     snapshotLoading: snapshotQuery.isLoading,
     snapshotRefreshing: snapshotQuery.isFetching,
     snapshotError: snapshotQuery.error instanceof Error ? snapshotQuery.error.message : null,
+    snapshotFailure: requestFailure(snapshotQuery.error),
+    refreshSnapshot: () => snapshotQuery.refetch(),
     launchVscodeSession: (workId: string) => vscodeSessionMutation.mutateAsync(workId),
     vscodeSessionPending: vscodeSessionMutation.isPending,
     vscodeSessionReceipt: vscodeSessionMutation.data ?? null,
     vscodeSessionError: mutationMessage(vscodeSessionMutation.error),
+    vscodeSessionFailure: requestFailure(vscodeSessionMutation.error),
     updatePreferences: (input: SessionPreferencesInput) => preferencesMutation.mutateAsync(input),
     preferencesPending: preferencesMutation.isPending,
     preferencesSessionId: preferencesMutation.variables?.sessionId ?? null,
@@ -123,7 +138,7 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
 async function fetchCodexCompanionSnapshot(): Promise<CodexCompanionSnapshotV2> {
   const response = await fetch("/api/codex-companion/snapshot");
   if (!response.ok) {
-    throw new Error(await codexCompanionResponseMessage(response, "Companion snapshot을 가져오지 못했습니다."));
+    throw await codexCompanionResponseError(response, "Companion snapshot을 가져오지 못했습니다.");
   }
   const snapshot = (await response.json()) as Partial<CodexCompanionSnapshotV2>;
   if (snapshot.schema_version !== 2) {
@@ -139,11 +154,7 @@ async function postCompanion<T>(path: string, body: unknown, fallback: string): 
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    const detail = await codexCompanionResponseMessage(response, fallback);
-    if ([404, 405, 501].includes(response.status)) {
-      throw new Error(`현재 Companion facade에서 이 기능을 지원하지 않습니다 (HTTP ${response.status}). ${detail}`);
-    }
-    throw new Error(detail);
+    throw await codexCompanionResponseError(response, fallback);
   }
   if (response.status === 204) return null as T;
   return (await response.json().catch(() => null)) as T;
@@ -153,14 +164,26 @@ function mutationMessage(error: Error | null): string | null {
   return error?.message ?? null;
 }
 
+function requestFailure(error: unknown): CodexCompanionRequestError | null {
+  return error instanceof CodexCompanionRequestError ? error : null;
+}
+
+async function codexCompanionResponseError(response: Response, fallback: string): Promise<CodexCompanionRequestError> {
+  const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
+  const message = responseMessage(payload, fallback);
+  const code = typeof payload?.code === "string" && payload.code ? payload.code : "companion_request_failed";
+  return new CodexCompanionRequestError(response.status, code, message, payload);
+}
+
 export async function codexCompanionResponseMessage(response: Response, fallback: string): Promise<string> {
-  try {
-    const body = (await response.json()) as { error?: string | { message?: string }; message?: string };
-    if (typeof body.error === "string" && body.error) return body.error;
-    if (typeof body.error === "object" && body.error?.message) return body.error.message;
-    if (body.message) return body.message;
-  } catch {
-    // Keep the user-facing fallback for non-JSON bridge failures.
-  }
+  const body = await response.json().catch(() => null) as Record<string, unknown> | null;
+  return responseMessage(body, fallback);
+}
+
+function responseMessage(body: Record<string, unknown> | null, fallback: string): string {
+  if (typeof body?.error === "string" && body.error) return body.error;
+  if (body?.error && typeof body.error === "object" && "message" in body.error
+    && typeof body.error.message === "string" && body.error.message) return body.error.message;
+  if (typeof body?.message === "string" && body.message) return body.message;
   return fallback;
 }

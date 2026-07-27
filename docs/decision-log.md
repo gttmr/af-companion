@@ -10,6 +10,13 @@
 
 ---
 
+## 2026-07-28 · 작업 브랜치 `agent/web-first-error-recovery` — Web-first 원인별 복구 UX 계약
+
+- **결정**: Home의 시작 흐름은 HTTP status를 기능 지원 여부로 추측하지 않고 server의 안정적 `code`와 현재 Companion snapshot 증거를 `bridge_down`, `work_item_missing`, VS Code launch 계열, enrollment 미claim/만료, Hook 미관찰, activation 거절, stale revision, MCP export 실패로 분류한다. 각 상태는 원인별 설명과 기존 endpoint를 사용하는 단일 복구 행동 또는 Trust/terminal/Bridge 안내를 표시한다.
+- **복구 경계**: Web은 Bridge를 spawn하지 않고 Codex turn도 시작하지 않는다. `POST /api/work-items`의 명시적 `reuse_existing: true`는 같은 ID의 부분 bootstrap을 이어가거나, local Application Registry binding은 남았지만 빈 artifact root에서 ledger만 사라진 경우 strict v2 빈 ledger를 다시 만드는 데 사용할 수 있다. 기존 ledger byte는 수정하지 않으며 다른 artifact가 남은 root는 `work_item_recovery_unsafe`로 중단한다.
+- **배경**: 기존 client는 404/405/501을 모두 “지원하지 않음”으로 바꿔 Work Item 부재와 실제 route 부재를 구분하지 못했다. 또한 ticket 이력은 public snapshot에 남기지 않으므로 만료·ETag activation 거절은 launch 이후 실제 pending 관찰과 Bridge 진단 카운터 증가를 함께 보아야 한다.
+- **영향**: `useCodexSessions`는 response `code`를 보존하고, `JourneyRecoveryPanel`은 원인별 Korean copy와 복구 버튼을 렌더링한다. VS Code descriptor는 host `code` probe가 실패해도 private local path에 먼저 생성되어 수동 open 경로를 제공한다. Ticket/Lease/Hook crypto, public snapshot의 pending-only ticket 정책, Direct Turn 금지, 기존 source/Graph/Registry write 권한은 변경하지 않는다.
+
 ## 2026-07-28 · 작업 브랜치 `agent/web-first-live-projection` — 선택 Work Item의 bounded external-source projection
 
 - **결정**: `/api/workspace/events?work_id=<id>`의 현재 선택 Work Item이 local Application Registry에 등록되어 있을 때만 기존 factory watcher와 별도로 application watcher 하나를 연다. 등록 root와 applications root를 모두 `realpath`로 해석해 containment를 다시 확인하고, `depth: 6`, `ignoreInitial`, 기존 `awaitWriteFinish`를 적용하며 `node_modules`, `.git`, `.venv`, `__pycache__`, `dist`, `.agent-factory`를 제외한다.
