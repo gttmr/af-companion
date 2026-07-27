@@ -5,7 +5,7 @@ The companion connects the canonical repository to explicitly enrolled Codex CLI
 ## Current boundary
 
 - External Codex writes canonical artifacts and source through the four Work Skills.
-- The web app observes the worktree and may create one strict empty Work Item through the guarded bootstrap API; outside that create-only boundary it stores bounded interaction/projection metadata.
+- The web app observes the worktree, may create one strict empty Work Item through the guarded bootstrap API, and may generate and open a registered multi-root VS Code descriptor; outside the create-only ledger boundary it stores bounded interaction/projection metadata.
 - Graph IR and the Asset Registry remain the only shared browser edit surfaces. The bootstrap cannot edit an existing Work Item, and the bridge never edits either shared surface.
 - The bridge cannot enumerate all local Codex processes, create or select a private IDE chat, start a turn, or steer an in-flight turn.
 - A Bridge health response, editor launch receipt, matching `cwd`, or Hook invocation is not proof of Companion participation.
@@ -43,6 +43,53 @@ ignored local `.agent-factory/applications/registry.json`, written atomically
 with mode `0600`. This registry is noncanonical bootstrap metadata: its binding
 does not enter `af-work-item.json`, change the Work Item schema, establish
 Workspace eligibility, enroll a Session, or prove Companion participation.
+
+## Web-first VS Code session launch
+
+**Current Implementation:** `POST /api/codex-companion/vscode-sessions` accepts
+exactly `{ "work_id": "<id>", "mode": "plan" }` from a loopback,
+same-origin JSON request. It requires the strict Work Item, its exact local
+Application Registry binding, a reachable Bridge, and a trusted host `code`
+executable. The server does not issue an enrollment. It writes a private,
+ignored `.agent-factory/vscode/<work-id>.code-workspace` and invokes only:
+
+```text
+code --new-window <generated-workspace-file>
+```
+
+The descriptor presents the external application first and the canonical
+factory checkout second. It embeds one default build Task, `Start AF Session`,
+with `runOn: folderOpen`, a dedicated focused terminal, and
+`task.allowAutomaticTasks: on`. The Task runs from the factory root:
+
+```bash
+node scripts/af.mjs companion vscode-start \
+  --application <application-id> \
+  --work <work-id> \
+  --role plan \
+  --application-root <registered-application-root>
+```
+
+Workspace Trust remains a user gate. After Trust, VS Code starts the Task; the
+Task creates an `af_vscode_launch` enrollment at terminal-start time and
+launches interactive Codex with `cwd` fixed to the factory root. The activation
+Capsule is carried only in `AF_COMPANION_ENROLLMENT` for the child process.
+The external app is added through the fixed argv form
+`--sandbox workspace-write --config
+sandbox_workspace_write.writable_roots=[...]`. Browser responses and generated
+workspace bytes contain no Capsule or Bridge secret.
+
+This launch acceptance is not connection proof. A current
+`UserPromptSubmit` must still claim the exact ticket and produce the matching
+leased Session. Browser code does not start a turn or steer a running turn.
+Existing `openFile` and `openDiff` operations remain contained to the factory
+checkout; the generated descriptor is the only editor-open surface that may
+name the registered external app root.
+
+Because Codex remains factory-rooted, this process does not consume the
+external app's `.codex/config.toml`. The exported MCP configuration remains for
+a future app-rooted client path; it is not claimed as context transport for
+this session.
 
 ## External application project MCP
 

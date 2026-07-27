@@ -468,6 +468,8 @@ test("asset mutations require explicit inputs, preserve decisions, and reject st
 test("companion start and join enroll exact scopes and launch fixed Codex argv with only enrollment proof", async (t) => {
   const root = await tempRepository(t);
   const fake = await fakeCodex(root);
+  const applicationRoot = join(root, "external-application");
+  await mkdir(applicationRoot);
   const token = "bridge-secret-token-".padEnd(43, "x");
   const received = [];
   const bridge = createServer(async (request, response) => {
@@ -547,6 +549,21 @@ test("companion start and join enroll exact scopes and launch fixed Codex argv w
   assert.equal(result.code, 0, result.stderr);
   assert.equal(result.output.ticket.ticket_id, "ticket-2");
 
+  result = await runCliAsync(root, [
+    "companion", "vscode-start", "--application", "app.cli", "--work", "work-cli",
+    "--role", "plan", "--application-root", applicationRoot, "--root", root,
+  ], { env: fake.env });
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.output.ticket.ticket_id, "ticket-3");
+  assert.equal(result.output.ticket.activation_origin, "af_vscode_launch");
+  assert.deepEqual(result.output.command, [
+    "codex",
+    "--sandbox",
+    "workspace-write",
+    "--config",
+    `sandbox_workspace_write.writable_roots=${JSON.stringify([applicationRoot])}`,
+  ]);
+
   assert.deepEqual(received, [
     {
       method: "POST",
@@ -572,6 +589,18 @@ test("companion start and join enroll exact scopes and launch fixed Codex argv w
         activation_origin: "explicit_join_capsule",
       },
     },
+    {
+      method: "POST",
+      url: "/v1/enrollments",
+      authorization: `Bearer ${token}`,
+      contentType: "application/json",
+      body: {
+        application_id: "app.cli",
+        work_id: "work-cli",
+        requested_role: "plan",
+        activation_origin: "af_vscode_launch",
+      },
+    },
   ]);
   assert.deepEqual(await readLaunches(fake.capture), [
     {
@@ -584,6 +613,17 @@ test("companion start and join enroll exact scopes and launch fixed Codex argv w
       argv: [],
       cwd: root,
       enrollment: "[AF_COMPANION_ENROLLMENT_V2]ticket-2[/AF_COMPANION_ENROLLMENT_V2]",
+      stale: null,
+    },
+    {
+      argv: [
+        "--sandbox",
+        "workspace-write",
+        "--config",
+        `sandbox_workspace_write.writable_roots=${JSON.stringify([applicationRoot])}`,
+      ],
+      cwd: root,
+      enrollment: "[AF_COMPANION_ENROLLMENT_V2]ticket-3[/AF_COMPANION_ENROLLMENT_V2]",
       stale: null,
     },
   ]);

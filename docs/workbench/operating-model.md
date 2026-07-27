@@ -100,11 +100,21 @@ Registry search does not select a reuse outcome. Each required Asset receives ex
 | Graph IR | Compose skill or guarded web Graph editor |
 | Asset Registry | shared service through guarded Web/CLI after explicit decision and revision check |
 | application-to-path bootstrap binding | ignored local Application Registry; noncanonical and not Session authority |
+| generated VS Code session descriptor | guarded Web session launch; ignored local state, no enrollment or canonical authority |
 | activity/Git/file projection and enrolled Companion state | bounded workbench metadata stores |
 
 The app does not expose arbitrary artifact PUT, source edit, stage/commit, existing Work Item field/approval mutation outside guarded Graph invalidation, runtime execution, or model-owned publication.
 
 `POST /api/work-items` requires loopback, same origin, `application/json` no larger than 4 KiB, `application_root_confirmed: true`, and `confirmation: "CREATE_WORK_ITEM"`. It creates only the unchanged strict v2 default ledger, then initializes the server-derived application root with `git init` and the existing MCP context export. ID/path collisions and non-empty directories fail before writes unless reuse of that directory is explicit. The application binding is stored in ignored mode-`0600` `.agent-factory/applications/registry.json`; it is not added to the Work Item schema and grants no enrollment or workspace eligibility.
+
+`POST /api/codex-companion/vscode-sessions` in Plan mode resolves that local
+binding, verifies the Work Item and live Bridge, generates an ignored private
+multi-root descriptor, and invokes `code --new-window` with fixed argv. It does
+not create an enrollment or Codex turn. After Workspace Trust, VS Code's
+generated `folderOpen` Task runs `af companion vscode-start`; only that CLI
+boundary creates the `af_vscode_launch` ticket and starts interactive Codex
+from the factory root with the external app added as a sandbox writable root.
+The existing contained file and diff open boundaries are unchanged.
 
 ## 7. Graph collaboration and re-entry
 
@@ -117,6 +127,14 @@ Compose creates a structured Return-to-Discover when an Asset capability or cont
 ## 8. Companion participation and fresh-session handoff
 
 Workspace eligibility, Session participation, and Work attachment are independent. A matching `cwd`, Bridge health response, Hook invocation, or editor launch never enrolls a session. A one-time ticket activates one exact session and issues a per-session lease bound to the canonical workspace, application, Work Item, role, and current Bridge instance. Revoked, expired, stale, cross-scope, and pre-restart leases fail closed. Ordinary unmanaged Hook events produce no Agent Factory network or durable Bridge state.
+
+The generated VS Code launch chain preserves that distinction. Browser code
+creates and opens only a descriptor; Workspace Trust authorizes VS Code to run
+the Task, and the first human prompt supplies the `UserPromptSubmit` event that
+may claim the Task-issued ticket. `af_vscode_launch`, a claimed ticket, exact
+leased scope, and current prompt receipt are required evidence. The factory cwd
+does not load the external app's project MCP configuration; that export remains
+for a separate app-rooted client path.
 
 The local bridge can create a pending Plan handoff only from a current leased Plan session and its exact latest turn. Creation names the exact canonical Work Item Handoff ID and marker and supplies the complete canonical Plan body; the Bridge recomputes the hash and rechecks the current Handoff tuple. It returns one signed Capsule containing the exact workspace/application/Work Item scope, handoff identity, discovery and decision revisions, canonical Plan body hash, expiry, and consume-once claim. Capsule bytes are transport metadata and are excluded from the Plan body hash.
 
@@ -153,7 +171,7 @@ Outcomes are `passed`, `failed`, `unverified`, or `stale`. Verify can be complet
 | --- | --- | --- |
 | `/api/workspace` | identity, live snapshot, Git changes/diff, SSE, VS Code open | contained editor open only |
 | `/api/work-items` | Work Item/artifact projection and empty bootstrap | guarded root POST create; Graph GET/PUT |
-| `/api/codex-companion` | enrollment, leased sessions, Plan Continue/exact attach/claim/cancel, revoke, exact scoped next-prompt queue | bounded v2 interaction state only |
+| `/api/codex-companion` | Plan VS Code descriptor launch, enrollment, leased sessions, Plan Continue/exact attach/claim/cancel, revoke, exact scoped next-prompt queue | ignored launch descriptor or bounded v2 interaction state; browser session launch does not enroll |
 | `/api/asset-registry` | L0/L1/L2, search, usage, compare, validate, lifecycle | guarded Registry mutations |
 
 Routes are `/`, `/work/:workId/discover`, `/compose`, `/scaffold`, `/verify`, `/connections`, and `/assets`. `/connections` contains Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics registers; it does not list ordinary Codex sessions. Stage routes, `/api/af`, `/api/catalog`, proposal/apply, old manifest parsers, legacy imports, and compatibility aliases are unsupported.

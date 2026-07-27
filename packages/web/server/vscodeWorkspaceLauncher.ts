@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
-import { access, chmod, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { access, chmod, lstat, mkdir, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { release as osRelease } from "node:os";
 import { basename, delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
@@ -23,6 +23,14 @@ export interface VscodeWorkspaceLauncherOptions {
   commandTimeoutMs?: number;
   launchTimeoutMs?: number;
   launchCooldownMs?: number;
+}
+
+export interface VscodeSessionWorkspaceInput {
+  applicationId: string;
+  applicationRoot: string;
+  applicationsRoot: string;
+  workId: string;
+  role: "plan";
 }
 
 export class VscodeWorkspaceLauncherError extends Error {
@@ -119,6 +127,41 @@ export class VscodeWorkspaceLauncher {
       return {
         status: "accepted",
         workspace_path: canonicalRoot,
+        launched_at: launchedAt.toISOString(),
+      };
+    } catch {
+      this.#probeCache = null;
+      throw new VscodeWorkspaceLauncherError(503, "code_launch_failed", "VS Code workspace launch failed");
+    } finally {
+      this.#launchInFlight = false;
+    }
+  }
+
+  async launchSessionWorkspace(input: VscodeSessionWorkspaceInput): Promise<VscodeLaunchReceipt> {
+    const nowMs = this.#now().getTime();
+    if (this.#launchInFlight || (this.#lastLaunchAtMs !== null && nowMs - this.#lastLaunchAtMs < this.#launchCooldownMs)) {
+      throw new VscodeWorkspaceLauncherError(429, "launch_cooldown", "VS Code launch is cooling down");
+    }
+
+    const { executable, canonicalRoot } = await this.#trustedExecutable();
+    const applicationRoot = await resolveTrustedApplicationRoot(input);
+    const workspacePath = await writeSessionWorkspace(canonicalRoot, applicationRoot, input);
+    this.#launchInFlight = true;
+    try {
+      await execFileAsync(executable, ["--new-window", workspacePath], {
+        cwd: canonicalRoot,
+        encoding: "utf8",
+        env: this.#env,
+        maxBuffer: 64 * 1_024,
+        shell: false,
+        timeout: this.#launchTimeoutMs,
+        windowsHide: true,
+      });
+      const launchedAt = this.#now();
+      this.#lastLaunchAtMs = launchedAt.getTime();
+      return {
+        status: "accepted",
+        workspace_path: workspacePath,
         launched_at: launchedAt.toISOString(),
       };
     } catch {
@@ -247,6 +290,137 @@ export class VscodeWorkspaceLauncher {
     };
     return value;
   }
+}
+
+async function resolveTrustedApplicationRoot(input: VscodeSessionWorkspaceInput): Promise<string> {
+  if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(input.applicationId)
+    || !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(input.workId)
+    || input.role !== "plan"
+    || !isAbsolute(input.applicationsRoot)
+    || !isAbsolute(input.applicationRoot)) {
+    throw new VscodeWorkspaceLauncherError(400, "invalid_session_workspace", "VS Code session workspace scope is invalid");
+  }
+  const applicationsRoot = resolve(input.applicationsRoot);
+  const applicationRoot = resolve(input.applicationRoot);
+  if (resolve(applicationsRoot, input.applicationId) !== applicationRoot) {
+    throw new VscodeWorkspaceLauncherError(
+      409,
+      "application_registration_mismatch",
+      "Registered application path does not match the application identifier",
+    );
+  }
+  const [applicationsInfo, applicationInfo] = await Promise.all([
+    lstat(applicationsRoot).catch(() => null),
+    lstat(applicationRoot).catch(() => null),
+  ]);
+  if (!applicationsInfo?.isDirectory() || applicationsInfo.isSymbolicLink()
+    || !applicationInfo?.isDirectory() || applicationInfo.isSymbolicLink()) {
+    throw new VscodeWorkspaceLauncherError(
+      409,
+      "application_workspace_unavailable",
+      "Registered application workspace must be a non-symbolic-link directory",
+    );
+  }
+  const [canonicalApplicationsRoot, canonicalApplicationRoot] = await Promise.all([
+    realpath(applicationsRoot),
+    realpath(applicationRoot),
+  ]);
+  if (!isContainedPath(canonicalApplicationsRoot, canonicalApplicationRoot)) {
+    throw new VscodeWorkspaceLauncherError(
+      403,
+      "application_path_outside_root",
+      "Registered application workspace is outside AF_APPLICATIONS_ROOT",
+    );
+  }
+  return canonicalApplicationRoot;
+}
+
+async function writeSessionWorkspace(
+  canonicalRoot: string,
+  applicationRoot: string,
+  input: VscodeSessionWorkspaceInput,
+): Promise<string> {
+  const stateRoot = join(canonicalRoot, ".agent-factory");
+  const workspaceRoot = join(stateRoot, "vscode");
+  const workspacePath = join(workspaceRoot, `${input.workId}.code-workspace`);
+  const temporaryPath = join(workspaceRoot, `.${input.workId}-${process.pid}-${randomUUID()}.tmp`);
+  try {
+    await ensureContainedDirectory(canonicalRoot, stateRoot, false);
+    await ensureContainedDirectory(canonicalRoot, workspaceRoot, true);
+    const document = {
+      folders: [
+        { name: input.applicationId, path: applicationRoot },
+        { name: "Agent Factory (factory)", path: canonicalRoot },
+      ],
+      settings: {
+        "task.allowAutomaticTasks": "on",
+      },
+      tasks: {
+        version: "2.0.0",
+        tasks: [{
+          label: "Start AF Session",
+          type: "shell",
+          command: "node",
+          args: [
+            join(canonicalRoot, "scripts", "af.mjs"),
+            "companion",
+            "vscode-start",
+            "--application",
+            input.applicationId,
+            "--work",
+            input.workId,
+            "--role",
+            input.role,
+            "--application-root",
+            applicationRoot,
+          ],
+          options: { cwd: canonicalRoot },
+          presentation: { reveal: "always", panel: "dedicated", focus: true },
+          runOptions: { runOn: "folderOpen" },
+          group: { kind: "build", isDefault: true },
+          problemMatcher: [],
+        }],
+      },
+    };
+    await writeFile(temporaryPath, `${JSON.stringify(document, null, 2)}\n`, {
+      encoding: "utf8",
+      flag: "wx",
+      mode: 0o600,
+    });
+    await rename(temporaryPath, workspacePath);
+    await chmod(workspacePath, 0o600);
+    return workspacePath;
+  } catch (error) {
+    await rm(temporaryPath, { force: true }).catch(() => undefined);
+    if (error instanceof VscodeWorkspaceLauncherError) throw error;
+    throw new VscodeWorkspaceLauncherError(
+      500,
+      "workspace_generation_failed",
+      "VS Code session workspace could not be generated",
+    );
+  }
+}
+
+async function ensureContainedDirectory(canonicalRoot: string, directory: string, makePrivate: boolean): Promise<void> {
+  const existing = await lstat(directory).catch(() => null);
+  if (existing && (existing.isSymbolicLink() || !existing.isDirectory())) {
+    throw new VscodeWorkspaceLauncherError(
+      409,
+      "invalid_workspace_state_path",
+      "VS Code workspace state path must be a non-symbolic-link directory",
+    );
+  }
+  if (!existing) await mkdir(directory, { recursive: true, mode: 0o700 });
+  const info = await lstat(directory);
+  const canonicalDirectory = await realpath(directory);
+  if (info.isSymbolicLink() || !info.isDirectory() || !isContainedPath(canonicalRoot, canonicalDirectory)) {
+    throw new VscodeWorkspaceLauncherError(
+      403,
+      "workspace_state_outside_repository",
+      "VS Code workspace state path must remain inside the repository",
+    );
+  }
+  if (makePrivate) await chmod(directory, 0o700);
 }
 
 async function resolveContainedWorkspaceFile(root: string, relativePath: string, mustExist: boolean): Promise<string> {

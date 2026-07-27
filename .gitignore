@@ -25,5 +25,6 @@ catalog/**/*.local.*
 .agent-factory/workspace-projection/
 .agent-factory/editor-diffs/
 .agent-factory/applications/
+.agent-factory/vscode/
 # Windows download metadata materialized as WSL sidecar files.
 *:Zone.Identifier
