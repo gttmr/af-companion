@@ -136,7 +136,7 @@ export interface VscodeLaunchReceipt {
 export interface VscodeSessionLaunchReceipt extends VscodeLaunchReceipt {
   application_id: string;
   work_id: string;
-  role: "plan";
+  role: "plan" | "materialization";
 }
 
 export interface ScopedContextDelivery extends ContextDelivery {

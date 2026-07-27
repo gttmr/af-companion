@@ -38,7 +38,7 @@ async function listen(server: Server): Promise<string> {
   return `http://127.0.0.1:${address.port}`;
 }
 
-async function fixture(t: test.TestContext, withBridge = true) {
+async function fixture(t: test.TestContext, withBridge = true, registeredWorkId = "work-1") {
   const root = await mkdtemp(join(tmpdir(), "af-companion-v2-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await writeCompanionWorkItems(root);
@@ -49,7 +49,7 @@ async function fixture(t: test.TestContext, withBridge = true) {
   await applicationRegistry.register({
     application_id: "app-1",
     application_root: applicationRoot,
-    work_id: "work-1",
+    work_id: registeredWorkId,
     created_at: "2030-01-01T00:00:00.000Z",
   });
   const bridge = withBridge ? await startCodexBridgeServer({
@@ -165,7 +165,7 @@ test("Facade launches a registered plan workspace without issuing browser enroll
     applicationRoot,
     applicationsRoot,
     workId: "work-1",
-    role: "plan",
+    mode: "plan",
   }]);
   assert.deepEqual((await bridge.store.snapshot()).enrollment_tickets, []);
 
@@ -176,6 +176,52 @@ test("Facade launches a registered plan workspace without issuing browser enroll
   assert.equal(response.status, 400);
   response = await facade("/vscode-sessions", { work_id: "work-1", mode: "plan", unexpected: true });
   assert.equal(response.status, 400);
+  assert.equal(sessionLaunches.length, 1);
+});
+
+test("Facade launches one exact materialization handoff without consuming it in the browser", async (t) => {
+  const { root, bridge, facade, direct, applicationsRoot, applicationRoot, sessionLaunches } = await fixture(t, true, "work-plan");
+  assert.ok(bridge);
+  let response = await facade("/enrollments", {
+    application_id: "app-1", work_id: "work-plan", requested_role: "plan", activation_origin: "af_cli_launch",
+  });
+  const enrollment = await response.json();
+  await direct("/v1/hooks", sessionHook(root, "plan-session", { kind: "activation", activation_capsule: enrollment.activation_capsule }, "plan"));
+  const lease = await bridge.store.leaseProofForTesting("plan-session");
+  await direct("/v1/hooks", sessionHook(root, "plan-session", lease, "plan", "plan-turn"));
+  response = await facade("/handoffs", {
+    handoff_id: TEST_HANDOFF_ID, marker_digest: TEST_MARKER_DIGEST,
+    workspace_id: bridge.store.workspaceId, application_id: "app-1", work_id: "work-plan",
+    from_session_id: "plan-session", from_turn_id: "plan-turn",
+    discovery_revision: "a".repeat(64), decision_revision: "b".repeat(64),
+    plan_body_hash: TEST_PLAN_HASH, plan_body: TEST_PLAN_BODY,
+    transport_capability: "client_dependent", expires_at: "2030-01-01T00:10:00.000Z",
+  });
+  assert.equal(response.status, 201);
+
+  response = await facade("/vscode-sessions", {
+    work_id: "work-plan", mode: "materialization", handoff_id: TEST_HANDOFF_ID,
+  });
+  assert.equal(response.status, 202);
+  const receipt = await response.json();
+  assert.equal(receipt.role, "materialization");
+  assert.equal("activation_capsule" in receipt, false);
+  assert.equal("command" in receipt, false);
+  assert.deepEqual(sessionLaunches, [{
+    applicationId: "app-1",
+    applicationRoot,
+    applicationsRoot,
+    workId: "work-plan",
+    mode: "materialization",
+    handoffId: TEST_HANDOFF_ID,
+  }]);
+  assert.equal((await bridge.store.snapshot()).handoffs[0].status, "ready");
+
+  response = await facade("/vscode-sessions", {
+    work_id: "work-plan", mode: "materialization", handoff_id: "missing-handoff",
+  });
+  assert.equal(response.status, 404);
+  assert.equal((await response.json()).code, "handoff_not_found");
   assert.equal(sessionLaunches.length, 1);
 });
 

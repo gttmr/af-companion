@@ -651,6 +651,10 @@
 .handoff-summary small { color: var(--text-muted); font-size: 10px; }
 .session-role p,
 .handoff-summary p { margin: var(--space-xs) 0 0; color: var(--text-muted); font-size: var(--fs-xs); line-height: 1.5; }
+.handoff-launch-action { width: 100%; min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-md); padding: 0 var(--space-md); font-size: var(--fs-xs); }
+.handoff-launch-action span { font-size: var(--fs-sm); }
+.handoff-summary .handoff-launch-message { margin: var(--space-sm) 0 0; color: var(--success-text); font-size: var(--fs-2xs); }
+.handoff-summary .handoff-launch-message.is-error { color: var(--danger-text); }
 .discovery-overview { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); }
 .requirement-brief,
 .evidence-ledger { padding: clamp(20px, 2.4vw, 34px); }

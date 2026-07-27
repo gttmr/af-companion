@@ -23,6 +23,7 @@ import {
   CANCEL_HANDOFF_CONFIRMATION,
   CodexBridgeValidationError,
   MAX_HANDOFF_REQUEST_BODY_BYTES,
+  PLAN_HANDOFF_TARGET,
   RESET_CONFIRMATION,
   REVOKE_CONFIRMATION,
   readRepositorySourceRevision,
@@ -45,6 +46,7 @@ const BROKER_TIMEOUT_MS = 1_000;
 const SELECTION_TTL_MS = 15 * 60 * 1_000;
 const MAX_SELECTED_NODE_IDS = 20;
 const MAX_USER_INTENT_CHARS = 4_000;
+const HANDOFF_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
 type MiddlewareNext = (error?: unknown) => void;
@@ -135,19 +137,52 @@ export function createCodexCompanionMiddleware(repoRoot: string, options: CodexC
             "Work Item에 등록된 application workspace가 없습니다.",
           );
         }
-        await fetchSnapshot(repoRoot);
-        const receipt = await workspaceController.launchSessionWorkspace({
+        const bridge = await fetchSnapshot(repoRoot);
+        if (input.mode === "materialization") {
+          const handoff = bridge.handoffs.find((entry) => entry.handoff_id === input.handoffId);
+          if (!handoff) throw new CompanionApiError(404, "handoff_not_found", "선택한 Plan Handoff를 찾을 수 없습니다.");
+          if (handoff.workspace_id !== await workspaceId(repoRoot)
+            || handoff.application_id !== registration.application_id
+            || handoff.work_id !== registration.work_id
+            || handoff.target_skill !== PLAN_HANDOFF_TARGET) {
+            throw new CompanionApiError(409, "handoff_scope_mismatch", "Plan Handoff가 현재 application과 Work Item 범위에 속하지 않습니다.");
+          }
+          if (handoff.status !== "ready" && handoff.status !== "waiting_for_fresh_session") {
+            throw new CompanionApiError(409, "handoff_not_ready", "Plan Handoff를 새 session에서 이어갈 수 없는 상태입니다.");
+          }
+          if (Date.parse(handoff.expires_at) <= Date.now()) {
+            throw new CompanionApiError(409, "handoff_expired", "Plan Handoff가 만료됐습니다.");
+          }
+          const source = bridge.sessions.find((session) => session.session_id === handoff.from_session_id);
+          if (!source
+            || source.participation !== "companion_active"
+            || source.status !== "active"
+            || source.role !== "plan"
+            || source.permission_mode !== "plan"
+            || Date.parse(source.lease_expires_at) <= Date.now()) {
+            throw new CompanionApiError(409, "source_inactive", "Plan Handoff의 source session이 더 이상 active 상태가 아닙니다.");
+          }
+        }
+        const launchInput: VscodeSessionWorkspaceInput = input.mode === "materialization" ? {
           applicationId: registration.application_id,
           applicationRoot: registration.application_root,
           applicationsRoot: applicationRegistry.applicationsRoot,
           workId: registration.work_id,
-          role: "plan",
-        });
+          mode: "materialization",
+          handoffId: input.handoffId,
+        } : {
+          applicationId: registration.application_id,
+          applicationRoot: registration.application_root,
+          applicationsRoot: applicationRegistry.applicationsRoot,
+          workId: registration.work_id,
+          mode: "plan",
+        };
+        const receipt = await workspaceController.launchSessionWorkspace(launchInput);
         sendJson(response, 202, {
           ...receipt,
           application_id: registration.application_id,
           work_id: registration.work_id,
-          role: "plan",
+          role: input.mode,
         });
         return;
       }
@@ -243,24 +278,35 @@ async function mutationBody<T>(request: IncomingMessage, validate: (value: unkno
   return validate(await readJsonBody(request, { maxBytes, sizeLimitMessage: `Companion 요청은 ${Math.floor(maxBytes / 1_024)} KiB를 넘을 수 없습니다.` }));
 }
 
-function parseVscodeSessionRequest(value: unknown): { workId: string } {
-  if (!isRecord(value)
-    || Object.keys(value).length !== 2
-    || !("work_id" in value)
-    || !("mode" in value)) {
+type VscodeSessionRequest =
+  | { workId: string; mode: "plan" }
+  | { workId: string; mode: "materialization"; handoffId: string };
+
+function parseVscodeSessionRequest(value: unknown): VscodeSessionRequest {
+  if (!isRecord(value) || !("work_id" in value) || !("mode" in value)) {
     throw new CompanionApiError(
       400,
       "invalid_vscode_session_request",
-      "work_id와 mode만 지정해야 합니다.",
+      "work_id, mode와 materialization의 handoff_id만 지정할 수 있습니다.",
     );
   }
   if (typeof value.work_id !== "string" || !REQ_ID_PATTERN.test(value.work_id)) {
     throw new CompanionApiError(400, "invalid_work_id", "work_id 형식이 올바르지 않습니다.");
   }
-  if (value.mode !== "plan") {
-    throw new CompanionApiError(400, "invalid_vscode_session_mode", "현재 vscode session mode는 plan이어야 합니다.");
+  if (value.mode === "plan") {
+    if (Object.keys(value).length !== 2) {
+      throw new CompanionApiError(400, "invalid_vscode_session_request", "Plan mode에는 work_id와 mode만 지정해야 합니다.");
+    }
+    return { workId: value.work_id, mode: "plan" };
   }
-  return { workId: value.work_id };
+  if (value.mode === "materialization") {
+    if (Object.keys(value).length !== 3 || !("handoff_id" in value)
+      || typeof value.handoff_id !== "string" || !HANDOFF_ID_PATTERN.test(value.handoff_id)) {
+      throw new CompanionApiError(400, "invalid_handoff_id", "Materialization mode에는 유효한 handoff_id가 필요합니다.");
+    }
+    return { workId: value.work_id, mode: "materialization", handoffId: value.handoff_id };
+  }
+  throw new CompanionApiError(400, "invalid_vscode_session_mode", "vscode session mode는 plan 또는 materialization이어야 합니다.");
 }
 
 async function queueScopedDelivery(repoRoot: string, targetSessionId: string, workId: string, bundle: SelectionBundleV1): Promise<ScopedContextDelivery> {
