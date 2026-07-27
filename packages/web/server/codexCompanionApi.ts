@@ -374,7 +374,14 @@ async function assertArtifactContained(root: string, path: string): Promise<void
 async function assertWorkItemExists(root: string, store: ArtifactRootStore, workId: string): Promise<void> {
   const path = store.resolveArtifactPath(workId, "af-work-item.json", "read");
   await assertArtifactContained(root, path);
-  await store.readWorkItem(workId);
+  try {
+    await store.readWorkItem(workId);
+  } catch (error) {
+    if (error instanceof ArtifactValidationError && error.statusCode === 404) {
+      throw new CompanionApiError(404, "work_item_missing", "선택한 Work Item을 찾을 수 없습니다.");
+    }
+    throw error;
+  }
 }
 async function readSourceRevision(root: string): Promise<{ head: string | null; dirtyHash: string | null }> {
   return readRepositorySourceRevision(root);

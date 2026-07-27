@@ -3,15 +3,27 @@ import { Link } from "react-router-dom";
 
 import { afWorkSkillIds, afWorkSkillLabels } from "../analyzer/afWorkItem";
 import { JourneyGuideDialog } from "../components/JourneyGuideDialog";
+import { JourneyRecoveryPanel } from "../components/JourneyRecoveryPanel";
+import {
+  classifyJourneyRecovery,
+  type JourneyRecoveryAction,
+} from "../companion/journeyRecovery";
+import type { CompanionDiagnostics } from "../companion/types";
 import { WaitingDecisionStrip } from "../layout/WaitingDecisionStrip";
 import { WorkLiveStrip } from "../layout/WorkLiveStrip";
-import { useCodexSessions } from "../state/useCodexSessions";
+import { CodexCompanionRequestError, useCodexSessions } from "../state/useCodexSessions";
 import { Button } from "../ui/primitives";
-import { bootstrapWorkItem } from "../workspace/api";
+import { bootstrapWorkItem, WorkspaceApiError } from "../workspace/api";
 import { useWorkItem, useWorkspaceProjection } from "../workspace/useWorkspaceProjection";
 
 type StartMode = "new" | "existing";
 type LaunchStage = "idle" | "confirm-path" | "preparing" | "trust" | "mcp";
+type RecoveryGuide = "bridge" | "terminal" | "trust" | null;
+
+interface JourneyRequestFailure {
+  code: string;
+  message: string;
+}
 
 export default function WorkspaceHome() {
   const [startMode, setStartMode] = useState<StartMode>("new");
@@ -24,17 +36,26 @@ export default function WorkspaceHome() {
   const workItems = snapshot?.work_items ?? [];
   const [applicationName, setApplicationName] = useState("");
   const [launchStage, setLaunchStage] = useState<LaunchStage>("idle");
-  const [launchError, setLaunchError] = useState<string | null>(null);
+  const [launchFailure, setLaunchFailure] = useState<JourneyRequestFailure | null>(null);
   const [launchedWorkId, setLaunchedWorkId] = useState<string | null>(null);
   const [launchedAt, setLaunchedAt] = useState<string | null>(null);
   const [workspacePath, setWorkspacePath] = useState<string | null>(null);
   const [applicationRoot, setApplicationRoot] = useState<string | null>(null);
+  const [recoveryWorkId, setRecoveryWorkId] = useState<string | null>(null);
+  const [recoveryApplicationName, setRecoveryApplicationName] = useState<string | null>(null);
+  const [diagnosticBaseline, setDiagnosticBaseline] = useState<CompanionDiagnostics | null>(null);
+  const [observedPendingTicket, setObservedPendingTicket] = useState(false);
+  const [recoveryPending, setRecoveryPending] = useState(false);
+  const [recoveryGuide, setRecoveryGuide] = useState<RecoveryGuide>(null);
+  const [nextLaunchAllowedAt, setNextLaunchAllowedAt] = useState(0);
+  const [clockMs, setClockMs] = useState(() => Date.now());
   const identifierPreview = previewIdentifier(applicationName);
 
   useEffect(() => {
     if (workItems.some((item) => item.work_id === selectedWorkId)) return;
+    if (selectedWorkId && (selectedWorkId === recoveryWorkId || selectedWorkId === launchedWorkId)) return;
     setSelectedWorkId(workItems[0]?.work_id ?? "");
-  }, [selectedWorkId, workItems]);
+  }, [launchedWorkId, recoveryWorkId, selectedWorkId, workItems]);
 
   const activeLaunchedSession = useMemo(() => {
     if (!launchedWorkId || !launchedAt) return null;
@@ -67,14 +88,37 @@ export default function WorkspaceHome() {
     if (launchStage === "mcp" && observedToolStart) setLaunchStage("idle");
   }, [launchStage, observedToolStart]);
 
-  const startPending = launchStage === "preparing" || codex.vscodeSessionPending;
+  useEffect(() => {
+    if (!launchedWorkId || !launchedAt) return;
+    const pending = codex.snapshot?.enrollment_tickets.some((ticket) => (
+      ticket.work_id === launchedWorkId
+      && ticket.requested_role === "plan"
+      && ticket.activation_origin === "af_vscode_launch"
+      && ticket.status === "pending"
+      && Date.parse(ticket.issued_at) >= Date.parse(launchedAt) - 5_000
+    ));
+    if (pending) setObservedPendingTicket(true);
+  }, [codex.snapshot?.enrollment_tickets, launchedAt, launchedWorkId]);
+
+  useEffect(() => {
+    if (nextLaunchAllowedAt <= Date.now()) return;
+    setClockMs(Date.now());
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setClockMs(now);
+      if (now >= nextLaunchAllowedAt) window.clearInterval(timer);
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [nextLaunchAllowedAt]);
+
+  const startPending = launchStage === "preparing" || codex.vscodeSessionPending || recoveryPending;
   const canStart = startMode === "new"
     ? Boolean(applicationName.trim() && identifierPreview)
     : Boolean(selectedWorkId);
 
   function requestStart(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLaunchError(null);
+    setLaunchFailure(null);
     if (startMode === "new") {
       setLaunchStage("confirm-path");
       return;
@@ -83,11 +127,13 @@ export default function WorkspaceHome() {
   }
 
   async function startJourney() {
-    setLaunchError(null);
+    setLaunchFailure(null);
     setLaunchStage("preparing");
     try {
       let workId = selectedWorkId;
       if (startMode === "new") {
+        setRecoveryWorkId(identifierPreview);
+        setRecoveryApplicationName(applicationName.trim());
         const created = await bootstrapWorkItem(applicationName.trim());
         workId = created.work_id;
         setSelectedWorkId(created.work_id);
@@ -95,18 +141,108 @@ export default function WorkspaceHome() {
         setStartMode("existing");
         await workspace.refetch();
       } else {
+        setRecoveryWorkId(workId);
+        setRecoveryApplicationName(workId);
         setApplicationRoot(null);
       }
-      const receipt = await codex.launchVscodeSession(workId);
-      setLaunchedWorkId(receipt.work_id);
-      setLaunchedAt(receipt.launched_at);
-      setWorkspacePath(receipt.workspace_path);
-      setLaunchStage("trust");
+      await openWorkspace(workId);
     } catch (error) {
-      setLaunchError(error instanceof Error ? error.message : "작업을 시작하지 못했습니다.");
+      setLaunchFailure(journeyFailure(error));
       setLaunchStage("idle");
     }
   }
+
+  async function openWorkspace(workId: string) {
+    setDiagnosticBaseline(codex.snapshot ? { ...codex.snapshot.diagnostics } : null);
+    setObservedPendingTicket(false);
+    setRecoveryWorkId(workId);
+    setNextLaunchAllowedAt(Date.now() + 2_500);
+    const receipt = await codex.launchVscodeSession(workId);
+    setLaunchedWorkId(receipt.work_id);
+    setLaunchedAt(receipt.launched_at);
+    setWorkspacePath(receipt.workspace_path);
+    setLaunchFailure(null);
+    setLaunchStage("trust");
+  }
+
+  async function recoverBootstrap() {
+    const name = recoveryApplicationName ?? recoveryWorkId;
+    if (!name) return;
+    setRecoveryPending(true);
+    setLaunchFailure(null);
+    setLaunchStage("preparing");
+    try {
+      const created = await bootstrapWorkItem(name, { reuseExisting: true });
+      setSelectedWorkId(created.work_id);
+      setRecoveryWorkId(created.work_id);
+      setApplicationRoot(created.application_root);
+      setStartMode("existing");
+      await workspace.refetch();
+      await openWorkspace(created.work_id);
+    } catch (error) {
+      setLaunchFailure(journeyFailure(error));
+      setLaunchStage("idle");
+    } finally {
+      setRecoveryPending(false);
+    }
+  }
+
+  async function retryWorkspaceLaunch() {
+    const workId = recoveryWorkId ?? launchedWorkId ?? selectedWorkId;
+    if (!workId) return;
+    setRecoveryPending(true);
+    setLaunchFailure(null);
+    setLaunchStage("preparing");
+    try {
+      await openWorkspace(workId);
+    } catch (error) {
+      setLaunchFailure(journeyFailure(error));
+      setLaunchStage("idle");
+    } finally {
+      setRecoveryPending(false);
+    }
+  }
+
+  async function refreshLatest() {
+    setRecoveryPending(true);
+    try {
+      await Promise.all([workspace.refetch(), selectedWork.refetch(), codex.refreshSnapshot()]);
+      setLaunchFailure(null);
+    } catch (error) {
+      setLaunchFailure(journeyFailure(error));
+    } finally {
+      setRecoveryPending(false);
+    }
+  }
+
+  function handleRecoveryAction(action: JourneyRecoveryAction) {
+    if (action === "bridge_guide") setRecoveryGuide("bridge");
+    if (action === "terminal_guide") setRecoveryGuide("terminal");
+    if (action === "trust_guide") setRecoveryGuide("trust");
+    if (action === "recover_work_item" || action === "retry_context_export") void recoverBootstrap();
+    if (action === "retry_launch") void retryWorkspaceLaunch();
+    if (action === "refresh_latest") void refreshLatest();
+  }
+
+  const currentRecoveryWorkId = recoveryWorkId ?? launchedWorkId ?? (startMode === "existing" ? selectedWorkId : null);
+  const selectedWorkMissing = currentRecoveryWorkId === selectedWorkId
+    && selectedWork.error instanceof WorkspaceApiError
+    && selectedWork.error.status === 404;
+  const recoveryState = classifyJourneyRecovery({
+    snapshot: codex.snapshot,
+    errorCode: launchFailure?.code
+      ?? (selectedWorkMissing ? "work_item_missing" : null)
+      ?? codex.snapshotFailure?.code
+      ?? null,
+    workId: currentRecoveryWorkId,
+    launchedAt,
+    diagnosticBaseline,
+    observedPendingTicket,
+  });
+  const manualWorkspacePath = workspacePath ?? (currentRecoveryWorkId && codex.snapshot?.workspace.canonical_path
+    ? `${codex.snapshot.workspace.canonical_path.replace(/\/$/, "")}/.agent-factory/vscode/${currentRecoveryWorkId}.code-workspace`
+    : null);
+  const retryDelayMs = Math.max(0, nextLaunchAllowedAt - clockMs);
 
   return (
     <div className="workspace-home">
@@ -172,7 +308,20 @@ export default function WorkspaceHome() {
               <span>{startPending ? "작업 준비 중…" : "작업 시작하고 VS Code 열기"}</span><i aria-hidden="true">↗</i>
             </Button>
           </div>
-          {launchError || codex.vscodeSessionError ? <p className="journey-launch-error" role="alert">{launchError ?? codex.vscodeSessionError}</p> : null}
+          {recoveryState ? (
+            <JourneyRecoveryPanel
+              state={recoveryState}
+              detail={launchFailure?.message
+                ?? (selectedWorkMissing && selectedWork.error instanceof Error ? selectedWork.error.message : null)
+                ?? null}
+              workspacePath={manualWorkspacePath}
+              actionPending={recoveryPending}
+              retryDelayMs={retryDelayMs}
+              onAction={handleRecoveryAction}
+            />
+          ) : launchFailure || codex.vscodeSessionError ? (
+            <p className="journey-launch-error" role="alert">{launchFailure?.message ?? codex.vscodeSessionError}</p>
+          ) : null}
         </form>
       </section>
 
@@ -279,6 +428,48 @@ export default function WorkspaceHome() {
           <li><span>3</span><p>현재 factory-cwd 세션은 app root의 <code>.codex/config.toml</code>을 자동 소비하지 않으므로 approval이 나타나지 않아도 launch 실패가 아닙니다.</p></li>
         </ol>
       </JourneyGuideDialog>
+
+      <JourneyGuideDialog
+        open={recoveryGuide === "bridge"}
+        gate="Recovery · Bridge"
+        title="Codex Bridge를 다시 시작하세요"
+        description="Web은 background service를 대신 실행하지 않습니다. Agent Factory의 packages/web terminal에서 Bridge를 시작합니다."
+        secondaryLabel="확인"
+        onSecondary={() => setRecoveryGuide(null)}
+      >
+        <div className="journey-path-preview"><span>packages/web</span><code>npm run dev:companion-bridge</code></div>
+        <p>시작 후 이 화면은 2초 snapshot polling으로 자동 복구됩니다.</p>
+      </JourneyGuideDialog>
+
+      <JourneyGuideDialog
+        open={recoveryGuide === "terminal"}
+        gate="Recovery · Terminal"
+        title="Start AF Session Task를 실행하세요"
+        description="Workspace Trust 승인 뒤 자동 Task가 실행되지 않았을 때만 VS Code의 기본 build task를 한 번 실행합니다."
+        secondaryLabel="확인"
+        onSecondary={() => setRecoveryGuide(null)}
+      >
+        <ol className="journey-guide-steps">
+          <li><span>1</span><p>VS Code window가 현재 application과 <strong>Agent Factory (factory)</strong> 두 folder를 포함하는지 확인합니다.</p></li>
+          <li><span>2</span><p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>를 눌러 <strong>Start AF Session</strong>을 실행합니다.</p></li>
+          <li><span>3</span><p>열린 Codex terminal에 자연어 요구사항을 입력합니다. ID나 Capsule은 입력하지 않습니다.</p></li>
+        </ol>
+      </JourneyGuideDialog>
+
+      <JourneyGuideDialog
+        open={recoveryGuide === "trust"}
+        gate="Recovery · Hook"
+        title="Hook 설정과 Workspace Trust를 확인하세요"
+        description="Session은 시작됐지만 첫 prompt receipt가 없어 trusted Task와 repository Hook 구성을 함께 확인합니다."
+        secondaryLabel="확인"
+        onSecondary={() => setRecoveryGuide(null)}
+      >
+        <ol className="journey-guide-steps">
+          <li><span>1</span><p>factory root의 <code>.codex/hooks.json</code>이 존재하는지 확인합니다.</p></li>
+          <li><span>2</span><p>VS Code에서 두 workspace folder를 Trust한 상태인지 확인합니다.</p></li>
+          <li><span>3</span><p>Start AF Session terminal에서 자연어 prompt를 한 번 제출하고 Web의 연결 상태를 확인합니다.</p></li>
+        </ol>
+      </JourneyGuideDialog>
     </div>
   );
 }
@@ -299,5 +490,15 @@ function launchStateTitle(stage: LaunchStage, workId: string | null): string {
   if (stage === "preparing") return "Work Item과 workspace를 준비하고 있습니다";
   if (stage === "trust") return `${workId ?? "작업"} · VS Code 연결 대기`;
   if (stage === "mcp") return `${workId ?? "작업"} · Companion 연결됨`;
-  return "Plan session · trusted VS Code terminal";
+  return "Plan session · VS Code 시작 전";
+}
+
+function journeyFailure(error: unknown): JourneyRequestFailure {
+  if (error instanceof WorkspaceApiError || error instanceof CodexCompanionRequestError) {
+    return { code: error.code, message: error.message };
+  }
+  return {
+    code: "request_failed",
+    message: error instanceof Error ? error.message : "작업을 시작하지 못했습니다.",
+  };
 }

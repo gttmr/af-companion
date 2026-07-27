@@ -34,6 +34,13 @@ suffix. The application root is
 canonical path escape and symbolic-link roots fail closed. A non-empty existing
 directory requires `reuse_existing: true`.
 
+The same guarded endpoint is the bounded recovery path. With explicit
+`reuse_existing: true`, it may continue a partial bootstrap that already has the
+unchanged strict ledger but no local registration, or recreate that same empty
+ledger when the exact local registration remains and the artifact root contains
+no other files. It never edits an existing ledger. Residual artifacts without a
+ledger fail as `work_item_recovery_unsafe` instead of being silently rebound.
+
 Only after all idempotent checks pass, the server creates the exact empty Work
 Item v2 template used by `af work init`, initializes the application directory
 with argv-only `git init`, and invokes `af mcp export-context`. It then records
@@ -104,6 +111,16 @@ approval guidance. These dialogs do not turn editor acceptance into connection
 proof. Connections contains no browser enrollment form or Capsule/command copy
 surface. Explicit CLI `companion start`/`join` remains a low-level operator
 command, not the normal Web path.
+
+Home preserves the facade response `code` and combines it with current snapshot
+evidence instead of mapping 404/405/501 to a generic unsupported message. It
+distinguishes Bridge availability, missing Work Item, unavailable/failed/cooling
+VS Code, pending or expired enrollment, missing prompt Hook, Work Item ETag
+activation rejection, stale revision, and MCP export failure. Recovery reuses
+the bootstrap, Plan launch, and refresh endpoints; Bridge restart and
+Task/Trust checks remain explicit user guidance. The generated private
+`.code-workspace` is written before the host `code` probe so unavailable/failed
+launch states can show a real manual-open path.
 
 ## External application project MCP
 

@@ -64,7 +64,10 @@ export async function fetchWorkspaceSnapshot(): Promise<WorkspaceProjectionSnaps
   return requestJson("/api/workspace/snapshot");
 }
 
-export async function bootstrapWorkItem(applicationName: string): Promise<WorkItemBootstrapReceipt> {
+export async function bootstrapWorkItem(
+  applicationName: string,
+  options: { reuseExisting?: boolean } = {},
+): Promise<WorkItemBootstrapReceipt> {
   return requestJson("/api/work-items", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -72,7 +75,7 @@ export async function bootstrapWorkItem(applicationName: string): Promise<WorkIt
       application_name: applicationName,
       application_root_confirmed: true,
       confirmation: "CREATE_WORK_ITEM",
-      reuse_existing: false,
+      reuse_existing: options.reuseExisting === true,
     }),
   });
 }
