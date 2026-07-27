@@ -10,6 +10,16 @@
 
 ---
 
+## 2026-07-28 · 작업 브랜치 `agent/web-first-live-projection` — 선택 Work Item의 bounded external-source projection
+
+- **결정**: `/api/workspace/events?work_id=<id>`의 현재 선택 Work Item이 local Application Registry에 등록되어 있을 때만 기존 factory watcher와 별도로 application watcher 하나를 연다. 등록 root와 applications root를 모두 `realpath`로 해석해 containment를 다시 확인하고, `depth: 6`, `ignoreInitial`, 기존 `awaitWriteFinish`를 적용하며 `node_modules`, `.git`, `.venv`, `__pycache__`, `dist`, `.agent-factory`를 제외한다.
+- **Projection 계약**: app 파일의 생성·수정·삭제는 기존 SSE에 `kind: "application_source"`, app-relative path, exact `work_id`만 싣는다. 파일 내용과 absolute app root는 activity에 저장하지 않으며, factory Git status/diff와 기존 factory-contained `openFile`/`openDiff` 범위도 확장하지 않는다.
+- **Bootstrap 관찰 보강**: projection이 `artifacts/af` 생성 전에 시작된 경우에도 `POST /api/work-items`가 만든 exact Work Item root를 기존 factory watcher에 즉시 추가한다. 별도 watcher나 polling을 만들지 않는다.
+- **화면**: Home의 현재 선택과 모든 Work Skill 화면은 현재 Work Item, exact active Companion 수, current/focus Skill 상태, Graph revision/최근 변화, 최근 application source를 한 live strip에서 보여 준다. `waiting_for_input` run과 미선택 Decision이 함께 존재할 때는 Decision topic과 options를 그대로 표시하고 terminal 응답을 안내한다. Web은 질문에 답하거나 결정을 쓰지 않는다.
+- **배경**: 기존 projection은 factory tree와 최신 Bridge activity만 관찰해 multi-root 창의 첫 폴더에서 생성되는 실제 application source와 현재 질문 내용을 Web에 보여 줄 수 없었다. 단순 app git polling은 untracked/진행 중 쓰기를 놓치고 별도 SSE는 동일 metadata stream을 중복한다.
+- **영향**: `WorkspaceProjection`, workspace SSE query, bootstrap watcher 편입, `WorkLiveStrip`, shared Work Skill header, `LiveRail`, active projection/UX 문서. Activity kind는 `application_source`가 추가되지만 schema_version은 기존 metadata envelope와 호환되는 1을 유지한다.
+- **범위**: run/test/eval 결과 projection은 이번 최소 집합에서 제외하며 최종 handoff의 명시적 후속으로 남긴다. Canonical schema, Application Registry 권한, Session/Lease/Hook 보안, source write ownership은 변경하지 않는다.
+
 ## 2026-07-28 · 작업 브랜치 `agent/web-first-journey-ui` — Web-first 시작과 Capsule 비노출 UX 계약
 
 - **결정**: Home은 `새 작업 시작`의 application 이름 또는 `기존 작업 선택` 중 하나를 받아 `작업 시작하고 VS Code 열기` 단일 primary action으로 guarded Work Item bootstrap과 Plan workspace launch를 연결한다. 새 application은 canonical write 전에 기본 경로와 `AF_APPLICATIONS_ROOT` override 규칙을 별도 dialog에서 확인한다.

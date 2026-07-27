@@ -56,6 +56,16 @@ factory-only VS Code shortcut, and Connections does not render enrollment or
 handoff Capsule/command copy surfaces. Explicit CLI enrollment remains an
 operator path; capsule-free fresh Materialization launch is a separate follow-up.
 
+Selecting a Work Item also scopes the existing workspace SSE connection to its
+registered application. A second bounded watcher observes only that realpath-
+contained app root, excludes dependency/build/private state, and emits metadata-
+only `application_source` activity with an app-relative path and exact Work ID.
+The selected Work Item on Home and every Work Skill screen keep connection
+count, current Skill status, Graph revision/change, and the latest app-source
+signal visible without another navigation click. When the ledger has a
+`waiting_for_input` run plus an open Decision, its topic and options are rendered
+read-only; the answer still belongs in the trusted Codex terminal.
+
 ## Codex connection
 
 Tracked project Hooks and the companion plugin may invoke the local adapter for these official Codex lifecycle events:

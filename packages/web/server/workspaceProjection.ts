@@ -16,7 +16,8 @@ import type {
   WorkspaceProjectionSnapshot,
 } from "../src/workspace/types";
 import { WORKSPACE_PROJECTION_SCHEMA_VERSION } from "../src/workspace/types";
-import { ArtifactRootStore } from "./artifactRootStore";
+import { ArtifactRootStore, REQ_ID_PATTERN } from "./artifactRootStore";
+import { ApplicationRegistryStore } from "./applicationRegistryStore";
 
 const execFileAsync = promisify(execFile);
 const MAX_ACTIVITY = 200;
@@ -31,22 +32,35 @@ interface PersistedProjectionState {
   activities: WorkspaceActivity[];
 }
 
+interface ApplicationWatchSelection {
+  workId: string;
+  leases: Set<symbol>;
+}
+
 export class WorkspaceProjection {
   readonly #repoRootPromise: Promise<string>;
   readonly #store: ArtifactRootStore;
+  readonly #applicationRegistry: ApplicationRegistryStore;
   readonly #listeners = new Set<(event: WorkspaceProjectionEvent) => void>();
   readonly #now: () => Date;
   #repoRoot: string | null = null;
   #watcher: FSWatcher | null = null;
+  #applicationWatcher: FSWatcher | null = null;
+  #applicationWatchSelection: ApplicationWatchSelection | null = null;
+  #applicationWatchLock: Promise<void> = Promise.resolve();
   #startPromise: Promise<void> | null = null;
   #sequence = 0;
   #activities: WorkspaceActivity[] = [];
   #seenCodexActivityIds = new Set<string>();
   #persistChain: Promise<void> = Promise.resolve();
 
-  constructor(repoRoot: string, options: { now?: () => Date } = {}) {
+  constructor(repoRoot: string, options: { now?: () => Date; applicationsRoot?: string } = {}) {
     this.#repoRootPromise = realpath(repoRoot);
     this.#store = new ArtifactRootStore({ repoRoot });
+    this.#applicationRegistry = new ApplicationRegistryStore({
+      repoRoot,
+      applicationsRoot: options.applicationsRoot,
+    });
     this.#now = options.now ?? (() => new Date());
   }
 
@@ -58,12 +72,63 @@ export class WorkspaceProjection {
   async stop(): Promise<void> {
     await this.#watcher?.close();
     this.#watcher = null;
+    await this.#withApplicationWatchLock(async () => {
+      await this.#applicationWatcher?.close();
+      this.#applicationWatcher = null;
+      this.#applicationWatchSelection = null;
+    });
     await this.#persistChain.catch(() => undefined);
   }
 
   subscribe(listener: (event: WorkspaceProjectionEvent) => void): () => void {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
+  }
+
+  async includeWorkItemRoot(workId: string): Promise<void> {
+    if (!REQ_ID_PATTERN.test(workId)) {
+      throw new WorkspaceProjectionError(400, "invalid_work_id", "work_id 형식이 올바르지 않습니다.");
+    }
+    await this.start();
+    const repoRoot = await this.canonicalRoot();
+    const expectedRoot = join(repoRoot, "artifacts", "af", workId);
+    const workItemRoot = await realpath(expectedRoot).catch(() => null);
+    if (!workItemRoot || !isContainedPath(repoRoot, workItemRoot)) {
+      throw new WorkspaceProjectionError(404, "work_item_not_found", "Work Item root를 찾을 수 없습니다.");
+    }
+    this.#watcher?.add(workItemRoot);
+  }
+
+  async watchApplication(workId: string): Promise<() => Promise<void>> {
+    if (!REQ_ID_PATTERN.test(workId)) {
+      throw new WorkspaceProjectionError(400, "invalid_work_id", "work_id 형식이 올바르지 않습니다.");
+    }
+    await this.start();
+    const lease = Symbol(workId);
+    let attached = false;
+    await this.#withApplicationWatchLock(async () => {
+      if (this.#applicationWatchSelection?.workId !== workId) {
+        await this.#applicationWatcher?.close();
+        this.#applicationWatcher = null;
+        this.#applicationWatchSelection = null;
+        const applicationRoot = await this.#resolveApplicationRoot(workId);
+        if (!applicationRoot) return;
+        this.#applicationWatcher = await this.#createApplicationWatcher(workId, applicationRoot);
+        this.#applicationWatchSelection = { workId, leases: new Set() };
+      }
+      this.#applicationWatchSelection.leases.add(lease);
+      attached = true;
+    });
+    return async () => {
+      if (!attached) return;
+      await this.#withApplicationWatchLock(async () => {
+        const selection = this.#applicationWatchSelection;
+        if (!selection || !selection.leases.delete(lease) || selection.leases.size > 0) return;
+        await this.#applicationWatcher?.close();
+        this.#applicationWatcher = null;
+        this.#applicationWatchSelection = null;
+      });
+    };
   }
 
   async snapshot(): Promise<WorkspaceProjectionSnapshot> {
@@ -156,11 +221,13 @@ export class WorkspaceProjection {
     action: string,
     path: string | null,
     reason: WorkspaceProjectionEvent["reason"],
+    workIdOverride?: string | null,
   ): WorkspaceActivity {
     const at = this.#now().toISOString();
-    const workId = path ? workIdFromPath(path) : null;
+    const workId = workIdOverride === undefined ? (path ? workIdFromPath(path) : null) : workIdOverride;
     const previous = this.#activities[this.#activities.length - 1];
     if (previous && previous.kind === kind && previous.action === action && previous.path === path
+      && previous.work_id === workId
       && Date.parse(at) - Date.parse(previous.at) < 250) {
       previous.at = at;
       this.#emit({ sequence: this.#sequence, reason, activity: structuredClone(previous), at });
@@ -185,6 +252,81 @@ export class WorkspaceProjection {
   async canonicalRoot(): Promise<string> {
     this.#repoRoot ??= await this.#repoRootPromise;
     return this.#repoRoot;
+  }
+
+  async #resolveApplicationRoot(workId: string): Promise<string | null> {
+    const registry = await this.#applicationRegistry.loadSnapshot();
+    const registration = registry.applications.find((entry) => entry.work_id === workId);
+    if (!registration) return null;
+    let applicationsRoot: string;
+    let applicationRoot: string;
+    try {
+      [applicationsRoot, applicationRoot] = await Promise.all([
+        realpath(this.#applicationRegistry.applicationsRoot),
+        realpath(registration.application_root),
+      ]);
+    } catch {
+      throw new WorkspaceProjectionError(
+        409,
+        "application_root_unavailable",
+        "등록된 application root를 확인하지 못했습니다.",
+      );
+    }
+    const info = await stat(applicationRoot).catch(() => null);
+    if (!info?.isDirectory() || !isContainedPath(applicationsRoot, applicationRoot)) {
+      throw new WorkspaceProjectionError(
+        403,
+        "application_path_outside_root",
+        "등록된 application root가 허용된 applications root 밖을 가리킵니다.",
+      );
+    }
+    return applicationRoot;
+  }
+
+  async #createApplicationWatcher(workId: string, applicationRoot: string): Promise<FSWatcher> {
+    const watcher = chokidar.watch(applicationRoot, {
+      depth: 6,
+      ignoreInitial: true,
+      awaitWriteFinish: { stabilityThreshold: 120, pollInterval: 25 },
+      ignored: (path) => isIgnoredApplicationWatchPath(applicationRoot, path),
+    });
+    const onChange = (action: string, absolutePath: string) => {
+      const resolvedPath = resolve(absolutePath);
+      if (!isContainedPath(applicationRoot, resolvedPath)) return;
+      const relativePath = normalizeRelative(applicationRoot, resolvedPath);
+      if (!relativePath) return;
+      this.record("application_source", action, relativePath, "filesystem", workId);
+    };
+    watcher.on("add", (path) => onChange("created", path));
+    watcher.on("change", (path) => onChange("modified", path));
+    watcher.on("unlink", (path) => onChange("deleted", path));
+    watcher.on("addDir", (path) => onChange("directory created", path));
+    watcher.on("unlinkDir", (path) => onChange("directory deleted", path));
+    try {
+      await new Promise<void>((resolveReady, rejectReady) => {
+        watcher.once("ready", resolveReady);
+        watcher.once("error", rejectReady);
+      });
+      return watcher;
+    } catch (error) {
+      await watcher.close();
+      throw error;
+    }
+  }
+
+  async #withApplicationWatchLock<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.#applicationWatchLock.catch(() => undefined);
+    let release!: () => void;
+    const gate = new Promise<void>((resolveGate) => {
+      release = resolveGate;
+    });
+    this.#applicationWatchLock = previous.then(() => gate);
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
   }
 
   async #start(): Promise<void> {
@@ -392,6 +534,13 @@ function isIgnoredWatchPath(path: string): boolean {
     || normalized.includes("/.agent-factory/runtime/");
 }
 
+function isIgnoredApplicationWatchPath(applicationRoot: string, path: string): boolean {
+  const absolutePath = resolve(path);
+  if (!isContainedPath(applicationRoot, absolutePath)) return true;
+  const relativePath = normalizeRelative(applicationRoot, absolutePath);
+  return /(?:^|\/)(?:node_modules|\.git|\.venv|__pycache__|dist|\.agent-factory)(?:\/|$)/.test(relativePath);
+}
+
 function isPersistedState(value: unknown): value is PersistedProjectionState {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const state = value as Record<string, unknown>;
@@ -400,7 +549,7 @@ function isPersistedState(value: unknown): value is PersistedProjectionState {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
     const activity = entry as Record<string, unknown>;
     return Number.isSafeInteger(activity.id)
-      && ["codex", "artifact", "source", "git", "system"].includes(String(activity.kind))
+      && ["codex", "artifact", "source", "application_source", "git", "system"].includes(String(activity.kind))
       && typeof activity.action === "string"
       && (activity.path === null || typeof activity.path === "string")
       && (activity.work_id === null || typeof activity.work_id === "string")

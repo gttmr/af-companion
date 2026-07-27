@@ -18,6 +18,7 @@ git rev-parse --short HEAD
 - The guarded Web bootstrap may create one strict empty Work Item v2 ledger, initialize its server-derived application Git/MCP root, and write an ignored mode-`0600` local Application Registry binding. It cannot mutate an existing ledger; that local binding is noncanonical and grants no Session eligibility.
 - The guarded Plan session launch resolves that binding, generates an ignored mode-`0600` app-first/factory-second `.code-workspace`, and invokes `code --new-window` only after confirming the Bridge/editor path. Workspace Trust lets its `folderOpen` Task run `af companion vscode-start`; the CLI, not the browser, issues the `af_vscode_launch` ticket and launches factory-cwd Codex with the app sandbox writable root. Browser launch carries no Capsule and starts no turn.
 - Home now owns the Web-first Plan start UI: one application name or existing Work Item, one primary VS Code action, explicit new-path confirmation, and Trust/MCP guidance tied to fresh session/tool evidence. Connections has no manual enrollment form, fresh-session command, Capsule copy, or Capsule DOM rendering; existing-session Attach, Cancel, Revoke, and diagnostics remain. Capsule-free Plan→Materialization launch is not yet implemented.
+- A selected Work Item opens one bounded watcher for its registered, realpath-contained external app root. Its metadata-only `application_source` events share the workspace SSE and drive Home plus Work Skill live strips for exact Companion connection count, current Skill state, Graph revision/change, recent app source, and the content/options of a current `waiting_for_input` Decision. External source remains read-only in Web; run/test/eval result projection is still deferred.
 - Shared browser edits are limited to Graph IR and the Asset Registry. Both are loopback/same-origin, revision guarded, and strictly validated; Graph writes also target one explicit active Codex session.
 - `catalog/asset-registry.json` versions Agent, Workflow, and Tool contracts. Draft/review/publish/deprecate transitions use explicit decisions, and published versions are immutable.
 - Companion participation is opt-in. Workspace eligibility, session participation, and Work Item attachment are independent; `cwd` or Hook observation never enrolls a session.
@@ -35,7 +36,7 @@ The UI exposes the Web-first start surface at `/`, four `/work/:workId/*` Work S
 
 Vite registers only these product API families:
 
-- `/api/workspace` — identity, snapshot, Git diff, SSE, and contained VS Code open;
+- `/api/workspace` — identity, snapshot, Git diff, selected-Work-Item SSE including bounded `application_source`, and contained VS Code open;
 - `/api/work-items` — Work Item/files/Graph reads, guarded root POST for an empty Work Item bootstrap, and Graph PUT;
 - `/api/codex-companion` — Plan multi-root VS Code session descriptor launch, enrollment, Companion sessions, exact handoff continuation/attach/cancel, revocation, and scoped next-prompt deliveries;
 - `/api/asset-registry` — progressive Registry reads/search and guarded lifecycle mutations.

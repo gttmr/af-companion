@@ -3,22 +3,26 @@ import { Link } from "react-router-dom";
 
 import { afWorkSkillIds, afWorkSkillLabels } from "../analyzer/afWorkItem";
 import { JourneyGuideDialog } from "../components/JourneyGuideDialog";
+import { WaitingDecisionStrip } from "../layout/WaitingDecisionStrip";
+import { WorkLiveStrip } from "../layout/WorkLiveStrip";
 import { useCodexSessions } from "../state/useCodexSessions";
 import { Button } from "../ui/primitives";
 import { bootstrapWorkItem } from "../workspace/api";
-import { useWorkspaceProjection } from "../workspace/useWorkspaceProjection";
+import { useWorkItem, useWorkspaceProjection } from "../workspace/useWorkspaceProjection";
 
 type StartMode = "new" | "existing";
 type LaunchStage = "idle" | "confirm-path" | "preparing" | "trust" | "mcp";
 
 export default function WorkspaceHome() {
-  const workspace = useWorkspaceProjection();
-  const codex = useCodexSessions();
-  const snapshot = workspace.data;
-  const workItems = snapshot?.work_items ?? [];
   const [startMode, setStartMode] = useState<StartMode>("new");
-  const [applicationName, setApplicationName] = useState("");
   const [selectedWorkId, setSelectedWorkId] = useState("");
+  const workspace = useWorkspaceProjection(startMode === "existing" ? selectedWorkId || undefined : undefined);
+  const codex = useCodexSessions();
+  const selectedWork = useWorkItem(startMode === "existing" ? selectedWorkId || undefined : undefined);
+  const snapshot = workspace.data;
+  const selectedManifest = selectedWork.data?.data ?? null;
+  const workItems = snapshot?.work_items ?? [];
+  const [applicationName, setApplicationName] = useState("");
   const [launchStage, setLaunchStage] = useState<LaunchStage>("idle");
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [launchedWorkId, setLaunchedWorkId] = useState<string | null>(null);
@@ -171,6 +175,24 @@ export default function WorkspaceHome() {
           {launchError || codex.vscodeSessionError ? <p className="journey-launch-error" role="alert">{launchError ?? codex.vscodeSessionError}</p> : null}
         </form>
       </section>
+
+      {startMode === "existing" && selectedWorkId ? (
+        <section className="home-live-work" aria-label="선택된 Work Item 진행 상태">
+          <div className="section-title-line compact">
+            <div><span>Current work</span><h2>자동 projection</h2></div>
+            <p>추가 navigation 없이 현재 Session, Skill, Graph, application source와 대기 질문을 갱신합니다.</p>
+          </div>
+          <WorkLiveStrip
+            workId={selectedWorkId}
+            routeSkillId={selectedManifest?.focus_skill ?? "af-discover-assets"}
+            manifest={selectedManifest}
+            workspace={snapshot ?? null}
+            codex={codex.snapshot}
+            live={workspace.live}
+          />
+          <WaitingDecisionStrip manifest={selectedManifest} />
+        </section>
+      ) : null}
 
       <section className="work-map" aria-label="Re-entrant Work Skill lifecycle">
         {afWorkSkillIds.map((skillId, index) => (

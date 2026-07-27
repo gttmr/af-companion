@@ -123,6 +123,21 @@ request; Trust and MCP guidance follows launch without treating editor
 acceptance as Session proof. Browser components do not call enrollment or
 fresh-session Continue and do not render activation Capsules or launch commands.
 
+When Home or a `/work/:workId/*` route selects an exact Work Item, its workspace
+SSE includes that Work ID. If its noncanonical Application Registry binding exists,
+`WorkspaceProjection` opens one additional watcher only for the registered app
+root after realpath containment under the configured applications root. It is
+bounded to depth 6, excludes dependency, Git, build, virtual-environment, cache,
+and `.agent-factory` trees, and emits only `application_source` metadata with an
+app-relative path and Work ID. It does not add external files to factory Git
+status/diff or widen editor-open containment.
+
+The Home selection and Work Skill live strips combine that signal with exact
+active Companion count, current/focus Skill status, and Graph revision/change. A
+`waiting_for_input` active run plus an unresolved Decision projects the current
+topic and options read-only; the trusted Codex terminal remains the answer and
+write surface. Run/test/eval result projection is not part of this minimal set.
+
 ## 7. Graph collaboration and re-entry
 
 `PUT /api/work-items/:workId/graph` requires loopback, same origin, current `If-Match`, approved discovery, strict Target v2 Graph validation, and one explicitly selected active Companion session whose current lease and workspace/application/Work Item/role scope allow the delivery.
@@ -176,7 +191,7 @@ Outcomes are `passed`, `failed`, `unverified`, or `stale`. Verify can be complet
 
 | Prefix | Purpose | Mutation |
 | --- | --- | --- |
-| `/api/workspace` | identity, live snapshot, Git changes/diff, SSE, VS Code open | contained editor open only |
+| `/api/workspace` | identity, live snapshot, Git changes/diff, selected-Work-Item SSE with bounded external app activity, VS Code open | contained editor open only |
 | `/api/work-items` | Work Item/artifact projection and empty bootstrap | guarded root POST create; Graph GET/PUT |
 | `/api/codex-companion` | Plan VS Code descriptor launch, enrollment, leased sessions, Plan Continue/exact attach/claim/cancel, revoke, exact scoped next-prompt queue | ignored launch descriptor or bounded v2 interaction state; browser session launch does not enroll |
 | `/api/asset-registry` | L0/L1/L2, search, usage, compare, validate, lifecycle | guarded Registry mutations |
