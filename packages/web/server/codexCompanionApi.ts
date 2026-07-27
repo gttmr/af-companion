@@ -32,7 +32,12 @@ import {
   validateCreatePlanHandoffInput,
   validateSessionAliasInput,
 } from "./codexBridgeStore";
-import { VscodeWorkspaceLauncher, VscodeWorkspaceLauncherError } from "./vscodeWorkspaceLauncher";
+import { ApplicationRegistryError, ApplicationRegistryStore } from "./applicationRegistryStore";
+import {
+  VscodeWorkspaceLauncher,
+  VscodeWorkspaceLauncherError,
+  type VscodeSessionWorkspaceInput,
+} from "./vscodeWorkspaceLauncher";
 
 const ENDPOINT_RELATIVE_PATH = `${COMPANION_STATE_RELATIVE_DIR}/endpoint.json`;
 const BODY_LIMIT = 32 * 1_024;
@@ -57,9 +62,13 @@ export interface CodexCompanionWorkspaceController {
   canonicalRoot(): Promise<string>;
   probe(): Promise<CodexEditorCapabilities>;
   launch(): Promise<VscodeLaunchReceipt>;
+  launchSessionWorkspace(input: VscodeSessionWorkspaceInput): Promise<VscodeLaunchReceipt>;
 }
 
-export interface CodexCompanionMiddlewareOptions { workspaceController?: CodexCompanionWorkspaceController }
+export interface CodexCompanionMiddlewareOptions {
+  applicationsRoot?: string;
+  workspaceController?: CodexCompanionWorkspaceController;
+}
 
 export class CompanionApiError extends Error {
   readonly statusCode: number;
@@ -97,6 +106,10 @@ export async function enqueueGraphChangeContext(repoRoot: string, input: GraphCh
 
 export function createCodexCompanionMiddleware(repoRoot: string, options: CodexCompanionMiddlewareOptions = {}) {
   const artifactStore = new ArtifactRootStore({ repoRoot });
+  const applicationRegistry = new ApplicationRegistryStore({
+    repoRoot,
+    applicationsRoot: options.applicationsRoot,
+  });
   const workspaceController = options.workspaceController ?? new VscodeWorkspaceLauncher(repoRoot);
   return async function codexCompanionMiddleware(request: IncomingMessage, response: ServerResponse, next: MiddlewareNext): Promise<void> {
     try {
@@ -109,6 +122,34 @@ export function createCodexCompanionMiddleware(repoRoot: string, options: CodexC
       if (request.method === "POST" && path === "/launch-vscode") {
         await mutationBody(request, (value) => { emptyObject(value); return value; });
         sendJson(response, 202, await workspaceController.launch()); return;
+      }
+      if (request.method === "POST" && path === "/vscode-sessions") {
+        const input = await mutationBody(request, parseVscodeSessionRequest);
+        await assertWorkItemExists(repoRoot, artifactStore, input.workId);
+        const snapshot = await applicationRegistry.loadSnapshot();
+        const registration = snapshot.applications.find((entry) => entry.work_id === input.workId);
+        if (!registration) {
+          throw new CompanionApiError(
+            409,
+            "application_registration_missing",
+            "Work Item에 등록된 application workspace가 없습니다.",
+          );
+        }
+        await fetchSnapshot(repoRoot);
+        const receipt = await workspaceController.launchSessionWorkspace({
+          applicationId: registration.application_id,
+          applicationRoot: registration.application_root,
+          applicationsRoot: applicationRegistry.applicationsRoot,
+          workId: registration.work_id,
+          role: "plan",
+        });
+        sendJson(response, 202, {
+          ...receipt,
+          application_id: registration.application_id,
+          work_id: registration.work_id,
+          role: "plan",
+        });
+        return;
       }
       if (request.method === "POST" && path === "/enrollments") {
         const input = await mutationBody(request, validateCreateEnrollmentInput);
@@ -200,6 +241,26 @@ export function createCodexCompanionMiddleware(repoRoot: string, options: CodexC
 async function mutationBody<T>(request: IncomingMessage, validate: (value: unknown) => T, maxBytes = BODY_LIMIT): Promise<T> {
   assertSameOrigin(request); assertJson(request);
   return validate(await readJsonBody(request, { maxBytes, sizeLimitMessage: `Companion 요청은 ${Math.floor(maxBytes / 1_024)} KiB를 넘을 수 없습니다.` }));
+}
+
+function parseVscodeSessionRequest(value: unknown): { workId: string } {
+  if (!isRecord(value)
+    || Object.keys(value).length !== 2
+    || !("work_id" in value)
+    || !("mode" in value)) {
+    throw new CompanionApiError(
+      400,
+      "invalid_vscode_session_request",
+      "work_id와 mode만 지정해야 합니다.",
+    );
+  }
+  if (typeof value.work_id !== "string" || !REQ_ID_PATTERN.test(value.work_id)) {
+    throw new CompanionApiError(400, "invalid_work_id", "work_id 형식이 올바르지 않습니다.");
+  }
+  if (value.mode !== "plan") {
+    throw new CompanionApiError(400, "invalid_vscode_session_mode", "현재 vscode session mode는 plan이어야 합니다.");
+  }
+  return { workId: value.work_id };
 }
 
 async function queueScopedDelivery(repoRoot: string, targetSessionId: string, workId: string, bundle: SelectionBundleV1): Promise<ScopedContextDelivery> {
@@ -321,6 +382,7 @@ async function readSourceRevision(root: string): Promise<{ head: string | null; 
 function handleError(error: unknown, response: ServerResponse, next: MiddlewareNext): void {
   if (error instanceof CompanionApiError || error instanceof CodexBridgeValidationError) { sendJson(response, error.statusCode, { error: error.message, code: error.code }); return; }
   if (error instanceof ArtifactValidationError) { sendJson(response, error.statusCode, { error: error.message, code: "artifact_error" }); return; }
+  if (error instanceof ApplicationRegistryError) { sendJson(response, 500, { error: error.message, code: error.code }); return; }
   if (error instanceof VscodeWorkspaceLauncherError) { sendJson(response, error.statusCode, { error: error.message, code: error.code }); return; }
   if (error instanceof SyntaxError) { sendJson(response, 400, { error: "요청 JSON을 해석하지 못했습니다.", code: "invalid_json" }); return; }
   if (error instanceof Error) { console.error("[codex-companion] 실패:", error); sendJson(response, 500, { error: "CLI Companion 요청 처리에 실패했습니다.", code: "internal_error" }); return; }

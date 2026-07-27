@@ -1,6 +1,6 @@
 # Agent Factory Companion
 
-Agent Factory Companion is a local web projection for Agent Factory work performed in an external Codex CLI or VS Code Codex session. Codex edits Work Item artifacts and source; the web app makes that work visible in real time, can create one strict empty Work Item through a guarded bootstrap, and provides bounded edit surfaces for Graph IR and the versioned Asset Registry.
+Agent Factory Companion is a local web projection for Agent Factory work performed in an external Codex CLI or VS Code Codex session. Codex edits Work Item artifacts and source; the web app makes that work visible in real time, can create one strict empty Work Item through a guarded bootstrap, can open its registered app/factory multi-root VS Code descriptor, and provides bounded edit surfaces for Graph IR and the versioned Asset Registry.
 
 The lifecycle is expressed by four re-entrant Work Skills, not web-run stages:
 
@@ -38,6 +38,16 @@ The app routes are:
 
 The headless root `POST /api/work-items` requires loopback, same-origin JSON no larger than 4 KiB, confirmed server-derived application root, and `CREATE_WORK_ITEM`. It creates only the unchanged empty v2 ledger, initializes the application Git/MCP context, and records its path in an ignored mode-`0600` noncanonical local registry. It cannot edit an existing ledger or grant Session eligibility. Graph saves require the latest ETag, an approved Discover result, same-origin loopback access, and an explicit active Codex session target. Saving synchronizes embedded and split Graph IR, preserves prior cycle history, marks affected composition/downstream evidence stale, and queues metadata about the change to that exact session. Registry mutations require the current Registry revision and explicit lifecycle decisions; published versions are immutable.
 
+The headless `POST /api/codex-companion/vscode-sessions` Plan route resolves
+that local registration, requires a reachable Bridge, writes an ignored private
+`.code-workspace`, and calls `code --new-window` with fixed argv. The descriptor
+shows the app first and factory second. After Workspace Trust, its automatic
+default Task runs `af companion vscode-start` in a dedicated terminal; that CLI
+creates the `af_vscode_launch` ticket and starts Codex at the factory cwd with
+the app root added to sandbox writable roots. The browser receives no Capsule,
+does not enroll a session, and does not start a turn. Existing file/diff open
+actions remain factory-contained.
+
 ## Codex connection
 
 Tracked project Hooks and the companion plugin may invoke the local adapter for these official Codex lifecycle events:
@@ -54,6 +64,20 @@ Start or join one exact application/Work Item/role scope explicitly:
 node scripts/af.mjs companion start --application <application-id> --work <work-id> --role plan
 node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization
 ```
+
+Generated Web-first workspaces use this non-browser enrollment command after
+Workspace Trust; it is normally not typed by the user:
+
+```bash
+node scripts/af.mjs companion vscode-start \
+  --application <application-id> --work <work-id> --role plan \
+  --application-root <registered-application-root>
+```
+
+Its activation Capsule exists only in the launched child environment. A fresh
+human terminal prompt and current claimed ticket/lease remain necessary before
+the session is connected. Since Codex stays factory-rooted, the external app's
+project MCP config is not consumed on this path.
 
 Ticket issuance reads the strict canonical Work Item and binds its ETag. Activation re-reads that same Work Item and rejects a deleted or changed ledger instead of creating a phantom session.
 

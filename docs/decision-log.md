@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-07-28 · 작업 브랜치 `agent/web-first-session-launch` — Web-first VS Code launch chain 경계
+
+- **Session-start 경계**: browser 요청은 등록된 application과 Work Item으로 multi-root workspace descriptor를 만들고 `code --new-window <descriptor>`를 호출하는 데서 끝난다. Codex 프로세스는 사용자가 Workspace Trust를 승인한 VS Code의 `folderOpen` Task가 시작하며, 첫 turn은 terminal에서 사람이 입력한다. 이 경로는 Direct Turn이나 in-flight steering이 아니다.
+- **VS Code launch 범위**: `VscodeWorkspaceLauncher.launchSessionWorkspace()`는 로컬 Application Registry에 등록된 external app root를 첫 folder, canonical factory root를 둘째 folder로 갖는 ignored `.agent-factory/vscode/<work-id>.code-workspace`만 생성·실행할 수 있다. 기존 `openFile`과 `openDiff`의 factory containment는 변경하지 않는다.
+- **Enrollment origin**: generated Task의 `af companion vscode-start`가 terminal 시작 시점에 `activation_origin: "af_vscode_launch"` ticket을 발급하고 Capsule을 child environment로만 전달한다. Browser는 enrollment나 Capsule을 받지 않는다. Ticket TTL, claim crypto, Work Item ETag 재검증, exact cwd/scope, lease 검사는 변경하지 않는다.
+- **MCP 범위 결과**: Codex cwd는 enrollment/Hook authority를 위해 factory root로 유지되고 external app root는 `sandbox_workspace_write.writable_roots`에만 추가된다. 따라서 app root의 `.codex/config.toml`은 이 factory-cwd 세션이 소비하지 않는다. P1 MCP export는 app-rooted client 후속을 위해 유지하며, 이번 launch chain의 context transport로 간주하지 않는다.
+- **영향**: `POST /api/codex-companion/vscode-sessions`의 Plan mode, generated workspace/Task, `af companion vscode-start`, active Companion/Handbook 문서. UI, live external-source projection, 원인별 오류 UX, Plan→Materialization handoff는 후속 Phase 소유다.
+
 ## 2026-07-27 · 작업 브랜치 `agent/web-first-work-bootstrap` — 빈 Work Item bootstrap canonical write 경계 추가
 
 - **결정**: Web은 loopback·same-origin·4 KiB JSON 제한과 `application_root_confirmed: true`·`confirmation: "CREATE_WORK_ITEM"` 확인을 통과한 `POST /api/work-items`로 새로운 빈 `af-work-item.json` 하나를 생성할 수 있다. 이 경계는 기존 Work Item 필드를 수정할 수 없으며, 기존 shared edit surface는 Graph IR과 Asset Registry뿐이다. app↔절대 경로 바인딩은 ignored mode-`0600` `.agent-factory/applications/registry.json`에 로컬 비canonical state로 기록하고 `af-work-item.schema.json`에는 필드를 추가하지 않는다.

@@ -1,6 +1,6 @@
 # STATUS — Agent Factory Companion
 
-Last updated: 2026-07-27 (KST).
+Last updated: 2026-07-28 (KST).
 
 This is a branch-neutral product status. Check the live checkout separately:
 
@@ -16,6 +16,7 @@ git rev-parse --short HEAD
 - The lifecycle ledger is strict `artifacts/af/<work-id>/af-work-item.json` v2 with four Work Skills, revision-bound review gates, re-entrant discovery/composition cycles, decisions, invalidations, and session handoffs.
 - External Codex owns canonical artifacts and source. The web app projects Work Items, files, Git status/diffs, Hook activity, and session state.
 - The guarded Web bootstrap may create one strict empty Work Item v2 ledger, initialize its server-derived application Git/MCP root, and write an ignored mode-`0600` local Application Registry binding. It cannot mutate an existing ledger; that local binding is noncanonical and grants no Session eligibility.
+- The guarded Plan session launch resolves that binding, generates an ignored mode-`0600` app-first/factory-second `.code-workspace`, and invokes `code --new-window` only after confirming the Bridge/editor path. Workspace Trust lets its `folderOpen` Task run `af companion vscode-start`; the CLI, not the browser, issues the `af_vscode_launch` ticket and launches factory-cwd Codex with the app sandbox writable root. Browser launch carries no Capsule and starts no turn.
 - Shared browser edits are limited to Graph IR and the Asset Registry. Both are loopback/same-origin, revision guarded, and strictly validated; Graph writes also target one explicit active Codex session.
 - `catalog/asset-registry.json` versions Agent, Workflow, and Tool contracts. Draft/review/publish/deprecate transitions use explicit decisions, and published versions are immutable.
 - Companion participation is opt-in. Workspace eligibility, session participation, and Work Item attachment are independent; `cwd` or Hook observation never enrolls a session.
@@ -23,7 +24,7 @@ git rev-parse --short HEAD
 - Companion bridge state is breaking v2 under ignored `.agent-factory/codex-bridge/v2`. Tickets are one-time and expiring, activation rechecks the ticket-bound canonical Work Item ETag, leases are bound to one Bridge instance and exact scope, and delivery has no global default target. Queued delivery rechecks the canonical source revision at consume time.
 - Fresh-session transfer is explicit: use Companion Continue when built-in Capsule carriage is not proven. Claims bind the exact canonical Work Item Handoff ID, marker, revisions, and verified Plan body, and are consume-once. A 512 KiB JSON envelope carries canonical Plan text capped at 64 KiB; the body is encrypted in local state, snapshot reads reconcile canonical removal/drift, and terminal authority changes erase it. `/connections` can also durably attach a pending Handoff to one explicitly selected same-scope existing session for its next leased prompt, without returning a raw Capsule or Plan body; no target is preselected.
 - Decision input is selected from tools actually exposed in the current turn. Structured and conversational paths normalize to the same semantics, while strict Decision and Asset Decision records preserve decision/recommendation revisions, selection source, bounded answer summary, input mode, and exact session/turn; superseded selection provenance remains all-or-none and a recommendation is never consent.
-- VS Code actions open the canonical workspace, a contained file, or a generated local diff. They do not claim IDE-thread creation or selection.
+- VS Code actions open the canonical workspace, a contained file, a generated local diff, or one registered multi-root session descriptor. File/diff containment remains factory-only, and no editor receipt claims connection, IDE-thread creation, selection, or a first turn.
 - Old Stage Runner APIs, stage routes, server analyzer/build/verify primitives, proposal/apply artifacts, and `af-run-manifest.json` are removed.
 - Strict Target Contract v2, deterministic generation, and the no-raw-requirement-to-code gate remain active.
 
@@ -35,7 +36,7 @@ Vite registers only these product API families:
 
 - `/api/workspace` — identity, snapshot, Git diff, SSE, and contained VS Code open;
 - `/api/work-items` — Work Item/files/Graph reads, guarded root POST for an empty Work Item bootstrap, and Graph PUT;
-- `/api/codex-companion` — enrollment, Companion sessions, exact handoff continuation/attach/cancel, revocation, and scoped next-prompt deliveries;
+- `/api/codex-companion` — Plan multi-root VS Code session descriptor launch, enrollment, Companion sessions, exact handoff continuation/attach/cancel, revocation, and scoped next-prompt deliveries;
 - `/api/asset-registry` — progressive Registry reads/search and guarded lifecycle mutations.
 
 ## Verification posture

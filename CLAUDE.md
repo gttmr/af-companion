@@ -21,10 +21,10 @@ Source is final authority for Current Implementation. Keep Target Contract, obse
 
 - `artifacts/af/<work-id>/af-work-item.json` is the lifecycle ledger.
 - `packages/web/src/routes` contains the home, four Work Skill projections, Connections, and Asset Registry screens.
-- `packages/web/server` exposes workspace projection, Work Item/Graph, Codex companion, and Asset Registry middleware.
+- `packages/web/server` exposes workspace projection, Work Item/Graph, Codex companion including the registered multi-root VS Code descriptor launcher, and Asset Registry middleware.
 - External Codex writes Work Item artifacts/source after initialization. The browser may create only the unchanged empty Work Item template, then writes only guarded Graph IR and explicitly reviewed Registry lifecycle mutations.
 - The bootstrap application/path binding lives in ignored `.agent-factory/applications/registry.json`; it is noncanonical and not Workspace or Session authority.
-- The browser never stages, commits, starts a Codex turn, or edits arbitrary source.
+- The browser never stages, commits, starts a Codex turn, or edits arbitrary source. Its Plan launch request only writes an ignored private `.code-workspace` and invokes `code`; after Workspace Trust, VS Code's Task runs `af companion vscode-start`, which issues the `af_vscode_launch` ticket and starts factory-cwd Codex with the registered app sandbox root.
 - Stage Runner, `/api/af`, `af-run-manifest.json`, proposal/apply, web analyzer execution, and local Run UI are unsupported.
 
 ## Commands

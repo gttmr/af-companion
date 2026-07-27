@@ -286,6 +286,27 @@ async function requireCompanionWorkItem(root, workId) {
   return manifest;
 }
 
+async function requireApplicationRoot(value) {
+  if (typeof value !== "string" || !isAbsolute(value)) {
+    usage("--application-root must be an absolute path");
+  }
+  const path = resolve(value);
+  try {
+    const entry = await lstat(path);
+    if (entry.isSymbolicLink() || !entry.isDirectory()) {
+      validation(
+        "invalid_application_root",
+        "--application-root must be a non-symbolic-link directory",
+        { path },
+      );
+    }
+    return await realpath(path);
+  } catch (error) {
+    if (error instanceof CliError) throw error;
+    throw fileError(error, "Application root not found", path);
+  }
+}
+
 async function workValidate(args) {
   const { options, positionals } = parseOptions(args, ROOT_OPTIONS);
   requirePositionals(positionals, 1, "work validate <work-id-or-path> [--root PATH]");
@@ -704,9 +725,41 @@ function companionScopeOptions(args, synopsis) {
 async function companionEnroll(args, mode) {
   const synopsis = `companion ${mode} --application ID --work ID --role plan|materialization [--root PATH]`;
   const { options, root } = companionScopeOptions(args, synopsis);
+  const activationOrigin = mode === "start" ? "af_cli_launch" : "explicit_join_capsule";
+  return launchEnrolledCompanion(root, options, activationOrigin, []);
+}
+
+async function companionVscodeStart(args) {
+  const synopsis = "companion vscode-start --application ID --work ID --role plan --application-root PATH [--root PATH]";
+  const { options, positionals } = parseOptions(args, {
+    ...ROOT_OPTIONS,
+    "--application": valueOption("applicationId"),
+    "--work": valueOption("workId"),
+    "--role": valueOption("role"),
+    "--application-root": valueOption("applicationRoot"),
+  });
+  requirePositionals(positionals, 0, synopsis);
+  if (!options.applicationId || !IDENTIFIER_PATTERN.test(options.applicationId)) {
+    usage("--application must be an explicit application identifier");
+  }
+  if (!options.workId || !WORK_ID_PATTERN.test(options.workId)) {
+    usage("--work must be a valid Work Item identifier");
+  }
+  if (options.role !== "plan") usage("--role must be plan for companion vscode-start");
+  const root = rootFrom(options);
+  const applicationRoot = await requireApplicationRoot(options.applicationRoot);
+  const writableRoots = `sandbox_workspace_write.writable_roots=${JSON.stringify([applicationRoot])}`;
+  return launchEnrolledCompanion(root, options, "af_vscode_launch", [
+    "--sandbox",
+    "workspace-write",
+    "--config",
+    writableRoots,
+  ]);
+}
+
+async function launchEnrolledCompanion(root, options, activationOrigin, codexArgs) {
   await requireCompanionWorkItem(root, options.workId);
   const endpoint = await readCompanionEndpoint(root);
-  const activationOrigin = mode === "start" ? "af_cli_launch" : "explicit_join_capsule";
   const receipt = await bridgePost(endpoint, "/v1/enrollments", {
     application_id: options.applicationId,
     work_id: options.workId,
@@ -719,8 +772,13 @@ async function companionEnroll(args, mode) {
     role: options.role,
     activationOrigin,
   });
-  const launch = await launchCodex(root, [], validated.activationCapsule);
-  return { launched: true, ticket: validated.ticket, command: ["codex"], exit_code: launch.exitCode };
+  const launch = await launchCodex(root, codexArgs, validated.activationCapsule);
+  return {
+    launched: true,
+    ticket: validated.ticket,
+    command: ["codex", ...codexArgs],
+    exit_code: launch.exitCode,
+  };
 }
 
 async function companionContinue(args) {
@@ -1030,6 +1088,7 @@ function dispatchWork(command, args) {
 
 function dispatchCompanion(command, args) {
   if (command === "start" || command === "join") return companionEnroll(args, command);
+  if (command === "vscode-start") return companionVscodeStart(args);
   if (command === "continue") return companionContinue(args);
   if (command === "reset") return companionReset(args);
   usage(`unknown companion command: ${command ?? "(missing)"}`);

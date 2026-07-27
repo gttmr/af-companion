@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -19,6 +19,8 @@ import {
 } from "./companionTestFixtures.ts";
 import { createCodexCompanionMiddleware } from "./codexCompanionApi.ts";
 import { startCodexBridgeServer } from "./codexBridgeServer.ts";
+import { ApplicationRegistryStore } from "./applicationRegistryStore.ts";
+import type { VscodeSessionWorkspaceInput } from "./vscodeWorkspaceLauncher.ts";
 
 const editor: CodexEditorCapabilities = {
   code_available: false, code_version: null, wsl_environment: true,
@@ -40,6 +42,16 @@ async function fixture(t: test.TestContext, withBridge = true) {
   const root = await mkdtemp(join(tmpdir(), "af-companion-v2-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await writeCompanionWorkItems(root);
+  const applicationsRoot = join(root, "external-applications");
+  const applicationRoot = join(applicationsRoot, "app-1");
+  await mkdir(applicationRoot, { recursive: true });
+  const applicationRegistry = new ApplicationRegistryStore({ repoRoot: root, applicationsRoot });
+  await applicationRegistry.register({
+    application_id: "app-1",
+    application_root: applicationRoot,
+    work_id: "work-1",
+    created_at: "2030-01-01T00:00:00.000Z",
+  });
   const bridge = withBridge ? await startCodexBridgeServer({
     repoRoot: root,
     port: 0,
@@ -47,11 +59,21 @@ async function fixture(t: test.TestContext, withBridge = true) {
     readCurrentSourceRevision: async () => structuredClone(TEST_SOURCE_REVISION),
   }) : null;
   if (bridge) t.after(() => bridge.close());
+  const sessionLaunches: VscodeSessionWorkspaceInput[] = [];
   const middleware = createCodexCompanionMiddleware(root, {
+    applicationsRoot,
     workspaceController: {
       canonicalRoot: async () => root,
       probe: async () => editor,
       launch: async () => ({ status: "accepted", workspace_path: root, launched_at: "2030-01-01T00:00:00.000Z" }),
+      launchSessionWorkspace: async (input) => {
+        sessionLaunches.push(input);
+        return {
+          status: "accepted",
+          workspace_path: join(root, ".agent-factory", "vscode", `${input.workId}.code-workspace`),
+          launched_at: "2030-01-01T00:00:00.000Z",
+        };
+      },
     },
   });
   const server = createServer((request, response) => {
@@ -79,7 +101,16 @@ async function fixture(t: test.TestContext, withBridge = true) {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   };
-  return { root, bridge, facade, direct, origin };
+  return {
+    root,
+    bridge,
+    facade,
+    direct,
+    origin,
+    applicationsRoot,
+    applicationRoot,
+    sessionLaunches,
+  };
 }
 
 function sessionHook(root: string, sessionId: string, proof: unknown, permission = "default", turn?: string) {
@@ -113,6 +144,47 @@ test("Facade requires same-origin and rejects default_target from alias-only pre
   assert.equal(response.status, 403);
   response = await facade("/sessions/session-1/preferences", { default_target: true });
   assert.equal(response.status, 400);
+});
+
+test("Facade launches a registered plan workspace without issuing browser enrollment", async (t) => {
+  const { root, bridge, facade, applicationsRoot, applicationRoot, sessionLaunches } = await fixture(t);
+  assert.ok(bridge);
+
+  let response = await facade("/vscode-sessions", { work_id: "work-1", mode: "plan" });
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), {
+    status: "accepted",
+    workspace_path: join(root, ".agent-factory", "vscode", "work-1.code-workspace"),
+    launched_at: "2030-01-01T00:00:00.000Z",
+    application_id: "app-1",
+    work_id: "work-1",
+    role: "plan",
+  });
+  assert.deepEqual(sessionLaunches, [{
+    applicationId: "app-1",
+    applicationRoot,
+    applicationsRoot,
+    workId: "work-1",
+    role: "plan",
+  }]);
+  assert.deepEqual((await bridge.store.snapshot()).enrollment_tickets, []);
+
+  response = await facade("/vscode-sessions", { work_id: "work-2", mode: "plan" });
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "application_registration_missing");
+  response = await facade("/vscode-sessions", { work_id: "work-1", mode: "materialization" });
+  assert.equal(response.status, 400);
+  response = await facade("/vscode-sessions", { work_id: "work-1", mode: "plan", unexpected: true });
+  assert.equal(response.status, 400);
+  assert.equal(sessionLaunches.length, 1);
+});
+
+test("Facade refuses session workspace launch while the Bridge is unavailable", async (t) => {
+  const { facade, sessionLaunches } = await fixture(t, false);
+  const response = await facade("/vscode-sessions", { work_id: "work-1", mode: "plan" });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, "bridge_unavailable");
+  assert.deepEqual(sessionLaunches, []);
 });
 
 test("Facade rejects enrollment for a nonexistent exact Work Item before ticket issuance", async (t) => {

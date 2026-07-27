@@ -27,5 +27,6 @@
 - [Product Truth Phases A–D closure summary](migration/product-truth-phases-a-d-summary.md)
 - [Plan Discovery and Asset Registry migration evidence](migration/plan-discovery-asset-registry-status.md)
 - [Companion Session scope, handoff, and decision-input evidence](migration/companion-session-scope-handoff-decision-input-status.md)
+- [Web-first Journey P2 launch-chain and G1 evidence](migration/web-first-journey-p2-launch-chain-status.md)
 
 `docs/archive/**`, `docs/handoff/**`, dated reviews, and migration snapshots are historical evidence. Current source remains final authority for implementation behavior.

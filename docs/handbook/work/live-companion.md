@@ -4,11 +4,16 @@
 
 ## Main flow
 
-1. CLI or `/connections` reads the strict Work Item and creates a one-time enrollment ticket bound to its ETag and exact workspace, application, Work Item, and role.
-2. The new Codex session carries the activation Capsule. The local Hook gate validates workspace and Capsule before endpoint discovery.
-3. The Bridge re-reads the unchanged Work Item, consumes the ticket once, persists only the activated Companion session, and writes an exact-session lease bound to the current Bridge instance.
-4. Later lifecycle Hooks resolve that contained lease locally. Unmanaged, revoked, expired, wrong-workspace, and subagent events no-op before Agent Factory network/state.
-5. Exact-scope deliveries recheck canonical source revision and may be consumed once by the next eligible prompt. Ordinary sessions are never candidate targets.
+1. For the Web-first Plan path, `codexCompanionApi` resolves the Work Item's local Application Registry binding and asks `VscodeWorkspaceLauncher.launchSessionWorkspace` to write and open a private multi-root descriptor. This browser request creates no enrollment.
+2. After Workspace Trust, the descriptor's `folderOpen` Task runs `af companion vscode-start` from the factory root. The CLI creates a one-time `af_vscode_launch` ticket bound to the Work Item ETag and exact workspace, application, Work Item, and role, then starts interactive Codex with the app root added to sandbox writable roots.
+3. The user submits the first terminal prompt. The new Codex session carries the activation Capsule, and the local Hook gate validates workspace and Capsule before endpoint discovery.
+4. The Bridge re-reads the unchanged Work Item, consumes the ticket once, persists only the activated Companion session, and writes an exact-session lease bound to the current Bridge instance.
+5. Later lifecycle Hooks resolve that contained lease locally. Unmanaged, revoked, expired, wrong-workspace, and subagent events no-op before Agent Factory network/state.
+6. Exact-scope deliveries recheck canonical source revision and may be consumed once by the next eligible prompt. Ordinary sessions are never candidate targets.
+
+The existing explicit CLI and `/connections` enrollment surfaces remain
+available. In every path, editor launch, ticket issuance, claim, lease, and
+prompt receipt are distinct evidence. The Web-first server never starts a turn.
 
 The bridge stores bounded session, role, receipt, handoff, delivery, and activity metadata. It does not store prompts, transcripts, tool arguments, tool output, plaintext durable claim tokens, or unmanaged session rows.
 
@@ -40,10 +45,17 @@ Work Skills choose structured decision input only from tools actually exposed in
 
 Bridge health, editor launch acceptance, ticket issuance, active lease, and prompt receipt are separate states. The UI never lists ordinary Hook-observed sessions, selects the first active session, or reports editor launch as Codex connection proof.
 
+The generated descriptor is stored under
+`.agent-factory/vscode/<work-id>.code-workspace`. Its first folder is the
+registered external app and its second folder is the canonical factory root.
+Only this descriptor path may name the app root; `openFile` and `openDiff` still
+reject paths outside the factory. Since the Codex process cwd remains factory,
+the app's project `.codex/config.toml` is not consumed by this session.
+
 Source:
 
 - `packages/web/src/companion/sessionContract.ts` (`deliveryEligibility`, `canonicalizePlanBody`)
-- `packages/web/server/workspaceProjection.ts`, `workspaceApi.ts`
+- `packages/web/server/workspaceProjection.ts`, `workspaceApi.ts`, `vscodeWorkspaceLauncher.ts`
 - `packages/web/src/layout/LiveRail.tsx`
 - `packages/web/server/codexBridgeStore.ts`
 - `packages/web/server/codexBridgeServer.ts`, `codexCompanionApi.ts`

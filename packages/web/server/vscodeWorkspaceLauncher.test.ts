@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -92,4 +92,82 @@ test("rejects a code executable contained inside the repository", async (t) => {
   assert.equal(probe.code_available, false);
   assert.equal(probe.launch_supported, false);
   await assert.rejects(readFile(markerPath), /ENOENT/);
+});
+
+test("generates a private multi-root session workspace and launches only that descriptor", async (t) => {
+  const base = await mkdtemp(join(tmpdir(), "af-vscode-session-"));
+  t.after(() => rm(base, { recursive: true, force: true }));
+  const repoRoot = join(base, "factory");
+  const applicationsRoot = join(base, "applications");
+  const applicationRoot = join(applicationsRoot, "sample-app");
+  const binDir = join(base, "host-bin");
+  const logPath = join(base, "code-argv.jsonl");
+  await mkdir(repoRoot);
+  await mkdir(applicationRoot, { recursive: true });
+  await mkdir(binDir);
+  const executable = join(binDir, "code");
+  await writeFile(executable, `#!${process.execPath}\n`
+    + `const { appendFileSync } = require("node:fs");\n`
+    + `appendFileSync(process.env.CODE_ARGV_LOG, JSON.stringify(process.argv.slice(2)) + "\\n");\n`
+    + `if (process.argv[2] === "--version") process.stdout.write("1.130.0\\ncommit\\nx64\\n");\n`, "utf8");
+  await chmod(executable, 0o755);
+  const launcher = new VscodeWorkspaceLauncher(repoRoot, {
+    env: {
+      ...process.env,
+      PATH: binDir,
+      CODE_ARGV_LOG: logPath,
+      WSL_DISTRO_NAME: "Ubuntu",
+    },
+    now: () => new Date("2030-01-01T00:00:00.000Z"),
+  });
+
+  const receipt = await launcher.launchSessionWorkspace({
+    applicationId: "sample-app",
+    applicationRoot,
+    applicationsRoot,
+    workId: "sample-work",
+    role: "plan",
+  });
+
+  assert.equal(receipt.workspace_path, join(repoRoot, ".agent-factory", "vscode", "sample-work.code-workspace"));
+  assert.equal((await lstat(receipt.workspace_path)).mode & 0o777, 0o600);
+  assert.equal((await lstat(join(repoRoot, ".agent-factory", "vscode"))).mode & 0o777, 0o700);
+  const descriptor = JSON.parse(await readFile(receipt.workspace_path, "utf8"));
+  assert.deepEqual(descriptor.folders, [
+    { name: "sample-app", path: applicationRoot },
+    { name: "Agent Factory (factory)", path: repoRoot },
+  ]);
+  assert.deepEqual(descriptor.settings, { "task.allowAutomaticTasks": "on" });
+  assert.deepEqual(descriptor.tasks, {
+    version: "2.0.0",
+    tasks: [{
+      label: "Start AF Session",
+      type: "shell",
+      command: "node",
+      args: [
+        join(repoRoot, "scripts", "af.mjs"),
+        "companion",
+        "vscode-start",
+        "--application",
+        "sample-app",
+        "--work",
+        "sample-work",
+        "--role",
+        "plan",
+        "--application-root",
+        applicationRoot,
+      ],
+      options: { cwd: repoRoot },
+      presentation: { reveal: "always", panel: "dedicated", focus: true },
+      runOptions: { runOn: "folderOpen" },
+      group: { kind: "build", isDefault: true },
+      problemMatcher: [],
+    }],
+  });
+  const invocations = (await readFile(logPath, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+  assert.deepEqual(invocations, [
+    ["--version"],
+    ["--list-extensions", "--show-versions"],
+    ["--new-window", receipt.workspace_path],
+  ]);
 });
