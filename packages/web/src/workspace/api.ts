@@ -26,6 +26,14 @@ export interface WorkItemTextFile {
   etag: string;
 }
 
+export interface WorkItemBootstrapReceipt {
+  work_id: string;
+  artifact_root: string;
+  application_id: string;
+  application_root: string;
+  created_application_dir: boolean;
+}
+
 export interface GraphProjection {
   graph: GraphIR;
   asset_candidates: AssetCandidate[];
@@ -54,6 +62,19 @@ export class WorkspaceApiError extends Error {
 
 export async function fetchWorkspaceSnapshot(): Promise<WorkspaceProjectionSnapshot> {
   return requestJson("/api/workspace/snapshot");
+}
+
+export async function bootstrapWorkItem(applicationName: string): Promise<WorkItemBootstrapReceipt> {
+  return requestJson("/api/work-items", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      application_name: applicationName,
+      application_root_confirmed: true,
+      confirmation: "CREATE_WORK_ITEM",
+      reuse_existing: false,
+    }),
+  });
 }
 
 export async function fetchWorkItem(workId: string): Promise<EtagResult<AfWorkItemManifest>> {

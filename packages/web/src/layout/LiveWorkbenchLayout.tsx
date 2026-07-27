@@ -46,14 +46,6 @@ export function LiveWorkbenchLayout({ children }: { children: ReactNode }) {
         <nav className="workspace-global-nav" aria-label="Workspace tools">
           <NavLink to="/assets">Assets</NavLink>
           <NavLink to="/connections">Connections</NavLink>
-          <button
-            type="button"
-            className="open-vscode-button"
-            disabled={!codex.snapshot?.editor.launch_supported || codex.launchPending}
-            onClick={() => void codex.launchVscode()}
-          >
-            <span>VS Code</span><i>↗</i>
-          </button>
         </nav>
       </header>
 

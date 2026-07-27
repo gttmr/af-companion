@@ -25,6 +25,7 @@ Source is final authority for Current Implementation. Keep Target Contract, obse
 - External Codex writes Work Item artifacts/source after initialization. The browser may create only the unchanged empty Work Item template, then writes only guarded Graph IR and explicitly reviewed Registry lifecycle mutations.
 - The bootstrap application/path binding lives in ignored `.agent-factory/applications/registry.json`; it is noncanonical and not Workspace or Session authority.
 - The browser never stages, commits, starts a Codex turn, or edits arbitrary source. Its Plan launch request only writes an ignored private `.code-workspace` and invokes `code`; after Workspace Trust, VS Code's Task runs `af companion vscode-start`, which issues the `af_vscode_launch` ticket and starts factory-cwd Codex with the registered app sandbox root.
+- Home accepts one new application name or existing Work Item and owns the single normal VS Code start action plus path/Trust/MCP guidance. Connections exposes no manual browser enrollment, launch-command, or Capsule-copy surface; fresh Materialization launch remains separate follow-up work.
 - Stage Runner, `/api/af`, `af-run-manifest.json`, proposal/apply, web analyzer execution, and local Run UI are unsupported.
 
 ## Commands

@@ -12,11 +12,10 @@ The companion connects the canonical repository to explicitly enrolled Codex CLI
 
 ## Web-first empty Work Item bootstrap
 
-**Current Implementation:** `POST /api/work-items` is a headless, create-only
-bootstrap endpoint. UI and VS Code launch are separate later surfaces. The
-request is limited to 4 KiB of JSON and requires a loopback peer, a same-origin
-browser origin, explicit path confirmation, and the exact destructive-action
-confirmation:
+**Current Implementation:** `POST /api/work-items` is a create-only bootstrap
+endpoint used by the Home Web-first start surface. The request is limited to
+4 KiB of JSON and requires a loopback peer, a same-origin browser origin,
+explicit path confirmation, and the exact destructive-action confirmation:
 
 ```json
 {
@@ -43,6 +42,14 @@ ignored local `.agent-factory/applications/registry.json`, written atomically
 with mode `0600`. This registry is noncanonical bootstrap metadata: its binding
 does not enter `af-work-item.json`, change the Work Item schema, establish
 Workspace eligibility, enroll a Session, or prove Companion participation.
+
+Home accepts one application name or one existing Work Item and exposes one
+primary action, `작업 시작하고 VS Code 열기`. For a new application it shows
+the default `~/work/af-apps/<id>` location and the `AF_APPLICATIONS_ROOT`
+override rule before sending the confirmation above. It then passes only the
+returned `work_id` to the Plan session launch route. IDs and absolute paths may
+be shown as bounded status, but no activation Capsule, ticket TTL, or shell
+command is rendered.
 
 ## Web-first VS Code session launch
 
@@ -90,6 +97,13 @@ Because Codex remains factory-rooted, this process does not consume the
 external app's `.codex/config.toml`. The exported MCP configuration remains for
 a future app-rooted client path; it is not claimed as context transport for
 this session.
+
+After launch acceptance, Home shows Workspace Trust guidance until a fresh
+exact `af_vscode_launch` Plan session becomes active, then shows bounded MCP
+approval guidance. These dialogs do not turn editor acceptance into connection
+proof. Connections contains no browser enrollment form or Capsule/command copy
+surface. Explicit CLI `companion start`/`join` remains a low-level operator
+command, not the normal Web path.
 
 ## External application project MCP
 

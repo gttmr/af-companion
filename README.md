@@ -28,12 +28,12 @@ The canonical root is `artifacts/af/<work-id>/`. Its lifecycle ledger is `af-wor
 
 The app routes are:
 
-- `/` — Work Item index and revisioned lifecycle map;
+- `/` — new/existing Work Item start, VS Code gate guidance, index, and revisioned lifecycle map;
 - `/work/:workId/discover` — evidence and candidate projection;
 - `/work/:workId/compose` — Graph IR review and the only browser artifact editor;
 - `/work/:workId/scaffold` — generated source, handoff, and Git diff projection;
 - `/work/:workId/verify` — five-level evidence projection;
-- `/connections` — opt-in Companion sessions, pending handoffs, scoped deliveries, and setup diagnostics;
+- `/connections` — opt-in Companion sessions, pending handoffs, scoped deliveries, and diagnostics without browser enrollment/Capsule copy;
 - `/assets` — Agent·Workflow·Tool Registry browse, search, version, usage, draft, review, publish, and deprecate operations.
 
 The headless root `POST /api/work-items` requires loopback, same-origin JSON no larger than 4 KiB, confirmed server-derived application root, and `CREATE_WORK_ITEM`. It creates only the unchanged empty v2 ledger, initializes the application Git/MCP context, and records its path in an ignored mode-`0600` noncanonical local registry. It cannot edit an existing ledger or grant Session eligibility. Graph saves require the latest ETag, an approved Discover result, same-origin loopback access, and an explicit active Codex session target. Saving synchronizes embedded and split Graph IR, preserves prior cycle history, marks affected composition/downstream evidence stale, and queues metadata about the change to that exact session. Registry mutations require the current Registry revision and explicit lifecycle decisions; published versions are immutable.
@@ -47,6 +47,14 @@ creates the `af_vscode_launch` ticket and starts Codex at the factory cwd with
 the app root added to sandbox writable roots. The browser receives no Capsule,
 does not enroll a session, and does not start a turn. Existing file/diff open
 actions remain factory-contained.
+
+Home connects the two guarded APIs behind one `작업 시작하고 VS Code 열기`
+action. New applications first require a path-confirmation dialog; accepted
+launches show Workspace Trust guidance until a fresh exact Plan session is
+observed, then bounded MCP approval guidance. The top shell no longer exposes a
+factory-only VS Code shortcut, and Connections does not render enrollment or
+handoff Capsule/command copy surfaces. Explicit CLI enrollment remains an
+operator path; capsule-free fresh Materialization launch is a separate follow-up.
 
 ## Codex connection
 

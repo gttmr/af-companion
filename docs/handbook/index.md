@@ -4,12 +4,12 @@
 
 | Route | Purpose | Source |
 | --- | --- | --- |
-| `/` | Work Item index, current focus, and lifecycle map | `packages/web/src/routes/WorkspaceHome.tsx` |
+| `/` | New/existing Work Item start, VS Code gate guidance, current focus, and lifecycle map | `packages/web/src/routes/WorkspaceHome.tsx`, `packages/web/src/components/JourneyGuideDialog.tsx` |
 | `/work/:workId/discover` | discovery cycles, decisions, Assets, and Plan/materialization handoff projection | `packages/web/src/routes/work/DiscoverWorkspace.tsx` |
 | `/work/:workId/compose` | strategy/Root/Asset decisions, Return-to-Discover, invalidations, and Graph edit | `packages/web/src/routes/work/ComposeWorkspace.tsx` |
 | `/work/:workId/scaffold` | source/handoff and Git change projection | `packages/web/src/routes/work/ScaffoldWorkspace.tsx` |
 | `/work/:workId/verify` | five-level evidence projection | `packages/web/src/routes/work/VerifyWorkspace.tsx` |
-| `/connections` | enrolled Companion sessions, pending handoffs, scoped deliveries, setup, and diagnostics | `packages/web/src/routes/ConnectionsPage.tsx` |
+| `/connections` | enrolled Companion sessions, pending handoffs, scoped deliveries, and diagnostics without browser enrollment/Capsule copy | `packages/web/src/routes/ConnectionsPage.tsx` |
 | `/assets` | Registry browse/search/detail/version/usage and guarded lifecycle operations | `packages/web/src/routes/AssetsPage.tsx` |
 
 Router ownership: `packages/web/src/routes/router.tsx`.

@@ -116,6 +116,13 @@ boundary creates the `af_vscode_launch` ticket and starts interactive Codex
 from the factory root with the external app added as a sandbox writable root.
 The existing contained file and diff open boundaries are unchanged.
 
+Home is the normal browser entrypoint for this pair of guarded operations. It
+accepts one new application name or existing Work Item and offers one primary
+VS Code start action. A new application path is confirmed before the create
+request; Trust and MCP guidance follows launch without treating editor
+acceptance as Session proof. Browser components do not call enrollment or
+fresh-session Continue and do not render activation Capsules or launch commands.
+
 ## 7. Graph collaboration and re-entry
 
 `PUT /api/work-items/:workId/graph` requires loopback, same origin, current `If-Match`, approved discovery, strict Target v2 Graph validation, and one explicitly selected active Companion session whose current lease and workspace/application/Work Item/role scope allow the delivery.
@@ -140,7 +147,7 @@ The local bridge can create a pending Plan handoff only from a current leased Pl
 
 The first eligible prompt in one distinct fresh session claims only that exact Capsule and receives the hash-verified Plan body through Hook context. The body remains encrypted in ignored local state until that claim and is then erased. Claim rejects the source session and wrong-scope, wrong-marker, duplicate, canonical-revision-stale, expired, superseded, ambiguous, or subagent events. Snapshot projection also rechecks active pending authority against the canonical Handoff and fails it closed, erasing the protected body, when that authority is removed or drifts. As a separately confirmed fallback, `/connections` may durably attach the pending Handoff to one explicitly selected, already-enrolled materialization session whose current lease and workspace/application/Work Item scope match. This path returns no raw Capsule or Plan body, stores the exact target, and only that session's next leased prompt can receive it. The Bridge never selects a first active session or infers a claim from one pending candidate.
 
-Automatic client transport is not assumed. `/connections` and `node scripts/af.mjs companion continue --handoff <id>` provide the explicit fresh-session fallback and return a copyable Capsule/launch command. `/connections` also exposes durable exact existing-session attachment and pending-handoff cancellation. If the client strips the Capsule, the handoff remains waiting; it is not silently attached. Revoking a target detaches it; source revocation/staleness, source-turn drift, canonical Work Item revision drift, or Bridge restart closes pending authority.
+Automatic fresh-session handoff transport is not yet assumed. The low-level `node scripts/af.mjs companion continue --handoff <id>` command remains available, but `/connections` does not call it or expose a copyable Capsule/launch command. `/connections` exposes durable exact existing-session attachment and pending-handoff cancellation only. Capsule-free fresh Materialization launch remains separate work. If a client strips a low-level Capsule, the handoff remains waiting; it is not silently attached. Revoking a target detaches it; source revocation/staleness, source-turn drift, canonical Work Item revision drift, or Bridge restart closes pending authority.
 
 Enrollment activation rechecks the exact Work Item ETag captured when its ticket was issued. Queued context delivery likewise rechecks the canonical Work Item and repository/Graph source revision at consume time. Decision and Asset Decision records preserve decision/recommendation revisions, explicit-vs-delegated selection source, bounded answer summary, structured-vs-conversational input mode, and exact session/turn provenance. A superseded record may preserve a selection only as one complete provenance set, including a non-null input mode.
 
