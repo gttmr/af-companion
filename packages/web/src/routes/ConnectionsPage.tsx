@@ -1,29 +1,18 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type {
   ActivationOrigin,
   CodexCompanionSnapshotV2,
   CompanionSession,
-  CompanionSessionRole,
-  EnrollmentReceipt,
-  EnrollmentRequest,
   HandoffAttachReceipt,
-  HandoffContinueReceipt,
   SessionEnrollmentTicket,
 } from "../companion/types";
 import { useCodexSessions } from "../state/useCodexSessions";
-
-type EnrollmentLaunchTarget = "cli" | "vscode";
 
 export default function ConnectionsPage() {
   const codex = useCodexSessions();
   const snapshot = codex.snapshot;
   const [message, setMessage] = useState<string | null>(null);
-  const [copyMessage, setCopyMessage] = useState<string | null>(null);
-  const [applicationId, setApplicationId] = useState("");
-  const [workId, setWorkId] = useState("");
-  const [role, setRole] = useState<CompanionSessionRole>("materialization");
-  const [launchTarget, setLaunchTarget] = useState<EnrollmentLaunchTarget>("cli");
   const [handoffTargetById, setHandoffTargetById] = useState<Record<string, string>>({});
 
   const sessions = useMemo(
@@ -45,44 +34,12 @@ export default function ConnectionsPage() {
   );
   const pendingTickets = snapshot?.enrollment_tickets.filter((ticket) => ticket.status === "pending") ?? [];
   const actionErrors = [
-    codex.enrollmentError,
     codex.preferencesError,
     codex.revokeError,
-    codex.continueError,
     codex.attachError,
     codex.cancelHandoffError,
     codex.cancelError,
-    codex.launchError,
   ].filter((value): value is string => Boolean(value));
-
-  async function createEnrollment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage(null);
-    const activationOrigin: EnrollmentRequest["activation_origin"] = launchTarget === "cli"
-      ? "af_cli_launch"
-      : "af_vscode_launch";
-    try {
-      const receipt = await codex.createEnrollment({
-        application_id: applicationId,
-        work_id: workId,
-        requested_role: role,
-        activation_origin: activationOrigin,
-        hook_mode: "side_effect_gated",
-      });
-      setMessage(`${receipt.ticket.application_id}/${receipt.ticket.work_id} enrollment command를 만들었습니다.`);
-    } catch {
-      // Mutation state renders the facade response without an unhandled promise.
-    }
-  }
-
-  async function copyText(value: string, label: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopyMessage(`${label} 복사됨`);
-    } catch {
-      setCopyMessage(`${label}을 복사하지 못했습니다. 브라우저 clipboard 권한을 확인하세요.`);
-    }
-  }
 
   return (
     <div className="connections-page">
@@ -98,7 +55,6 @@ export default function ConnectionsPage() {
       </header>
 
       {message ? <p className="connection-message" role="status">{message}</p> : null}
-      {copyMessage ? <p className="connection-message" role="status">{copyMessage}</p> : null}
       {codex.snapshotError ? <p className="connection-message is-error" role="alert">{codex.snapshotError}</p> : null}
       {actionErrors.map((error, index) => <p key={`${index}-${error}`} className="connection-message is-error" role="alert">{error}</p>)}
 
@@ -137,24 +93,16 @@ export default function ConnectionsPage() {
               ))}</tbody>
             </table>
           </div>
-        ) : <ConnectionEmpty title="Companion session 없음" detail="ordinary Codex session은 표시하지 않습니다. Setup / Diagnostics에서 exact scope enrollment command를 먼저 만드세요." />}
+        ) : <ConnectionEmpty title="Companion session 없음" detail="ordinary Codex session은 표시하지 않습니다. Home에서 작업을 선택하고 trusted VS Code Plan session을 시작하세요." />}
       </RegisterSection>
 
       <RegisterSection
         className="companion-handoff-register"
         eyebrow="02 · Fresh-session continuation"
         title="Pending Handoffs"
-        detail="Plan revision과 capsule transport 상태를 확인한 뒤 새 session command를 명시적으로 생성합니다."
+        detail="Plan revision과 destination을 확인합니다. 이 화면은 exact existing-session Attach와 Cancel만 제공하며 raw Capsule이나 launch command를 표시하지 않습니다."
         count={handoffs.length}
       >
-        {codex.continueReceipt ? (
-          <CommandReceipt
-            eyebrow="Returned handoff capsule"
-            title={`${codex.continueReceipt.handoff.application_id}/${codex.continueReceipt.handoff.work_id}`}
-            receipt={codex.continueReceipt}
-            onCopy={copyText}
-          />
-        ) : null}
         {codex.attachReceipt ? (
           <TargetedHandoffReceipt receipt={codex.attachReceipt} />
         ) : null}
@@ -188,11 +136,6 @@ export default function ConnectionsPage() {
                   </td>
                   <td><time dateTime={handoff.expires_at}>{formatDateTime(handoff.expires_at)}</time></td>
                   <td><div className="connection-row-actions">
-                    <button
-                      type="button"
-                      disabled={codex.continuePendingHandoffId === handoff.handoff_id}
-                      onClick={() => void codex.continueHandoff(handoff.handoff_id).catch(() => undefined)}
-                    >{codex.continuePendingHandoffId === handoff.handoff_id ? "Preparing…" : "Continue"}</button>
                     <button
                       type="button"
                       className="is-danger"
@@ -259,32 +202,17 @@ export default function ConnectionsPage() {
 
       <RegisterSection
         className="companion-setup-register"
-        eyebrow="04 · Explicit activation"
+        eyebrow="04 · Launch diagnostics"
         title="Setup / Diagnostics"
-        detail="Hook 상태를 session 참여와 분리해 보고, exact application/work/role enrollment command를 만듭니다."
+        detail="Home의 automatic VS Code launch와 Hook 상태를 session 참여 증거와 분리해 표시합니다. Browser enrollment와 Capsule copy surface는 제공하지 않습니다."
       >
-        <div className="connection-setup-grid">
-          <div className="enrollment-setup">
-            <div className="connection-subhead"><span>Start flow</span><strong>Enrollment command</strong></div>
-            <p>일반 <code>codex</code> 또는 임의 workspace prompt는 이 흐름과 무관합니다. CLI를 우선 사용하고 필요할 때 VS Code fallback을 선택하세요.</p>
-            <form onSubmit={createEnrollment}>
-              <label><span>Application</span><input required value={applicationId} placeholder="application-id" onChange={(event) => setApplicationId(event.currentTarget.value)} /></label>
-              <label><span>Work Item</span><input required value={workId} placeholder="work-item-id" onChange={(event) => setWorkId(event.currentTarget.value)} /></label>
-              <label><span>Role</span><select value={role} onChange={(event) => setRole(event.currentTarget.value as CompanionSessionRole)}><option value="materialization">Materialization</option><option value="plan">Plan</option></select></label>
-              <label><span>Origin</span><select value={launchTarget} onChange={(event) => setLaunchTarget(event.currentTarget.value as EnrollmentLaunchTarget)}><option value="cli">Codex CLI</option><option value="vscode">VS Code fallback</option></select></label>
-              <button type="submit" className="primary-page-action" disabled={!snapshot?.capabilities.session_enrollment || codex.enrollmentPending}>{codex.enrollmentPending ? "Creating…" : "Create enrollment"}</button>
-            </form>
-            {codex.enrollmentReceipt ? <EnrollmentCommandReceipt receipt={codex.enrollmentReceipt} onCopy={copyText} /> : null}
-          </div>
-
-          <div className="hook-diagnostics">
-            <div className="connection-subhead"><span>Hook diagnostics</span><strong>Participation states</strong></div>
-            <DiagnosticStates snapshot={snapshot} sessions={sessions} pendingTickets={pendingTickets} />
-            <div className="diagnostic-aggregates" aria-label="Hook aggregate diagnostics">
-              <DiagnosticAggregate label="Ignored unmanaged hooks" value={snapshot?.diagnostics.ignored_hook_invocations ?? 0} />
-              <DiagnosticAggregate label="Invalid activation" value={snapshot?.diagnostics.invalid_activation_attempts ?? 0} />
-              <DiagnosticAggregate label="Expired tickets" value={snapshot?.diagnostics.expired_tickets ?? 0} />
-            </div>
+        <div className="connection-diagnostics-surface">
+          <div className="connection-subhead"><span>Hook diagnostics</span><strong>Participation states</strong></div>
+          <DiagnosticStates snapshot={snapshot} sessions={sessions} pendingTickets={pendingTickets} />
+          <div className="diagnostic-aggregates" aria-label="Hook aggregate diagnostics">
+            <DiagnosticAggregate label="Ignored unmanaged hooks" value={snapshot?.diagnostics.ignored_hook_invocations ?? 0} />
+            <DiagnosticAggregate label="Invalid activation" value={snapshot?.diagnostics.invalid_activation_attempts ?? 0} />
+            <DiagnosticAggregate label="Expired tickets" value={snapshot?.diagnostics.expired_tickets ?? 0} />
           </div>
         </div>
 
@@ -354,29 +282,10 @@ function DiagnosticStates({ snapshot, sessions, pendingTickets }: {
   return <ol className="diagnostic-state-list">{states.map((state) => <li key={state.label} className={`is-${state.tone}`}><i /><span>{state.label}</span><strong>{state.value}</strong></li>)}</ol>;
 }
 
-function EnrollmentCommandReceipt({ receipt, onCopy }: {
-  receipt: EnrollmentReceipt | null;
-  onCopy: (value: string, label: string) => Promise<void>;
-}) {
-  if (!receipt) return null;
-  const command = shellCommand(receipt.command);
-  return <div className="connection-command-receipt"><div><span>Enrollment ready</span><strong>{receipt.ticket.application_id}/{receipt.ticket.work_id} · {receipt.ticket.requested_role}</strong><code>{receipt.ticket.ticket_id} · expires {formatDateTime(receipt.ticket.expires_at)}</code></div><pre>{command}</pre><div className="connection-row-actions"><button type="button" onClick={() => void onCopy(command, "Command")}>Copy command</button><button type="button" onClick={() => void onCopy(receipt.activation_capsule, "Enrollment capsule")}>Copy capsule</button></div></div>;
-}
-
-function CommandReceipt({ eyebrow, title, receipt, onCopy }: {
-  eyebrow: string;
-  title: string;
-  receipt: HandoffContinueReceipt;
-  onCopy: (value: string, label: string) => Promise<void>;
-}) {
-  const command = shellCommand(receipt.command);
-  return <div className="connection-command-receipt is-handoff"><div><span>{eyebrow}</span><strong>{title}</strong><code>{receipt.handoff.handoff_id}</code></div><pre>{command}</pre><div className="connection-row-actions"><button type="button" onClick={() => void onCopy(command, "Continue command")}>Copy command</button><button type="button" onClick={() => void onCopy(receipt.activation_capsule, "Handoff capsule")}>Copy capsule</button></div></div>;
-}
-
 function TargetedHandoffReceipt({ receipt }: {
   receipt: HandoffAttachReceipt;
 }) {
-  return <div className="connection-command-receipt is-handoff"><div><span>Existing session attached</span><strong>{receipt.handoff.application_id}/{receipt.handoff.work_id}</strong><code>{receipt.target_session_id}</code></div><p>이 session의 다음 prompt가 exact Handoff context를 한 번 받습니다.</p></div>;
+  return <div className="connection-handoff-receipt"><div><span>Existing session attached</span><strong>{receipt.handoff.application_id}/{receipt.handoff.work_id}</strong><code>{receipt.target_session_id}</code></div><p>이 session의 다음 prompt가 exact Handoff context를 한 번 받습니다.</p></div>;
 }
 
 function DiagnosticAggregate({ label, value }: { label: string; value: number }) {
@@ -420,8 +329,4 @@ function compactDigest(value: string): string {
 function formatDateTime(value: string): string {
   const time = Date.parse(value);
   return Number.isFinite(time) ? new Date(time).toLocaleString() : value;
-}
-
-function shellCommand(parts: string[]): string {
-  return parts.map((part) => /^[A-Za-z0-9_./:=@+-]+$/.test(part) ? part : `'${part.split("'").join(`'"'"'`)}'`).join(" ");
 }

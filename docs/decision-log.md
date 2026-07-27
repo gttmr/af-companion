@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-07-28 · 작업 브랜치 `agent/web-first-journey-ui` — Web-first 시작과 Capsule 비노출 UX 계약
+
+- **결정**: Home은 `새 작업 시작`의 application 이름 또는 `기존 작업 선택` 중 하나를 받아 `작업 시작하고 VS Code 열기` 단일 primary action으로 guarded Work Item bootstrap과 Plan workspace launch를 연결한다. 새 application은 canonical write 전에 기본 경로와 `AF_APPLICATIONS_ROOT` override 규칙을 별도 dialog에서 확인한다.
+- **Gate 안내**: launch가 accepted되면 Workspace Trust 안내를 표시하고 exact `af_vscode_launch` Plan session이 fresh prompt로 활성화될 때 MCP Tool approval 안내로 전환한다. Trust 안내는 editor launch receipt를 연결 성공으로 표시하지 않으며, MCP 안내는 factory-cwd 세션이 app root `.codex/config.toml`을 소비하지 않는 현재 한계도 함께 밝힌다.
+- **Capsule 비노출**: Connections의 수동 enrollment form, fresh-session Continue command, command `<pre>`, Capsule copy action을 제거한다. Browser component는 enrollment/Continue endpoint를 호출하거나 `activation_capsule`을 DOM에 렌더링하지 않는다. Existing-session Attach, Cancel, Revoke와 bounded diagnostics는 유지한다. Capsule-free Plan→Materialization launch는 P6 소유다.
+- **배경**: 정상 제품 여정에서 사용자가 application/work/role ID, shell command, TTL 또는 activation Capsule을 보거나 조립하지 않고 trusted VS Code terminal에서 첫 turn을 직접 시작해야 한다. Factory-root만 여는 global VS Code action과 Connections의 copy/paste flow는 이 primary path와 충돌했다.
+- **영향**: `WorkspaceHome`, `JourneyGuideDialog`, `useCodexSessions`, `ConnectionsPage`, top-level shell, live empty-state copy, active UI/Handbook 문서. Session crypto, ticket/lease 검증, Direct Turn 금지, server enrollment endpoint와 P6 handoff 설계는 변경하지 않는다.
+
 ## 2026-07-28 · 작업 브랜치 `agent/web-first-session-launch` — Web-first VS Code launch chain 경계
 
 - **Session-start 경계**: browser 요청은 등록된 application과 Work Item으로 multi-root workspace descriptor를 만들고 `code --new-window <descriptor>`를 호출하는 데서 끝난다. Codex 프로세스는 사용자가 Workspace Trust를 승인한 VS Code의 `folderOpen` Task가 시작하며, 첫 turn은 terminal에서 사람이 입력한다. 이 경로는 Direct Turn이나 in-flight steering이 아니다.

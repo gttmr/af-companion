@@ -17,6 +17,7 @@ git rev-parse --short HEAD
 - External Codex owns canonical artifacts and source. The web app projects Work Items, files, Git status/diffs, Hook activity, and session state.
 - The guarded Web bootstrap may create one strict empty Work Item v2 ledger, initialize its server-derived application Git/MCP root, and write an ignored mode-`0600` local Application Registry binding. It cannot mutate an existing ledger; that local binding is noncanonical and grants no Session eligibility.
 - The guarded Plan session launch resolves that binding, generates an ignored mode-`0600` app-first/factory-second `.code-workspace`, and invokes `code --new-window` only after confirming the Bridge/editor path. Workspace Trust lets its `folderOpen` Task run `af companion vscode-start`; the CLI, not the browser, issues the `af_vscode_launch` ticket and launches factory-cwd Codex with the app sandbox writable root. Browser launch carries no Capsule and starts no turn.
+- Home now owns the Web-first Plan start UI: one application name or existing Work Item, one primary VS Code action, explicit new-path confirmation, and Trust/MCP guidance tied to fresh session/tool evidence. Connections has no manual enrollment form, fresh-session command, Capsule copy, or Capsule DOM rendering; existing-session Attach, Cancel, Revoke, and diagnostics remain. Capsule-free Plan→Materialization launch is not yet implemented.
 - Shared browser edits are limited to Graph IR and the Asset Registry. Both are loopback/same-origin, revision guarded, and strictly validated; Graph writes also target one explicit active Codex session.
 - `catalog/asset-registry.json` versions Agent, Workflow, and Tool contracts. Draft/review/publish/deprecate transitions use explicit decisions, and published versions are immutable.
 - Companion participation is opt-in. Workspace eligibility, session participation, and Work Item attachment are independent; `cwd` or Hook observation never enrolls a session.
@@ -30,7 +31,7 @@ git rev-parse --short HEAD
 
 ## Current routes and APIs
 
-The UI exposes `/`, four `/work/:workId/*` Work Skill screens, `/connections`, and `/assets`.
+The UI exposes the Web-first start surface at `/`, four `/work/:workId/*` Work Skill screens, `/connections`, and `/assets`.
 
 Vite registers only these product API families:
 

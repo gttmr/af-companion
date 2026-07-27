@@ -25,6 +25,13 @@ Right rail: Activity · Changes/diff · Codex sessions
 
 Work Item을 선택하지 않은 `/`에서는 왼쪽 rail 없이 lifecycle map과 Work Item index를 보여 준다. `/connections`와 `/assets`는 같은 shell 안의 독립 운영 화면이다.
 
+Home의 첫 운영 surface는 Web-first 시작 register다. `새 작업 시작`은 application 이름 하나,
+`기존 작업 선택`은 Work Item 하나만 받으며 두 mode는 `작업 시작하고 VS Code 열기`라는
+하나의 primary action을 공유한다. 새 application의 경로 확인, Workspace Trust, MCP Tool
+approval은 순서가 분명한 dialog로 안내한다. Editor launch receipt와 Companion 연결을 같은
+상태로 표시하지 않으며, Trust 안내는 fresh exact session이 관찰된 뒤에만 다음 안내로
+전환한다. 상단 shell에는 factory root만 여는 별도 VS Code action을 두지 않는다.
+
 현재 desktop viewport가 acceptance 기준이다. 좁은 화면에서는 rail과 register가 단일 열로 내려가야 하지만 모바일 전용 제품을 만들지는 않는다.
 
 ## Work Skill 화면
@@ -61,7 +68,7 @@ Work Item을 선택하지 않은 `/`에서는 왼쪽 rail 없이 lifecycle map�
 
 ## Connections와 Assets
 
-Connections는 조용한 운영 register 안에서 명시적 참여 범위와 만료·위험만 선명하게 드러낸다. 기본 순서는 `Companion Sessions` → `Pending Handoffs` → `Deliveries` → `Setup / Diagnostics`다. 일반 Codex Session은 표시하지 않으며, 각 row는 application, Work Item, role, activation origin, lease expiry, last event, participation을 구분한다. Start/Join, Continue, exact existing-session Attach, Cancel, Revoke는 명시적 scope action이고 첫 active session이나 global default를 추측하지 않는다. Existing Attach의 select는 최초에 빈 값이며, Attach 후에는 영속 target을 표시하되 raw Capsule은 렌더링하지 않는다.
+Connections는 조용한 운영 register 안에서 명시적 참여 범위와 만료·위험만 선명하게 드러낸다. 기본 순서는 `Companion Sessions` → `Pending Handoffs` → `Deliveries` → `Setup / Diagnostics`다. 일반 Codex Session은 표시하지 않으며, 각 row는 application, Work Item, role, activation origin, lease expiry, last event, participation을 구분한다. Plan session 시작은 Home이 소유하고 Connections에는 수동 enrollment form, launch command, raw Capsule 또는 copy action이 없다. 현재 handoff action은 exact existing-session Attach, Cancel, Revoke이며 첫 active session이나 global default를 추측하지 않는다. Existing Attach의 select는 최초에 빈 값이고 Attach 후에는 영속 target만 표시한다. Capsule-free fresh-session Continue는 별도 Materialization handoff 구현 전까지 화면에 노출하지 않는다.
 
 Bridge health, Hook side-effect gate, strict no-hook 검증 여부, CLI/VS Code launch capability, Capsule transport capability를 별도 진단으로 표시한다. Editor launch accepted, enrollment pending, leased Companion active, delivery consumed를 하나의 성공 상태로 합치지 않는다. 진단은 aggregate count만 보여 주고 raw prompt, transcript, token, Capsule 본문을 노출하지 않는다.
 
@@ -129,12 +136,14 @@ Graph save는 현재 `analysis-result.json.graph`과 `graph-ir.json`을 동기�
 - table과 code preview는 좁은 열에서 horizontal overflow를 허용한다.
 - 상태 전환 motion은 짧은 opacity/position 변화만 사용하고 `prefers-reduced-motion`을 존중한다.
 - Graph 편집 control과 session target은 명시적 label을 갖는다.
+- Journey dialog는 native modal semantics와 visible focus를 사용한다. Trust 안내는 exact Session이 활성화되면 자동 전환되고 MCP 안내는 fresh Tool activity 뒤 자동 종료되지만, 사용자는 막힌 안내를 직접 닫을 수도 있다.
 
 ## Source locators
 
 | 행동 | Source |
 | --- | --- |
 | shell과 route | `packages/web/src/layout/LiveWorkbenchLayout.tsx`, `packages/web/src/routes/router.tsx` |
+| Web-first 시작과 gate 안내 | `packages/web/src/routes/WorkspaceHome.tsx`, `packages/web/src/components/JourneyGuideDialog.tsx` |
 | Work Skill rail | `packages/web/src/layout/WorkSkillRail.tsx` |
 | live Activity/Git/Codex rail | `packages/web/src/layout/LiveRail.tsx` |
 | Discover/Compose/Scaffold/Verify | `packages/web/src/routes/work/*Workspace.tsx` |

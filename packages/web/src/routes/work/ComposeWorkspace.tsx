@@ -81,7 +81,7 @@ export default function ComposeWorkspace() {
       {manifest ? <CompositionDecisionStrip manifest={manifest} /> : null}
 
       {!discoveryReady ? <ScreenState tone="warning" title="Compose gate가 닫혀 있습니다" detail="외부 Codex에서 Discover 산출물을 검토하고 discovery review를 승인한 뒤 Graph를 편집할 수 있습니다." /> : null}
-      {activeSessions.length === 0 ? <ScreenState tone="warning" title="활성 Companion session 없음" detail="Connections에서 이 Work Item의 materialization 역할로 exact-scope enrollment를 시작하세요." /> : null}
+      {activeSessions.length === 0 ? <ScreenState tone="warning" title="활성 Companion session 없음" detail="Home에서 이 Work Item의 VS Code Plan session을 시작하세요. Materialization handoff는 별도 capsule-free launch 경로가 제공될 때 사용합니다." /> : null}
       {message ? <div className={`compose-message is-${message.tone}`}>{message.text}{message.tone === "error" ? <button type="button" onClick={() => void graphQuery.refetch()}>최신 Graph 불러오기</button> : null}</div> : null}
 
       {graphQuery.isLoading ? <ScreenState title="Graph IR을 읽는 중" detail="analysis-result.json의 canonical embedded Graph를 투영합니다." /> : null}

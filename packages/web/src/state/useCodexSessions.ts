@@ -1,12 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CodexCompanionSnapshotV2,
-  EnrollmentReceipt,
-  EnrollmentRequest,
   HandoffAttachReceipt,
-  HandoffContinueReceipt,
   ScopedContextDelivery,
-  VscodeLaunchReceipt,
+  VscodeSessionLaunchReceipt,
 } from "../companion/types";
 
 export const CODEX_COMPANION_SNAPSHOT_QUERY_KEY = ["codex-companion", "snapshot"] as const;
@@ -40,20 +37,11 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     await queryClient.invalidateQueries({ queryKey: CODEX_COMPANION_SNAPSHOT_QUERY_KEY });
   };
 
-  const launchMutation = useMutation<VscodeLaunchReceipt>({
-    mutationFn: () => postCompanion<VscodeLaunchReceipt>(
-      "/launch-vscode",
-      {},
-      "VS Code Worktree 열기 요청에 실패했습니다.",
-    ),
-    onSuccess: invalidateSnapshot,
-  });
-
-  const enrollmentMutation = useMutation<EnrollmentReceipt, Error, EnrollmentRequest>({
-    mutationFn: (input) => postCompanion<EnrollmentReceipt>(
-      "/enrollments",
-      input,
-      "Companion enrollment ticket을 만들지 못했습니다.",
+  const vscodeSessionMutation = useMutation<VscodeSessionLaunchReceipt, Error, string>({
+    mutationFn: (workId) => postCompanion<VscodeSessionLaunchReceipt>(
+      "/vscode-sessions",
+      { work_id: workId, mode: "plan" },
+      "VS Code 작업 session을 시작하지 못했습니다.",
     ),
     onSuccess: invalidateSnapshot,
   });
@@ -72,15 +60,6 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
       `/sessions/${encodeURIComponent(sessionId)}/revoke`,
       {},
       "Companion session을 revoke하지 못했습니다.",
-    ),
-    onSuccess: invalidateSnapshot,
-  });
-
-  const continueHandoffMutation = useMutation<HandoffContinueReceipt, Error, string>({
-    mutationFn: (handoffId) => postCompanion<HandoffContinueReceipt>(
-      `/handoffs/${encodeURIComponent(handoffId)}/continue`,
-      {},
-      "Plan Handoff의 fresh-session command를 만들지 못했습니다.",
     ),
     onSuccess: invalidateSnapshot,
   });
@@ -117,14 +96,10 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     snapshotLoading: snapshotQuery.isLoading,
     snapshotRefreshing: snapshotQuery.isFetching,
     snapshotError: snapshotQuery.error instanceof Error ? snapshotQuery.error.message : null,
-    launchVscode: () => launchMutation.mutateAsync(),
-    launchPending: launchMutation.isPending,
-    launchReceipt: launchMutation.data ?? null,
-    launchError: mutationMessage(launchMutation.error),
-    createEnrollment: (input: EnrollmentRequest) => enrollmentMutation.mutateAsync(input),
-    enrollmentPending: enrollmentMutation.isPending,
-    enrollmentReceipt: enrollmentMutation.data ?? null,
-    enrollmentError: mutationMessage(enrollmentMutation.error),
+    launchVscodeSession: (workId: string) => vscodeSessionMutation.mutateAsync(workId),
+    vscodeSessionPending: vscodeSessionMutation.isPending,
+    vscodeSessionReceipt: vscodeSessionMutation.data ?? null,
+    vscodeSessionError: mutationMessage(vscodeSessionMutation.error),
     updatePreferences: (input: SessionPreferencesInput) => preferencesMutation.mutateAsync(input),
     preferencesPending: preferencesMutation.isPending,
     preferencesSessionId: preferencesMutation.variables?.sessionId ?? null,
@@ -132,10 +107,6 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     revokeSession: (sessionId: string) => revokeMutation.mutateAsync(sessionId),
     revokePendingSessionId: revokeMutation.isPending ? revokeMutation.variables ?? null : null,
     revokeError: mutationMessage(revokeMutation.error),
-    continueHandoff: (handoffId: string) => continueHandoffMutation.mutateAsync(handoffId),
-    continuePendingHandoffId: continueHandoffMutation.isPending ? continueHandoffMutation.variables ?? null : null,
-    continueReceipt: continueHandoffMutation.data ?? null,
-    continueError: mutationMessage(continueHandoffMutation.error),
     attachHandoff: (input: HandoffAttachmentInput) => attachHandoffMutation.mutateAsync(input),
     attachPendingHandoffId: attachHandoffMutation.isPending ? attachHandoffMutation.variables?.handoffId ?? null : null,
     attachReceipt: attachHandoffMutation.data ?? null,

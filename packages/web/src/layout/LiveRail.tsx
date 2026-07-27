@@ -111,7 +111,7 @@ export function LiveRail({
                       </li>
                     ))}
                   </ul>
-                ) : <RailEmpty title="Companion session 없음" detail="일반 codex 실행은 표시되지 않습니다. Connections에서 exact scope enrollment를 시작하세요." />}
+                ) : <RailEmpty title="Companion session 없음" detail="일반 codex 실행은 표시되지 않습니다. Home에서 작업을 선택하고 VS Code Plan session을 시작하세요." />}
                 <div className="rail-section-label">Queued deliveries · {queued.length}</div>
                 <ul className="delivery-list">
                   {queued.slice(0, 12).map((delivery) => (

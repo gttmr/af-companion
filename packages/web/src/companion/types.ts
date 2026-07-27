@@ -133,6 +133,12 @@ export interface VscodeLaunchReceipt {
   launched_at: string;
 }
 
+export interface VscodeSessionLaunchReceipt extends VscodeLaunchReceipt {
+  application_id: string;
+  work_id: string;
+  role: "plan";
+}
+
 export interface ScopedContextDelivery extends ContextDelivery {
   scope: CompanionDeliveryScope;
 }
