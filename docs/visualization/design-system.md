@@ -17,9 +17,9 @@ Companion은 외부 Codex 작업을 관찰·검토하는 운영 workspace다. �
 `LiveWorkbenchLayout.tsx`가 전체 shell을 소유한다.
 
 ```text
-Top bar: workspace identity · global navigation · VS Code
+Top bar: workspace identity · global navigation
 Left rail: four Work Skills and lifecycle state
-Center: selected Work Skill projection
+Center: selected-work live strip · selected Work Skill projection
 Right rail: Activity · Changes/diff · Codex sessions
 ```
 
@@ -35,6 +35,12 @@ approval은 순서가 분명한 dialog로 안내한다. Editor launch receipt와
 현재 desktop viewport가 acceptance 기준이다. 좁은 화면에서는 rail과 register가 단일 열로 내려가야 하지만 모바일 전용 제품을 만들지는 않는다.
 
 ## Work Skill 화면
+
+Home의 현재 선택과 모든 Work Skill 화면 상단에는 카드 묶음이 아닌 하나의 얇은 live strip을 둔다. Work Item,
+exact active Companion 수, current/focus Work Skill 상태, Graph revision/최근 변화, 최근
+external application source를 같은 행에서 비교한다. `waiting_for_input` run과 open Decision이
+함께 있으면 header 아래 warning register에 Decision topic과 options를 그대로 표시하고,
+응답 위치가 VS Code terminal임을 밝힌다. Browser 답변 action은 제공하지 않는다.
 
 ### Discover
 
@@ -78,7 +84,7 @@ Assets는 Agent·Workflow·Tool Registry를 dense register로 표시한다. L0 �
 
 오른쪽 rail은 세 탭을 사용한다.
 
-- `Activity`: Hook과 filesystem의 bounded metadata event.
+- `Activity`: Hook, factory filesystem, 선택된 external app의 `application_source` bounded metadata event.
 - `Changes`: Git status, contained diff preview, VS Code file/diff open.
 - `Codex`: leased Companion active/stale sessions와 exact-scope queued delivery. 일반 Session은 rail에도 표시하지 않는다.
 
@@ -145,6 +151,7 @@ Graph save는 현재 `analysis-result.json.graph`과 `graph-ir.json`을 동기�
 | shell과 route | `packages/web/src/layout/LiveWorkbenchLayout.tsx`, `packages/web/src/routes/router.tsx` |
 | Web-first 시작과 gate 안내 | `packages/web/src/routes/WorkspaceHome.tsx`, `packages/web/src/components/JourneyGuideDialog.tsx` |
 | Work Skill rail | `packages/web/src/layout/WorkSkillRail.tsx` |
+| selected-work live strip와 대기 질문 | `packages/web/src/layout/WorkLiveStrip.tsx`, `WaitingDecisionStrip.tsx`, `packages/web/src/routes/work/SkillScreenHeader.tsx` |
 | live Activity/Git/Codex rail | `packages/web/src/layout/LiveRail.tsx` |
 | Discover/Compose/Scaffold/Verify | `packages/web/src/routes/work/*Workspace.tsx` |
 | Connections/Assets | `packages/web/src/routes/ConnectionsPage.tsx`, `AssetsPage.tsx` |

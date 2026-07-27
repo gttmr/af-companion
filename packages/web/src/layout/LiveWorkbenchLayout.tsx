@@ -1,21 +1,24 @@
 import type { ReactNode } from "react";
 import { NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 
+import type { AfWorkSkillId } from "../analyzer/afWorkItem";
 import { useCodexSessions } from "../state/useCodexSessions";
 import { useWorkItem, useWorkspaceProjection } from "../workspace/useWorkspaceProjection";
 import { LiveRail } from "./LiveRail";
+import { WorkLiveStrip } from "./WorkLiveStrip";
 import { WorkSkillRail } from "./WorkSkillRail";
 
 export function LiveWorkbenchLayout({ children }: { children: ReactNode }) {
   const { workId } = useParams<{ workId?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const workspace = useWorkspaceProjection();
+  const workspace = useWorkspaceProjection(workId);
   const workItem = useWorkItem(workId);
   const codex = useCodexSessions();
   const snapshot = workspace.data ?? null;
   const manifest = workItem.data?.data ?? null;
   const currentScreen = currentSkillRoute(location.pathname);
+  const routeSkillId = routeSkill(currentScreen);
 
   return (
     <div className="live-workbench-shell">
@@ -53,12 +56,31 @@ export function LiveWorkbenchLayout({ children }: { children: ReactNode }) {
         {workId ? <WorkSkillRail workId={workId} manifest={manifest} /> : null}
         <main className="skill-workspace">
           {workspace.error ? <div className="workspace-global-error">{(workspace.error as Error).message}</div> : null}
+          {workId ? (
+            <WorkLiveStrip
+              workId={workId}
+              routeSkillId={routeSkillId}
+              manifest={manifest}
+              workspace={snapshot}
+              codex={codex.snapshot}
+              live={workspace.live}
+            />
+          ) : null}
           {children}
         </main>
         <LiveRail snapshot={snapshot} codex={codex.snapshot} live={workspace.live} />
       </div>
     </div>
   );
+}
+
+function routeSkill(route: string): AfWorkSkillId {
+  return ({
+    discover: "af-discover-assets",
+    compose: "af-compose-solution",
+    scaffold: "af-scaffold-runtime",
+    verify: "af-verify-runtime",
+  } as Record<string, AfWorkSkillId>)[route] ?? "af-discover-assets";
 }
 
 function currentSkillRoute(pathname: string): string {

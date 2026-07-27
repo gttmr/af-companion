@@ -47,7 +47,7 @@ export function LiveRail({
                   <i className={`activity-mark is-${activity.kind}`} />
                   <div>
                     <strong>{activity.action}</strong>
-                    <span>{activity.path ?? activity.kind}</span>
+                    <span>{activity.kind === "application_source" ? `app · ${activity.path}` : activity.path ?? activity.kind}</span>
                   </div>
                   <time dateTime={activity.at}>{relativeTime(activity.at)}</time>
                 </li>

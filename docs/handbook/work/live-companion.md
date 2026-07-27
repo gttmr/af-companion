@@ -1,6 +1,6 @@
 # Live Companion
 
-`WorkspaceProjection` combines canonical workspace identity, Work Item summaries, Git status/diff, filesystem events, and newest enrolled-Bridge activity. It emits SSE through `/api/workspace/events` and persists a bounded metadata-only activity list. `LiveRail` shows Activity, Changes, and Codex tabs; explicit file/diff open uses `VscodeWorkspaceLauncher` after path containment checks.
+`WorkspaceProjection` combines canonical workspace identity, Work Item summaries, Git status/diff, factory filesystem events, selected-application filesystem events, and newest enrolled-Bridge activity. It emits SSE through `/api/workspace/events` and persists a bounded metadata-only activity list. `LiveRail` shows Activity, Changes, and Codex tabs; explicit file/diff open uses `VscodeWorkspaceLauncher` after factory path containment checks.
 
 ## Main flow
 
@@ -45,6 +45,23 @@ Work Skills choose structured decision input only from tools actually exposed in
 
 `WorkspaceHome` owns the normal start path: new application name or existing Work Item, one VS Code launch action, path confirmation, then Trust/MCP guidance. `ConnectionsPage` presents four ordered registers: Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics. Session rows keep participation, application/Work Item/role, activation origin, lease expiry, last event, alias, and revoke action distinct. Handoff rows show the source session/turn, revisions, transport, destination, expiry, exact existing-session Attach, and Cancel actions. Diagnostics expose capability labels and aggregate ignored/invalid/expired counts only. No React component renders `activation_capsule`.
 
+The Work Item selected by Home or a Work Skill route is sent only as the
+`work_id` query on its SSE connection.
+When the local Application Registry has that exact binding, one second chokidar
+watcher observes the realpath-contained app root at depth 6 and excludes
+`node_modules`, `.git`, `.venv`, `__pycache__`, `dist`, and `.agent-factory`.
+Its `application_source` activity stores the Work ID, action, app-relative path,
+and timestamp, never source bytes or an absolute app path. Switching the selected
+Work Item closes the prior app watcher; closing the final matching SSE lease
+closes the watcher. Factory Git change/diff and editor-open scope stay unchanged.
+
+`WorkLiveStrip` projects exact active Companion count, current/focus Work Skill,
+Graph revision/latest Graph event, and latest application-source event for the
+Home selection and every Work Skill route. `WaitingDecisionStrip` renders a
+current Decision topic and its options only when the ledger also contains a
+`waiting_for_input` active run. It does not answer the Decision. Run/test/eval
+result display remains a follow-up.
+
 Bridge health, editor launch acceptance, ticket issuance, active lease, and prompt receipt are separate states. The UI never lists ordinary Hook-observed sessions, selects the first active session, or reports editor launch as Codex connection proof.
 
 The generated descriptor is stored under
@@ -58,7 +75,7 @@ Source:
 
 - `packages/web/src/companion/sessionContract.ts` (`deliveryEligibility`, `canonicalizePlanBody`)
 - `packages/web/server/workspaceProjection.ts`, `workspaceApi.ts`, `vscodeWorkspaceLauncher.ts`
-- `packages/web/src/layout/LiveRail.tsx`
+- `packages/web/src/layout/LiveRail.tsx`, `WorkLiveStrip.tsx`, `WaitingDecisionStrip.tsx`
 - `packages/web/src/routes/WorkspaceHome.tsx`, `packages/web/src/components/JourneyGuideDialog.tsx`
 - `packages/web/server/codexBridgeStore.ts`
 - `packages/web/server/codexBridgeServer.ts`, `codexCompanionApi.ts`

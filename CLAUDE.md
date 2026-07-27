@@ -26,6 +26,7 @@ Source is final authority for Current Implementation. Keep Target Contract, obse
 - The bootstrap application/path binding lives in ignored `.agent-factory/applications/registry.json`; it is noncanonical and not Workspace or Session authority.
 - The browser never stages, commits, starts a Codex turn, or edits arbitrary source. Its Plan launch request only writes an ignored private `.code-workspace` and invokes `code`; after Workspace Trust, VS Code's Task runs `af companion vscode-start`, which issues the `af_vscode_launch` ticket and starts factory-cwd Codex with the registered app sandbox root.
 - Home accepts one new application name or existing Work Item and owns the single normal VS Code start action plus path/Trust/MCP guidance. Connections exposes no manual browser enrollment, launch-command, or Capsule-copy surface; fresh Materialization launch remains separate follow-up work.
+- The selected Work Item scopes one bounded external application watcher. It emits metadata-only `application_source` events through the existing SSE; Home and Work Skill screens project exact connection count, current Skill state, Graph/app changes, and an open `waiting_for_input` Decision without gaining source-write or decision authority.
 - Stage Runner, `/api/af`, `af-run-manifest.json`, proposal/apply, web analyzer execution, and local Run UI are unsupported.
 
 ## Commands

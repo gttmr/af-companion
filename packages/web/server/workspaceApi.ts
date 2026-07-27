@@ -40,7 +40,7 @@ export function createWorkspaceApi(repoRoot: string): WorkspaceApi {
         return;
       }
       if (request.method === "GET" && url.pathname === "/events") {
-        await streamEvents(request, response, projection);
+        await streamEvents(request, response, projection, url.searchParams.get("work_id"));
         return;
       }
       if (request.method === "POST" && url.pathname === "/editor/open") {
@@ -75,36 +75,44 @@ async function streamEvents(
   request: IncomingMessage,
   response: ServerResponse,
   projection: WorkspaceProjection,
+  workId: string | null,
 ): Promise<void> {
   await projection.start();
-  response.statusCode = 200;
-  response.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-  response.setHeader("Cache-Control", "no-cache, no-transform");
-  response.setHeader("Connection", "keep-alive");
-  response.setHeader("X-Accel-Buffering", "no");
-  response.flushHeaders?.();
+  const releaseApplicationWatch = workId ? await projection.watchApplication(workId) : null;
+  let unsubscribe: (() => void) | null = null;
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  try {
+    response.statusCode = 200;
+    response.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    response.setHeader("Cache-Control", "no-cache, no-transform");
+    response.setHeader("Connection", "keep-alive");
+    response.setHeader("X-Accel-Buffering", "no");
+    response.flushHeaders?.();
 
-  const identity = await projection.identity();
-  const connected = {
-    sequence: 0,
-    reason: "connected" as const,
-    activity: null,
-    at: new Date().toISOString(),
-    workspace_id: identity.workspace_id,
-  };
-  response.write(`event: workspace\ndata: ${JSON.stringify(connected)}\n\n`);
-  const unsubscribe = projection.subscribe((event) => {
-    response.write(`id: ${event.sequence}\nevent: workspace\ndata: ${JSON.stringify(event)}\n\n`);
-  });
-  const heartbeat = setInterval(() => response.write(": keepalive\n\n"), 15_000);
-  await new Promise<void>((resolveClose) => {
-    const close = () => resolveClose();
-    request.once("close", close);
-    response.once("close", close);
-  });
-  clearInterval(heartbeat);
-  unsubscribe();
-  if (!response.writableEnded) response.end();
+    const identity = await projection.identity();
+    const connected = {
+      sequence: 0,
+      reason: "connected" as const,
+      activity: null,
+      at: new Date().toISOString(),
+      workspace_id: identity.workspace_id,
+    };
+    response.write(`event: workspace\ndata: ${JSON.stringify(connected)}\n\n`);
+    unsubscribe = projection.subscribe((event) => {
+      response.write(`id: ${event.sequence}\nevent: workspace\ndata: ${JSON.stringify(event)}\n\n`);
+    });
+    heartbeat = setInterval(() => response.write(": keepalive\n\n"), 15_000);
+    await new Promise<void>((resolveClose) => {
+      const close = () => resolveClose();
+      request.once("close", close);
+      response.once("close", close);
+    });
+  } finally {
+    if (heartbeat) clearInterval(heartbeat);
+    unsubscribe?.();
+    await releaseApplicationWatch?.();
+    if (!response.writableEnded) response.end();
+  }
 }
 
 function assertLoopback(request: IncomingMessage): void {

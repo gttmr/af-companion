@@ -95,7 +95,10 @@ export function createWorkItemMiddleware(
             commandRunner,
             body: await readBootstrapJsonBody(request),
           });
-          projection?.record("artifact", "work item created", `${result.artifact_root}/af-work-item.json`, "filesystem");
+          if (projection) {
+            await projection.includeWorkItemRoot(result.work_id);
+            projection.record("artifact", "work item created", `${result.artifact_root}/af-work-item.json`, "filesystem");
+          }
           sendJson(response, 201, result);
           return;
         }

@@ -17,7 +17,7 @@ import type { WorkspaceProjectionEvent } from "./types";
 
 export const WORKSPACE_SNAPSHOT_KEY = ["workspace", "snapshot"] as const;
 
-export function useWorkspaceProjection() {
+export function useWorkspaceProjection(workId?: string) {
   const queryClient = useQueryClient();
   const [live, setLive] = useState<"connecting" | "live" | "retrying">("connecting");
   const query = useQuery({
@@ -28,7 +28,8 @@ export function useWorkspaceProjection() {
   });
 
   useEffect(() => {
-    const source = new EventSource("/api/workspace/events");
+    const query = workId ? `?work_id=${encodeURIComponent(workId)}` : "";
+    const source = new EventSource(`/api/workspace/events${query}`);
     source.onopen = () => setLive("live");
     source.onerror = () => setLive("retrying");
     source.addEventListener("workspace", (raw) => {
@@ -43,7 +44,7 @@ export function useWorkspaceProjection() {
       }
     });
     return () => source.close();
-  }, [queryClient]);
+  }, [queryClient, workId]);
 
   return { ...query, live };
 }

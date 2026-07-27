@@ -2,7 +2,7 @@ import type { AfWorkItemManifest } from "../analyzer/afWorkItem";
 
 export const WORKSPACE_PROJECTION_SCHEMA_VERSION = 1 as const;
 
-export type WorkspaceActivityKind = "codex" | "artifact" | "source" | "git" | "system";
+export type WorkspaceActivityKind = "codex" | "artifact" | "source" | "application_source" | "git" | "system";
 export type WorkspaceChangeStatus = "added" | "modified" | "deleted" | "renamed" | "conflicted" | "unknown";
 
 export interface WorkspaceIdentity {

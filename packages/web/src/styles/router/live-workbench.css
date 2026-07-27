@@ -148,6 +148,43 @@
   padding: clamp(20px, 2.2vw, 34px);
 }
 
+.work-live-strip {
+  width: min(100%, 1540px);
+  margin: 0 auto var(--space-3xl);
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.work-live-strip dl {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 1fr .9fr 1.25fr;
+  margin: 0;
+}
+
+.work-live-strip dl > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: var(--space-md) var(--space-lg);
+  border-right: 1px solid var(--line);
+}
+
+.work-live-strip dl > div:last-child { border-right: 0; }
+.work-live-strip dt { color: var(--text-subtle); font-size: 9px; font-weight: var(--fw-bold); letter-spacing: .06em; text-transform: uppercase; }
+.work-live-strip dd { min-width: 0; display: flex; align-items: center; gap: var(--space-sm); overflow: hidden; margin: 0; color: var(--text-strong); font-size: var(--fs-xs); font-weight: var(--fw-semibold); text-overflow: ellipsis; white-space: nowrap; }
+.work-live-strip dd.is-mono { font-family: var(--font-mono); font-size: 10px; }
+.work-live-strip dd > i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--text-subtle); }
+.work-live-strip .is-active dd > i { background: var(--accent); }
+.work-live-strip .is-waiting dd > i { background: var(--warning-text); box-shadow: 0 0 0 3px var(--warning-soft); }
+.work-live-strip .is-success dd > i { background: var(--success-line); box-shadow: 0 0 0 3px var(--success-soft); }
+.work-live-strip small { overflow: hidden; color: var(--text-subtle); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+
+.home-live-work { display: grid; gap: var(--space-lg); }
+.home-live-work .section-title-line { margin: 0; }
+.home-live-work .work-live-strip { margin-bottom: 0; }
+.home-live-work .work-waiting-question { margin-top: 0; }
+
 .workspace-global-error,
 .inline-error {
   margin: 0 0 var(--space-lg);
@@ -287,6 +324,7 @@
 .activity-mark.is-codex { background: var(--accent); }
 .activity-mark.is-artifact { background: var(--cat-workflow); }
 .activity-mark.is-source { background: var(--cat-tool); }
+.activity-mark.is-application_source { background: var(--success-line); box-shadow: 0 0 0 2px var(--success-soft); }
 .live-activity-list li > div { min-width: 0; display: grid; gap: 2px; }
 .live-activity-list strong { color: var(--text-strong); font-size: var(--fs-xs); font-weight: var(--fw-semibold); }
 .live-activity-list span { overflow: hidden; color: var(--text-subtle); font-family: var(--font-mono); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
@@ -345,6 +383,8 @@
   border-bottom: 1px solid var(--line-strong);
 }
 
+.skill-screen-header { flex-wrap: wrap; }
+
 .skill-breadcrumb { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-sm); color: var(--text-subtle); font-size: var(--fs-2xs); }
 .skill-breadcrumb span { font-weight: var(--fw-bold); }
 .skill-breadcrumb i { font-style: normal; }
@@ -354,6 +394,27 @@
 .skill-screen-header > div:first-child > p,
 .standalone-page-header > div > p { max-width: 760px; margin: var(--space-sm) 0 0; color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.6; }
 .skill-screen-actions { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; justify-content: flex-end; }
+
+.work-waiting-question {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(240px, .8fr) minmax(280px, 1.2fr) minmax(180px, .7fr);
+  align-items: center;
+  gap: var(--space-2xl);
+  margin-top: var(--space-lg);
+  border-top: 1px solid var(--warning-line);
+  border-bottom: 1px solid var(--warning-line);
+  padding: var(--space-lg) var(--space-2xl);
+  background: var(--warning-soft);
+}
+
+.work-waiting-question > div { min-width: 0; display: grid; gap: 3px; }
+.work-waiting-question > div > span { color: var(--warning-text); font-size: 9px; font-weight: var(--fw-bold); letter-spacing: .06em; text-transform: uppercase; }
+.work-waiting-question strong { color: var(--text-strong); font-size: var(--fs-sm); line-height: 1.4; }
+.work-waiting-question code { overflow: hidden; color: var(--text-subtle); font-family: var(--font-mono); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.work-waiting-question ul { list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-xs); margin: 0; padding: 0; }
+.work-waiting-question li { border: 1px solid var(--warning-line); border-radius: var(--radius-pill); padding: 4px var(--space-sm); background: var(--surface); color: var(--text); font-size: var(--fs-2xs); }
+.work-waiting-question > p { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); line-height: 1.45; }
 
 .skill-status-pill,
 .verification-outcome {
@@ -1029,6 +1090,9 @@
   .workspace-topbar { grid-template-columns: 200px minmax(0, 1fr) auto; }
   .workspace-global-nav a { padding: 0 var(--space-sm); }
   .workspace-identity { display: none; }
+  .work-live-strip dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .work-live-strip dl > div:nth-child(3) { border-right: 0; }
+  .work-live-strip dl > div:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
   .compose-graph-surface .graph-canvas-root { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -1054,6 +1118,7 @@
   .verification-thesis,
   .connections-split { grid-template-columns: 1fr; }
   .journey-launch-intro { border-right: 0; border-bottom: 1px solid var(--line); }
+  .work-waiting-question { grid-template-columns: 1fr; }
   .composition-reentry-grid > div { border-right: 0; border-bottom: 1px solid var(--line); }
   .composition-reentry-grid > div:last-child { border-bottom: 0; }
   .requirement-brief { border-right: 0; border-bottom: 1px solid var(--line); }
@@ -1091,6 +1156,10 @@
   .skill-screen-header,
   .standalone-page-header { flex-direction: column; }
   .skill-screen-actions { justify-content: flex-start; width: 100%; }
+  .work-live-strip dl { grid-template-columns: 1fr; }
+  .work-live-strip dl > div,
+  .work-live-strip dl > div:nth-child(3) { border-right: 0; border-bottom: 1px solid var(--line); }
+  .work-live-strip dl > div:last-child { border-bottom: 0; }
   .codex-target-select { width: 100%; display: grid; }
   .workspace-start-header h1 { font-size: 36px; }
   .workspace-start-meta,

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { afWorkSkillLabels, type AfWorkItemManifest, type AfWorkSkillId } from "../../analyzer/afWorkItem";
+import { WaitingDecisionStrip } from "../../layout/WaitingDecisionStrip";
 
 export function SkillScreenHeader({
   workId,
@@ -28,6 +29,7 @@ export function SkillScreenHeader({
         </span>
         {children}
       </div>
+      <WaitingDecisionStrip manifest={manifest} />
     </header>
   );
 }
