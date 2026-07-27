@@ -24,5 +24,6 @@ catalog/**/*.local.*
 .agent-factory/codex-bridge/
 .agent-factory/workspace-projection/
 .agent-factory/editor-diffs/
+.agent-factory/applications/
 # Windows download metadata materialized as WSL sidecar files.
 *:Zone.Identifier

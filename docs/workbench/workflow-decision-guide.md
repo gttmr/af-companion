@@ -130,7 +130,7 @@ Agent Root는 `workflow_ref: null`인 standalone topology만 받는다. `single_
 
 ### Source locators
 
-2026-07-24 현재 working tree에서 다음을 재확인했다.
+2026-07-27 현재 working tree에서 다음을 재확인했다.
 
 | 행동 | Path | Stable symbol |
 | --- | --- | --- |
@@ -138,7 +138,7 @@ Agent Root는 `workflow_ref: null`인 standalone topology만 받는다. `single_
 | 자산별 strict 제약 | `packages/web/src/analyzer/targetContract.ts` | `validateWorkflowProfile`, `validateGraph` |
 | Graph strict validation | `packages/web/src/analyzer/graphValidation.ts` | `validateGraphIR` |
 | Work Item과 review gate | `packages/web/src/analyzer/afWorkItem.ts` | `parseAfWorkItemManifest`, `assertLifecycle` |
-| Graph-only web write | `packages/web/server/workItemApi.ts` | `saveGraph`, `invalidateAfterGraphChange` |
+| Guarded Graph web edit | `packages/web/server/workItemApi.ts` | `saveGraph`, `invalidateAfterGraphChange` |
 | Workflow JSON Schema | `schemas/asset-candidate.schema.json` | `workflowProfile`, `allOf` Workflow 제약 |
 | ADK representation 선택 | `scripts/adk-source/graph/dynamic.mjs` | `runnableWorkflowRepresentation`, `assertStaticGraphRepresentationSupported` |
 | Strategy/Root 일관성 및 root symbol | `scripts/adk-source/root-executable.mjs` | `resolveRootExecutablePlan` |

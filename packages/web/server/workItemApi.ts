@@ -1,7 +1,9 @@
-import { readdir, readFile, realpath, stat } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { lstat, mkdir, readdir, readFile, realpath, stat } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { extname, isAbsolute, relative, resolve, sep } from "node:path";
+import { promisify } from "node:util";
 
 import type {
   AfCompositionCycle,
@@ -20,6 +22,11 @@ import {
   ArtifactValidationError,
   REQ_ID_PATTERN,
 } from "./artifactRootStore";
+import {
+  ApplicationRegistryError,
+  ApplicationRegistryStore,
+  type ApplicationRegistrySnapshot,
+} from "./applicationRegistryStore";
 import { CompanionApiError, enqueueGraphChangeContext } from "./codexCompanionApi";
 import { ifMatchHeader, isRecord, readJsonBody, sendJson } from "./httpApi";
 import type { WorkspaceProjection } from "./workspaceProjection";
@@ -28,7 +35,21 @@ import { createWorkItemRevision } from "./workItemRevision";
 type MiddlewareNext = (error?: unknown) => void;
 const MAX_FILE_BYTES = 1 * 1_024 * 1_024;
 const MAX_FILE_COUNT = 2_000;
+const MAX_BOOTSTRAP_BODY_BYTES = 4 * 1_024;
 const GRAPH_ARTIFACT = "analysis-result.json";
+const WORK_ITEM_CREATE_CONFIRMATION = "CREATE_WORK_ITEM";
+const execFileAsync = promisify(execFile);
+
+export type BootstrapCommandRunner = (
+  executable: string,
+  args: readonly string[],
+  options: { cwd: string },
+) => Promise<void>;
+
+export interface WorkItemMiddlewareOptions {
+  applicationsRoot?: string;
+  commandRunner?: BootstrapCommandRunner;
+}
 
 export interface WorkItemFileEntry {
   path: string;
@@ -37,8 +58,17 @@ export interface WorkItemFileEntry {
   kind: "artifact" | "source" | "evidence" | "configuration" | "other";
 }
 
-export function createWorkItemMiddleware(repoRoot: string, projection?: WorkspaceProjection) {
+export function createWorkItemMiddleware(
+  repoRoot: string,
+  projection?: WorkspaceProjection,
+  options: WorkItemMiddlewareOptions = {},
+) {
   const store = new ArtifactRootStore({ repoRoot });
+  const applicationRegistry = new ApplicationRegistryStore({
+    repoRoot,
+    applicationsRoot: options.applicationsRoot,
+  });
+  const commandRunner = options.commandRunner ?? runBootstrapCommand;
 
   return async function workItemMiddleware(
     request: IncomingMessage,
@@ -50,9 +80,26 @@ export function createWorkItemMiddleware(repoRoot: string, projection?: Workspac
       const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "127.0.0.1"}`);
       const segments = url.pathname.split("/").filter(Boolean).map(decodeSegment);
       if (segments.length === 0) {
-        if (request.method !== "GET") return methodNotAllowed(response);
-        sendJson(response, 200, await store.listRoots());
-        return;
+        if (request.method === "GET") {
+          sendJson(response, 200, await store.listRoots());
+          return;
+        }
+        if (request.method === "POST") {
+          requireNoQuery(url);
+          assertSameOrigin(request);
+          assertJsonContentType(request);
+          const result = await bootstrapWorkItem({
+            repoRoot,
+            store,
+            applicationRegistry,
+            commandRunner,
+            body: await readBootstrapJsonBody(request),
+          });
+          projection?.record("artifact", "work item created", `${result.artifact_root}/af-work-item.json`, "filesystem");
+          sendJson(response, 201, result);
+          return;
+        }
+        return methodNotAllowed(response);
       }
 
       const [workId, resource] = segments;
@@ -138,16 +185,321 @@ function assertSameOrigin(request: IncomingMessage): void {
   const origin = request.headers.origin;
   const host = request.headers.host;
   if (typeof origin !== "string" || typeof host !== "string") {
-    throw new WorkItemApiError(403, "same_origin_required", "Graph 저장은 same-origin 요청만 허용합니다.");
+    throw new WorkItemApiError(403, "same_origin_required", "Work Item 변경은 same-origin 요청만 허용합니다.");
   }
   let parsed: URL;
   try { parsed = new URL(origin); } catch {
-    throw new WorkItemApiError(403, "same_origin_required", "Graph 저장은 same-origin 요청만 허용합니다.");
+    throw new WorkItemApiError(403, "same_origin_required", "Work Item 변경은 same-origin 요청만 허용합니다.");
   }
-  if (parsed.host.toLowerCase() !== host.toLowerCase()
-    || !["127.0.0.1", "localhost", "[::1]"].includes(parsed.hostname.toLowerCase())) {
-    throw new WorkItemApiError(403, "same_origin_required", "Graph 저장은 same-origin 요청만 허용합니다.");
+  if (!["http:", "https:"].includes(parsed.protocol)
+    || parsed.host.toLowerCase() !== host.toLowerCase()
+    || !["127.0.0.1", "localhost", "[::1]"].includes(parsed.hostname.toLowerCase())
+    || parsed.username !== ""
+    || parsed.password !== ""
+    || parsed.pathname !== "/"
+    || parsed.search !== ""
+    || parsed.hash !== "") {
+    throw new WorkItemApiError(403, "same_origin_required", "Work Item 변경은 same-origin 요청만 허용합니다.");
   }
+  const fetchSite = request.headers["sec-fetch-site"];
+  if (typeof fetchSite === "string" && fetchSite !== "same-origin") {
+    throw new WorkItemApiError(403, "same_origin_required", "Cross-site Work Item 변경은 허용하지 않습니다.");
+  }
+}
+
+function assertJsonContentType(request: IncomingMessage): void {
+  const contentType = request.headers["content-type"];
+  if (typeof contentType !== "string" || !/^application\/json(?:\s*;|$)/i.test(contentType)) {
+    throw new WorkItemApiError(415, "json_content_type_required", "application/json 요청만 허용합니다.");
+  }
+}
+
+function requireNoQuery(url: URL): void {
+  if ([...url.searchParams.keys()].length > 0) {
+    throw new WorkItemApiError(400, "invalid_query", "Work Item 생성에는 query parameter를 사용할 수 없습니다.");
+  }
+}
+
+interface BootstrapRequest {
+  applicationName: string;
+  reuseExisting: boolean;
+}
+
+interface BootstrapResult {
+  work_id: string;
+  artifact_root: string;
+  application_id: string;
+  application_root: string;
+  created_application_dir: boolean;
+}
+
+async function bootstrapWorkItem(input: {
+  repoRoot: string;
+  store: ArtifactRootStore;
+  applicationRegistry: ApplicationRegistryStore;
+  commandRunner: BootstrapCommandRunner;
+  body: unknown;
+}): Promise<BootstrapResult> {
+  const request = parseBootstrapRequest(input.body);
+  const identifier = slugifyApplicationName(request.applicationName);
+
+  return input.applicationRegistry.withLock(async () => {
+    const snapshot = await input.applicationRegistry.loadSnapshot();
+    if (await identifierExists(input.store, snapshot, identifier)) {
+      const suggestion = await nextAvailableIdentifier(input.store, input.applicationRegistry, snapshot, identifier);
+      throw new WorkItemApiError(409, "identifier_conflict", `이미 존재하는 Work Item 또는 Application ID입니다: ${identifier}`, {
+        suggested_application_id: suggestion,
+        suggested_work_id: suggestion,
+      });
+    }
+
+    const applicationRoot = input.applicationRegistry.resolveApplicationRoot(identifier);
+    const applicationState = await inspectApplicationRoot(input.applicationRegistry.applicationsRoot, applicationRoot);
+    if (applicationState.nonEmpty && !request.reuseExisting) {
+      throw new WorkItemApiError(
+        409,
+        "application_directory_not_empty",
+        "비어 있지 않은 application directory를 사용하려면 reuse_existing: true가 필요합니다.",
+      );
+    }
+
+    const workItem = await input.store.createWorkItem(identifier);
+    await mkdir(applicationRoot, { recursive: true });
+    await assertCanonicalContainment(input.applicationRegistry.applicationsRoot, applicationRoot);
+
+    try {
+      await input.commandRunner("git", ["init", "--", applicationRoot], { cwd: input.repoRoot });
+    } catch {
+      throw new WorkItemApiError(500, "git_init_failed", "application directory에서 git init을 완료하지 못했습니다.");
+    }
+
+    try {
+      await input.commandRunner(process.execPath, [
+        resolve(input.repoRoot, "scripts", "af.mjs"),
+        "mcp",
+        "export-context",
+        identifier,
+        "--application",
+        identifier,
+        "--application-root",
+        applicationRoot,
+        "--root",
+        input.repoRoot,
+      ], { cwd: input.repoRoot });
+    } catch {
+      throw new WorkItemApiError(500, "mcp_export_failed", "application MCP context를 내보내지 못했습니다.");
+    }
+
+    await input.applicationRegistry.register({
+      application_id: identifier,
+      application_root: applicationRoot,
+      work_id: identifier,
+      created_at: new Date().toISOString(),
+    });
+    return {
+      ...workItem,
+      application_id: identifier,
+      application_root: applicationRoot,
+      created_application_dir: !applicationState.exists,
+    };
+  });
+}
+
+function parseBootstrapRequest(value: unknown): BootstrapRequest {
+  if (!isRecord(value)) {
+    throw new WorkItemApiError(400, "invalid_bootstrap_request", "Work Item 생성 JSON 객체가 필요합니다.");
+  }
+  const allowed = ["application_name", "application_root_confirmed", "confirmation", "reuse_existing"];
+  const unknown = Object.keys(value).filter((key) => !allowed.includes(key));
+  if (unknown.length > 0) {
+    throw new WorkItemApiError(400, "invalid_bootstrap_request", "Work Item 생성 필드가 contract와 일치하지 않습니다.", {
+      unknown_fields: unknown,
+    });
+  }
+  if (typeof value.application_name !== "string" || value.application_name.trim() === ""
+    || value.application_name.length > 256 || /[\/\\\u0000-\u001f\u007f]/.test(value.application_name)) {
+    throw new WorkItemApiError(
+      400,
+      "invalid_application_name",
+      "application_name은 경로 문자나 제어 문자가 없는 256자 이하 이름이어야 합니다.",
+    );
+  }
+  if (value.application_root_confirmed !== true) {
+    throw new WorkItemApiError(
+      400,
+      "application_root_confirmation_required",
+      "application_root_confirmed: true로 생성 경로를 확인해야 합니다.",
+    );
+  }
+  if (value.confirmation !== WORK_ITEM_CREATE_CONFIRMATION) {
+    throw new WorkItemApiError(
+      400,
+      "confirmation_required",
+      `confirmation은 ${WORK_ITEM_CREATE_CONFIRMATION}이어야 합니다.`,
+    );
+  }
+  if (value.reuse_existing !== undefined && typeof value.reuse_existing !== "boolean") {
+    throw new WorkItemApiError(400, "invalid_bootstrap_request", "reuse_existing은 boolean이어야 합니다.");
+  }
+  return {
+    applicationName: value.application_name.trim(),
+    reuseExisting: value.reuse_existing === true,
+  };
+}
+
+function slugifyApplicationName(value: string): string {
+  const slug = value
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64)
+    .replace(/-+$/g, "");
+  if (!REQ_ID_PATTERN.test(slug)) {
+    throw new WorkItemApiError(
+      400,
+      "invalid_application_name",
+      "application_name에서 소문자 영숫자 기반 ID를 만들 수 없습니다.",
+    );
+  }
+  return slug;
+}
+
+async function identifierExists(
+  store: ArtifactRootStore,
+  snapshot: ApplicationRegistrySnapshot,
+  identifier: string,
+): Promise<boolean> {
+  if (snapshot.applications.some((entry) =>
+    entry.application_id === identifier || entry.work_id === identifier)) return true;
+  return pathExists(store.resolveRootDir(identifier));
+}
+
+async function nextAvailableIdentifier(
+  store: ArtifactRootStore,
+  applicationRegistry: ApplicationRegistryStore,
+  snapshot: ApplicationRegistrySnapshot,
+  base: string,
+): Promise<string> {
+  for (let suffix = 2; suffix < 10_000; suffix += 1) {
+    const suffixText = `-${suffix}`;
+    const stem = base.slice(0, 64 - suffixText.length).replace(/-+$/g, "");
+    const candidate = `${stem}${suffixText}`;
+    if (await identifierExists(store, snapshot, candidate)) continue;
+    if (await pathExists(applicationRegistry.resolveApplicationRoot(candidate))) continue;
+    return candidate;
+  }
+  throw new WorkItemApiError(409, "identifier_conflict", "사용 가능한 ID suffix를 찾지 못했습니다.");
+}
+
+async function inspectApplicationRoot(
+  applicationsRoot: string,
+  applicationRoot: string,
+): Promise<{ exists: boolean; nonEmpty: boolean }> {
+  const rootInfo = await lstatOrNull(applicationsRoot);
+  if (rootInfo && (rootInfo.isSymbolicLink() || !rootInfo.isDirectory())) {
+    throw new WorkItemApiError(
+      500,
+      "invalid_applications_root",
+      "AF_APPLICATIONS_ROOT는 symlink가 아닌 directory여야 합니다.",
+    );
+  }
+  const applicationInfo = await lstatOrNull(applicationRoot);
+  if (!applicationInfo) return { exists: false, nonEmpty: false };
+  if (applicationInfo.isSymbolicLink() || !applicationInfo.isDirectory()) {
+    throw new WorkItemApiError(
+      409,
+      "invalid_application_directory",
+      "application root는 symlink가 아닌 directory여야 합니다.",
+    );
+  }
+  if (rootInfo) await assertCanonicalContainment(applicationsRoot, applicationRoot);
+  return { exists: true, nonEmpty: (await readdir(applicationRoot)).length > 0 };
+}
+
+async function assertCanonicalContainment(applicationsRoot: string, applicationRoot: string): Promise<void> {
+  const [rootInfo, applicationInfo] = await Promise.all([
+    lstat(applicationsRoot),
+    lstat(applicationRoot),
+  ]);
+  if (rootInfo.isSymbolicLink() || !rootInfo.isDirectory()
+    || applicationInfo.isSymbolicLink() || !applicationInfo.isDirectory()) {
+    throw new WorkItemApiError(
+      403,
+      "application_path_escape",
+      "application root와 AF_APPLICATIONS_ROOT는 symlink가 아닌 directory여야 합니다.",
+    );
+  }
+  const [canonicalRoot, canonicalApplication] = await Promise.all([
+    realpath(applicationsRoot),
+    realpath(applicationRoot),
+  ]);
+  if (!isContained(canonicalRoot, canonicalApplication)) {
+    throw new WorkItemApiError(
+      403,
+      "application_path_escape",
+      "application root가 AF_APPLICATIONS_ROOT 밖을 가리킵니다.",
+    );
+  }
+}
+
+async function lstatOrNull(path: string) {
+  try {
+    return await lstat(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  return (await lstatOrNull(path)) !== null;
+}
+
+async function readBootstrapJsonBody(request: IncomingMessage): Promise<unknown> {
+  const contentLength = request.headers["content-length"];
+  if (contentLength !== undefined) {
+    if (typeof contentLength !== "string" || !/^(0|[1-9][0-9]*)$/.test(contentLength)) {
+      throw new WorkItemApiError(400, "invalid_content_length", "Content-Length가 올바르지 않습니다.");
+    }
+    const parsed = Number(contentLength);
+    if (!Number.isSafeInteger(parsed)) {
+      throw new WorkItemApiError(400, "invalid_content_length", "Content-Length가 너무 큽니다.");
+    }
+    if (parsed > MAX_BOOTSTRAP_BODY_BYTES) {
+      throw new WorkItemApiError(413, "body_too_large", "Work Item 생성 요청은 4 KiB를 넘을 수 없습니다.");
+    }
+  }
+
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const rawChunk of request) {
+    const chunk = Buffer.isBuffer(rawChunk) ? rawChunk : Buffer.from(rawChunk as Uint8Array);
+    size += chunk.byteLength;
+    if (size <= MAX_BOOTSTRAP_BODY_BYTES) chunks.push(chunk);
+  }
+  if (size > MAX_BOOTSTRAP_BODY_BYTES) {
+    throw new WorkItemApiError(413, "body_too_large", "Work Item 생성 요청은 4 KiB를 넘을 수 없습니다.");
+  }
+  if (size === 0) throw new WorkItemApiError(400, "invalid_json", "JSON 요청 본문이 필요합니다.");
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    throw new WorkItemApiError(400, "invalid_json", "JSON 형식이 올바르지 않습니다.");
+  }
+}
+
+async function runBootstrapCommand(
+  executable: string,
+  args: readonly string[],
+  options: { cwd: string },
+): Promise<void> {
+  await execFileAsync(executable, [...args], {
+    cwd: options.cwd,
+    encoding: "utf8",
+    maxBuffer: 1 * 1_024 * 1_024,
+  });
 }
 
 async function saveGraph(input: {
@@ -533,18 +885,29 @@ function methodNotAllowed(response: ServerResponse): void {
 class WorkItemApiError extends Error {
   readonly statusCode: number;
   readonly code: string;
+  readonly details: Record<string, unknown>;
 
-  constructor(statusCode: number, code: string, message: string) {
+  constructor(statusCode: number, code: string, message: string, details: Record<string, unknown> = {}) {
     super(message);
     this.name = "WorkItemApiError";
     this.statusCode = statusCode;
     this.code = code;
+    this.details = details;
   }
 }
 
 function handleError(error: unknown, response: ServerResponse, next: MiddlewareNext): void {
-  if (error instanceof WorkItemApiError || error instanceof CompanionApiError) {
+  if (error instanceof WorkItemApiError) {
+    sendJson(response, error.statusCode, { error: error.message, code: error.code, ...error.details });
+    return;
+  }
+  if (error instanceof CompanionApiError) {
     sendJson(response, error.statusCode, { error: error.message, code: error.code });
+    return;
+  }
+  if (error instanceof ApplicationRegistryError) {
+    const conflict = error.code === "application_id_conflict" || error.code === "work_id_conflict";
+    sendJson(response, conflict ? 409 : 500, { error: error.message, code: error.code });
     return;
   }
   if (error instanceof ArtifactConflictError) {

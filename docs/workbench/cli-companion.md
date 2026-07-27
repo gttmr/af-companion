@@ -5,10 +5,44 @@ The companion connects the canonical repository to explicitly enrolled Codex CLI
 ## Current boundary
 
 - External Codex writes canonical artifacts and source through the four Work Skills.
-- The web app observes the worktree and stores only bounded interaction/projection metadata outside its two canonical write surfaces.
-- Graph IR and the Asset Registry are the only shared browser edit surfaces; the bridge never edits either one.
+- The web app observes the worktree and may create one strict empty Work Item through the guarded bootstrap API; outside that create-only boundary it stores bounded interaction/projection metadata.
+- Graph IR and the Asset Registry remain the only shared browser edit surfaces. The bootstrap cannot edit an existing Work Item, and the bridge never edits either shared surface.
 - The bridge cannot enumerate all local Codex processes, create or select a private IDE chat, start a turn, or steer an in-flight turn.
 - A Bridge health response, editor launch receipt, matching `cwd`, or Hook invocation is not proof of Companion participation.
+
+## Web-first empty Work Item bootstrap
+
+**Current Implementation:** `POST /api/work-items` is a headless, create-only
+bootstrap endpoint. UI and VS Code launch are separate later surfaces. The
+request is limited to 4 KiB of JSON and requires a loopback peer, a same-origin
+browser origin, explicit path confirmation, and the exact destructive-action
+confirmation:
+
+```json
+{
+  "application_name": "journey acceptance",
+  "application_root_confirmed": true,
+  "confirmation": "CREATE_WORK_ITEM",
+  "reuse_existing": false
+}
+```
+
+The server normalizes `application_name` to one `work_id`/`application_id` with
+the existing `^[a-z0-9][a-z0-9_-]{0,63}$` grammar. Path and control characters
+are rejected. An identifier collision returns `409` with an available numeric
+suffix. The application root is
+`<AF_APPLICATIONS_ROOT ?? ~/work/af-apps>/<application_id>`; lexical and
+canonical path escape and symbolic-link roots fail closed. A non-empty existing
+directory requires `reuse_existing: true`.
+
+Only after all idempotent checks pass, the server creates the exact empty Work
+Item v2 template used by `af work init`, initializes the application directory
+with argv-only `git init`, and invokes `af mcp export-context`. It then records
+`application_id`, absolute `application_root`, `work_id`, and `created_at` in
+ignored local `.agent-factory/applications/registry.json`, written atomically
+with mode `0600`. This registry is noncanonical bootstrap metadata: its binding
+does not enter `af-work-item.json`, change the Work Item schema, establish
+Workspace eligibility, enroll a Session, or prove Companion participation.
 
 ## External application project MCP
 
@@ -27,6 +61,10 @@ node scripts/af.mjs mcp export-context <work-id-or-path> \
   --application <application-id> \
   --application-root <application-project-root>
 ```
+
+The guarded Work Item bootstrap invokes this same CLI operation after creating
+the empty ledger and application Git directory; it does not add a second MCP
+export contract.
 
 The application installs the packed production package as a local dependency.
 The generated `.codex/config.toml` starts it with offline `npm exec`; no user-level
@@ -76,7 +114,7 @@ Three axes remain independent:
 
 `unmanaged` is a local no-op, not a durable Bridge row. `pending_activation` belongs to a one-time ticket, not a session. Only an activated session is persisted, and its lease binds one canonical workspace, application, Work Item, role, session, and Bridge instance.
 
-The current repository resolver issues `factory` tickets only. `registered_application` remains a Target Contract value; there is not yet a separate application-root registry or independent registered-application cwd resolver. Within the factory checkout, `application_id` is an explicit logical scope and exact-equality delivery boundary, not proof of an external application workspace.
+The current repository resolver issues `factory` tickets only. The local Application Registry created by Work Item bootstrap is a noncanonical path locator, not the independent registered-application cwd resolver required for eligibility. `registered_application` therefore remains a Target Contract value rather than Current Implementation authority. Within the factory checkout, `application_id` is an explicit logical scope and exact-equality delivery boundary, not proof of an external application workspace or active Session.
 
 ## Hook scope gate
 

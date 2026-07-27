@@ -3,7 +3,8 @@
 The companion is local-only and must not be exposed to an untrusted network.
 
 - Product APIs require loopback peers.
-- Graph, Registry, enrollment, handoff, session revocation, delivery, state reset, and editor mutations additionally require same-origin requests.
+- Empty Work Item bootstrap, Graph, Registry, enrollment, handoff, session revocation, delivery, state reset, and editor mutations additionally require same-origin requests.
+- Empty Work Item bootstrap accepts at most 4 KiB of strict JSON, requires explicit path/action confirmation, derives the application path server-side, rejects path escape/symlinks/collisions before writes, and uses argv-only child processes. Its mode-`0600` local Application Registry grants no eligibility or Session authority.
 - Graph writes require current ETag and an exact active Companion target with a current lease and matching workspace/application/Work Item/role scope.
 - Work Item/file/diff/editor paths are canonicalized and contained within the repository.
 - VS Code launch uses a trusted host executable and fixed argv; browser input cannot supply a command.
