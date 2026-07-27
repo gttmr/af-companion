@@ -13,6 +13,7 @@ import {
   computeContractHash,
   computeRegistryRevision,
 } from "../packages/agent-factory-core/src/assetRegistry.ts";
+import { validateContext } from "../packages/agent-factory-context-mcp/src/context.mjs";
 
 const CLI_PATH = fileURLToPath(new URL("./af.mjs", import.meta.url));
 
@@ -207,6 +208,77 @@ test("work init refuses overwrite and work validate enforces strict v2", async (
   result = runCli(root, ["work", "validate", workItemPath, "--root", root]);
   assert.equal(result.code, 3);
   assert.equal(result.error.error.code, "work_item_validation_failed");
+});
+
+test("mcp export-context writes portable project-scoped config and refreshes current evidence", async (t) => {
+  const root = await tempRepository(t);
+  const applicationRoot = join(root, "external-app");
+  await mkdir(applicationRoot);
+  await writeRegistry(root, [publishedRecord(toolContract("tool.shared-transform", "Transforms bounded input."), 1)]);
+
+  let result = runCli(root, ["work", "init", "mcp-slice", "--root", root]);
+  assert.equal(result.code, 0, result.stderr);
+  result = runCli(root, [
+    "mcp", "export-context", "mcp-slice",
+    "--application", "mcp-slice-app",
+    "--application-root", applicationRoot,
+    "--root", root,
+  ]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(result.output.tool_names, [
+    "af_get_context",
+    "af_get_pending_work",
+    "af_get_asset_or_handbook_context",
+    "af_validate_decision_value",
+  ]);
+  assert.equal(result.output.context_path, ".agent-factory/af-context.json");
+  assert.equal(result.output.config_path, ".codex/config.toml");
+
+  const contextPath = join(applicationRoot, result.output.context_path);
+  const first = validateContext(JSON.parse(await readFile(contextPath, "utf8")));
+  assert.equal(first.application_id, "mcp-slice-app");
+  assert.equal(first.current.ledger_revision, 0);
+  assert.deepEqual(first.pending_work.actionable, [{
+    id: "workflow.route",
+    owner_skill: "af-workflow",
+    status: "route_required",
+    reason: "use the canonical workflow router; MCP does not choose or start a Work Skill",
+  }]);
+  assert.equal(first.pending_work.historical_handoffs.length, 0);
+  assert.equal(first.support.canonical_mutation, "excluded");
+  assert.doesNotMatch(JSON.stringify(first), /\/tmp\/|\/home\/|[A-Za-z]:\\/);
+
+  const config = await readFile(join(applicationRoot, result.output.config_path), "utf8");
+  assert.match(config, /^\[mcp_servers\.agent_factory\]/);
+  assert.match(config, /command = "npm"/);
+  assert.match(config, /"exec", "--offline", "--", "af-context-mcp", "--project-context"/);
+  assert.doesNotMatch(config, /^cwd\s*=/m);
+  assert.doesNotMatch(config, /\/tmp\/|\/home\/|[A-Za-z]:\\/);
+
+  const workItemPath = join(root, "artifacts", "af", "mcp-slice", "af-work-item.json");
+  const workItem = JSON.parse(await readFile(workItemPath, "utf8"));
+  workItem.ledger_revision = 1;
+  await writeJson(workItemPath, workItem);
+  result = runCli(root, [
+    "mcp", "export-context", "mcp-slice",
+    "--application", "mcp-slice-app",
+    "--application-root", applicationRoot,
+    "--root", root,
+  ]);
+  assert.equal(result.code, 0, result.stderr);
+  const refreshed = validateContext(JSON.parse(await readFile(contextPath, "utf8")));
+  assert.equal(refreshed.current.ledger_revision, 1);
+  assert.notEqual(refreshed.context_revision, first.context_revision);
+
+  await writeFile(join(applicationRoot, ".codex", "config.toml"), "[mcp_servers.other]\ncommand = \"other\"\n");
+  result = runCli(root, [
+    "mcp", "export-context", "mcp-slice",
+    "--application", "mcp-slice-app",
+    "--application-root", applicationRoot,
+    "--root", root,
+  ]);
+  assert.equal(result.code, 5);
+  assert.equal(result.error.error.code, "project_config_conflict");
 });
 
 test("work revision hashes files deterministically and rejects duplicates and traversal", async (t) => {

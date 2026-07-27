@@ -1,0 +1,22 @@
+{
+  "name": "@agent-factory/context-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "af-context-mcp": "bin/af-context-mcp.mjs"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

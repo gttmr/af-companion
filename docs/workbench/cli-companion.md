@@ -10,6 +10,60 @@ The companion connects the canonical repository to explicitly enrolled Codex CLI
 - The bridge cannot enumerate all local Codex processes, create or select a private IDE chat, start a turn, or steer an in-flight turn.
 - A Bridge health response, editor launch receipt, matching `cwd`, or Hook invocation is not proof of Companion participation.
 
+## External application project MCP
+
+**Target Contract:** an external Application Workspace receives detailed Agent
+Factory context through a trusted project-scoped MCP server. CLI on WSL and VS
+Code Remote-WSL are the supported clients. Native Windows is unsupported. This
+read-mostly channel does not replace exact Companion Session authority,
+Companion Continue, or the current Hook contract.
+
+**Current Implementation:** `@agent-factory/context-mcp` is an installable stdio
+package under `packages/agent-factory-context-mcp`. The root CLI exports one
+strict portable context snapshot and one project-local Codex configuration:
+
+```bash
+node scripts/af.mjs mcp export-context <work-id-or-path> \
+  --application <application-id> \
+  --application-root <application-project-root>
+```
+
+The application installs the packed production package as a local dependency.
+The generated `.codex/config.toml` starts it with offline `npm exec`; no user-level
+MCP registration, fixed listener, credential, developer path, or `/tmp` path is
+part of the project contract. The server discovers the exact regular-file pair
+`.codex/config.toml` and `.agent-factory/af-context.json` from the project root
+or a descendant and fails closed on an incomplete or symbolic-link pair.
+
+The Tool surface is exactly:
+
+- `af_get_context`: current exported Work Item/Registry context and revision;
+- `af_get_pending_work`: actionable work separated from non-claimable historical handoffs;
+- `af_get_asset_or_handbook_context`: bounded Asset Registry or Handbook evidence;
+- `af_validate_decision_value`: read-only allowed-value validation preview.
+
+Every Tool is read-only. Canonical Work Item mutation remains owned by the
+current Work Skills. The decision preview reports `persisted: false`; invalid
+values and stale context revisions return `UNVERIFIED` with a Tool error. MCP
+does not infer or generate Codex `session_id` or `turn_id`, select a first/default
+target, or claim any handoff.
+
+Codex ignores the project configuration before explicit workspace trust. Tool
+approval and whether to persist it remain user choices. Start Codex from the
+application root or a descendant after installing the package and exporting
+context. CLI and the VS Code extension share these config layers, but each
+client path requires its own actual-call evidence; a contract test does not
+verify client support.
+
+Fallback is fail-closed:
+
+1. untrusted workspace or startup failure: surface the state, establish trust/setup, and retry;
+2. omitted required Tool: name the exact Tool and purpose, then retry once;
+3. missing or stale current evidence: stop `UNVERIFIED` and refresh the export;
+4. canonical lifecycle work unavailable through MCP: use the owning Factory Work Skill and direct artifact inspection;
+5. Fresh Context: use Companion Continue;
+6. never treat the current Hook as an external-app detailed-context fallback.
+
 ## Participation contract
 
 Three axes remain independent:
@@ -149,6 +203,9 @@ The Work Skills inspect tools exposed in the current turn. When `request_user_in
 | VS Code workspace/file/diff open | supported; thread selection is unsupported |
 | delivery/model acknowledgement | not claimed |
 | direct turn start or in-flight steer | unsupported |
+| project-scoped read-mostly external-app MCP | implemented; client evidence is tracked separately |
+| canonical Work Item mutation through MCP | excluded |
+| Native Windows MCP path | unsupported |
 
 ## Source locators
 
@@ -164,4 +221,6 @@ The Work Skills inspect tools exposed in the current turn. When `request_user_in
 | editor handoff | `packages/web/server/vscodeWorkspaceLauncher.ts` |
 | Connections registers | `packages/web/src/routes/ConnectionsPage.tsx`, `packages/web/src/state/useCodexSessions.ts` |
 | Companion CLI | `scripts/af.mjs` |
+| external-app MCP package and strict context | `packages/agent-factory-context-mcp/src/server.mjs`, `context.mjs` |
+| project MCP export and config | `scripts/af.mjs` (`mcpExportContext`) |
 | decision/session procedures and semantic parity fixture | `.agents/skills/_shared/decision-input-adapter.md`, `.agents/skills/_shared/session-and-work-item-provenance.md`, `tests/skills/decision-input-fixture.mjs` |

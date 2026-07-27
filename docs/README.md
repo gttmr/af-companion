@@ -23,6 +23,8 @@
 - [ADK Agent Execution Modes](workbench/adk-agent-execution-modes.md)
 - [Decision Log](decision-log.md)
 - [MCP-centered external application integration decision](migration/mcp-hook-hybrid-architecture-decision.md)
+- [MCP-centered production integration status](migration/mcp-centered-production-integration-status.md)
+- [Product Truth Phases A–D closure summary](migration/product-truth-phases-a-d-summary.md)
 - [Plan Discovery and Asset Registry migration evidence](migration/plan-discovery-asset-registry-status.md)
 - [Companion Session scope, handoff, and decision-input evidence](migration/companion-session-scope-handoff-decision-input-status.md)
 
