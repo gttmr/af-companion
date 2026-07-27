@@ -1,6 +1,6 @@
 # Agent Factory Operating Model
 
-Agent Factory work executes in an external Codex CLI or VS Code session. The web product is a live companion: it projects repository state and exposes only two bounded canonical write surfaces, Graph IR and the Asset Registry. It does not run lifecycle stages, generate source, or execute runtime verification.
+Agent Factory work executes in an external Codex CLI or VS Code session. The web product is a live companion: it projects repository state, may create one strict empty Work Item through a guarded create-only bootstrap, and exposes two shared canonical edit surfaces, Graph IR and the Asset Registry. It does not run lifecycle stages, generate source, or execute runtime verification.
 
 ## 1. Re-entrant lifecycle
 
@@ -96,11 +96,15 @@ Registry search does not select a reuse outcome. Each required Asset receives ex
 | --- | --- |
 | requirement, candidates, contracts, summaries, Work Item state, source, handoff, reports | matching external-Codex Work Skill |
 | Work Item review decision | external Codex session after explicit reviewer decision |
+| new empty Work Item v2 ledger | guarded Web `POST /api/work-items` or `scripts/af.mjs work init`; create only |
 | Graph IR | Compose skill or guarded web Graph editor |
 | Asset Registry | shared service through guarded Web/CLI after explicit decision and revision check |
+| application-to-path bootstrap binding | ignored local Application Registry; noncanonical and not Session authority |
 | activity/Git/file projection and enrolled Companion state | bounded workbench metadata stores |
 
-The app does not expose arbitrary artifact PUT, source edit, stage/commit, Work Item approval mutation, runtime execution, or model-owned publication.
+The app does not expose arbitrary artifact PUT, source edit, stage/commit, existing Work Item field/approval mutation outside guarded Graph invalidation, runtime execution, or model-owned publication.
+
+`POST /api/work-items` requires loopback, same origin, `application/json` no larger than 4 KiB, `application_root_confirmed: true`, and `confirmation: "CREATE_WORK_ITEM"`. It creates only the unchanged strict v2 default ledger, then initializes the server-derived application root with `git init` and the existing MCP context export. ID/path collisions and non-empty directories fail before writes unless reuse of that directory is explicit. The application binding is stored in ignored mode-`0600` `.agent-factory/applications/registry.json`; it is not added to the Work Item schema and grants no enrollment or workspace eligibility.
 
 ## 7. Graph collaboration and re-entry
 
@@ -148,7 +152,7 @@ Outcomes are `passed`, `failed`, `unverified`, or `stale`. Verify can be complet
 | Prefix | Purpose | Mutation |
 | --- | --- | --- |
 | `/api/workspace` | identity, live snapshot, Git changes/diff, SSE, VS Code open | contained editor open only |
-| `/api/work-items` | Work Item/artifact projection | Graph GET/PUT only |
+| `/api/work-items` | Work Item/artifact projection and empty bootstrap | guarded root POST create; Graph GET/PUT |
 | `/api/codex-companion` | enrollment, leased sessions, Plan Continue/exact attach/claim/cancel, revoke, exact scoped next-prompt queue | bounded v2 interaction state only |
 | `/api/asset-registry` | L0/L1/L2, search, usage, compare, validate, lifecycle | guarded Registry mutations |
 

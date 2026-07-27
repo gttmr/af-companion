@@ -10,6 +10,12 @@
 
 ---
 
+## 2026-07-27 · 작업 브랜치 `agent/web-first-work-bootstrap` — 빈 Work Item bootstrap canonical write 경계 추가
+
+- **결정**: Web은 loopback·same-origin·4 KiB JSON 제한과 `application_root_confirmed: true`·`confirmation: "CREATE_WORK_ITEM"` 확인을 통과한 `POST /api/work-items`로 새로운 빈 `af-work-item.json` 하나를 생성할 수 있다. 이 경계는 기존 Work Item 필드를 수정할 수 없으며, 기존 shared edit surface는 Graph IR과 Asset Registry뿐이다. app↔절대 경로 바인딩은 ignored mode-`0600` `.agent-factory/applications/registry.json`에 로컬 비canonical state로 기록하고 `af-work-item.schema.json`에는 필드를 추가하지 않는다.
+- **배경**: Web-first journey가 시작되기 전에 사용자가 shell에서 ID를 만들고 ledger, 별도 application Git root, project MCP context를 순서대로 준비해야 했다. 서버가 동일한 입력에서 ID/path 충돌을 쓰기 전에 검사하고 기존 `ArtifactRootStore.createWorkItem`과 `af mcp export-context`를 재사용하면 canonical 확장을 빈 ledger 생성 하나로 제한하면서 이 수작업을 제거할 수 있다.
+- **영향**: `POST /api/work-items`는 이름을 동일한 `work_id`/`application_id`로 normalize하고, `<AF_APPLICATIONS_ROOT ?? ~/work/af-apps>/<application_id>`를 초기화한 뒤 로컬 Application Registry를 원자적으로 기록한다. 경로 탈출, symlink, 명시되지 않은 non-empty directory 재사용, ID 충돌은 fail-closed한다. 이 registry는 registered-application cwd resolver, Workspace eligibility, enrollment, Session/turn provenance 또는 Companion 참여 증거가 아니다. UI, VS Code launch, enrollment 의미는 이 변경에 포함하지 않는다.
+
 ## 2026-07-27 · 작업 브랜치 `agent/mcp-centered-production-integration` — project-scoped read-mostly MCP production boundary 구현
 
 - **결정**: 외부 Application Workspace는 project-local production package와 `.codex/config.toml`로 Agent Factory context를 stdio MCP에서 읽는다. Tool은 current context, actionable/historical work 구분, bounded Asset/Handbook evidence, read-only decision-value preview 네 개로 제한한다. Canonical Work Item mutation, session/turn 생성, handoff claim은 surface에서 제외한다.

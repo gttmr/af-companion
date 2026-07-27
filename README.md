@@ -1,6 +1,6 @@
 # Agent Factory Companion
 
-Agent Factory Companion is a local web projection for Agent Factory work performed in an external Codex CLI or VS Code Codex session. Codex edits Work Item artifacts and source; the web app makes that work visible in real time and provides bounded edit surfaces for Graph IR and the versioned Asset Registry.
+Agent Factory Companion is a local web projection for Agent Factory work performed in an external Codex CLI or VS Code Codex session. Codex edits Work Item artifacts and source; the web app makes that work visible in real time, can create one strict empty Work Item through a guarded bootstrap, and provides bounded edit surfaces for Graph IR and the versioned Asset Registry.
 
 The lifecycle is expressed by four re-entrant Work Skills, not web-run stages:
 
@@ -17,6 +17,7 @@ The lifecycle is expressed by four re-entrant Work Skills, not web-run stages:
 | --- | --- |
 | Canonical artifacts, source, handoff, validation report | external Codex CLI or VS Code session |
 | Work Skill state and explicit review provenance | executing external Codex session in `af-work-item.json` |
+| New empty Work Item v2 ledger | guarded Web bootstrap or `scripts/af.mjs work init` |
 | Graph IR | Compose skill or guarded web Graph editor |
 | Versioned Asset Registry | shared Registry core through Web or `scripts/af.mjs asset ...` |
 | Activity, files, Git changes, diffs, session state | web projection, read-only |
@@ -35,7 +36,7 @@ The app routes are:
 - `/connections` — opt-in Companion sessions, pending handoffs, scoped deliveries, and setup diagnostics;
 - `/assets` — Agent·Workflow·Tool Registry browse, search, version, usage, draft, review, publish, and deprecate operations.
 
-Graph saves require the latest ETag, an approved Discover result, same-origin loopback access, and an explicit active Codex session target. Saving synchronizes embedded and split Graph IR, preserves prior cycle history, marks affected composition/downstream evidence stale, and queues metadata about the change to that exact session. Registry mutations require the current Registry revision and explicit lifecycle decisions; published versions are immutable.
+The headless root `POST /api/work-items` requires loopback, same-origin JSON no larger than 4 KiB, confirmed server-derived application root, and `CREATE_WORK_ITEM`. It creates only the unchanged empty v2 ledger, initializes the application Git/MCP context, and records its path in an ignored mode-`0600` noncanonical local registry. It cannot edit an existing ledger or grant Session eligibility. Graph saves require the latest ETag, an approved Discover result, same-origin loopback access, and an explicit active Codex session target. Saving synchronizes embedded and split Graph IR, preserves prior cycle history, marks affected composition/downstream evidence stale, and queues metadata about the change to that exact session. Registry mutations require the current Registry revision and explicit lifecycle decisions; published versions are immutable.
 
 ## Codex connection
 

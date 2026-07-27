@@ -13,11 +13,12 @@ external Codex CLI / VS Code
                     v
 web companion on 127.0.0.1:8890
   projects Work Items, decisions, revisions, files, diffs, evidence, and enrolled Companion sessions
-  writes guarded Graph IR and Asset Registry only
+  may create one strict empty Work Item through a confirmed bootstrap
+  edits guarded Graph IR and Asset Registry only
 ```
 
 The lifecycle is Discover Plan → fresh-session materialization → review → Compose ⇄ Discover → review → Scaffold → Verify. Failures return to the skill that owns the missing evidence. The source of lifecycle truth is `artifacts/af/<work-id>/af-work-item.json` v2, not a route or browser cache.
 
 Codex connectivity is opt-in. A one-time enrollment ticket and current per-session lease establish participation for one exact workspace, application, Work Item, and role. Ordinary Codex Hook invocations are local no-ops and do not appear in the web. Fresh-session Plan transfer uses an exact Capsule; Companion Continue is the supported path when automatic client transport is unavailable or unverified.
 
-The visible shell is `LiveWorkbenchLayout`, with `WorkSkillRail` on the left and `LiveRail` on the right. External Codex owns Work Item/source changes; the web does not stage or commit. Registry writes go through the shared strict service with an exact revision and explicit decision.
+The visible shell is `LiveWorkbenchLayout`, with `WorkSkillRail` on the left and `LiveRail` on the right. External Codex owns Work Item/source changes after the create-only empty bootstrap; the web does not stage or commit. Registry writes go through the shared strict service with an exact revision and explicit decision. The ignored local Application Registry is a path locator, not lifecycle or Session authority.

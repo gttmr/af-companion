@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,11 +8,18 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
 
-import type { AfWorkItemManifest } from "../src/analyzer/afWorkItem.ts";
+import {
+  createAfWorkItemManifest,
+  parseAfWorkItemManifest,
+  type AfWorkItemManifest,
+} from "../src/analyzer/afWorkItem.ts";
 import { ArtifactRootStore } from "./artifactRootStore.ts";
 import { startCodexBridgeServer } from "./codexBridgeServer.ts";
 import { validateCreateEnrollmentInput } from "./codexBridgeStore.ts";
-import { createWorkItemMiddleware } from "./workItemApi.ts";
+import {
+  createWorkItemMiddleware,
+  type BootstrapCommandRunner,
+} from "./workItemApi.ts";
 import { createWorkItemRevision } from "./workItemRevision.ts";
 
 const execFileAsync = promisify(execFile);
@@ -20,6 +27,161 @@ const fixturePath = fileURLToPath(new URL(
   "../../../templates/regression-scenarios/scenario-a-simple-local-specialist/analysis-result.json",
   import.meta.url,
 ));
+
+test("POST /api/work-items creates the exact empty ledger, application git root, MCP export, and private local registry", async (t) => {
+  const repoRoot = await mkdtemp(join(tmpdir(), "af-work-bootstrap-repo-"));
+  const applicationsRoot = await mkdtemp(join(tmpdir(), "af-work-bootstrap-apps-"));
+  t.after(() => rm(repoRoot, { recursive: true, force: true }));
+  t.after(() => rm(applicationsRoot, { recursive: true, force: true }));
+  const commands: CapturedCommand[] = [];
+  const middleware = createWorkItemMiddleware(repoRoot, undefined, {
+    applicationsRoot,
+    commandRunner: testBootstrapCommandRunner(commands),
+  });
+  const server = bootstrapServer(middleware);
+  t.after(() => close(server));
+  const origin = await listen(server);
+
+  const response = await postBootstrap(origin, {
+    application_name: "Journey Acceptance",
+    application_root_confirmed: true,
+    confirmation: "CREATE_WORK_ITEM",
+  });
+  assert.equal(response.status, 201);
+  const applicationRoot = join(applicationsRoot, "journey-acceptance");
+  assert.deepEqual(await response.json(), {
+    work_id: "journey-acceptance",
+    artifact_root: "artifacts/af/journey-acceptance",
+    application_id: "journey-acceptance",
+    application_root: applicationRoot,
+    created_application_dir: true,
+  });
+
+  const ledgerPath = join(repoRoot, "artifacts/af/journey-acceptance/af-work-item.json");
+  const manifest = parseAfWorkItemManifest(await readFile(ledgerPath, "utf8"), ledgerPath);
+  const initializedAt = manifest.skills["af-discover-assets"].updated_at;
+  assert.deepEqual(manifest, createAfWorkItemManifest("journey-acceptance", new Date(initializedAt)));
+  assert.equal("application_id" in manifest, false);
+  assert.equal("application_root" in manifest, false);
+
+  assert.equal((await stat(join(applicationRoot, ".git"))).isDirectory(), true);
+  assert.equal((await stat(join(applicationRoot, ".codex/config.toml"))).isFile(), true);
+  assert.deepEqual(JSON.parse(await readFile(join(applicationRoot, ".agent-factory/af-context.json"), "utf8")), {
+    application_id: "journey-acceptance",
+    work_id: "journey-acceptance",
+  });
+
+  const registryPath = join(repoRoot, ".agent-factory/applications/registry.json");
+  const registry = JSON.parse(await readFile(registryPath, "utf8"));
+  assert.equal((await stat(registryPath)).mode & 0o777, 0o600);
+  assert.equal(registry.schema_version, 1);
+  assert.equal(registry.applications.length, 1);
+  assert.deepEqual(registry.applications[0], {
+    application_id: "journey-acceptance",
+    application_root: applicationRoot,
+    work_id: "journey-acceptance",
+    created_at: registry.applications[0].created_at,
+  });
+  assert.equal(new Date(registry.applications[0].created_at).toISOString(), registry.applications[0].created_at);
+
+  assert.deepEqual(commands.map(({ executable, args }) => ({ executable, args })), [
+    {
+      executable: "git",
+      args: ["init", "--", applicationRoot],
+    },
+    {
+      executable: process.execPath,
+      args: [
+        join(repoRoot, "scripts/af.mjs"),
+        "mcp",
+        "export-context",
+        "journey-acceptance",
+        "--application",
+        "journey-acceptance",
+        "--application-root",
+        applicationRoot,
+        "--root",
+        repoRoot,
+      ],
+    },
+  ]);
+});
+
+test("POST /api/work-items rejects unsafe or non-idempotent requests before writing", async (t) => {
+  const repoRoot = await mkdtemp(join(tmpdir(), "af-work-bootstrap-negative-repo-"));
+  const applicationsRoot = await mkdtemp(join(tmpdir(), "af-work-bootstrap-negative-apps-"));
+  t.after(() => rm(repoRoot, { recursive: true, force: true }));
+  t.after(() => rm(applicationsRoot, { recursive: true, force: true }));
+  const commands: CapturedCommand[] = [];
+  const middleware = createWorkItemMiddleware(repoRoot, undefined, {
+    applicationsRoot,
+    commandRunner: testBootstrapCommandRunner(commands),
+  });
+  const server = bootstrapServer(middleware);
+  t.after(() => close(server));
+  const origin = await listen(server);
+
+  let response = await postBootstrap(origin, {
+    application_name: "Missing Confirmation",
+    application_root_confirmed: true,
+  });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).code, "confirmation_required");
+
+  response = await postBootstrap(origin, validBootstrapBody("../escape"));
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).code, "invalid_application_name");
+
+  response = await postBootstrap(origin, validBootstrapBody("Cross Origin"), { origin: "https://evil.example" });
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, "same_origin_required");
+
+  response = await postBootstrap(origin, validBootstrapBody("Remote Peer"), {
+    connection: "close",
+    "x-test-remote-address": "203.0.113.8",
+  });
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, "loopback_required");
+
+  response = await fetch(origin, {
+    method: "POST",
+    headers: { "content-type": "text/plain", origin },
+    body: JSON.stringify(validBootstrapBody("Wrong Content Type")),
+  });
+  assert.equal(response.status, 415);
+  assert.equal((await response.json()).code, "json_content_type_required");
+
+  response = await postBootstrap(origin, {
+    ...validBootstrapBody("Body Too Large"),
+    padding: "x".repeat(4_096),
+  });
+  assert.equal(response.status, 413);
+  assert.equal((await response.json()).code, "body_too_large");
+
+  await mkdir(join(applicationsRoot, "occupied"), { recursive: true });
+  await writeFile(join(applicationsRoot, "occupied/README.md"), "existing\n", "utf8");
+  response = await postBootstrap(origin, validBootstrapBody("Occupied"));
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "application_directory_not_empty");
+
+  for (const workId of ["missing-confirmation", "escape", "cross-origin", "remote-peer", "wrong-content-type", "body-too-large", "occupied"]) {
+    await assert.rejects(stat(join(repoRoot, `artifacts/af/${workId}/af-work-item.json`)), { code: "ENOENT" });
+  }
+  assert.equal(commands.length, 0);
+  await assert.rejects(stat(join(repoRoot, ".agent-factory/applications/registry.json")), { code: "ENOENT" });
+
+  response = await postBootstrap(origin, { ...validBootstrapBody("Occupied"), reuse_existing: true });
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).created_application_dir, false);
+  assert.equal(await readFile(join(applicationsRoot, "occupied/README.md"), "utf8"), "existing\n");
+
+  response = await postBootstrap(origin, validBootstrapBody("Occupied"));
+  assert.equal(response.status, 409);
+  const duplicate = await response.json();
+  assert.equal(duplicate.code, "identifier_conflict");
+  assert.equal(duplicate.suggested_application_id, "occupied-2");
+  assert.equal(duplicate.suggested_work_id, "occupied-2");
+});
 
 test("Graph PUT edits only Graph projections, invalidates downstream state, and targets one explicit Codex session", async (t) => {
   const repoRoot = await mkdtemp(join(tmpdir(), "af-work-item-api-"));
@@ -304,6 +466,73 @@ async function put(origin: string, workId: string, graph: unknown, etag: string,
     method: "PUT",
     headers: { "content-type": "application/json", "if-match": etag, origin },
     body: JSON.stringify({ graph, target_session_id: targetSessionId }),
+  });
+}
+
+interface CapturedCommand {
+  executable: string;
+  args: string[];
+  cwd: string;
+}
+
+function testBootstrapCommandRunner(commands: CapturedCommand[]): BootstrapCommandRunner {
+  return async (executable, args, options) => {
+    commands.push({ executable, args: [...args], cwd: options.cwd });
+    if (executable === "git") {
+      await execFileAsync(executable, [...args], { cwd: options.cwd, encoding: "utf8" });
+      return;
+    }
+    const applicationRootIndex = args.indexOf("--application-root");
+    assert.notEqual(applicationRootIndex, -1);
+    const applicationRoot = args[applicationRootIndex + 1];
+    const applicationIndex = args.indexOf("--application");
+    assert.notEqual(applicationIndex, -1);
+    const applicationId = args[applicationIndex + 1];
+    const workId = args[3];
+    assert.ok(applicationRoot && applicationId && workId);
+    await mkdir(join(applicationRoot, ".codex"), { recursive: true });
+    await mkdir(join(applicationRoot, ".agent-factory"), { recursive: true });
+    await writeFile(join(applicationRoot, ".codex/config.toml"), "[mcp_servers.agent_factory]\n", "utf8");
+    await writeFile(
+      join(applicationRoot, ".agent-factory/af-context.json"),
+      `${JSON.stringify({ application_id: applicationId, work_id: workId }, null, 2)}\n`,
+      "utf8",
+    );
+  };
+}
+
+function bootstrapServer(middleware: ReturnType<typeof createWorkItemMiddleware>): Server {
+  return createServer((request, response) => {
+    if (request.headers["x-test-remote-address"]) {
+      Object.defineProperty(request.socket, "remoteAddress", {
+        configurable: true,
+        value: request.headers["x-test-remote-address"],
+      });
+    }
+    void middleware(request, response, (error) => {
+      response.statusCode = 500;
+      response.end(error instanceof Error ? error.message : "middleware failure");
+    });
+  });
+}
+
+function validBootstrapBody(applicationName: string): Record<string, unknown> {
+  return {
+    application_name: applicationName,
+    application_root_confirmed: true,
+    confirmation: "CREATE_WORK_ITEM",
+  };
+}
+
+async function postBootstrap(
+  origin: string,
+  body: unknown,
+  extraHeaders: Record<string, string> = {},
+): Promise<Response> {
+  return fetch(origin, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin, ...extraHeaders },
+    body: JSON.stringify(body),
   });
 }
 

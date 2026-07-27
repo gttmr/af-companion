@@ -1,6 +1,6 @@
 # STATUS — Agent Factory Companion
 
-Last updated: 2026-07-24 (KST).
+Last updated: 2026-07-27 (KST).
 
 This is a branch-neutral product status. Check the live checkout separately:
 
@@ -15,7 +15,8 @@ git rev-parse --short HEAD
 - The web product is an external-Codex-first live companion. It no longer runs Analyze, Design, Build, or Verify stages.
 - The lifecycle ledger is strict `artifacts/af/<work-id>/af-work-item.json` v2 with four Work Skills, revision-bound review gates, re-entrant discovery/composition cycles, decisions, invalidations, and session handoffs.
 - External Codex owns canonical artifacts and source. The web app projects Work Items, files, Git status/diffs, Hook activity, and session state.
-- Browser canonical writes are limited to Graph IR and the Asset Registry. Both are loopback/same-origin, revision guarded, and strictly validated; Graph writes also target one explicit active Codex session.
+- The guarded Web bootstrap may create one strict empty Work Item v2 ledger, initialize its server-derived application Git/MCP root, and write an ignored mode-`0600` local Application Registry binding. It cannot mutate an existing ledger; that local binding is noncanonical and grants no Session eligibility.
+- Shared browser edits are limited to Graph IR and the Asset Registry. Both are loopback/same-origin, revision guarded, and strictly validated; Graph writes also target one explicit active Codex session.
 - `catalog/asset-registry.json` versions Agent, Workflow, and Tool contracts. Draft/review/publish/deprecate transitions use explicit decisions, and published versions are immutable.
 - Companion participation is opt-in. Workspace eligibility, session participation, and Work Item attachment are independent; `cwd` or Hook observation never enrolls a session.
 - Project/plugin Hooks cover `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, and `Stop`, but the adapter resolves a signed activation capsule or current per-session lease before endpoint discovery. Ordinary unmanaged sessions create no Agent Factory network or durable bridge state.
@@ -33,7 +34,7 @@ The UI exposes `/`, four `/work/:workId/*` Work Skill screens, `/connections`, a
 Vite registers only these product API families:
 
 - `/api/workspace` — identity, snapshot, Git diff, SSE, and contained VS Code open;
-- `/api/work-items` — read-only Work Item/files plus Graph GET/PUT;
+- `/api/work-items` — Work Item/files/Graph reads, guarded root POST for an empty Work Item bootstrap, and Graph PUT;
 - `/api/codex-companion` — enrollment, Companion sessions, exact handoff continuation/attach/cancel, revocation, and scoped next-prompt deliveries;
 - `/api/asset-registry` — progressive Registry reads/search and guarded lifecycle mutations.
 

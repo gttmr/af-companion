@@ -4,7 +4,7 @@ This file guides Claude Code in the Agent Factory Companion repository.
 
 ## Product boundary
 
-External coding agents perform the Agent Factory lifecycle and write canonical artifacts/source. The web app is a local live projection with two bounded canonical write surfaces: Graph IR and the Asset Registry. The four Work Skills are `af-discover-assets`, `af-compose-solution`, `af-scaffold-runtime`, and `af-verify-runtime`; `af-workflow` routes by current evidence and revision without writing artifacts.
+External coding agents perform the Agent Factory lifecycle and write canonical artifacts/source. The web app is a local live projection that may create one strict empty Work Item through a guarded create-only bootstrap; Graph IR and the Asset Registry remain its two shared canonical edit surfaces. The four Work Skills are `af-discover-assets`, `af-compose-solution`, `af-scaffold-runtime`, and `af-verify-runtime`; `af-workflow` routes by current evidence and revision without writing artifacts.
 
 Raw requirements never go directly to code. Runtime Handoff and generated source consume an explicitly approved composition and remain local review material, not production deployment.
 
@@ -22,7 +22,8 @@ Source is final authority for Current Implementation. Keep Target Contract, obse
 - `artifacts/af/<work-id>/af-work-item.json` is the lifecycle ledger.
 - `packages/web/src/routes` contains the home, four Work Skill projections, Connections, and Asset Registry screens.
 - `packages/web/server` exposes workspace projection, Work Item/Graph, Codex companion, and Asset Registry middleware.
-- External Codex writes Work Item artifacts/source. The browser writes only guarded Graph IR and explicitly reviewed Registry lifecycle mutations.
+- External Codex writes Work Item artifacts/source after initialization. The browser may create only the unchanged empty Work Item template, then writes only guarded Graph IR and explicitly reviewed Registry lifecycle mutations.
+- The bootstrap application/path binding lives in ignored `.agent-factory/applications/registry.json`; it is noncanonical and not Workspace or Session authority.
 - The browser never stages, commits, starts a Codex turn, or edits arbitrary source.
 - Stage Runner, `/api/af`, `af-run-manifest.json`, proposal/apply, web analyzer execution, and local Run UI are unsupported.
 

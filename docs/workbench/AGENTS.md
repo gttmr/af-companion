@@ -24,7 +24,7 @@ This directory owns current Target v2 concepts and the external-Codex-first oper
 - Graph uses the canonical strict envelope; A2A is an Agent protocol boundary.
 - Invocation Control is Workflow or Agent.
 - `af-work-item.json` v2 is the revisioned, re-entrant four-skill lifecycle ledger.
-- External Codex writes Work Item artifacts/source; web canonical writes are limited to guarded Graph IR and Asset Registry mutations.
+- External Codex writes Work Item artifacts/source after initialization; Web may create one unchanged empty Work Item through guarded bootstrap, while shared edits remain guarded Graph IR and Asset Registry mutations.
 - The app has no Stage Runner, `/api/af`, arbitrary artifact/source write, Work Item review mutation, or runtime execution.
 - Asset Registry storage is `catalog/asset-registry.json`; Web and CLI share one strict Registry core and published versions are immutable.
 - Unsupported input is rejected, not migrated or backfilled.

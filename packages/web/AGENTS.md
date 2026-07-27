@@ -2,7 +2,7 @@
 
 ## Scope
 
-`packages/web` is the React/Vite live companion for Agent Factory work executed by external Codex CLI or VS Code sessions. It projects strict Target v2 Work Items, artifacts, Git changes, Hook activity, and editor handoff. Its canonical writes are limited to guarded Graph IR and Asset Registry mutations.
+`packages/web` is the React/Vite live companion for Agent Factory work executed by external Codex CLI or VS Code sessions. It projects strict Target v2 Work Items, artifacts, Git changes, Hook activity, and editor handoff. It may create one unchanged empty v2 ledger through guarded bootstrap; Graph IR and Asset Registry remain its shared canonical edit surfaces.
 
 Asset meanings come from [Taxonomy](../../docs/workbench/taxonomy.md), Graph semantics from [Graph IR](../../docs/workbench/graph-ir.md), and ownership from [Operating Model](../../docs/workbench/operating-model.md).
 
@@ -20,6 +20,8 @@ Asset meanings come from [Taxonomy](../../docs/workbench/taxonomy.md), Graph sem
 ## Local rules
 
 - `artifacts/af/<work-id>/af-work-item.json` is the lifecycle ledger; never persist lifecycle truth in browser storage.
+- Root Work Item POST is create-only: require loopback, same-origin, JSON ≤4 KiB, explicit path/action confirmation, server-derived contained application root, and all collision checks before writes. Never add application/path binding fields to the ledger.
+- Store bootstrap application/path bindings only in ignored mode-`0600` `.agent-factory/applications/registry.json`; this local register is noncanonical and is not enrollment or workspace-eligibility authority.
 - The web app does not run Work Skills, change Work Item review gates, generate source, execute runtime behavior, stage, or commit.
 - Graph PUT requires loopback, same-origin, current ETag, approved discovery, strict validation, and an explicit active target session.
 - Synchronize `analysis-result.json.graph` and `graph-ir.json`, then invalidate composition and downstream evidence.
