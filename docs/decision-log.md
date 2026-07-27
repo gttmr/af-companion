@@ -10,7 +10,13 @@
 
 ---
 
-## 2026-07-27 · PR pending — 외부 Application 통합 채널을 project-scoped MCP 중심으로 결정
+## 2026-07-27 · 작업 브랜치 `agent/mcp-centered-production-integration` — project-scoped read-mostly MCP production boundary 구현
+
+- **결정**: 외부 Application Workspace는 project-local production package와 `.codex/config.toml`로 Agent Factory context를 stdio MCP에서 읽는다. Tool은 current context, actionable/historical work 구분, bounded Asset/Handbook evidence, read-only decision-value preview 네 개로 제한한다. Canonical Work Item mutation, session/turn 생성, handoff claim은 surface에서 제외한다.
+- **배경**: Phase C가 MCP 중심 구조를 선택했지만 Phase B prototype은 임시 absolute path, temporary server/config/log에 의존했다. Production 경로는 package install 후 offline `npm exec`와 project ancestry의 exact regular context/config pair를 사용해야 root/descendant에서 동작하고 unrelated repository에는 노출되지 않는다.
+- **영향**: `packages/agent-factory-context-mcp`, `scripts/af.mjs mcp export-context`, active Companion docs와 Handbook locator가 추가된다. Workspace trust와 MCP approval은 사용자 gate이며, CLI와 VS Code는 실제 client evidence를 따로 요구한다. 기존 Hook, lease/security, Companion Continue, Work Skills, Registry mutation, UI, Native Windows 지원 범위는 변경하지 않는다. Phase D의 second vertical slice와 통합 UX 결과는 [상태 보고](migration/mcp-centered-production-integration-status.md)와 [Phases A–D 종료 요약](migration/product-truth-phases-a-d-summary.md)이 소유한다.
+
+## 2026-07-27 · PR #6 — 외부 Application 통합 채널을 project-scoped MCP 중심으로 결정
 
 - **결정**: 외부 Application Workspace에서 Agent Factory의 상세 context, Asset, Handbook evidence를 제공하는 Target 통합 채널은 project-scoped MCP를 중심으로 둔다. Minimal Hook은 공통 baseline에서 제외하고, canonical Work Item Decision write는 provenance와 enum/domain validation 후속 조건이 충족되기 전까지 현행 Work Skill 소유로 유지한다. 기존 exact Session, scoped next-prompt delivery, Companion Continue Hook 계약은 제거하거나 변경하지 않는다.
 - **배경**: Phase B에서 MCP-only와 Minimal Hook + MCP Hybrid는 모두 Tool 선택 5/5, valid temporary decision record 4/5였지만 Hybrid는 median latency가 약 18%, cumulative token이 약 44% 높았다. MCP는 Codex CLI와 VS Code Remote-WSL에서 실제 project-scoped call과 approval이 확인된 반면, VS Code Minimal Hook은 같은 prompt에서 관찰되지 않아 전체 Hybrid는 partial이었다. Current Hook은 외부 app에서 0-byte no-op였고 Tool 없는 arm은 5회 중 4회 fabricated provenance를 생성했다.

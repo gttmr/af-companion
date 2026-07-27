@@ -12,6 +12,22 @@
 
 The bridge stores bounded session, role, receipt, handoff, delivery, and activity metadata. It does not store prompts, transcripts, tool arguments, tool output, plaintext durable claim tokens, or unmanaged session rows.
 
+## External application MCP
+
+`mcpExportContext` reads one strict Work Item through
+`parseAfWorkItemManifest`, reads the current Registry through
+`AssetRegistryService.loadSnapshot`, and writes a portable bounded context plus
+project-local `.codex/config.toml` to one explicitly named application root. It
+does not mutate the Work Item or Registry. A different existing project config
+is a conflict rather than an overwrite.
+
+`runServer` starts the installed `@agent-factory/context-mcp` package over
+stdio. `findProjectContext` resolves only a regular context/config pair from
+the application root or descendant. Every Tool call reloads and revalidates the
+context. `callTool` keeps transport completion separate from domain outcome,
+fails stale revisions and invalid allowed values as `UNVERIFIED`, and exposes no
+canonical mutation, session/turn fabrication, or handoff claim.
+
 ## Handoff and decisions
 
 Plan handoff creation requires the exact canonical Work Item Handoff ID/marker, leased Plan session, exact latest turn, and complete canonical Plan body. The Bridge recomputes its hash, encrypts the bounded body locally, and omits it from public state. A distinct fresh prompt claims one exact signed Capsule once and receives those verified bytes; wrong scope/marker, missing or duplicate Capsule, canonical revision drift, expiry, replay, same-session, and subagent claims fail closed. Automatic client transport is not assumed: `node scripts/af.mjs companion continue --handoff <id>` and `/connections` Continue return the explicit launch/copy fallback. A separate `/connections` action durably records one user-selected, same-scope leased materialization target without returning a Capsule or Plan body; only its next leased prompt receives the Handoff. No candidate is preselected. Pending handoffs can be canceled, target revocation detaches them, and source revocation/staleness or Bridge restart closes their authority and erases body ciphertext.
@@ -33,5 +49,6 @@ Source:
 - `packages/web/server/codexBridgeServer.ts`, `codexCompanionApi.ts`
 - `packages/web/src/routes/ConnectionsPage.tsx`, `packages/web/src/state/useCodexSessions.ts`
 - `scripts/af-codex-hook.mjs`, `scripts/af-codex-hook-protocol.mjs`, `scripts/af.mjs`
+- `packages/agent-factory-context-mcp/src/context.mjs`, `packages/agent-factory-context-mcp/src/server.mjs`
 - `.agents/skills/_shared/decision-input-adapter.md`, `.agents/skills/_shared/fresh-context-handoff.md`
 - `tests/skills/decision-input-fixture.mjs`, `tests/skills/decision-session-contract.test.mjs`

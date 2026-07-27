@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import { lstat, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath, rename, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import {
@@ -18,6 +18,10 @@ import {
   serializeAfWorkItemManifest,
 } from "../packages/web/src/analyzer/afWorkItem.ts";
 import { createWorkItemRevision } from "../packages/web/server/workItemRevision.ts";
+import {
+  computeContextRevision,
+  validateContext,
+} from "../packages/agent-factory-context-mcp/src/context.mjs";
 
 const EXIT = Object.freeze({
   success: 0,
@@ -38,6 +42,7 @@ const EXPOSURE_PROTOCOLS = ["a2a", "none"];
 const COMPANION_ROLES = ["plan", "materialization"];
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const WORK_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const MCP_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const COMPANION_CONTRACT_VERSION = 2;
 const ENDPOINT_PATH = ".agent-factory/codex-bridge/v2/endpoint.json";
@@ -358,6 +363,253 @@ async function workRevision(args) {
     return createWorkItemRevision(subjects, registryRevision);
   } catch (error) {
     usage(error instanceof Error ? error.message : "invalid revision subjects");
+  }
+}
+
+const MCP_HANDBOOK_EVIDENCE = Object.freeze([
+  {
+    id: "operating-model",
+    title: "Agent Factory Operating Model",
+    summary: "Work Skills own canonical lifecycle mutation, review gates, and verification evidence.",
+    ref: "docs/workbench/operating-model.md",
+  },
+  {
+    id: "cli-companion",
+    title: "CLI Companion",
+    summary: "Companion Continue remains the Fresh Context path; MCP does not replace Session authority.",
+    ref: "docs/workbench/cli-companion.md",
+  },
+  {
+    id: "taxonomy-status",
+    title: "Target Contract and Current Implementation",
+    summary: "Target Contract claims and Current Implementation evidence must remain visibly separate.",
+    ref: "docs/migration/taxonomy-vnext-status.md",
+  },
+  {
+    id: "mcp-architecture",
+    title: "MCP-centered Architecture Decision",
+    summary: "External application context is project-scoped, read-mostly, fail-closed, and excludes canonical mutation.",
+    ref: "docs/migration/mcp-hook-hybrid-architecture-decision.md",
+  },
+]);
+
+const MCP_PROJECT_CONFIG = `[mcp_servers.agent_factory]
+command = "npm"
+args = ["exec", "--offline", "--", "af-context-mcp", "--project-context"]
+required = true
+enabled_tools = ["af_get_context", "af_get_pending_work", "af_get_asset_or_handbook_context", "af_validate_decision_value"]
+default_tools_approval_mode = "prompt"
+`;
+
+async function mcpExportContext(args) {
+  const { options, positionals } = parseOptions(args, {
+    ...REGISTRY_OPTIONS,
+    "--application": valueOption("applicationId"),
+    "--application-root": valueOption("applicationRoot"),
+  });
+  requirePositionals(positionals, 1, "mcp export-context <work-id-or-path> --application ID --application-root PATH [--root PATH|--registry PATH]");
+  if (!options.applicationId || !MCP_ID_PATTERN.test(options.applicationId)) {
+    usage("--application must be a lowercase application identifier");
+  }
+  if (!options.applicationRoot) usage("--application-root is required");
+
+  const root = rootFrom(options);
+  const workItemPath = await resolveWorkItemPath(root, positionals[0]);
+  let manifest;
+  try {
+    manifest = parseAfWorkItemManifest(await readFile(workItemPath, "utf8"), workItemPath);
+  } catch (error) {
+    if (error?.code) throw fileError(error, "Work Item not found", workItemPath);
+    validation("work_item_validation_failed", error instanceof Error ? error.message : "Work Item validation failed", { path: workItemPath });
+  }
+
+  let snapshot;
+  try {
+    snapshot = serviceFrom(options).loadSnapshot();
+  } catch (error) {
+    if (error instanceof AssetRegistryError) throw error;
+    throw fileError(error, "Asset Registry not found", registryPathFrom(options));
+  }
+
+  const applicationRoot = resolve(options.applicationRoot);
+  try {
+    if (!(await stat(applicationRoot)).isDirectory()) usage("--application-root must identify a directory");
+  } catch (error) {
+    if (error instanceof CliError) throw error;
+    throw fileError(error, "application root not found", applicationRoot);
+  }
+
+  const context = buildMcpContext(options.applicationId, manifest, snapshot);
+  const contextPath = resolve(applicationRoot, ".agent-factory", "af-context.json");
+  const configPath = resolve(applicationRoot, ".codex", "config.toml");
+  await mkdir(resolve(contextPath, ".."), { recursive: true });
+  await mkdir(resolve(configPath, ".."), { recursive: true });
+  await writeProjectConfig(configPath);
+  await writePortableContext(contextPath, context);
+  return {
+    exported: true,
+    application_id: context.application_id,
+    work_id: context.work_id,
+    context_revision: context.context_revision,
+    context_path: relative(applicationRoot, contextPath),
+    config_path: relative(applicationRoot, configPath),
+    tool_names: [
+      "af_get_context",
+      "af_get_pending_work",
+      "af_get_asset_or_handbook_context",
+      "af_validate_decision_value",
+    ],
+    canonical_mutation: "excluded",
+  };
+}
+
+function buildMcpContext(applicationId, manifest, snapshot, now = new Date()) {
+  const context = {
+    schema_version: 1,
+    application_id: applicationId,
+    work_id: manifest.work_id,
+    generated_at: now.toISOString(),
+    context_revision: "0".repeat(64),
+    current: {
+      evidence_status: "current",
+      ledger_revision: manifest.ledger_revision,
+      focus_skill: manifest.focus_skill ?? "af-workflow",
+      skills: Object.fromEntries(Object.entries(manifest.skills).map(([skill, state]) => [skill, state.status])),
+      active_runs_count: manifest.active_runs.length,
+      verification_outcome: manifest.verification.outcome,
+      registry_revision: snapshot.registry_revision,
+    },
+    pending_work: {
+      actionable: actionableWork(manifest),
+      historical_handoffs: manifest.session_handoffs.map((handoff) => ({
+        handoff_id: handoff.handoff_id,
+        status: handoff.status,
+        claimable: false,
+        reason: "historical lifecycle evidence only; MCP never selects or claims a handoff",
+      })),
+    },
+    evidence: {
+      assets: boundedAssetEvidence(manifest, snapshot),
+      handbook: MCP_HANDBOOK_EVIDENCE,
+    },
+    decisions: [
+      ...manifest.decisions.map((decision) => ({
+        decision_id: decision.decision_id,
+        kind: "decision",
+        topic: decision.topic,
+        status: decision.status,
+        allowed_values: decision.options,
+        current_value: decision.selected_option,
+        decision_revision: decision.decision_revision,
+      })),
+      ...manifest.asset_decisions.map((decision) => ({
+        decision_id: decision.asset_decision_id,
+        kind: "asset_decision",
+        topic: `asset_disposition:${decision.asset_ref}`,
+        status: decision.status,
+        allowed_values: decision.options,
+        current_value: decision.selected_disposition,
+        decision_revision: decision.decision_revision,
+      })),
+    ].slice(0, 100),
+    support: {
+      cli_wsl: "supported",
+      vscode_remote_wsl: "supported",
+      native_windows: "unsupported",
+      fresh_context: "companion_continue",
+      canonical_mutation: "excluded",
+    },
+  };
+  context.context_revision = computeContextRevision(context);
+  return validateContext(context);
+}
+
+function actionableWork(manifest) {
+  const items = manifest.active_runs.map((run) => ({
+    id: `run.${run.run_id}`,
+    owner_skill: run.skill_id,
+    status: run.status,
+    reason: "current canonical active run",
+  }));
+  if (items.length > 0) return items;
+
+  for (const decision of [...manifest.decisions, ...manifest.asset_decisions]) {
+    if (decision.status !== "open") continue;
+    items.push({
+      id: decision.decision_id ?? decision.asset_decision_id,
+      owner_skill: manifest.focus_skill ?? "af-workflow",
+      status: "waiting_for_input",
+      reason: "canonical decision remains open; use the workflow router to confirm its owner because MCP cannot persist a selection",
+    });
+  }
+
+  for (const [gate, skill] of [["discovery", "af-discover-assets"], ["composition", "af-compose-solution"]]) {
+    const value = manifest.review_gates[gate];
+    if (manifest.skills[skill].status !== "waiting_for_review") continue;
+    items.push({
+      id: `review.${gate}`,
+      owner_skill: skill,
+      status: value.status,
+      reason: "owning Work Skill is waiting on this canonical review gate",
+    });
+  }
+  if (items.length === 0 && Object.values(manifest.skills).some((state) => state.status !== "complete")) {
+    items.push({
+      id: "workflow.route",
+      owner_skill: "af-workflow",
+      status: "route_required",
+      reason: "use the canonical workflow router; MCP does not choose or start a Work Skill",
+    });
+  }
+  return items;
+}
+
+function boundedAssetEvidence(manifest, snapshot) {
+  const referenced = new Set(manifest.asset_decisions.map((decision) => decision.asset_ref));
+  return [...snapshot.assets]
+    .filter((asset) => asset.status === "published" || referenced.has(asset.asset_id))
+    .sort((left, right) => {
+      const relevance = Number(referenced.has(right.asset_id)) - Number(referenced.has(left.asset_id));
+      return relevance || left.asset_id.localeCompare(right.asset_id) || right.version - left.version;
+    })
+    .slice(0, 20)
+    .map((asset) => ({
+      asset_id: asset.asset_id,
+      asset_type: asset.asset_type,
+      version: asset.version,
+      status: asset.status,
+      name: asset.name,
+      responsibility: asset.responsibility,
+      capability_tags: asset.capability_tags,
+      binding: asset.binding?.kind ?? null,
+      contract_hash: asset.contract_hash,
+    }));
+}
+
+async function writePortableContext(path, context) {
+  const temporaryPath = `${path}.${process.pid}.tmp`;
+  try {
+    await writeFile(temporaryPath, `${JSON.stringify(context, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    await rename(temporaryPath, path);
+  } catch (error) {
+    throw fileError(error, "unable to export MCP context", path);
+  }
+}
+
+async function writeProjectConfig(path) {
+  try {
+    await writeFile(path, MCP_PROJECT_CONFIG, { encoding: "utf8", flag: "wx" });
+  } catch (error) {
+    if (error?.code !== "EEXIST") throw fileError(error, "unable to create project MCP config", path);
+    let existing;
+    try {
+      existing = await readFile(path, "utf8");
+    } catch (readError) {
+      throw fileError(readError, "unable to read existing project MCP config", path);
+    }
+    if (existing !== MCP_PROJECT_CONFIG) {
+      throw new CliError("project_config_conflict", "existing .codex/config.toml differs; refusing to overwrite project configuration", EXIT.conflict, { path });
+    }
   }
 }
 
@@ -783,6 +1035,11 @@ function dispatchCompanion(command, args) {
   usage(`unknown companion command: ${command ?? "(missing)"}`);
 }
 
+function dispatchMcp(command, args) {
+  if (command === "export-context") return mcpExportContext(args);
+  usage(`unknown mcp command: ${command ?? "(missing)"}`);
+}
+
 function dispatchAsset(command, args) {
   if (command === "search") return assetSearch(args);
   if (command === "get") return assetGet(args);
@@ -800,7 +1057,8 @@ async function dispatch(args) {
   if (group === "work") return dispatchWork(command, rest);
   if (group === "asset") return dispatchAsset(command, rest);
   if (group === "companion") return dispatchCompanion(command, rest);
-  usage("expected command group: work, asset, or companion");
+  if (group === "mcp") return dispatchMcp(command, rest);
+  usage("expected command group: work, asset, companion, or mcp");
 }
 
 function normalizeError(error) {
