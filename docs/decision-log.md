@@ -10,6 +10,13 @@
 
 ---
 
+## 2026-07-28 · 작업 브랜치 `agent/web-first-materialization-handoff` — Plan에서 fresh Materialization Session을 여는 신뢰 Task 경계
+
+- **결정**: Discover Plan 화면은 exact Work Item의 최신 unexpired `ready` 또는 `waiting_for_fresh_session` Handoff 하나에 `새 Materialization Session 열기` primary action을 표시한다. Browser는 `{ work_id, mode: "materialization", handoff_id }`만 보내며, server는 current Bridge snapshot에서 workspace·application·Work Item·target과 active leased Plan source Session을 재확인한 뒤 private multi-root descriptor를 생성한다.
+- **실행 경계**: Browser와 facade는 `/continue`를 호출하거나 claim token, Capsule, Plan body를 받지 않는다. Workspace Trust 후 생성된 `Continue AF Handoff` `folderOpen` Task가 factory root에서 `af companion continue --handoff <id>`를 실행하며, 기존 CLI/Hook의 exact scope·TTL·crypto·consume-once 검사가 fresh Materialization Session을 claim한다. Editor launch receipt는 성공 증거가 아니며 exact leased Session과 `claimed` Handoff snapshot이 함께 있어야 한다.
+- **배경**: P3의 정상 Web-first UX는 Capsule과 shell command를 제거했지만 Plan 완료 후 fresh context로 이동하려면 사용자가 Connections나 terminal에서 Continue를 수동 실행해야 했다. Handoff ID 선택과 trusted terminal launch만 Web에 추가하면 보안 권한을 browser로 옮기지 않고 이 수작업을 제거할 수 있다.
+- **영향**: `vscode-sessions` request는 strict Plan/Materialization union이 되고, `vscodeWorkspaceLauncher`의 Task가 mode별로 달라지며, Discover lifecycle과 client mutation이 한 번의 launch action을 제공한다. Handoff 생성·암호화·TTL·claim 의미, existing-session Attach/Cancel, Direct Turn·steering 금지, canonical write ownership은 변경하지 않는다.
+
 ## 2026-07-28 · 작업 브랜치 `agent/web-first-error-recovery` — Web-first 원인별 복구 UX 계약
 
 - **결정**: Home의 시작 흐름은 HTTP status를 기능 지원 여부로 추측하지 않고 server의 안정적 `code`와 현재 Companion snapshot 증거를 `bridge_down`, `work_item_missing`, VS Code launch 계열, enrollment 미claim/만료, Hook 미관찰, activation 거절, stale revision, MCP export 실패로 분류한다. 각 상태는 원인별 설명과 기존 endpoint를 사용하는 단일 복구 행동 또는 Trust/terminal/Bridge 안내를 표시한다.

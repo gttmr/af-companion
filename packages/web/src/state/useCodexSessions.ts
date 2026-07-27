@@ -34,6 +34,10 @@ interface HandoffAttachmentInput {
   targetSessionId: string;
 }
 
+type VscodeSessionLaunchInput =
+  | { workId: string; mode: "plan" }
+  | { workId: string; mode: "materialization"; handoffId: string };
+
 export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {}) {
   const queryClient = useQueryClient();
   const snapshotQuery = useQuery<CodexCompanionSnapshotV2>({
@@ -49,10 +53,12 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     await queryClient.invalidateQueries({ queryKey: CODEX_COMPANION_SNAPSHOT_QUERY_KEY });
   };
 
-  const vscodeSessionMutation = useMutation<VscodeSessionLaunchReceipt, Error, string>({
-    mutationFn: (workId) => postCompanion<VscodeSessionLaunchReceipt>(
+  const vscodeSessionMutation = useMutation<VscodeSessionLaunchReceipt, Error, VscodeSessionLaunchInput>({
+    mutationFn: (input) => postCompanion<VscodeSessionLaunchReceipt>(
       "/vscode-sessions",
-      { work_id: workId, mode: "plan" },
+      input.mode === "plan"
+        ? { work_id: input.workId, mode: "plan" }
+        : { work_id: input.workId, mode: "materialization", handoff_id: input.handoffId },
       "VS Code 작업 session을 시작하지 못했습니다.",
     ),
     onSuccess: invalidateSnapshot,
@@ -110,7 +116,12 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     snapshotError: snapshotQuery.error instanceof Error ? snapshotQuery.error.message : null,
     snapshotFailure: requestFailure(snapshotQuery.error),
     refreshSnapshot: () => snapshotQuery.refetch(),
-    launchVscodeSession: (workId: string) => vscodeSessionMutation.mutateAsync(workId),
+    launchVscodeSession: (workId: string) => vscodeSessionMutation.mutateAsync({ workId, mode: "plan" }),
+    launchMaterializationSession: (workId: string, handoffId: string) => vscodeSessionMutation.mutateAsync({
+      workId,
+      mode: "materialization",
+      handoffId,
+    }),
     vscodeSessionPending: vscodeSessionMutation.isPending,
     vscodeSessionReceipt: vscodeSessionMutation.data ?? null,
     vscodeSessionError: mutationMessage(vscodeSessionMutation.error),

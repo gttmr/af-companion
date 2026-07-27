@@ -25,13 +25,17 @@ export interface VscodeWorkspaceLauncherOptions {
   launchCooldownMs?: number;
 }
 
-export interface VscodeSessionWorkspaceInput {
+interface VscodeSessionWorkspaceScope {
   applicationId: string;
   applicationRoot: string;
   applicationsRoot: string;
   workId: string;
-  role: "plan";
 }
+
+export type VscodeSessionWorkspaceInput = VscodeSessionWorkspaceScope & (
+  | { mode: "plan"; handoffId?: never }
+  | { mode: "materialization"; handoffId: string }
+);
 
 export class VscodeWorkspaceLauncherError extends Error {
   readonly statusCode: number;
@@ -296,7 +300,8 @@ export class VscodeWorkspaceLauncher {
 async function resolveTrustedApplicationRoot(input: VscodeSessionWorkspaceInput): Promise<string> {
   if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(input.applicationId)
     || !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(input.workId)
-    || input.role !== "plan"
+    || (input.mode !== "plan" && input.mode !== "materialization")
+    || (input.mode === "materialization" && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(input.handoffId))
     || !isAbsolute(input.applicationsRoot)
     || !isAbsolute(input.applicationRoot)) {
     throw new VscodeWorkspaceLauncherError(400, "invalid_session_workspace", "VS Code session workspace scope is invalid");
@@ -348,6 +353,33 @@ async function writeSessionWorkspace(
   try {
     await ensureContainedDirectory(canonicalRoot, stateRoot, false);
     await ensureContainedDirectory(canonicalRoot, workspaceRoot, true);
+    const task = input.mode === "plan"
+      ? {
+        label: "Start AF Session",
+        args: [
+          join(canonicalRoot, "scripts", "af.mjs"),
+          "companion",
+          "vscode-start",
+          "--application",
+          input.applicationId,
+          "--work",
+          input.workId,
+          "--role",
+          "plan",
+          "--application-root",
+          applicationRoot,
+        ],
+      }
+      : {
+        label: "Continue AF Handoff",
+        args: [
+          join(canonicalRoot, "scripts", "af.mjs"),
+          "companion",
+          "continue",
+          "--handoff",
+          input.handoffId,
+        ],
+      };
     const document = {
       folders: [
         { name: input.applicationId, path: applicationRoot },
@@ -359,22 +391,10 @@ async function writeSessionWorkspace(
       tasks: {
         version: "2.0.0",
         tasks: [{
-          label: "Start AF Session",
+          label: task.label,
           type: "shell",
           command: "node",
-          args: [
-            join(canonicalRoot, "scripts", "af.mjs"),
-            "companion",
-            "vscode-start",
-            "--application",
-            input.applicationId,
-            "--work",
-            input.workId,
-            "--role",
-            input.role,
-            "--application-root",
-            applicationRoot,
-          ],
+          args: task.args,
           options: { cwd: canonicalRoot },
           presentation: { reveal: "always", panel: "dedicated", focus: true },
           runOptions: { runOn: "folderOpen" },

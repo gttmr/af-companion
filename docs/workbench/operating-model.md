@@ -107,21 +107,28 @@ The app does not expose arbitrary artifact PUT, source edit, stage/commit, exist
 
 `POST /api/work-items` requires loopback, same origin, `application/json` no larger than 4 KiB, `application_root_confirmed: true`, and `confirmation: "CREATE_WORK_ITEM"`. It creates only the unchanged strict v2 default ledger, then initializes the server-derived application root with `git init` and the existing MCP context export. ID/path collisions and non-empty directories fail before writes unless reuse of that directory is explicit. Explicit `reuse_existing: true` may finish a partial bootstrap without modifying its existing ledger, or recreate the strict empty ledger when the exact local registration remains and no other artifact is present; a nonempty orphaned artifact root fails closed. The application binding is stored in ignored mode-`0600` `.agent-factory/applications/registry.json`; it is not added to the Work Item schema and grants no enrollment or workspace eligibility.
 
-`POST /api/codex-companion/vscode-sessions` in Plan mode resolves that local
-binding, verifies the Work Item and live Bridge, generates an ignored private
-multi-root descriptor, and invokes `code --new-window` with fixed argv. It does
-not create an enrollment or Codex turn. After Workspace Trust, VS Code's
-generated `folderOpen` Task runs `af companion vscode-start`; only that CLI
-boundary creates the `af_vscode_launch` ticket and starts interactive Codex
-from the factory root with the external app added as a sandbox writable root.
-The existing contained file and diff open boundaries are unchanged.
+`POST /api/codex-companion/vscode-sessions` resolves that local binding,
+verifies the Work Item and live Bridge, generates an ignored private multi-root
+descriptor, and invokes `code --new-window` with fixed argv. Plan mode generates
+a `folderOpen` Task for `af companion vscode-start`; only that CLI boundary
+creates the `af_vscode_launch` ticket and starts interactive Codex from the
+factory root with the external app added as a sandbox writable root.
+Materialization mode also requires one exact currently launchable Handoff and
+active leased Plan source Session, then generates a Task for
+`af companion continue --handoff <id>`. After Workspace Trust, that trusted
+terminal Task—not the browser—performs the existing consume-once claim and
+starts the fresh Materialization Session. The endpoint itself creates no
+enrollment, claim, or Codex turn. The existing contained file and diff open
+boundaries are unchanged.
 
 Home is the normal browser entrypoint for this pair of guarded operations. It
 accepts one new application name or existing Work Item and offers one primary
 VS Code start action. A new application path is confirmed before the create
 request; Trust and MCP guidance follows launch without treating editor
-acceptance as Session proof. Browser components do not call enrollment or
-fresh-session Continue and do not render activation Capsules or launch commands.
+acceptance as Session proof. On the Discover Plan screen, one primary action
+may select the latest launchable exact Handoff and request its Materialization
+descriptor. Browser components do not call enrollment or fresh-session
+Continue and do not render activation Capsules, Plan bytes, or launch commands.
 
 Home classifies launch/recovery UI from stable response codes plus current
 snapshot evidence. A pending ticket is remembered only in browser state for the

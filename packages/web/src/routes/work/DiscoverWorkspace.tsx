@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { parseTargetAnalysisResult } from "../../analyzer/targetAnalysisResult";
@@ -15,6 +15,7 @@ export default function DiscoverWorkspace() {
   const analysisQuery = useWorkItemFile(workId, "analysis-result.json");
   const editor = useEditorActions();
   const codex = useCodexSessions();
+  const [handoffLaunchMessage, setHandoffLaunchMessage] = useState<string | null>(null);
   const parsed = useMemo(() => parseAnalysis(analysisQuery.data?.content), [analysisQuery.data?.content]);
   if (!workId) return null;
   const manifest = manifestQuery.data?.data ?? null;
@@ -31,16 +32,44 @@ export default function DiscoverWorkspace() {
       {analysisQuery.isLoading ? <ScreenState title="Discovery 산출물을 읽는 중" detail="외부 Codex가 기록한 analysis-result.json을 투영하고 있습니다." /> : null}
       {analysisQuery.error ? <ScreenState tone="warning" title="Discovery 산출물 없음" detail={(analysisQuery.error as Error).message} /> : null}
       {parsed.error ? <ScreenState tone="error" title="Target Contract 검증 실패" detail={parsed.error} /> : null}
-      {manifest ? <DiscoveryLifecycle workId={workId} manifest={manifest} snapshot={codex.snapshot} /> : null}
+      {manifest ? <DiscoveryLifecycle
+        workId={workId}
+        manifest={manifest}
+        snapshot={codex.snapshot}
+        launchPending={codex.vscodeSessionPending}
+        launchError={codex.vscodeSessionError}
+        launchMessage={handoffLaunchMessage}
+        onLaunchHandoff={async (handoffId) => {
+          setHandoffLaunchMessage(null);
+          try {
+            await codex.launchMaterializationSession(workId, handoffId);
+            setHandoffLaunchMessage("VS Code에서 fresh Materialization session을 열었습니다. trusted Task가 Plan을 자동으로 이어갑니다.");
+          } catch {
+            // The mutation exposes the stable server message below the action.
+          }
+        }}
+      /> : null}
       {parsed.analysis ? <DiscoveryContent analysis={parsed.analysis} manifest={manifest} /> : null}
     </div>
   );
 }
 
-function DiscoveryLifecycle({ workId, manifest, snapshot }: {
+function DiscoveryLifecycle({
+  workId,
+  manifest,
+  snapshot,
+  launchPending,
+  launchError,
+  launchMessage,
+  onLaunchHandoff,
+}: {
   workId: string;
   manifest: AfWorkItemManifest;
   snapshot: CodexCompanionSnapshotV2 | null;
+  launchPending: boolean;
+  launchError: string | null;
+  launchMessage: string | null;
+  onLaunchHandoff: (handoffId: string) => Promise<void>;
 }) {
   const sessions = snapshot?.sessions.filter((session) => (
     session.participation === "companion_active"
@@ -53,6 +82,11 @@ function DiscoveryLifecycle({ workId, manifest, snapshot }: {
   const latestBridgeHandoff = bridgeHandoffs[bridgeHandoffs.length - 1] ?? null;
   const latestLedgerHandoff = manifest.session_handoffs[manifest.session_handoffs.length - 1] ?? null;
   const latestCycle = manifest.discovery_cycles[manifest.discovery_cycles.length - 1] ?? null;
+  const launchableHandoff = latestBridgeHandoff
+    && ["ready", "waiting_for_fresh_session"].includes(latestBridgeHandoff.status)
+    && Date.parse(latestBridgeHandoff.expires_at) > Date.now()
+    ? latestBridgeHandoff
+    : null;
   return (
     <section className="discovery-lifecycle-register">
       <div className="section-title-line"><div><span>Plan → Materialization</span><h2>Decision cycle과 Session Handoff</h2></div><p>Work Item이 primary identity이며 Session은 명시적으로 붙는 실행 actor입니다.</p></div>
@@ -68,6 +102,14 @@ function DiscoveryLifecycle({ workId, manifest, snapshot }: {
         <div className="handoff-summary">
           <span>Latest handoff</span>
           {latestBridgeHandoff ? <><strong>{latestBridgeHandoff.status}</strong><code>{latestBridgeHandoff.handoff_id}</code><small>{latestBridgeHandoff.claimed_by_session_id ? `claimed by ${compactId(latestBridgeHandoff.claimed_by_session_id)}` : `expires ${new Date(latestBridgeHandoff.expires_at).toLocaleString()}`}</small></> : latestLedgerHandoff ? <><strong>{latestLedgerHandoff.status}</strong><code>{latestLedgerHandoff.handoff_id}</code><small>ledger revision {latestLedgerHandoff.discovery_revision.digest.slice(0, 10)}</small></> : <p>Plan marker가 생성되면 exact claim 상태를 표시합니다.</p>}
+          {launchableHandoff ? <button
+            type="button"
+            className="primary handoff-launch-action"
+            disabled={launchPending || !snapshot?.capabilities.fresh_session_handoff}
+            onClick={() => void onLaunchHandoff(launchableHandoff.handoff_id)}
+          >{launchPending ? "Workspace 여는 중…" : "새 Materialization Session 열기"}<span aria-hidden="true">↗</span></button> : null}
+          {launchMessage ? <p className="handoff-launch-message" role="status">{launchMessage}</p> : null}
+          {launchError ? <p className="handoff-launch-message is-error" role="alert">{launchError}</p> : null}
         </div>
       </div>
     </section>

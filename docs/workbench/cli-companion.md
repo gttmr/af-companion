@@ -61,11 +61,13 @@ command is rendered.
 ## Web-first VS Code session launch
 
 **Current Implementation:** `POST /api/codex-companion/vscode-sessions` accepts
-exactly `{ "work_id": "<id>", "mode": "plan" }` from a loopback,
-same-origin JSON request. It requires the strict Work Item, its exact local
-Application Registry binding, a reachable Bridge, and a trusted host `code`
-executable. The server does not issue an enrollment. It writes a private,
-ignored `.agent-factory/vscode/<work-id>.code-workspace` and invokes only:
+exactly one of `{ "work_id": "<id>", "mode": "plan" }` or
+`{ "work_id": "<id>", "mode": "materialization", "handoff_id": "<id>" }`
+from a loopback, same-origin JSON request. Both modes require the strict Work
+Item, its exact local Application Registry binding, a reachable Bridge, and a
+trusted host `code` executable. The server does not issue an enrollment or
+claim a Handoff. It writes a private, ignored
+`.agent-factory/vscode/<work-id>.code-workspace` and invokes only:
 
 ```text
 code --new-window <generated-workspace-file>
@@ -92,6 +94,20 @@ The external app is added through the fixed argv form
 `--sandbox workspace-write --config
 sandbox_workspace_write.writable_roots=[...]`. Browser responses and generated
 workspace bytes contain no Capsule or Bridge secret.
+
+For Materialization mode, the server first verifies that the named Handoff is
+currently launchable for the exact workspace, application, Work Item, target,
+and active leased Plan source Session. The generated Task is instead
+`Continue AF Handoff` and runs the fixed argv equivalent of:
+
+```bash
+node scripts/af.mjs companion continue --handoff <handoff-id>
+```
+
+The browser sends only the selected Handoff ID. It does not call Continue,
+receive a claim token, or render a Capsule or Plan body. The trusted Task owns
+the existing consume-once claim boundary, and only the resulting fresh leased
+Materialization Session plus a `claimed` Handoff snapshot proves success.
 
 This launch acceptance is not connection proof. A current
 `UserPromptSubmit` must still claim the exact ticket and produce the matching
@@ -285,13 +301,22 @@ A Plan handoff binds the exact source session and latest turn, workspace, applic
 
 The verified Plan body is encrypted in ignored local Bridge state, omitted from public snapshots and receipts, and injected only into the successful fresh claim or named existing target's next leased prompt. It is erased on claim, cancellation, failure, expiry, supersession, source revocation, or restart. Snapshot projection also rechecks active pending authority against the canonical Handoff and fails it closed on removal or drift. Every later authority-producing action rechecks the same canonical ID, marker, revisions, hash, target, and expiry.
 
-Automatic built-in transfer to a fresh context is not assumed. The default supported path is an explicit Companion Continue action:
+Automatic built-in transfer to a fresh context is not assumed. The low-level supported path remains an explicit Companion Continue action:
 
 ```bash
 node scripts/af.mjs companion continue --handoff <handoff-id>
 ```
 
-`/connections` exposes the same action and a copyable returned Capsule. The Capsule contains identity, revision, expiry, and consume-once claim metadata, not the Plan body. A claim succeeds only for one different fresh session with the exact Capsule and scope, then receives the verified body through Hook `additionalContext`. Wrong-session, same-session, duplicate, expired, superseded, ambiguous, and subagent claims fail closed. The Bridge never claims a handoff merely because one candidate is pending.
+The Discover Plan screen exposes one primary action for its latest unexpired
+`ready` or `waiting_for_fresh_session` Handoff. That action launches the
+Materialization descriptor above; the trusted VS Code Task invokes Continue
+without exposing the returned Capsule to the browser. The Capsule contains
+identity, revision, expiry, and consume-once claim metadata, not the Plan body.
+A claim succeeds only for one different fresh session with the exact Capsule
+and scope, then receives the verified body through Hook `additionalContext`.
+Wrong-session, same-session, duplicate, expired, superseded, ambiguous, and
+subagent claims fail closed. The Bridge never claims a handoff merely because
+one candidate is pending.
 
 When a fresh client cannot be launched, `/connections` can durably attach the pending Handoff to one user-selected existing materialization Companion session. The target must have a current lease and the exact workspace/application/Work Item scope; no candidate is preselected, no raw Capsule or Plan body is returned, and only the named session can receive the verified context on its next leased prompt. Reload preserves the target. Pending handoffs can also be canceled explicitly. Target revoke detaches; source revoke/staleness, source-turn drift, canonical ID/marker/revision drift, or Bridge restart closes pending authority.
 
@@ -311,7 +336,7 @@ The Work Skills inspect tools exposed in the current turn. When `request_user_in
 | explicit CLI enrollment and per-session lease | supported |
 | metadata-only activity | supported for enrolled sessions |
 | exact scoped next-prompt context | supported |
-| exact Plan handoff | supported through fresh Continue/Capsule or explicit exact existing-session attach |
+| exact Plan handoff | supported through the trusted fresh VS Code Task, low-level Continue/Capsule, or explicit exact existing-session attach |
 | automatic built-in fresh-context transport | unverified; not the default |
 | structured decision prompt | current-turn capability only |
 | conversational decision fallback | supported by Work Skill contract |

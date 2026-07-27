@@ -126,7 +126,7 @@ test("generates a private multi-root session workspace and launches only that de
     applicationRoot,
     applicationsRoot,
     workId: "sample-work",
-    role: "plan",
+    mode: "plan",
   });
 
   assert.equal(receipt.workspace_path, join(repoRoot, ".agent-factory", "vscode", "sample-work.code-workspace"));
@@ -172,6 +172,56 @@ test("generates a private multi-root session workspace and launches only that de
   ]);
 });
 
+test("generates a capsule-free materialization Task that consumes one exact handoff", async (t) => {
+  const base = await mkdtemp(join(tmpdir(), "af-vscode-materialization-"));
+  t.after(() => rm(base, { recursive: true, force: true }));
+  const repoRoot = join(base, "factory");
+  const applicationsRoot = join(base, "applications");
+  const applicationRoot = join(applicationsRoot, "sample-app");
+  const binDir = join(base, "host-bin");
+  await mkdir(repoRoot);
+  await mkdir(applicationRoot, { recursive: true });
+  await mkdir(binDir);
+  const executable = join(binDir, "code");
+  await writeFile(executable, `#!${process.execPath}\n`
+    + `if (process.argv[2] === "--version") process.stdout.write("1.130.0\\ncommit\\nx64\\n");\n`, "utf8");
+  await chmod(executable, 0o755);
+  const launcher = new VscodeWorkspaceLauncher(repoRoot, {
+    env: { ...process.env, PATH: binDir, WSL_DISTRO_NAME: "Ubuntu" },
+    now: () => new Date("2030-01-01T00:00:00.000Z"),
+  });
+
+  const receipt = await launcher.launchSessionWorkspace({
+    applicationId: "sample-app",
+    applicationRoot,
+    applicationsRoot,
+    workId: "sample-work",
+    mode: "materialization",
+    handoffId: "handoff-plan-1",
+  });
+
+  const source = await readFile(receipt.workspace_path, "utf8");
+  const descriptor = JSON.parse(source);
+  assert.deepEqual(descriptor.tasks.tasks[0], {
+    label: "Continue AF Handoff",
+    type: "shell",
+    command: "node",
+    args: [
+      join(repoRoot, "scripts", "af.mjs"),
+      "companion",
+      "continue",
+      "--handoff",
+      "handoff-plan-1",
+    ],
+    options: { cwd: repoRoot },
+    presentation: { reveal: "always", panel: "dedicated", focus: true },
+    runOptions: { runOn: "folderOpen" },
+    group: { kind: "build", isDefault: true },
+    problemMatcher: [],
+  });
+  assert.doesNotMatch(source, /AF_COMPANION_HANDOFF|activation_capsule|handoff-capsule/);
+});
+
 test("keeps a generated manual workspace when the host code executable is unavailable", async (t) => {
   const base = await mkdtemp(join(tmpdir(), "af-vscode-unavailable-"));
   t.after(() => rm(base, { recursive: true, force: true }));
@@ -189,7 +239,7 @@ test("keeps a generated manual workspace when the host code executable is unavai
     applicationRoot,
     applicationsRoot,
     workId: "sample-work",
-    role: "plan",
+    mode: "plan",
   }), { code: "code_unavailable" });
 
   const workspacePath = join(repoRoot, ".agent-factory", "vscode", "sample-work.code-workspace");
