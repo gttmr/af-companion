@@ -26,7 +26,7 @@
 | P6 | `agent/web-first-materialization-handoff` | [#14](https://github.com/gttmr/af-companion/pull/14) | `2166f67413ecf1b90191d759bcba582ee8fdd47e` | [Materialization launch decision](../decision-log.md) |
 | P7 | `agent/web-first-journey-acceptance` | [#15](https://github.com/gttmr/af-companion/pull/15) | `54fa43305ad9a94fe1cb19370465f67e452c9285` | [P7 actual acceptance](web-first-journey-status.md) |
 | Graph-primary correction | `agent/web-first-graph-primary` | [#17](https://github.com/gttmr/af-companion/pull/17) | `04a4eb5eb01618cfc2430905bdf765c153d0f64c` | [Graph-primary decision](../decision-log.md) |
-| Bootstrap follow-up | `agent/web-first-materialization-bootstrap` | PR pending | merge pending | [Bootstrap Grant decision](../decision-log.md) |
+| Bootstrap follow-up | `agent/web-first-materialization-bootstrap` | [#18](https://github.com/gttmr/af-companion/pull/18) | merge pending | [Bootstrap Grant decision](../decision-log.md) |
 
 PR #15의 `mergeCommit.oid`와 현재 `origin/main`의 first-parent history에서 위 SHA를
 재확인했다.

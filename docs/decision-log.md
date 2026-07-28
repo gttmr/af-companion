@@ -10,7 +10,7 @@
 
 ---
 
-## 2026-07-28 · PR pending — pristine Work Item Materialization Bootstrap Grant
+## 2026-07-28 · PR [#18](https://github.com/gttmr/af-companion/pull/18) — pristine Work Item Materialization Bootstrap Grant
 
 - **결정**: 아직 실제 discovery/decision revision과 canonical Handoff가 없는 strict pristine Work Item에만 별도 `Materialization Bootstrap Grant`를 허용한다. Grant는 exact scope, source Plan session/latest turn, pristine Work Item ETag, canonical Plan hash, target, expiry와 one-time claim을 묶고, distinct fresh Materialization Session 하나만 claim한다. Phase B가 실제 revision과 Grant provenance가 일치하는 claimed `session_handoffs[]` 한 건을 쓰면 Bridge snapshot이 자동으로 `finalized` 처리한다.
 - **위협 모델과 저장 경계**: 로컬 단일 사용자 환경에서 실수로 잘못된 session을 연결하거나 stale/replay된 Plan을 쓰는 문제만 막는다. 새 crypto/capability/Capsule digest 계층은 추가하지 않는다. Plan은 ignored Bridge `state.json`에 mode `0600` plaintext로 임시 저장하고 public snapshot·receipt·browser·workspace descriptor에서는 제외하며 claim/failure/expiry/supersede 때 지운다. Grant는 Bridge/host restart를 견디지만 source record, exact latest turn, non-revoked 상태는 계속 요구한다.
