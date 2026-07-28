@@ -10,7 +10,7 @@
 
 ---
 
-## 2026-07-28 · PR pending — VS Code terminal 연결과 Codex Plan mode를 분리
+## 2026-07-28 · PR [#19](https://github.com/gttmr/af-companion/pull/19) — VS Code terminal 연결과 Codex Plan mode를 분리
 
 - **결정**: Home의 정상 시작 경로를 일반 `Codex terminal session`으로 설명한다. 현재 wire의 `mode: "plan"`과 Session `role: plan`은 initial Agent Factory lifecycle attachment일 뿐이며, generated Task는 Codex `--plan`을 전달하지 않는다. 기본 Codex 모드의 fresh prompt도 같은 exact enrollment/lease를 claim하고 next-prompt context를 consume할 수 있어야 한다.
 - **연속성 경계**: `/clear` 등으로 Codex가 새 provider session ID를 만들면 이미 consume된 ticket을 자동 재사용하지 않는다. Companion 연결이 필요하면 trusted `Start AF Session` Task를 다시 실행한다. Plan→Materialization Handoff/Bootstrap Grant는 선택적 lifecycle continuation이며 VS Code terminal 연결의 성공 조건이 아니다.
