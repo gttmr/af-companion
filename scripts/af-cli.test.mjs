@@ -564,6 +564,7 @@ test("companion start and join enroll exact scopes and launch fixed Codex argv w
     "--config",
     `sandbox_workspace_write.writable_roots=${JSON.stringify([applicationRoot])}`,
   ]);
+  assert.equal(result.output.command.includes("--plan"), false, "VS Code launch must not force Codex Plan mode");
 
   assert.deepEqual(received, [
     {

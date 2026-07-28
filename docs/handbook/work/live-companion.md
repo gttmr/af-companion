@@ -4,7 +4,7 @@
 
 ## Main flow
 
-1. For the Web-first Plan path, `codexCompanionApi` resolves the Work Item's local Application Registry binding and asks `VscodeWorkspaceLauncher.launchSessionWorkspace` to write and open a private multi-root descriptor. The descriptor maximizes its dedicated Task terminal panel so structured Questions show multiple choices. This browser request creates no enrollment and does not change Question semantics.
+1. For the Web-first terminal path, `codexCompanionApi` resolves the Work Item's local Application Registry binding and asks `VscodeWorkspaceLauncher.launchSessionWorkspace` to write and open a private multi-root descriptor. The descriptor maximizes its dedicated Task terminal panel so structured Questions show multiple choices. This browser request creates no enrollment and does not select a Codex collaboration mode.
 2. After Workspace Trust, the descriptor's `folderOpen` Task runs `af companion vscode-start` from the factory root. The CLI creates a one-time `af_vscode_launch` ticket bound to the Work Item ETag and exact workspace, application, Work Item, and role, then starts interactive Codex with the app root added to sandbox writable roots.
 3. The user submits the first terminal prompt. The new Codex session carries the activation Capsule, and the local Hook gate validates workspace and Capsule before endpoint discovery.
 4. The Bridge re-reads the unchanged Work Item, consumes the ticket once, persists only the activated Companion session, and writes an exact-session lease bound to the current Bridge instance.
@@ -13,7 +13,7 @@
 
 Explicit CLI enrollment remains available as a low-level operator path. The
 browser `/connections` enrollment/copy surface is removed: Home launches the
-registered Plan workspace while the Task-owned CLI creates enrollment. In every
+registered terminal workspace while the Task-owned CLI creates enrollment. In every
 path, editor launch, ticket issuance, claim, lease, and prompt receipt are
 distinct evidence. The Web-first server never starts a turn.
 

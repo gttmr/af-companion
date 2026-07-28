@@ -31,6 +31,11 @@ Home의 첫 운영 surface는 Web-first 시작 register다. `새 작업 시작`�
 approval은 순서가 분명한 dialog로 안내한다. Editor launch receipt와 Companion 연결을 같은
 상태로 표시하지 않으며, Trust 안내는 fresh exact session이 관찰된 뒤에만 다음 안내로
 전환한다. 상단 shell에는 factory root만 여는 별도 VS Code action을 두지 않는다.
+Home, Connections, live rail의 일반 연결 문구는 `Codex terminal session`을 사용한다.
+내부 lifecycle `plan` role을 Codex Plan mode처럼 표시하지 않으며, Discover의 실제
+Plan/Materialization authority에서만 Plan 용어를 사용한다.
+launch guide를 닫아도 선택한 Work Item에 active Companion session이 있으면 snapshot을
+기준으로 연결됨을 표시하며 `VS Code 시작 전` 상태로 되돌리지 않는다.
 기존 Work Item을 선택하면 같은 Home에 `HomeGraphOverview`가 읽기 전용 Graph preview와
 Root Executable, solution control, Graph revision, 최근 application source를 표시한다. preview는
 선택·편집·zoom control을 제공하지 않고 하나의 `전체 Graph IR 열기` 링크로 Compose에 연결한다.

@@ -54,7 +54,7 @@ Home accepts one application name or one existing Work Item and exposes one
 primary action, `작업 시작하고 VS Code 열기`. For a new application it shows
 the default `~/work/af-apps/<id>` location and the `AF_APPLICATIONS_ROOT`
 override rule before sending the confirmation above. It then passes only the
-returned `work_id` to the Plan session launch route. IDs and absolute paths may
+returned `work_id` to the terminal session launch route. IDs and absolute paths may
 be shown as bounded status, but no activation Capsule, ticket TTL, or shell
 command is rendered.
 
@@ -92,6 +92,18 @@ node scripts/af.mjs companion vscode-start \
   --role plan \
   --application-root <registered-application-root>
 ```
+
+The request value `mode: "plan"` and Task argument `--role plan` name the
+initial Agent Factory lifecycle attachment only. They do not pass a Codex
+`--plan` flag or otherwise select Codex Plan mode. The launcher leaves
+collaboration mode to the CLI; the accepted default-mode run reported
+`permission_mode: bypassPermissions` while its Companion lifecycle role remained
+`plan`. Changing Codex collaboration mode within that same session does not
+change its Companion lease. If `/clear` or another Codex action creates a
+different provider session ID, the already consumed enrollment does not silently
+attach that new session; rerun the trusted `Start AF Session` Task when Companion
+attachment is wanted. Automatic Plan-to-implementation continuation is optional
+lifecycle convenience, not terminal connection proof.
 
 Workspace Trust remains a user gate. After Trust, VS Code starts the Task; the
 Task creates an `af_vscode_launch` enrollment at terminal-start time and
@@ -137,9 +149,11 @@ a future app-rooted client path; it is not claimed as context transport for
 this session.
 
 After launch acceptance, Home shows Workspace Trust guidance until a fresh
-exact `af_vscode_launch` Plan session becomes active, then shows bounded MCP
+exact `af_vscode_launch` terminal Companion session becomes active, then shows bounded MCP
 approval guidance. These dialogs do not turn editor acceptance into connection
-proof. Connections contains no browser enrollment form or Capsule/command copy
+proof. Closing the guide resets only the dialog; when the selected Work Item
+still has an active exact Companion session, the launcher remains visibly
+connected from the current snapshot. Connections contains no browser enrollment form or Capsule/command copy
 surface. Explicit CLI `companion start`/`join` remains a low-level operator
 command, not the normal Web path.
 

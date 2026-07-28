@@ -39,8 +39,8 @@ export function WorkLiveStrip({
         <LiveDatum label="Work Item" value={workId} detail={`ledger r${manifest?.ledger_revision ?? "—"}`} mono />
         <LiveDatum
           label="Companion"
-          value={connectionLabel(codex, activeSessions.length, roles)}
-          detail={`${liveLabel(live)} projection · exact active ${activeSessions.length}`}
+          value={connectionLabel(codex, activeSessions.length)}
+          detail={`${roles.length === 1 ? `lifecycle role ${roles[0]} · ` : ""}${liveLabel(live)} projection · exact active ${activeSessions.length}`}
           tone={activeSessions.length ? "success" : codex?.capabilities.bridge_available ? "waiting" : "muted"}
         />
         <LiveDatum
@@ -95,12 +95,11 @@ function findLatestActivity(
 function connectionLabel(
   codex: CodexCompanionSnapshotV2 | null,
   count: number,
-  roles: string[],
 ): string {
   if (!codex) return "Bridge checking";
   if (!codex?.capabilities.bridge_available) return "Bridge offline";
   if (!count) return "Session waiting";
-  return count === 1 ? `${roles[0] ?? "session"} connected` : `${count} sessions connected`;
+  return count === 1 ? "terminal connected" : `${count} sessions connected`;
 }
 
 function liveLabel(live: "connecting" | "live" | "retrying"): string {

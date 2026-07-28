@@ -106,7 +106,7 @@ export default function ComposeWorkspace() {
         <div className="compose-gates"><ReviewGateLine manifest={manifest} gate="discovery" /><ReviewGateLine manifest={manifest} gate="composition" /></div>
         {manifest ? <CompositionOutcomeStrip manifest={manifest} /> : null}
         {!discoveryReady ? <ScreenState tone="warning" title="Compose gate가 닫혀 있습니다" detail="외부 Codex에서 Discover 산출물을 검토하고 discovery review를 승인한 뒤 Graph를 편집할 수 있습니다." /> : null}
-        {activeSessions.length === 0 ? <ScreenState tone="warning" title="활성 Companion session 없음" detail="Home에서 이 Work Item의 VS Code Plan session을 시작하세요. Materialization handoff는 별도 capsule-free launch 경로가 제공될 때 사용합니다." /> : null}
+        {activeSessions.length === 0 ? <ScreenState tone="warning" title="활성 Companion session 없음" detail="Home에서 이 Work Item의 trusted VS Code terminal session을 시작하세요. Materialization handoff는 별도 capsule-free launch 경로가 제공될 때 사용합니다." /> : null}
       </section>
 
       {analysis && manifest ? <CompositionRegisters analysis={analysis} manifest={manifest} /> : null}

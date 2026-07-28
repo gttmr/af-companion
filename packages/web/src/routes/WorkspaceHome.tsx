@@ -243,6 +243,13 @@ export default function WorkspaceHome() {
     ? `${codex.snapshot.workspace.canonical_path.replace(/\/$/, "")}/.agent-factory/vscode/${currentRecoveryWorkId}.code-workspace`
     : null);
   const retryDelayMs = Math.max(0, nextLaunchAllowedAt - clockMs);
+  const selectedCompanionConnected = startMode === "existing" && Boolean(codex.snapshot?.sessions.some((session) => (
+    session.work_id === selectedWorkId
+    && session.participation === "companion_active"
+    && session.status === "active"
+  )));
+  const displayedLaunchStage = launchStage === "idle" && selectedCompanionConnected ? "mcp" : launchStage;
+  const displayedLaunchWorkId = launchStage === "idle" ? selectedWorkId : launchedWorkId;
 
   return (
     <div className="workspace-home">
@@ -250,7 +257,7 @@ export default function WorkspaceHome() {
         <div>
           <span className="workspace-eyebrow">Agent Factory companion</span>
           <h1>작업을 선택하고<br />VS Code에서 시작합니다.</h1>
-          <p>Application 이름만 정하면 Work Item, app workspace, Companion Plan session을 한 흐름으로 준비합니다.</p>
+          <p>Application 이름만 정하면 Work Item, app workspace, Companion Codex terminal을 한 흐름으로 준비합니다.</p>
         </div>
         <dl className="workspace-start-meta">
           <div><dt>Workspace</dt><dd>{snapshot?.identity.display_name ?? "연결 중"}</dd></div>
@@ -291,16 +298,16 @@ export default function WorkspaceHome() {
                 <select value={selectedWorkId} onChange={(event) => setSelectedWorkId(event.currentTarget.value)}>
                   {workItems.length ? workItems.map((item) => <option key={item.work_id} value={item.work_id}>{item.work_id}</option>) : <option value="">선택할 Work Item 없음</option>}
                 </select>
-                <small>등록된 application workspace와 exact Plan scope로 엽니다.</small>
+                <small>등록된 application workspace와 exact Companion scope로 엽니다.</small>
               </label>
             )}
           </div>
 
           <div className="journey-start-action">
-            <div className={`journey-launch-state is-${launchStage}`} role="status" aria-live="polite">
+            <div className={`journey-launch-state is-${displayedLaunchStage}`} role="status" aria-live="polite">
               <i />
               <span>
-                <strong>{launchStateTitle(launchStage, launchedWorkId)}</strong>
+                <strong>{launchStateTitle(displayedLaunchStage, displayedLaunchWorkId)}</strong>
                 <small>{applicationRoot ?? workspacePath ?? "ID, Capsule, shell command를 입력하지 않습니다."}</small>
               </span>
             </div>
@@ -490,7 +497,7 @@ function launchStateTitle(stage: LaunchStage, workId: string | null): string {
   if (stage === "preparing") return "Work Item과 workspace를 준비하고 있습니다";
   if (stage === "trust") return `${workId ?? "작업"} · VS Code 연결 대기`;
   if (stage === "mcp") return `${workId ?? "작업"} · Companion 연결됨`;
-  return "Plan session · VS Code 시작 전";
+  return "Codex terminal · VS Code 시작 전";
 }
 
 function journeyFailure(error: unknown): JourneyRequestFailure {

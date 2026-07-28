@@ -38,7 +38,7 @@ The app routes are:
 
 The headless root `POST /api/work-items` requires loopback, same-origin JSON no larger than 4 KiB, confirmed server-derived application root, and `CREATE_WORK_ITEM`. It creates only the unchanged empty v2 ledger, initializes the application Git/MCP context, and records its path in an ignored mode-`0600` noncanonical local registry. It cannot edit an existing ledger or grant Session eligibility. Graph saves require the latest ETag, an approved Discover result, same-origin loopback access, and an explicit active Codex session target. Saving synchronizes embedded and split Graph IR, preserves prior cycle history, marks affected composition/downstream evidence stale, and queues metadata about the change to that exact session. Registry mutations require the current Registry revision and explicit lifecycle decisions; published versions are immutable.
 
-The headless `POST /api/codex-companion/vscode-sessions` Plan route resolves
+The headless `POST /api/codex-companion/vscode-sessions` terminal-session route resolves
 that local registration, requires a reachable Bridge, writes an ignored private
 `.code-workspace`, and calls `code --new-window` with fixed argv. The descriptor
 shows the app first and factory second. After Workspace Trust, its automatic
@@ -50,10 +50,10 @@ actions remain factory-contained.
 
 Home connects the two guarded APIs behind one `작업 시작하고 VS Code 열기`
 action. New applications first require a path-confirmation dialog; accepted
-launches show Workspace Trust guidance until a fresh exact Plan session is
+launches show Workspace Trust guidance until a fresh exact Companion terminal session is
 observed, then bounded MCP approval guidance. The top shell no longer exposes a
 factory-only VS Code shortcut, and Connections does not render enrollment or
-handoff Capsule/command copy surfaces. Generated Plan and Materialization
+handoff Capsule/command copy surfaces. Generated terminal and Materialization
 descriptors maximize the dedicated Task terminal panel so structured Questions
 show their multiple choices. Explicit CLI enrollment remains an operator path.
 Capsule-free fresh Materialization launch is available for either an exact
@@ -71,7 +71,7 @@ full Graph canvas first. CLI Question text, options, answers, and transcript are
 not Web projection surfaces.
 
 The 2026-07-28 P7 acceptance verified the Web bootstrap, multi-root VS Code
-launch, one exact `af_vscode_launch` Plan Session, Luna low multi-choice terminal
+launch, one exact `af_vscode_launch` terminal Session, Luna low multi-choice terminal
 flow, and `bridge_down` recovery. It observed that an ephemeral
 `request_user_input` question is not present in the strict ledger that Web
 projects; this is now an intentional CLI/Web ownership boundary. It also found

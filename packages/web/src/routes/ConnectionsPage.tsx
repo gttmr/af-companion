@@ -93,7 +93,7 @@ export default function ConnectionsPage() {
               ))}</tbody>
             </table>
           </div>
-        ) : <ConnectionEmpty title="Companion session 없음" detail="ordinary Codex session은 표시하지 않습니다. Home에서 작업을 선택하고 trusted VS Code Plan session을 시작하세요." />}
+        ) : <ConnectionEmpty title="Companion session 없음" detail="ordinary Codex session은 표시하지 않습니다. Home에서 작업을 선택하고 trusted VS Code terminal session을 시작하세요." />}
       </RegisterSection>
 
       <RegisterSection

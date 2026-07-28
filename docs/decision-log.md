@@ -10,6 +10,13 @@
 
 ---
 
+## 2026-07-28 · PR [#19](https://github.com/gttmr/af-companion/pull/19) — VS Code terminal 연결과 Codex Plan mode를 분리
+
+- **결정**: Home의 정상 시작 경로를 일반 `Codex terminal session`으로 설명한다. 현재 wire의 `mode: "plan"`과 Session `role: plan`은 initial Agent Factory lifecycle attachment일 뿐이며, generated Task는 Codex `--plan`을 전달하지 않는다. 기본 Codex 모드의 fresh prompt도 같은 exact enrollment/lease를 claim하고 next-prompt context를 consume할 수 있어야 한다.
+- **연속성 경계**: `/clear` 등으로 Codex가 새 provider session ID를 만들면 이미 consume된 ticket을 자동 재사용하지 않는다. Companion 연결이 필요하면 trusted `Start AF Session` Task를 다시 실행한다. Plan→Materialization Handoff/Bootstrap Grant는 선택적 lifecycle continuation이며 VS Code terminal 연결의 성공 조건이 아니다.
+- **배경**: UI와 후속 acceptance가 lifecycle role을 Codex collaboration mode처럼 취급하면서 기본 모드 연결이 실패한 것처럼 보였고, 자유 형식 Plan을 자동 권한으로 승격하는 실험이 terminal transport와 무관한 parser/skill 변경으로 확대됐다. VS Code가 terminal을 소유하고 Hook metadata, filesystem projection, exact next-prompt delivery가 정보를 교환하는 기존 경계를 유지한다.
+- **영향**: Home·Connections·live rail의 utility copy와 active Companion 문서를 정정하고, 닫힌 launch guide 뒤에도 현재 active session을 기준으로 연결 상태를 표시하며, non-Plan permission의 VS Code enrollment 및 context consume 회귀 test를 추가한다. PTY daemon, terminal output scraping, 실시간 stream, Plan parser, Work Skill 변경은 추가하지 않는다.
+
 ## 2026-07-28 · PR [#18](https://github.com/gttmr/af-companion/pull/18) — pristine Work Item Materialization Bootstrap Grant
 
 - **결정**: 아직 실제 discovery/decision revision과 canonical Handoff가 없는 strict pristine Work Item에만 별도 `Materialization Bootstrap Grant`를 허용한다. Grant는 exact scope, source Plan session/latest turn, pristine Work Item ETag, canonical Plan hash, target, expiry와 one-time claim을 묶고, distinct fresh Materialization Session 하나만 claim한다. Phase B가 실제 revision과 Grant provenance가 일치하는 claimed `session_handoffs[]` 한 건을 쓰면 Bridge snapshot이 자동으로 `finalized` 처리한다.
