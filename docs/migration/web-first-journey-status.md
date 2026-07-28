@@ -13,7 +13,13 @@ run으로 재검증했으며, 끊기지 않은 한 번의 end-to-end 성공으�
 
 > **후속 제품 범위 정정:** CLI Question 본문·선택지·답변은 Web projection 대상이 아니다.
 > P7 당시 본문 부재를 FAIL로 분류한 판단은 철회한다. 아래 실측 사실은 보존하되 현재
-> 제품 blocker는 canonical Plan→Materialization Handoff와 그 뒤 Graph/source 미도달이다.
+> P7의 제품 blocker는 canonical Plan→Materialization Handoff와 그 뒤 Graph/source 미도달이었다.
+
+> **2026-07-28 후속 구현:** strict pristine ledger의 순환 선행조건은 별도
+> Materialization Bootstrap Grant 계약과 source로 해소했다. 이 문서의 P7 표와 FAIL은
+> 당시 실측 이력으로 유지한다. 아래 claim-only probe와 별개로 uninterrupted
+> Plan→Materialization→Graph/source acceptance는 아직 live evidence가 없으므로 이
+> 문서에서 PASS로 소급하지 않는다.
 
 ## 기준선과 실행 환경
 
@@ -121,7 +127,7 @@ evidence를 투영한다. 후속 Graph-primary slice는 `WaitingDecisionStrip`�
 질문/답변 표를 제거했고, ephemeral Question channel이나 Phase A Decision draft write를
 새로 만들지 않았다.
 
-### 3. 빈 ledger의 Plan→Materialization Handoff 선행조건이 순환함 — 미해결
+### 3. 빈 ledger의 Plan→Materialization Handoff 선행조건이 순환함 — P7 미해결, 후속 구현 완료
 
 `CodexBridgeStore.createPlanHandoff()`는 현재 Work Item의 exact pending
 `session_handoffs[]`, `revisions.discovery`, `revisions.decision`, marker와 Plan hash가
@@ -134,6 +140,30 @@ Handoff/portable marker를 안전하게 만들 수 없다. 외부 Plan agent도 
 Host에서는 Bridge가 `8898`에 정상 청취 중이었다. 외부 Codex sandbox의 `curl`만 같은
 endpoint에 연결하지 못했으므로 이를 Bridge outage나 Handoff blocker의 근거로 쓰지
 않는다.
+
+후속 구현은 canonical Handoff 검사를 느슨하게 하지 않았다. strict default ledger에만
+exact ETag, source Plan session/latest turn, canonical Plan hash, expiry와 one-time fresh
+claim을 묶는 로컬 Bootstrap Grant를 추가했다. Plan은 ignored mode-`0600` Bridge state에
+잠시 plaintext로 남고 public/browser surface에는 나타나지 않으며, restart 후에도 exact
+source record와 non-revoked 상태를 재검사한다. Phase B가 실제 revision과 exact claimed
+`session_handoffs[]`를 쓰면 snapshot이 자동 finalize한다. 이 source 계약의 존재와 실제
+fresh-session 제품 여정 성공은 별도 증거다.
+
+### 4. 후속 Bootstrap Grant live probe — claim PASS, Phase B 미실행
+
+새 source의 synthetic pristine fixture로 browser와 실제 Codex CLI claim까지만 좁게
+검증했다. Discover DOM은 `Bootstrap Grant · ready`, exact Grant ID와 primary action 한
+개를 표시했고 Question 본문, Plan, Capsule은 표시하지 않았다. 실제
+`companion continue --grant`는 distinct fresh `materialization` session을 만들었고 TUI에서
+`gpt-5.6-luna`와 `low`를 확인했다. Bridge는 exact fresh session/turn 한 건으로 Grant를
+`claimed` 처리했으며 ignored `state.json`은 mode `0600`, claim 뒤 Plan과 claim token
+digest는 모두 제거된 상태였다.
+
+이 probe에서는 nested Codex가 canonical artifact를 쓰기 전에 종료했다. fixture Work
+Item은 `ledger_revision: 0`, 모든 revision `null`, `session_handoffs: []`를 유지했고 Grant도
+`finalized_at: null`이었다. 따라서 one-time fresh claim의 실제 동작만 입증하며 Phase B
+materialization, automatic finalization, Graph IR과 application source 생성은 계속
+**LIVE UNVERIFIED**다.
 
 ## Pass 기준 판정
 
@@ -175,7 +205,7 @@ endpoint에 연결하지 못했으므로 이를 Bridge outage나 Handoff blocker
 - `node scripts/validate-artifacts.mjs`: **PASS**
 - `node scripts/validate-artifacts.mjs artifacts/af/journey-acceptance`: **PASS**
 - `npm run test:contracts`: TypeScript **23/23**, artifact/generator **87/87**
-- `npm run test:companion`: package **58/58**, CLI/Hook **18/18**
+- `npm run test:companion`: package **63/63**, CLI/Hook **19/19**
 - `npm run build`: **PASS**, 581 modules transformed
 - changed Markdown relative links: **PASS**
 - `git diff --check`: **PASS**

@@ -36,7 +36,11 @@ interface HandoffAttachmentInput {
 
 type VscodeSessionLaunchInput =
   | { workId: string; mode: "plan" }
-  | { workId: string; mode: "materialization"; handoffId: string };
+  | { workId: string; mode: "materialization"; authority: MaterializationLaunchAuthority };
+
+export type MaterializationLaunchAuthority =
+  | { kind: "handoff"; id: string }
+  | { kind: "grant"; id: string };
 
 export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {}) {
   const queryClient = useQueryClient();
@@ -58,7 +62,13 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
       "/vscode-sessions",
       input.mode === "plan"
         ? { work_id: input.workId, mode: "plan" }
-        : { work_id: input.workId, mode: "materialization", handoff_id: input.handoffId },
+        : {
+          work_id: input.workId,
+          mode: "materialization",
+          ...(input.authority.kind === "handoff"
+            ? { handoff_id: input.authority.id }
+            : { grant_id: input.authority.id }),
+        },
       "VS Code 작업 session을 시작하지 못했습니다.",
     ),
     onSuccess: invalidateSnapshot,
@@ -117,10 +127,10 @@ export function useCodexSessions({ enabled = true }: UseCodexSessionsOptions = {
     snapshotFailure: requestFailure(snapshotQuery.error),
     refreshSnapshot: () => snapshotQuery.refetch(),
     launchVscodeSession: (workId: string) => vscodeSessionMutation.mutateAsync({ workId, mode: "plan" }),
-    launchMaterializationSession: (workId: string, handoffId: string) => vscodeSessionMutation.mutateAsync({
+    launchMaterializationSession: (workId: string, authority: MaterializationLaunchAuthority) => vscodeSessionMutation.mutateAsync({
       workId,
       mode: "materialization",
-      handoffId,
+      authority,
     }),
     vscodeSessionPending: vscodeSessionMutation.isPending,
     vscodeSessionReceipt: vscodeSessionMutation.data ?? null,

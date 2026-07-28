@@ -225,6 +225,72 @@ test("Facade launches one exact materialization handoff without consuming it in 
   assert.equal(sessionLaunches.length, 1);
 });
 
+test("Facade launches one exact bootstrap grant without exposing its Capsule to the browser", async (t) => {
+  const { root, bridge, facade, direct, applicationsRoot, applicationRoot, sessionLaunches } = await fixture(t);
+  assert.ok(bridge);
+  let response = await facade("/enrollments", {
+    application_id: "app-1",
+    work_id: "work-1",
+    requested_role: "plan",
+    activation_origin: "af_cli_launch",
+  });
+  const enrollment = await response.json();
+  await direct("/v1/hooks", sessionHook(
+    root,
+    "bootstrap-plan-session",
+    { kind: "activation", activation_capsule: enrollment.activation_capsule },
+    "plan",
+  ));
+  const lease = await bridge.store.leaseProofForTesting("bootstrap-plan-session");
+  await direct("/v1/hooks", sessionHook(
+    root,
+    "bootstrap-plan-session",
+    lease,
+    "plan",
+    "bootstrap-plan-turn",
+  ));
+  response = await direct("/v1/materialization-grants", {
+    work_id: "work-1",
+    from_session_id: "bootstrap-plan-session",
+    from_turn_id: "bootstrap-plan-turn",
+    plan_body_hash: TEST_PLAN_HASH,
+    plan_body: TEST_PLAN_BODY,
+    expires_at: "2030-01-01T00:10:00.000Z",
+  });
+  assert.equal(response.status, 201);
+  const created = await response.json();
+
+  response = await facade("/vscode-sessions", {
+    work_id: "work-1",
+    mode: "materialization",
+    grant_id: created.grant.grant_id,
+  });
+  assert.equal(response.status, 202);
+  const receipt = await response.json();
+  assert.equal(receipt.role, "materialization");
+  assert.equal("activation_capsule" in receipt, false);
+  assert.equal("command" in receipt, false);
+  assert.deepEqual(sessionLaunches, [{
+    applicationId: "app-1",
+    applicationRoot,
+    applicationsRoot,
+    workId: "work-1",
+    mode: "materialization",
+    grantId: created.grant.grant_id,
+  }]);
+  assert.equal((await bridge.store.snapshot()).materialization_grants[0].status, "ready");
+
+  response = await facade("/vscode-sessions", {
+    work_id: "work-1",
+    mode: "materialization",
+    handoff_id: TEST_HANDOFF_ID,
+    grant_id: created.grant.grant_id,
+  });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).code, "invalid_materialization_authority");
+  assert.equal(sessionLaunches.length, 1);
+});
+
 test("Facade refuses session workspace launch while the Bridge is unavailable", async (t) => {
   const { facade, sessionLaunches } = await fixture(t, false);
   const response = await facade("/vscode-sessions", { work_id: "work-1", mode: "plan" });

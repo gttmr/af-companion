@@ -69,9 +69,11 @@ Compose returns to Discover by recording the current composition revision, missi
 ## Plan and session continuity
 
 - Bind every run to one explicit repository, `workspace_id`, `application_id`, `work_id`, enrolled Companion session, role, and input revision. Ordinary sessions are not lifecycle actors.
-- A Plan-to-materialization handoff targets only `af-discover-assets.materialize` and is bound to the Work Item, Plan hash, discovery revision, decision revision, marker digest, expiry, and source session/turn.
-- A fresh session may materialize only after one explicitly identified exact pending handoff is claimed with complete new session/turn provenance. Reject stale, expired, ambiguous, mismatched, same-session, or duplicate claims; never infer identity from a sole pending candidate.
-- Bridge health is not delivery proof. Use current first-prompt receipts and Work Item/Bridge handoff state; otherwise follow Companion Continue, Copy Capsule, then exact confirmed attachment.
+- A canonical Plan-to-materialization Handoff targets only `af-discover-assets.materialize` and is bound to the Work Item, Plan hash, actual discovery/decision revisions, marker digest, expiry, and source session/turn.
+- Only when the Work Item is the exact strict pristine ledger, a Bootstrap Grant may bridge Phase A to Phase B without fake revisions or a tracked Phase A write. It binds pristine ETag, Plan hash, exact source session/latest turn, target, expiry, and one-time fresh claim; after restart the source record must remain exact and non-revoked even though its old lease is no longer current.
+- A fresh session may materialize only after one explicitly identified exact Handoff or Grant is claimed with complete new session/turn provenance. Reject stale, expired, ambiguous, mismatched, same-session, or duplicate claims; never infer identity from a sole pending candidate.
+- Bridge health is not delivery proof. Use current first-prompt receipts and Work Item/Bridge authority state. Canonical Handoff fallback is Companion Continue, Copy Capsule, then exact confirmed attachment; a Bootstrap Grant is continued only by exact Grant ID.
+- Bootstrap Phase B writes the actual revision objects plus one matching claimed canonical `session_handoffs[]` record, then requires automatic Grant finalization. It never calls a finalize endpoint or reuses the Grant after materialization.
 - After compaction or resume, re-read the Work Item, current Plan/decisions, Registry revision, and selected skill before writing.
 
 ## Required evidence
@@ -95,7 +97,7 @@ Before handoff, inspect the exact write inventory and confirm that no unrelated 
 
 ## Stop conditions
 
-Stop when identity or Plan Mode is ambiguous; a required decision is open; a gate binding is missing or stale; a handoff cannot be exactly claimed; a predecessor artifact is absent; candidate contract data remains unresolved; a requested action would skip review, escape write roots, auto-merge stale work, mutate the Registry without expected revision, or restore a legacy stage/manifest/alias/parser.
+Stop when identity or Plan Mode is ambiguous; a required decision is open; a gate binding is missing or stale; a Handoff or Bootstrap Grant cannot be exactly claimed; a predecessor artifact is absent; candidate contract data remains unresolved; a requested action would skip review, escape write roots, auto-merge stale work, mutate the Registry without expected revision, or restore a legacy stage/manifest/alias/parser.
 
 ## Official sources checked
 
@@ -108,7 +110,7 @@ Stop when identity or Plan Mode is ambiguous; a required decision is open; a gat
 
 ## Checked date
 
-- Checked date: 2026-07-24
+- Checked date: 2026-07-28
 - Official sources: Agent Factory active workbench documents and current repository contracts
 - Installed package version: `google-adk 2.3.0`
 - Contract note: the normal forward order remains gate-protected, but routing is re-entrant and revision-owned.

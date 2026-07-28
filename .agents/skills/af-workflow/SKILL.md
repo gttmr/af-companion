@@ -78,7 +78,7 @@ Artifact presence is not approval. `complete` is not current when its input/outp
 | Current evidence | Route |
 | --- | --- |
 | initial requirement or invalidated Asset/decision evidence needs exploration | `af-discover-assets` Phase A in confirmed Plan Mode |
-| approved Plan must be written, or a valid fresh-session handoff was claimed | `af-discover-assets` Phase B materialization |
+| approved Plan must be written, or a valid fresh-session canonical Handoff or pristine Bootstrap Grant was claimed | `af-discover-assets` Phase B materialization |
 | required decision or Asset disposition is open | owning skill; use the Decision Input Adapter for one question, then stop `waiting_for_input` |
 | Discover output exists but discovery review is pending/changes requested/stale | `af-discover-assets` |
 | current discovery gate is approved and composition is absent/stale | `af-compose-solution` |
@@ -95,18 +95,20 @@ Artifact presence is not approval. `complete` is not current when its input/outp
 
 ## Plan-to-materialization handoff
 
-The canonical Plan body excludes every Companion capsule. Its Companion `plan_body_hash` equals the Work Item handoff `plan_hash`. Bind one handoff to exact application/workspace/work, source session/turn, discovery and decision revisions, target, expiry, and separate capsule/marker digest as defined in [Fresh-context Handoff](../_shared/fresh-context-handoff.md).
+The canonical Plan body excludes every Companion capsule and marker. When real discovery/decision revisions exist, its Companion `plan_body_hash` equals the exact canonical Work Item Handoff `plan_hash`; bind that Handoff to exact application/workspace/work, source session/turn, revisions, target, expiry, and separate capsule/marker digest.
+
+When the Work Item is instead the exact strict default ledger, route Phase A through one Materialization Bootstrap Grant created from the canonical Plan body and exact Plan session/latest turn. It binds the pristine ETag, scope, hash, target, expiry, and one-time claim without writing the ledger or inventing revisions. It may survive Bridge restart while the preserved source record remains exact and non-revoked; the old source lease need not remain current across restart.
 
 On a fresh session:
 
 1. require current Companion enrollment with exact materialization scope;
-2. require one explicitly identified unexpired handoff and exact capsule/marker, scope, target, expiry, revision, and Plan-body-hash matches;
-3. reject a same-source-session claim, wrong application/workspace/cwd/Work Item, stale revisions, changed Plan hash, ambiguous candidates, or duplicate claim;
+2. require one explicitly identified unexpired Handoff or Grant and exact marker/Capsule, scope, target, expiry, and Plan-body-hash matches; require current revisions for a Handoff or unchanged pristine ETag/source latest turn for a Grant;
+3. reject a same-source-session claim, wrong application/workspace/cwd/Work Item, stale revision/ETag/turn, changed Plan hash, ambiguous candidates, or duplicate claim;
 4. require the first-prompt Bridge receipt to show the new session and turn;
-5. accept materialization only after the handoff is `claimed` with complete claim provenance and exact attachment;
+5. accept materialization only after the Handoff or Grant is `claimed` with complete claim provenance and exact attachment;
 6. re-read current Plan, open/resolved decisions, recommendation revision, Work Item, and Registry revision before writing.
 
-Built-in fresh-context carriage is `unverified` by default. Use Companion Continue, then Copy Capsule, then exact confirmed attach. Bridge health or attachment intent alone is not continuity evidence, and no fallback may auto-claim one pending candidate or first session.
+For a canonical Handoff, use Companion Continue, then Copy Capsule, then exact confirmed attach. Continue a Bootstrap Grant only by exact Grant ID. Bridge health or attachment intent alone is not continuity evidence, and no fallback may auto-claim one pending candidate or first session. Bootstrap Phase B must write actual revisions plus one exact claimed canonical Handoff record and then require automatic Grant `finalized` state; it never calls a finalize endpoint.
 
 ## Invalidation and re-entry
 
@@ -129,7 +131,7 @@ Before invoking the selected skill, state:
 
 ## Stop conditions
 
-Stop when participation, lease, application/workspace/work/role attachment, identity, or mode is ambiguous; Work Item validation fails; a required decision lacks explicit user selection; a gate binding differs from current revisions; a handoff cannot be explicitly and exactly claimed; actual files contradict state; a requested transition skips approval; or continuing would require an unsupported CLI command, legacy parser, compatibility projection, or router-owned Work Skill output.
+Stop when participation, lease, application/workspace/work/role attachment, identity, or mode is ambiguous; Work Item validation fails; a required decision lacks explicit user selection; a gate binding differs from current revisions; a Handoff or Bootstrap Grant cannot be explicitly and exactly claimed; a Grant's pristine ETag/source turn drifts or it is requested for a non-pristine ledger; actual files contradict state; a requested transition skips approval; or continuing would require an unsupported CLI command, legacy parser, compatibility projection, or router-owned Work Skill output.
 
 ## Router verification
 

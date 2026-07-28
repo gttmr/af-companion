@@ -17,7 +17,7 @@ registered Plan workspace while the Task-owned CLI creates enrollment. In every
 path, editor launch, ticket issuance, claim, lease, and prompt receipt are
 distinct evidence. The Web-first server never starts a turn.
 
-The bridge stores bounded session, role, receipt, handoff, delivery, and activity metadata. It does not store prompts, transcripts, tool arguments, tool output, plaintext durable claim tokens, or unmanaged session rows.
+The bridge stores bounded session, role, receipt, handoff/grant, delivery, and activity metadata. It does not store conversation prompts, transcripts, tool arguments, tool output, plaintext durable claim tokens, or unmanaged session rows. One pristine Bootstrap Grant temporarily stores its canonical Plan body in ignored mode-`0600` local state until claim/failure/expiry/supersession; public state omits it.
 
 ## External application MCP
 
@@ -41,17 +41,22 @@ Plan handoff creation requires the exact canonical Work Item Handoff ID/marker, 
 
 Work Skills choose structured decision input only from tools actually exposed in the current turn. Otherwise they ask one conversational question and stop at `waiting_for_input`. Both adapters preserve one decision ID/option meaning plus durable decision/recommendation revisions, selection source, bounded answer summary, input mode, and exact session/turn; an ambiguous answer or stale recommendation does not write a user decision. An executable semantic fixture proves strict-parser roundtrip, path-independent semantics, delegated-recommendation binding, and protected-gate blocking; live two-client-path execution remains capability-dependent.
 
-The fresh Materialization descriptor consumes an existing canonical Handoff; it
-does not bootstrap one. Current Bridge creation requires matching
-discovery/decision revisions and one pending Work Item `session_handoffs[]`
-entry. A new empty ledger has neither, and non-mutating Discover Phase A cannot
-add them before the Phase B claim gate. P7 therefore reached a circular
-prerequisite and stopped without a fabricated marker. Exact Handoff validation
-remains fail-closed.
+For the strict pristine Work Item only, `af companion prepare-materialization`
+creates a separate Bootstrap Grant from stdin after checking exact Plan
+session/latest turn, default-ledger shape and ETag, canonical Plan hash, target,
+and expiry. `continue --grant <id>` rotates a one-time token and launches the
+same fresh-session claim boundary. A ready Grant survives Bridge/host restart
+while the preserved source record/turn remains exact and non-revoked; its old
+source lease need not survive. Wrong session/scope, stale ETag/turn, replay,
+expiry, and duplicate claims fail closed. Phase B writes the real revisions and
+one exact claimed `session_handoffs[]` record, after which snapshot matching
+automatically finalizes the Grant. There is no browser canonical write or
+finalize endpoint. Existing canonical Handoff validation, encrypted Plan state,
+and restart-fail behavior remain unchanged.
 
 ## Projection
 
-`WorkspaceHome` owns the normal start path: new application name or existing Work Item, one VS Code launch action, path confirmation, then Trust/MCP guidance. `ConnectionsPage` presents four ordered registers: Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics. Session rows keep participation, application/Work Item/role, activation origin, lease expiry, last event, alias, and revoke action distinct. Handoff rows show the source session/turn, revisions, transport, destination, expiry, exact existing-session Attach, and Cancel actions. Diagnostics expose capability labels and aggregate ignored/invalid/expired counts only. No React component renders `activation_capsule`.
+`WorkspaceHome` owns the normal start path: new application name or existing Work Item, one VS Code launch action, path confirmation, then Trust/MCP guidance. Discover shows the latest exact Plan authority—canonical Handoff or pristine Bootstrap Grant—and uses one Materialization launch action without showing Capsule or Plan bytes. `ConnectionsPage` presents four ordered registers: Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics. Session rows keep participation, application/Work Item/role, activation origin, lease expiry, last event, alias, and revoke action distinct. Handoff rows show the source session/turn, revisions, transport, destination, expiry, exact existing-session Attach, and Cancel actions. Diagnostics expose capability labels and aggregate ignored/invalid/expired counts only. No React component renders `activation_capsule`.
 
 The Work Item selected by Home or a Work Skill route is sent only as the
 `work_id` query on its SSE connection.

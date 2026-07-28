@@ -61,12 +61,14 @@ command is rendered.
 ## Web-first VS Code session launch
 
 **Current Implementation:** `POST /api/codex-companion/vscode-sessions` accepts
-exactly one of `{ "work_id": "<id>", "mode": "plan" }` or
-`{ "work_id": "<id>", "mode": "materialization", "handoff_id": "<id>" }`
-from a loopback, same-origin JSON request. Both modes require the strict Work
+exactly one of `{ "work_id": "<id>", "mode": "plan" }`,
+`{ "work_id": "<id>", "mode": "materialization", "handoff_id": "<id>" }`, or
+`{ "work_id": "<id>", "mode": "materialization", "grant_id": "<id>" }`
+from a loopback, same-origin JSON request. A Materialization request must name
+exactly one Handoff or bootstrap Grant. Every mode requires the strict Work
 Item, its exact local Application Registry binding, a reachable Bridge, and a
 trusted host `code` executable. The server does not issue an enrollment or
-claim a Handoff. It writes a private, ignored
+claim either authority. It writes a private, ignored
 `.agent-factory/vscode/<work-id>.code-workspace` and invokes only:
 
 ```text
@@ -100,19 +102,27 @@ The external app is added through the fixed argv form
 sandbox_workspace_write.writable_roots=[...]`. Browser responses and generated
 workspace bytes contain no Capsule or Bridge secret.
 
-For Materialization mode, the server first verifies that the named Handoff is
-currently launchable for the exact workspace, application, Work Item, target,
-and active leased Plan source Session. The generated Task is instead
+For Materialization mode with a canonical Handoff, the server first verifies
+that it is currently launchable for the exact workspace, application, Work
+Item, target, and active leased Plan source Session. The generated Task is
 `Continue AF Handoff` and runs the fixed argv equivalent of:
 
 ```bash
 node scripts/af.mjs companion continue --handoff <handoff-id>
 ```
 
-The browser sends only the selected Handoff ID. It does not call Continue,
+For a pristine-ledger bootstrap Grant, the server instead checks its exact
+scope, target, status, and expiry and generates `Continue AF Materialization`:
+
+```bash
+node scripts/af.mjs companion continue --grant <grant-id>
+```
+
+The browser sends only the selected authority ID. It does not call Continue,
 receive a claim token, or render a Capsule or Plan body. The trusted Task owns
-the existing consume-once claim boundary, and only the resulting fresh leased
-Materialization Session plus a `claimed` Handoff snapshot proves success.
+the consume-once claim boundary. Only the resulting fresh leased
+Materialization Session plus a `claimed` Handoff or Grant snapshot proves the
+claim; editor launch alone does not.
 
 This launch acceptance is not connection proof. A current
 `UserPromptSubmit` must still claim the exact ticket and produce the matching
@@ -302,6 +312,12 @@ The next eligible prompt re-reads the strict Work Item and current canonical rep
 
 ## Plan-to-materialization handoff
 
+There are two deliberately separate paths. A canonical Handoff is the durable,
+revision-bound path for a Work Item that already has materialized discovery and
+decision revisions. The pristine Materialization Bootstrap Grant exists only
+to cross the initial empty-ledger boundary without manufacturing those
+revisions in Plan mode.
+
 A Plan handoff binds the exact source session and latest turn, workspace, application, canonical Work Item Handoff ID and marker digest, discovery and decision revisions, canonical Plan body hash, target skill, expiry, and consume-once claim. Creation includes the complete bounded canonical Plan body. The Bridge canonicalizes it, recomputes the hash, rejects a mismatch or embedded Capsule, and rechecks the exact current strict Work Item Handoff tuple before authority exists. Capsule metadata is excluded from the Plan body hash. Direct Bridge and browser facade requests share a 512 KiB JSON transport envelope so every valid Plan survives worst-case JSON escaping; the validated canonical Plan itself remains capped at 64 KiB.
 
 The verified Plan body is encrypted in ignored local Bridge state, omitted from public snapshots and receipts, and injected only into the successful fresh claim or named existing target's next leased prompt. It is erased on claim, cancellation, failure, expiry, supersession, source revocation, or restart. Snapshot projection also rechecks active pending authority against the canonical Handoff and fails it closed on removal or drift. Every later authority-producing action rechecks the same canonical ID, marker, revisions, hash, target, and expiry.
@@ -323,14 +339,48 @@ Wrong-session, same-session, duplicate, expired, superseded, ambiguous, and
 subagent claims fail closed. The Bridge never claims a handoff merely because
 one candidate is pending.
 
-**Current first-journey gap:** this launch path consumes an existing canonical
-Handoff; it does not create one. Bridge creation first requires matching
-non-null discovery/decision revisions and exactly one pending canonical Work
-Item `session_handoffs[]` entry. A newly Web-bootstrapped empty v2 ledger has
-neither, while `af-discover-assets` Phase A writes no tracked artifact and Phase
-B requires a verified Handoff claim before writing. P7 therefore did not emit a
-marker or launch Materialization. This circular prerequisite is a blocker, not
-evidence that exact Handoff validation should be relaxed.
+### Pristine Materialization Bootstrap Grant
+
+**Current Implementation:** after Phase A decisions are complete, the enrolled
+Plan CLI may pipe the canonical Plan body to one local command:
+
+```bash
+printf '%s' "$PLAN_BODY" | node scripts/af.mjs companion prepare-materialization \
+  --work <work-id> --session <source-session-id> --turn <source-turn-id>
+```
+
+The Bridge creates a Grant only while the exact Work Item still equals the
+strict default v2 ledger byte-for-structure and its current ETag matches. It
+binds the exact workspace, application, Work Item, source Plan session and
+latest turn, canonical Plan hash, target, creation/expiry times, and one-time
+claim. The portable marker contains only the Grant ID, Work Item, Plan hash,
+and materialization target. `marker_digest` is retained as the checksum needed
+by the current Work Item Handoff schema; it is not a new authentication layer.
+
+The canonical Plan is temporarily stored as plaintext only in ignored local
+Bridge `state.json`, whose directory/file permissions remain `0700`/`0600`.
+Public snapshots, receipts, browser responses, and generated workspace bytes
+omit the Plan and claim token. The Plan is erased on claim, failure, expiry, or
+supersession. This is a local single-user integrity tradeoff, not protection
+against a hostile process running as the same OS user.
+
+Unlike a pending canonical Handoff, a ready Grant survives Bridge or host
+restart. Continue rechecks the preserved source record, exact latest source
+turn, non-revoked participation, unchanged pristine Work Item ETag, Plan hash,
+scope, target, and expiry, then rotates the one-time claim token. The source
+lease need not still belong to the restarted Bridge. The first eligible prompt
+from one distinct fresh Materialization session claims it once; wrong scope,
+same session, stale ETag/turn, duplicate, expired, ambiguous, or subagent input
+fails closed.
+
+Phase B then writes the real discovery and decision revisions and exactly one
+`claimed` `session_handoffs[]` record whose identity, source, revisions, Plan
+hash, marker checksum, expiry, and claim provenance match the Grant. Snapshot
+projection marks the Grant `finalized` only after that exact canonical record
+exists. There is no finalize endpoint and the browser never performs the
+canonical write. Once real revisions exist, later fresh-context transfer uses
+the ordinary canonical Handoff path; the bootstrap Grant cannot be reused as a
+general Handoff substitute.
 
 When a fresh client cannot be launched, `/connections` can durably attach the pending Handoff to one user-selected existing materialization Companion session. The target must have a current lease and the exact workspace/application/Work Item scope; no candidate is preselected, no raw Capsule or Plan body is returned, and only the named session can receive the verified context on its next leased prompt. Reload preserves the target. Pending handoffs can also be canceled explicitly. Target revoke detaches; source revoke/staleness, source-turn drift, canonical ID/marker/revision drift, or Bridge restart closes pending authority.
 
@@ -350,7 +400,8 @@ The Work Skills inspect tools exposed in the current turn. When `request_user_in
 | explicit CLI enrollment and per-session lease | supported |
 | metadata-only activity | supported for enrolled sessions |
 | exact scoped next-prompt context | supported |
-| exact Plan handoff | supported for an existing canonical Handoff through the trusted fresh VS Code Task, low-level Continue/Capsule, or explicit exact existing-session attach; empty-ledger Phase A bootstrap is blocked |
+| exact Plan handoff | supported for an existing canonical Handoff through the trusted fresh VS Code Task, low-level Continue/Capsule, or explicit exact existing-session attach |
+| pristine Materialization bootstrap | supported by a local restart-resumable, ETag/hash/source-turn/expiry/consume-once Grant that auto-finalizes against one exact canonical claimed Handoff record |
 | automatic built-in fresh-context transport | unverified; not the default |
 | structured decision prompt | current-turn capability only |
 | conversational decision fallback | supported by Work Skill contract |

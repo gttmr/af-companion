@@ -10,6 +10,12 @@
 
 ---
 
+## 2026-07-28 · PR [#18](https://github.com/gttmr/af-companion/pull/18) — pristine Work Item Materialization Bootstrap Grant
+
+- **결정**: 아직 실제 discovery/decision revision과 canonical Handoff가 없는 strict pristine Work Item에만 별도 `Materialization Bootstrap Grant`를 허용한다. Grant는 exact scope, source Plan session/latest turn, pristine Work Item ETag, canonical Plan hash, target, expiry와 one-time claim을 묶고, distinct fresh Materialization Session 하나만 claim한다. Phase B가 실제 revision과 Grant provenance가 일치하는 claimed `session_handoffs[]` 한 건을 쓰면 Bridge snapshot이 자동으로 `finalized` 처리한다.
+- **위협 모델과 저장 경계**: 로컬 단일 사용자 환경에서 실수로 잘못된 session을 연결하거나 stale/replay된 Plan을 쓰는 문제만 막는다. 새 crypto/capability/Capsule digest 계층은 추가하지 않는다. Plan은 ignored Bridge `state.json`에 mode `0600` plaintext로 임시 저장하고 public snapshot·receipt·browser·workspace descriptor에서는 제외하며 claim/failure/expiry/supersede 때 지운다. Grant는 Bridge/host restart를 견디지만 source record, exact latest turn, non-revoked 상태는 계속 요구한다.
+- **영향**: `af companion prepare-materialization`과 `continue --grant`, direct Bridge Grant create/Continue, VS Code trusted Task, Discover의 latest Plan authority 표시가 추가된다. Browser와 Phase A는 canonical ledger를 쓰지 않고, Grant도 fake revision이나 review authority를 만들지 않는다. Existing canonical Handoff의 revision/TTL/encrypted-state/restart-fail 계약과 exact existing-session Attach는 변경하지 않는다.
+
 ## 2026-07-28 · PR [#17](https://github.com/gttmr/af-companion/pull/17) — Web은 CLI Question 대신 Graph IR과 확정 구조를 투영
 
 - **결정**: CLI Question 본문·선택지·답변·transcript를 Home과 Work Skill 화면에서 제거한다. `waiting_for_input`은 Work Skill 상태로만 남긴다. Home은 선택된 Work Item의 읽기 전용 Graph preview와 Root Executable, solution control, Graph revision, application-source 맥락을 표시하고, Compose는 full Graph canvas/Inspector를 review·readiness보다 먼저 배치한다. (대체: 2026-07-28 `agent/web-first-live-projection` 항목의 Decision topic/options 화면 조항)

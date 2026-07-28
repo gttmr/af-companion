@@ -44,8 +44,9 @@ function runCliAsync(root, args, options = {}) {
     const child = spawn(process.execPath, [CLI_PATH, ...args], {
       cwd: root,
       env: { ...process.env, NO_COLOR: "1", ...options.env },
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
     });
+    child.stdin.end(options.input ?? "");
     const stdout = [];
     const stderr = [];
     child.stdout.on("data", (chunk) => stdout.push(chunk));
@@ -696,6 +697,112 @@ test("companion continue names one handoff and launches only the Bridge-returned
     url: "/v1/handoffs/handoff-cli/continue",
     body: { confirmation: "CONTINUE_COMPANION_HANDOFF" },
   });
+  assert.deepEqual(result.output.command, ["codex", "[handoff-capsule]"]);
+  assert.equal(result.stdout.includes(capsule), false);
+  assert.deepEqual(await readLaunches(fake.capture), [{
+    argv: [capsule],
+    cwd: root,
+    enrollment: null,
+    stale: null,
+  }]);
+});
+
+test("companion prepares and continues one local materialization grant without printing Plan or Capsule bytes", async (t) => {
+  const root = await tempRepository(t);
+  const fake = await fakeCodex(root);
+  let result = runCli(root, ["work", "init", "work-bootstrap", "--root", root]);
+  assert.equal(result.code, 0, result.stderr);
+  const rawPlan = "\r\n# Discovery Decision Plan\r\n\r\nBuild the approved graph.\r\n\r\n";
+  const canonicalPlan = "# Discovery Decision Plan\n\nBuild the approved graph.\n";
+  const planHash = createHash("sha256").update(canonicalPlan, "utf8").digest("hex");
+  const grantId = "grant-cli";
+  const marker = [
+    `AF_MATERIALIZATION_GRANT=${grantId}`,
+    "AF_WORK_ITEM=work-bootstrap",
+    `AF_PLAN_BODY_HASH=${planHash}`,
+    "AF_TARGET=materialize-discovery",
+    "",
+  ].join("\n");
+  const markerDigest = createHash("sha256").update(marker, "utf8").digest("hex");
+  const capsule = "[AF_COMPANION_HANDOFF_V2]grant-claim[/AF_COMPANION_HANDOFF_V2]";
+  const received = [];
+  const bridge = createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    received.push({ method: request.method, url: request.url, body });
+    response.setHeader("content-type", "application/json");
+    if (request.url === "/v1/materialization-grants") {
+      response.statusCode = 201;
+      response.end(JSON.stringify({
+        grant: {
+          grant_id: grantId,
+          work_id: body.work_id,
+          from_session_id: body.from_session_id,
+          from_turn_id: body.from_turn_id,
+          plan_body_hash: body.plan_body_hash,
+          marker_digest: markerDigest,
+          target_skill: "af-discover-assets.materialize",
+          status: "ready",
+        },
+        portable_marker: marker,
+      }));
+      return;
+    }
+    response.statusCode = 200;
+    response.end(JSON.stringify({
+      grant: { grant_id: grantId, status: "waiting_for_fresh_session" },
+      activation_capsule: capsule,
+      command: ["codex", capsule],
+    }));
+  });
+  await new Promise((resolveListen, rejectListen) => {
+    bridge.once("error", rejectListen);
+    bridge.listen(0, "127.0.0.1", resolveListen);
+  });
+  t.after(() => new Promise((resolveClose) => bridge.close(resolveClose)));
+  const address = bridge.address();
+  assert.notEqual(typeof address, "string");
+  await writeJson(join(root, ".agent-factory", "codex-bridge", "v2", "endpoint.json"), {
+    schema_version: 2,
+    bridge_instance_id: "bridge-cli-v2",
+    url: `http://127.0.0.1:${address.port}`,
+    token: "g".repeat(43),
+  });
+
+  result = await runCliAsync(root, [
+    "companion", "prepare-materialization",
+    "--work", "work-bootstrap",
+    "--session", "plan-session",
+    "--turn", "plan-turn",
+    "--root", root,
+  ], { input: rawPlan });
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.output.grant.grant_id, grantId);
+  assert.equal(result.output.portable_marker, marker);
+  assert.equal(result.stdout.includes(canonicalPlan), false);
+  assert.deepEqual(received[0], {
+    method: "POST",
+    url: "/v1/materialization-grants",
+    body: {
+      work_id: "work-bootstrap",
+      from_session_id: "plan-session",
+      from_turn_id: "plan-turn",
+      plan_body_hash: planHash,
+      plan_body: canonicalPlan,
+    },
+  });
+
+  result = await runCliAsync(root, [
+    "companion", "continue", "--grant", grantId, "--root", root,
+  ], { env: fake.env });
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(received[1], {
+    method: "POST",
+    url: "/v1/materialization-grants/grant-cli/continue",
+    body: { confirmation: "CONTINUE_COMPANION_HANDOFF" },
+  });
+  assert.equal(result.output.grant.grant_id, grantId);
   assert.deepEqual(result.output.command, ["codex", "[handoff-capsule]"]);
   assert.equal(result.stdout.includes(capsule), false);
   assert.deepEqual(await readLaunches(fake.capture), [{
