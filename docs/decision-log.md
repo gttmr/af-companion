@@ -10,6 +10,12 @@
 
 ---
 
+## 2026-07-28 · 작업 브랜치 `agent/web-first-journey-acceptance` — generated Task terminal의 다중 선택 가시성
+
+- **결정**: Plan과 Materialization의 private generated `.code-workspace`는 `workbench.panel.opensMaximized: "always"`를 설정한다. `folderOpen` Task의 dedicated terminal이 열릴 때 panel을 최대화해 structured Question의 여러 option이 함께 보이게 한다.
+- **배경**: P7 VS Code Remote-WSL 사람 acceptance에서 Question payload와 terminal accessibility tree에는 여러 선택지가 있었지만 기본 panel 높이에서는 첫 option만 보이는 one-choice UI처럼 인식됐다. Panel을 최대화한 뒤 동일한 Luna low Plan flow에서 materially distinct options가 동시에 보였다.
+- **영향**: 변경은 ignored local descriptor와 그 회귀 test에만 적용된다. Decision Input Adapter, option 의미/개수, 질문 소유권, `/model`의 model→effort picker 순서, Session/Handoff authority는 바뀌지 않는다. P7에서 함께 발견한 ephemeral Question projection과 empty-ledger Handoff 선행조건은 canonical/security 결정이 필요하므로 이 PR에서 우회하지 않고 [acceptance 상태](migration/web-first-journey-status.md)에 blocker로 남긴다.
+
 ## 2026-07-28 · 작업 브랜치 `agent/web-first-materialization-handoff` — Plan에서 fresh Materialization Session을 여는 신뢰 Task 경계
 
 - **결정**: Discover Plan 화면은 exact Work Item의 최신 unexpired `ready` 또는 `waiting_for_fresh_session` Handoff 하나에 `새 Materialization Session 열기` primary action을 표시한다. Browser는 `{ work_id, mode: "materialization", handoff_id }`만 보내며, server는 current Bridge snapshot에서 workspace·application·Work Item·target과 active leased Plan source Session을 재확인한 뒤 private multi-root descriptor를 생성한다.

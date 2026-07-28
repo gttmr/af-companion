@@ -76,7 +76,12 @@ code --new-window <generated-workspace-file>
 The descriptor presents the external application first and the canonical
 factory checkout second. It embeds one default build Task, `Start AF Session`,
 with `runOn: folderOpen`, a dedicated focused terminal, and
-`task.allowAutomaticTasks: on`. The Task runs from the factory root:
+`task.allowAutomaticTasks: on`. It also sets
+`workbench.panel.opensMaximized: always` so the dedicated terminal gives a
+structured Question enough vertical space to show multiple options. This is a
+presentation setting; the CLI still owns option semantics and `/model` still
+opens the model picker before the effort picker. The Task runs from the factory
+root:
 
 ```bash
 node scripts/af.mjs companion vscode-start \
@@ -318,6 +323,15 @@ Wrong-session, same-session, duplicate, expired, superseded, ambiguous, and
 subagent claims fail closed. The Bridge never claims a handoff merely because
 one candidate is pending.
 
+**Current first-journey gap:** this launch path consumes an existing canonical
+Handoff; it does not create one. Bridge creation first requires matching
+non-null discovery/decision revisions and exactly one pending canonical Work
+Item `session_handoffs[]` entry. A newly Web-bootstrapped empty v2 ledger has
+neither, while `af-discover-assets` Phase A writes no tracked artifact and Phase
+B requires a verified Handoff claim before writing. P7 therefore did not emit a
+marker or launch Materialization. This circular prerequisite is a blocker, not
+evidence that exact Handoff validation should be relaxed.
+
 When a fresh client cannot be launched, `/connections` can durably attach the pending Handoff to one user-selected existing materialization Companion session. The target must have a current lease and the exact workspace/application/Work Item scope; no candidate is preselected, no raw Capsule or Plan body is returned, and only the named session can receive the verified context on its next leased prompt. Reload preserves the target. Pending handoffs can also be canceled explicitly. Target revoke detaches; source revoke/staleness, source-turn drift, canonical ID/marker/revision drift, or Bridge restart closes pending authority.
 
 If a client strips the Capsule, keep the handoff waiting and use Continue or Copy Capsule again. Do not infer participation from `cwd`, editor launch, or an observed prompt.
@@ -336,7 +350,7 @@ The Work Skills inspect tools exposed in the current turn. When `request_user_in
 | explicit CLI enrollment and per-session lease | supported |
 | metadata-only activity | supported for enrolled sessions |
 | exact scoped next-prompt context | supported |
-| exact Plan handoff | supported through the trusted fresh VS Code Task, low-level Continue/Capsule, or explicit exact existing-session attach |
+| exact Plan handoff | supported for an existing canonical Handoff through the trusted fresh VS Code Task, low-level Continue/Capsule, or explicit exact existing-session attach; empty-ledger Phase A bootstrap is blocked |
 | automatic built-in fresh-context transport | unverified; not the default |
 | structured decision prompt | current-turn capability only |
 | conversational decision fallback | supported by Work Skill contract |
