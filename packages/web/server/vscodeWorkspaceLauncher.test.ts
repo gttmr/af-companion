@@ -137,7 +137,10 @@ test("generates a private multi-root session workspace and launches only that de
     { name: "sample-app", path: applicationRoot },
     { name: "Agent Factory (factory)", path: repoRoot },
   ]);
-  assert.deepEqual(descriptor.settings, { "task.allowAutomaticTasks": "on" });
+  assert.deepEqual(descriptor.settings, {
+    "task.allowAutomaticTasks": "on",
+    "workbench.panel.opensMaximized": "always",
+  });
   assert.deepEqual(descriptor.tasks, {
     version: "2.0.0",
     tasks: [{
@@ -202,6 +205,10 @@ test("generates a capsule-free materialization Task that consumes one exact hand
 
   const source = await readFile(receipt.workspace_path, "utf8");
   const descriptor = JSON.parse(source);
+  assert.deepEqual(descriptor.settings, {
+    "task.allowAutomaticTasks": "on",
+    "workbench.panel.opensMaximized": "always",
+  });
   assert.deepEqual(descriptor.tasks.tasks[0], {
     label: "Continue AF Handoff",
     type: "shell",

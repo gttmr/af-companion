@@ -53,8 +53,11 @@ action. New applications first require a path-confirmation dialog; accepted
 launches show Workspace Trust guidance until a fresh exact Plan session is
 observed, then bounded MCP approval guidance. The top shell no longer exposes a
 factory-only VS Code shortcut, and Connections does not render enrollment or
-handoff Capsule/command copy surfaces. Explicit CLI enrollment remains an
-operator path; capsule-free fresh Materialization launch is a separate follow-up.
+handoff Capsule/command copy surfaces. Generated Plan and Materialization
+descriptors maximize the dedicated Task terminal panel so structured Questions
+show their multiple choices. Explicit CLI enrollment remains an operator path;
+capsule-free fresh Materialization launch is available when an exact canonical
+pending Handoff already exists.
 
 Selecting a Work Item also scopes the existing workspace SSE connection to its
 registered application. A second bounded watcher observes only that realpath-
@@ -65,6 +68,16 @@ count, current Skill status, Graph revision/change, and the latest app-source
 signal visible without another navigation click. When the ledger has a
 `waiting_for_input` run plus an open Decision, its topic and options are rendered
 read-only; the answer still belongs in the trusted Codex terminal.
+
+The 2026-07-28 P7 acceptance verified the Web bootstrap, multi-root VS Code
+launch, one exact `af_vscode_launch` Plan Session, Luna low multi-choice terminal
+flow, and `bridge_down` recovery. It also found two current gaps: an ephemeral
+`request_user_input` question is not present in the strict ledger that Web
+projects, and the Phase A no-write rule cannot create the canonical Work Item
+Handoff that the fresh Materialization launcher requires. Consequently the
+continuous new-work journey through Graph/source is not yet complete. See the
+[measured status](docs/migration/web-first-journey-status.md) and
+[zero-context handoff](docs/migration/web-first-journey-handoff.md).
 
 ## Codex connection
 
@@ -106,6 +119,12 @@ node scripts/af.mjs companion continue --handoff <handoff-id>
 ```
 
 The Bridge accepts only the exact canonical Work Item Handoff ID and marker, recomputes the canonical Plan body hash, and keeps the bounded body encrypted in ignored local state until one successful claim. Its 512 KiB JSON request envelope safely carries a valid canonical Plan capped at 64 KiB even under worst-case escaping, while snapshot reads fail removed or drifted canonical Handoff authority closed and erase the body. `/connections` additionally allows a user to durably attach that pending Handoff to one explicitly selected, already-enrolled materialization session with the same exact scope, or cancel it. Attach returns no raw Capsule or Plan body; the named session receives the verified body on its next leased prompt, and no candidate is ever preselected.
+
+This is a supported continuation mechanism for an existing canonical Handoff,
+not proof that a fresh empty Work Item can currently produce one. The P7
+acceptance found that Phase A writes no tracked ledger while Bridge creation
+requires matching non-null discovery/decision revisions and one pending
+`session_handoffs[]` entry; that bootstrap gap remains open.
 
 A queued Graph/context delivery is attached once only when the active lease and delivery scope match the exact workspace, application, Work Item, and allowed role. Its canonical source revision is checked again at consume time. The workbench does not choose a default target, start a turn, or steer an in-flight turn.
 
@@ -150,6 +169,8 @@ node scripts/validate-artifacts.mjs artifacts/af/<work-id>
 - [Graph IR](docs/workbench/graph-ir.md)
 - [Codex Companion](docs/workbench/cli-companion.md)
 - [Source-backed Handbook](docs/handbook/README.md)
+- [Web-first P7 acceptance status](docs/migration/web-first-journey-status.md)
+- [Web-first zero-context handoff](docs/migration/web-first-journey-handoff.md)
 
 ## Safety boundary
 

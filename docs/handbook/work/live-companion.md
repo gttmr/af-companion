@@ -4,7 +4,7 @@
 
 ## Main flow
 
-1. For the Web-first Plan path, `codexCompanionApi` resolves the Work Item's local Application Registry binding and asks `VscodeWorkspaceLauncher.launchSessionWorkspace` to write and open a private multi-root descriptor. This browser request creates no enrollment.
+1. For the Web-first Plan path, `codexCompanionApi` resolves the Work Item's local Application Registry binding and asks `VscodeWorkspaceLauncher.launchSessionWorkspace` to write and open a private multi-root descriptor. The descriptor maximizes its dedicated Task terminal panel so structured Questions show multiple choices. This browser request creates no enrollment and does not change Question semantics.
 2. After Workspace Trust, the descriptor's `folderOpen` Task runs `af companion vscode-start` from the factory root. The CLI creates a one-time `af_vscode_launch` ticket bound to the Work Item ETag and exact workspace, application, Work Item, and role, then starts interactive Codex with the app root added to sandbox writable roots.
 3. The user submits the first terminal prompt. The new Codex session carries the activation Capsule, and the local Hook gate validates workspace and Capsule before endpoint discovery.
 4. The Bridge re-reads the unchanged Work Item, consumes the ticket once, persists only the activated Companion session, and writes an exact-session lease bound to the current Bridge instance.
@@ -41,6 +41,14 @@ Plan handoff creation requires the exact canonical Work Item Handoff ID/marker, 
 
 Work Skills choose structured decision input only from tools actually exposed in the current turn. Otherwise they ask one conversational question and stop at `waiting_for_input`. Both adapters preserve one decision ID/option meaning plus durable decision/recommendation revisions, selection source, bounded answer summary, input mode, and exact session/turn; an ambiguous answer or stale recommendation does not write a user decision. An executable semantic fixture proves strict-parser roundtrip, path-independent semantics, delegated-recommendation binding, and protected-gate blocking; live two-client-path execution remains capability-dependent.
 
+The fresh Materialization descriptor consumes an existing canonical Handoff; it
+does not bootstrap one. Current Bridge creation requires matching
+discovery/decision revisions and one pending Work Item `session_handoffs[]`
+entry. A new empty ledger has neither, and non-mutating Discover Phase A cannot
+add them before the Phase B claim gate. P7 therefore reached a circular
+prerequisite and stopped without a fabricated marker. Exact Handoff validation
+remains fail-closed.
+
 ## Projection
 
 `WorkspaceHome` owns the normal start path: new application name or existing Work Item, one VS Code launch action, path confirmation, then Trust/MCP guidance. `ConnectionsPage` presents four ordered registers: Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics. Session rows keep participation, application/Work Item/role, activation origin, lease expiry, last event, alias, and revoke action distinct. Handoff rows show the source session/turn, revisions, transport, destination, expiry, exact existing-session Attach, and Cancel actions. Diagnostics expose capability labels and aggregate ignored/invalid/expired counts only. No React component renders `activation_capsule`.
@@ -60,7 +68,9 @@ Graph revision/latest Graph event, and latest application-source event for the
 Home selection and every Work Skill route. `WaitingDecisionStrip` renders a
 current Decision topic and its options only when the ledger also contains a
 `waiting_for_input` active run. It does not answer the Decision. Run/test/eval
-result display remains a follow-up.
+result display remains a follow-up. A structured `request_user_input` Question
+that exists only in the live CLI conversation is not forwarded by bounded Hook
+activity and is therefore not rendered until a durable ledger record exists.
 
 `JourneyRecoveryPanel` receives a pure classification from stable API error
 codes and the current launch observation. Bridge unavailable, missing Work Item,

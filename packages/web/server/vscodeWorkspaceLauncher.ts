@@ -387,6 +387,7 @@ async function writeSessionWorkspace(
       ],
       settings: {
         "task.allowAutomaticTasks": "on",
+        "workbench.panel.opensMaximized": "always",
       },
       tasks: {
         version: "2.0.0",
