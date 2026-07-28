@@ -313,6 +313,51 @@ test("one-time activation creates an exact 0600 lease and only that lease can up
   assert.deepEqual((await store.snapshot()).enrollment_tickets, [], "claimed ticket history is not public snapshot state");
 });
 
+test("VS Code lifecycle plan attachment consumes context when Codex permission mode is not plan", async (t) => {
+  const { root, store } = await fixture(t);
+  const ticket = await store.createEnrollment(validateCreateEnrollmentInput({
+    application_id: "app-1",
+    work_id: "work-1",
+    requested_role: "plan",
+    activation_origin: "af_vscode_launch",
+  }));
+  const activation = { kind: "activation" as const, activation_capsule: ticket.activation_capsule };
+  await store.handleHook(hook("SessionStart", "vscode-default-session", root, activation, {
+    permission: "bypassPermissions",
+  }));
+
+  const lease = await store.leaseProofForTesting("vscode-default-session");
+  const selection = bundle(store.workspaceId);
+  await store.createDelivery(validateCreateDeliveryInput({
+    target_session_id: "vscode-default-session",
+    delivery_mode: "next_prompt",
+    consume_policy: "once",
+    scope: {
+      workspace_id: store.workspaceId,
+      application_id: "app-1",
+      work_id: "work-1",
+      allowed_roles: ["plan"],
+    },
+    current_role: "plan",
+    current_source_revision: selection.source_revision,
+    bundle: selection,
+  }));
+
+  const output = await store.handleHook(hook(
+    "UserPromptSubmit",
+    "vscode-default-session",
+    root,
+    lease,
+    { turn: "default-mode-prompt", permission: "bypassPermissions" },
+  ));
+  const [session] = (await store.snapshot()).sessions;
+  assert.equal(session.activation_origin, "af_vscode_launch");
+  assert.equal(session.role, "plan", "role is the lifecycle attachment, not the Codex collaboration mode");
+  assert.equal(session.permission_mode, "bypassPermissions");
+  assert.equal(session.last_turn_id, "default-mode-prompt");
+  assert.match(output?.hookSpecificOutput.additionalContext ?? "", /selection-1/);
+});
+
 test("negative: delivery fails closed for workspace, application, work, role, revision, stale, and revoked scope", async (t) => {
   const clock = await fixture(t);
   const { lease } = await enroll(clock.store, clock.root, "session-1");
