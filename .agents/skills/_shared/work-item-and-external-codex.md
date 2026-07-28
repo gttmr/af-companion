@@ -100,11 +100,11 @@ A skill never self-approves. Before honoring an approval, compare every bound re
 
 ## Session and Plan handoff
 
-Discover Phase A runs in confirmed Plan Mode and makes no repository or Work Item write. It ends with a Discovery Decision Plan and a machine-readable marker created through the current Bridge handoff path. The marker and pending handoff are bound to one `work_id`, source session/turn, discovery and decision revisions, Plan hash, target `af-discover-assets.materialize`, expiry, and marker digest.
+Discover Phase A runs in confirmed Plan Mode and makes no repository or Work Item write. It ends with a Discovery Decision Plan and a machine-readable marker. When actual discovery/decision revisions already exist, use the canonical Bridge Handoff path. When the Work Item is still the exact strict default ledger, use one Bootstrap Grant bound to its ETag, exact source session/latest turn, Plan hash, target `af-discover-assets.materialize`, expiry, and marker checksum; do not invent revisions to create a canonical Handoff.
 
-A fresh materialization session must present an exact marker on its first prompt. Claim only one unexpired pending record after all marker fields/digest and revisions match, the new session differs from the Plan session, and the same handoff was not already claimed. A claimed Work Item record requires `claimed_by_session_id`, `claimed_turn_id`, and `claimed_at`. Duplicate, expired, superseded, ambiguous, stale, wrong-work-item, wrong-cwd, or Plan-hash-mismatched claims stop materialization.
+A fresh materialization session must present an exact marker on its first prompt. Claim only one unexpired authority after its exact scope/hash/target/expiry and source match, the new session differs from the Plan session, and it was not already claimed. Canonical Handoffs also require the current revision/marker tuple. Bootstrap Grants require the unchanged pristine ETag and latest source turn, and may survive Bridge restart while the preserved source record remains non-revoked. Duplicate, expired, superseded, ambiguous, stale, wrong-work-item, wrong-cwd, or Plan-hash-mismatched claims stop materialization.
 
-The Bridge's observed handoff and the Work Item's durable `session_handoffs` are related evidence, not interchangeable shapes. Re-read both plus the approved Plan before writing. Bridge health alone does not prove first-prompt delivery or claim.
+The Bridge's observed authority and the Work Item's durable `session_handoffs` are related evidence, not interchangeable shapes. A Bootstrap Grant claim authorizes Phase B to write the real revisions and exactly one claimed Handoff record with the Grant identity/source/hash/times/claim provenance; the Bridge then auto-finalizes only on an exact match. Re-read both plus the approved Plan before writing. Bridge health alone does not prove first-prompt delivery or claim.
 
 If automatic claim is unavailable, follow the fallback order in `fresh-context-handoff.md`. Exact attachment must be confirmed from current Companion state; never attach the first active session by guesswork.
 
@@ -138,7 +138,9 @@ The separate explicit Companion command set is:
 ```bash
 node scripts/af.mjs companion start --application <id> --work <id> --role <plan|materialization> [--root <path>]
 node scripts/af.mjs companion join --application <id> --work <id> --role <plan|materialization> [--root <path>]
+printf '%s' "$PLAN_BODY" | node scripts/af.mjs companion prepare-materialization --work <id> --session <id> --turn <id> [--root <path>]
 node scripts/af.mjs companion continue --handoff <id> [--root <path>]
+node scripts/af.mjs companion continue --grant <id> [--root <path>]
 node scripts/af.mjs companion reset --confirm [--root <path>]
 ```
 
@@ -158,7 +160,7 @@ Also run the selected skill's checks and inspect the exact output inventory and 
 
 ## Stop conditions
 
-Stop when repository/Work Item/session identity is ambiguous; Plan Mode cannot be confirmed for Phase A; a required decision is open; a gate binding is stale or incomplete; a handoff cannot be exactly claimed; a write would escape declared roots; Registry mutation lacks expected revision; or proceeding would restore legacy manifests, stages, aliases, APIs, importers, or compatibility projection.
+Stop when repository/Work Item/session identity is ambiguous; Plan Mode cannot be confirmed for Phase A; a required decision is open; a gate binding is stale or incomplete; a Handoff or Bootstrap Grant cannot be exactly claimed; a Bootstrap Grant's pristine ETag/source turn drifts; a write would escape declared roots; Registry mutation lacks expected revision; or proceeding would restore legacy manifests, stages, aliases, APIs, importers, or compatibility projection.
 
 ## Sources checked
 
@@ -171,4 +173,4 @@ Stop when repository/Work Item/session identity is ambiguous; Plan Mode cannot b
 
 ## Checked date
 
-- Checked date: 2026-07-24
+- Checked date: 2026-07-28

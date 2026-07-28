@@ -5,7 +5,7 @@ import { chmod, lstat, mkdir, open, readdir, realpath, rename, rm, stat } from "
 import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { promisify } from "node:util";
 
-import type { AfWorkItemManifest } from "../src/analyzer/afWorkItem.ts";
+import { createAfWorkItemManifest, type AfWorkItemManifest } from "../src/analyzer/afWorkItem.ts";
 import {
   COMPANION_ENROLLMENT_CAPSULE_END,
   COMPANION_ENROLLMENT_CAPSULE_START,
@@ -25,6 +25,7 @@ import {
   type CompanionSessionRole,
   type EnrollmentLaunchReceipt,
   type HandoffTransportCapability,
+  type MaterializationGrant,
   type PlanHandoff,
   type SessionEnrollmentTicketRecord,
 } from "../src/companion/sessionContract.ts";
@@ -35,6 +36,8 @@ import type {
   ContextDelivery,
   HandoffAttachReceipt,
   HandoffContinueReceipt,
+  MaterializationGrantContinueReceipt,
+  MaterializationGrantCreateReceipt,
   ScopedContextDelivery,
   SelectionBundleV1,
   SelectionSourceRevision,
@@ -49,6 +52,7 @@ export const CODEX_BRIDGE_ENDPOINT_FILE = "endpoint.json";
 export const DEFAULT_CODEX_SESSION_TTL_MS = 30 * 60 * 1_000;
 export const DEFAULT_ENROLLMENT_TTL_MS = 5 * 60 * 1_000;
 export const DEFAULT_LEASE_TTL_MS = 8 * 60 * 60 * 1_000;
+export const DEFAULT_MATERIALIZATION_GRANT_TTL_MS = 30 * 60 * 1_000;
 export const MAX_CODEX_CONTEXT_CHARS = 8_000;
 export const MAX_HANDOFF_PLAN_BODY_BYTES = 64 * 1_024;
 export const MAX_HANDOFF_REQUEST_BODY_BYTES = 512 * 1_024;
@@ -100,6 +104,11 @@ interface PersistedHandoff extends PlanHandoff {
   plan_body_auth_tag: string | null;
 }
 
+interface PersistedMaterializationGrant extends MaterializationGrant {
+  claim_token_digest: string | null;
+  plan_body: string | null;
+}
+
 interface PersistedTicket extends SessionEnrollmentTicketRecord {
   hook_mode: CompanionHookMode;
   work_item_etag: string;
@@ -112,6 +121,7 @@ interface PersistedBridgeStateV2 {
   sessions: CompanionSession[];
   deliveries: ScopedContextDelivery[];
   handoffs: PersistedHandoff[];
+  materialization_grants: PersistedMaterializationGrant[];
   prompt_receipts: PromptReceipt[];
   activities: CodexActivity[];
 }
@@ -182,6 +192,15 @@ export interface CreatePlanHandoffInput {
   plan_body: string;
   transport_capability: HandoffTransportCapability;
   expires_at: string;
+}
+
+export interface CreateMaterializationGrantInput {
+  work_id: string;
+  from_session_id: string;
+  from_turn_id: string;
+  plan_body_hash: string;
+  plan_body: string;
+  expires_at: string | null;
 }
 
 export interface ContinueHandoffInput { confirmation: typeof CONTINUE_CONFIRMATION }
@@ -287,7 +306,24 @@ type HandoffCapsule = {
   expires_at: string;
 };
 
-type ActivationCapsule = EnrollmentCapsule | HandoffCapsule;
+type MaterializationGrantCapsule = {
+  kind: "materialization_grant";
+  schema_version: 2;
+  grant_id: string;
+  claim_token: string;
+  workspace_id: string;
+  application_id: string;
+  work_id: string;
+  from_session_id: string;
+  from_turn_id: string;
+  bootstrap_work_item_etag: string;
+  plan_body_hash: string;
+  marker_digest: string;
+  canonical_cwd_digest: string;
+  expires_at: string;
+};
+
+type ActivationCapsule = EnrollmentCapsule | HandoffCapsule | MaterializationGrantCapsule;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -457,7 +493,8 @@ function parseCapsule(raw: string): ActivationCapsule | null {
   if (lines.length !== 3 || lines[0] !== envelope[0] || lines[2] !== envelope[1]) return null;
   try {
     const parsed = JSON.parse(Buffer.from(lines[1], "base64url").toString("utf8"));
-    if (!isObject(parsed) || parsed.schema_version !== 2 || (parsed.kind !== "enrollment" && parsed.kind !== "handoff")) return null;
+    if (!isObject(parsed) || parsed.schema_version !== 2
+      || (parsed.kind !== "enrollment" && parsed.kind !== "handoff" && parsed.kind !== "materialization_grant")) return null;
     return parsed as ActivationCapsule;
   } catch { return null; }
 }
@@ -568,6 +605,40 @@ export function validateCreatePlanHandoffInput(value: unknown): CreatePlanHandof
     plan_body: planBody,
     transport_capability: input.transport_capability === undefined ? "client_dependent" : enumValue(input.transport_capability, "transport_capability", TRANSPORT_CAPABILITIES),
     expires_at: iso(input.expires_at, "expires_at"),
+  };
+}
+
+export function validateCreateMaterializationGrantInput(value: unknown): CreateMaterializationGrantInput {
+  const input = object(value, "materialization grant request");
+  exactKeys(input, "materialization grant request", [
+    "work_id", "from_session_id", "from_turn_id", "plan_body_hash", "plan_body", "expires_at",
+  ]);
+  const planBodyHash = shaDigest(input.plan_body_hash, "plan_body_hash");
+  let planBody: string;
+  try {
+    planBody = canonicalizePlanBody(string(input.plan_body, "plan_body", MAX_HANDOFF_PLAN_BODY_BYTES));
+  } catch (error) {
+    throw new CodexBridgeValidationError(error instanceof Error ? error.message : "plan_body is invalid");
+  }
+  if (Buffer.byteLength(planBody, "utf8") > MAX_HANDOFF_PLAN_BODY_BYTES) {
+    throw new CodexBridgeValidationError("plan_body is too large");
+  }
+  if (!safeEqualDigest(sha256(planBody), planBodyHash)) {
+    throw new CodexBridgeValidationError(
+      "plan_body_hash does not match the canonical Plan body",
+      409,
+      "plan_body_hash_mismatch",
+    );
+  }
+  return {
+    work_id: workId(input.work_id),
+    from_session_id: identifier(input.from_session_id, "from_session_id"),
+    from_turn_id: identifier(input.from_turn_id, "from_turn_id"),
+    plan_body_hash: planBodyHash,
+    plan_body: planBody,
+    expires_at: input.expires_at === undefined || input.expires_at === null
+      ? null
+      : iso(input.expires_at, "expires_at"),
   };
 }
 
@@ -752,16 +823,69 @@ function renderHandoffContext(handoff: PlanHandoff, planBody: string): string {
   ].join("\n");
 }
 
+function renderMaterializationMarker(grantId: string, work: string, planBodyHash: string): string {
+  return [
+    `AF_MATERIALIZATION_GRANT=${grantId}`,
+    `AF_WORK_ITEM=${work}`,
+    `AF_PLAN_BODY_HASH=${planBodyHash}`,
+    "AF_TARGET=materialize-discovery",
+    "",
+  ].join("\n");
+}
+
+function renderMaterializationGrantContext(
+  grant: MaterializationGrant,
+  planBody: string,
+  claim: { sessionId: string; turnId: string; claimedAt: string } | null = null,
+): string {
+  return [
+    "Agent Factory materialization bootstrap was claimed for this fresh Companion session.",
+    "This local grant proves Plan continuity only; it is not a Discovery or Decision revision.",
+    `Grant: ${grant.grant_id}`,
+    `Work Item: ${grant.work_id}`,
+    `Source Plan session: ${grant.from_session_id}`,
+    `Source Plan turn: ${grant.from_turn_id}`,
+    `Bootstrap Work Item ETag: ${grant.bootstrap_work_item_etag}`,
+    `Plan body hash: ${grant.plan_body_hash}`,
+    `Marker digest: ${grant.marker_digest}`,
+    `Target skill: ${grant.target_skill}`,
+    `Grant created at: ${grant.created_at}`,
+    `Grant expires at: ${grant.expires_at}`,
+    ...(claim ? [
+      `Claim session: ${claim.sessionId}`,
+      `Claim turn: ${claim.turnId}`,
+      `Claimed at: ${claim.claimedAt}`,
+    ] : []),
+    "",
+    "After Phase B writes real Discovery and Decision revisions, record one claimed session_handoffs[] entry",
+    "using this Grant ID, source session/turn, Plan hash, marker digest, expiry, and this claim session/turn.",
+    "Never invent bootstrap revisions; use only the revisions produced by materialization.",
+    "",
+    "Canonical Discovery Decision Plan:",
+    planBody,
+  ].join("\n");
+}
+
+function isPristineWorkItem(manifest: AfWorkItemManifest): boolean {
+  const initializedAt = manifest.skills["af-discover-assets"].updated_at;
+  if (!Number.isFinite(Date.parse(initializedAt))) return false;
+  return JSON.stringify(manifest) === JSON.stringify(
+    createAfWorkItemManifest(manifest.work_id, new Date(initializedAt)),
+  );
+}
+
 function normalizePersistedState(value: unknown): PersistedBridgeStateV2 {
   const state = object(value, "bridge state");
   if (state.schema_version !== 2) throw new Error("Unsupported state at .agent-factory/codex-bridge/v2/state.json. Move or remove the invalid V2 state before restart; V1 state is not migrated automatically.");
-  if (!["enrollment_tickets", "sessions", "deliveries", "handoffs", "prompt_receipts", "activities"].every((key) => Array.isArray(state[key]))) throw new Error("Invalid Codex Bridge V2 state file");
-  exactKeys(state, "bridge state", ["schema_version", "bridge_instance_id", "enrollment_tickets", "sessions", "deliveries", "handoffs", "prompt_receipts", "activities"]);
+  if (state.materialization_grants === undefined) state.materialization_grants = [];
+  if (!["enrollment_tickets", "sessions", "deliveries", "handoffs", "materialization_grants", "prompt_receipts", "activities"].every((key) => Array.isArray(state[key]))) throw new Error("Invalid Codex Bridge V2 state file");
+  exactKeys(state, "bridge state", ["schema_version", "bridge_instance_id", "enrollment_tickets", "sessions", "deliveries", "handoffs", "materialization_grants", "prompt_receipts", "activities"]);
   const recordKeys: Array<[string, readonly string[]]> = [
     ["enrollment_tickets", ["ticket_id", "workspace_eligibility", "workspace_id", "application_id", "work_id", "requested_role", "activation_origin", "canonical_cwd_digest", "issued_at", "expires_at", "status", "claimed_by_session_id", "claimed_at", "nonce_digest", "claim_token_digest", "hook_mode", "work_item_etag"]],
     ["sessions", ["session_id", "participation", "workspace_eligibility", "activation_origin", "hook_mode", "workspace_id", "application_id", "work_id", "role", "cwd", "canonical_cwd_digest", "model", "permission_mode", "source", "started_at", "last_seen_at", "last_event", "last_turn_id", "status", "alias", "lease_id", "lease_expires_at", "revoked_at", "revoke_reason", "decision_input_mode"]],
     ["deliveries", ["delivery_id", "selection_id", "target_session_id", "delivery_mode", "consume_policy", "status", "created_at", "delivered_at", "consumed_at", "consumed_turn_id", "error", "bundle", "scope"]],
     ["handoffs", ["handoff_id", "workspace_id", "application_id", "work_id", "from_session_id", "from_turn_id", "discovery_revision", "decision_revision", "plan_body_hash", "marker_digest", "capsule_digest", "target_skill", "transport_capability", "status", "created_at", "expires_at", "claimed_by_session_id", "claimed_by_turn_id", "claimed_at", "target_session_id", "failure_code", "claim_token_digest", "plan_body_ciphertext", "plan_body_iv", "plan_body_auth_tag"]],
+    ["materialization_grants", ["grant_id", "workspace_id", "application_id", "work_id", "from_session_id", "from_turn_id", "bootstrap_work_item_etag", "plan_body_hash", "marker_digest", "target_skill", "status", "created_at", "expires_at", "claimed_by_session_id", "claimed_by_turn_id", "claimed_at", "finalized_at", "failure_code", "claim_token_digest", "plan_body"]],
     ["prompt_receipts", ["session_id", "turn_id", "received_at"]],
     ["activities", ["activity_id", "session_id", "turn_id", "event", "tool_name", "work_id", "handoff_id", "at"]],
   ];
@@ -836,7 +960,7 @@ export class CodexBridgeStore {
     try { state = normalizePersistedState(await readJsonNoFollow(statePath)); }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      state = { schema_version: 2, bridge_instance_id: "", enrollment_tickets: [], sessions: [], deliveries: [], handoffs: [], prompt_receipts: [], activities: [] };
+      state = { schema_version: 2, bridge_instance_id: "", enrollment_tickets: [], sessions: [], deliveries: [], handoffs: [], materialization_grants: [], prompt_receipts: [], activities: [] };
     }
     const instanceId = randomUUID();
     const previousInstance = state.bridge_instance_id;
@@ -871,6 +995,7 @@ export class CodexBridgeStore {
       strict_no_hook_mode: "unverified", session_enrollment: true, session_lease: true, next_prompt_context: true,
       session_end_event: "unsupported", delivery_ack: false, direct_turn_start: false, inflight_steer: false,
       fresh_session_handoff: true, fresh_context_transport: "client_dependent",
+      materialization_bootstrap_grant: true,
       cli_environment_enrollment: "unverified", vscode_environment_enrollment: "unverified",
     };
   }
@@ -974,6 +1099,82 @@ export class CodexBridgeStore {
     return renderHandoffContext(this.#publicHandoff(handoff), decryptedPlanBody(handoff, this.#planBodyKey));
   }
 
+  async #matchesBootstrapWorkItem(grant: PersistedMaterializationGrant): Promise<boolean> {
+    try {
+      const current = await this.#readWorkItemRecord(grant.work_id);
+      return safeEqualDigest(current.etag, grant.bootstrap_work_item_etag)
+        && isPristineWorkItem(current.manifest);
+    } catch (error) {
+      if (error instanceof CodexBridgeValidationError) return false;
+      throw error;
+    }
+  }
+
+  async #finalizeMaterializationGrant(grant: PersistedMaterializationGrant, now: string): Promise<boolean> {
+    if (grant.status !== "claimed"
+      || !grant.claimed_by_session_id
+      || !grant.claimed_by_turn_id
+      || !grant.claimed_at) return false;
+    let manifest: AfWorkItemManifest;
+    try {
+      manifest = await this.#readWorkItem(grant.work_id);
+    } catch (error) {
+      if (error instanceof CodexBridgeValidationError) return false;
+      throw error;
+    }
+    const discovery = manifest.revisions.discovery;
+    const decision = manifest.revisions.decision;
+    if (!discovery || !decision) return false;
+    const matches = manifest.session_handoffs.filter((handoff) => (
+      handoff.handoff_id === grant.grant_id
+      && handoff.work_id === grant.work_id
+      && handoff.from_session_id === grant.from_session_id
+      && handoff.from_turn_id === grant.from_turn_id
+      && JSON.stringify(handoff.discovery_revision) === JSON.stringify(discovery)
+      && JSON.stringify(handoff.decision_revision) === JSON.stringify(decision)
+      && handoff.plan_hash === grant.plan_body_hash
+      && handoff.target_skill === PLAN_HANDOFF_TARGET
+      && handoff.status === "claimed"
+      && handoff.created_at === grant.created_at
+      && handoff.expires_at === grant.expires_at
+      && handoff.marker_digest === grant.marker_digest
+      && handoff.claimed_by_session_id === grant.claimed_by_session_id
+      && handoff.claimed_turn_id === grant.claimed_by_turn_id
+      && handoff.claimed_at === grant.claimed_at
+      && handoff.superseded_by_handoff_id === null
+    ));
+    if (matches.length !== 1) return false;
+    grant.status = "finalized";
+    grant.finalized_at = now;
+    grant.failure_code = null;
+    return true;
+  }
+
+  #failMaterializationGrant(grant: PersistedMaterializationGrant, failureCode: string): void {
+    grant.status = "failed";
+    grant.failure_code = failureCode;
+    grant.claim_token_digest = null;
+    this.#clearMaterializationPlan(grant);
+  }
+
+  #clearMaterializationPlan(grant: PersistedMaterializationGrant): void {
+    grant.plan_body = null;
+  }
+
+  #renderMaterializationGrantContext(
+    grant: PersistedMaterializationGrant,
+    claim: { sessionId: string; turnId: string; claimedAt: string } | null = null,
+  ): string {
+    if (!grant.plan_body || !safeEqualDigest(sha256(grant.plan_body), grant.plan_body_hash)) {
+      throw new Error("Materialization Grant Plan body is unavailable");
+    }
+    return renderMaterializationGrantContext(
+      this.#publicMaterializationGrant(grant),
+      grant.plan_body,
+      claim,
+    );
+  }
+
   async createEnrollment(input: CreateEnrollmentInput): Promise<EnrollmentLaunchReceipt> {
     const workItem = await this.#readWorkItemRecord(input.work_id);
     const now = this.#now();
@@ -1023,11 +1224,11 @@ export class CodexBridgeStore {
       this.#diagnostics.invalid_activation_attempts += 1;
       return null;
     }
-    if (parsed.kind === "handoff" && (input.hook_event_name !== "UserPromptSubmit" || input.agent_id || input.agent_type)) {
+    if (parsed.kind !== "enrollment" && (input.hook_event_name !== "UserPromptSubmit" || input.agent_id || input.agent_type)) {
       this.#diagnostics.invalid_activation_attempts += 1;
       return null;
     }
-    const handoffPrompt = parsed.kind === "handoff" ? input as UserPromptSubmitHookInput : null;
+    const freshPrompt = parsed.kind !== "enrollment" ? input as UserPromptSubmitHookInput : null;
     let leaseToClean: string | null = null;
     try {
       return await this.#mutate(async (now) => {
@@ -1059,6 +1260,110 @@ export class CodexBridgeStore {
           this.#recordActivity(input, now);
           this.#recordPromptReceipt(input, now);
           return null;
+        }
+        if (parsed.kind === "materialization_grant") {
+          const grant = this.#state.materialization_grants.find((item) => item.grant_id === parsed.grant_id);
+          const source = grant
+            ? this.#state.sessions.find((item) => item.session_id === grant.from_session_id)
+            : null;
+          if (!grant
+            || !source
+            || grant.status !== "waiting_for_fresh_session"
+            || source.participation === "revoked"
+            || source.role !== "plan"
+            || source.last_turn_id !== grant.from_turn_id
+            || Date.parse(grant.expires_at) <= Date.parse(now)
+            || input.session_id === grant.from_session_id
+            || existingSession
+            || parsed.workspace_id !== grant.workspace_id
+            || parsed.application_id !== grant.application_id
+            || parsed.work_id !== grant.work_id
+            || parsed.from_session_id !== grant.from_session_id
+            || parsed.from_turn_id !== grant.from_turn_id
+            || parsed.bootstrap_work_item_etag !== grant.bootstrap_work_item_etag
+            || parsed.plan_body_hash !== grant.plan_body_hash
+            || parsed.marker_digest !== grant.marker_digest
+            || parsed.expires_at !== grant.expires_at
+            || parsed.canonical_cwd_digest !== source.canonical_cwd_digest
+            || cwdDigest !== source.canonical_cwd_digest
+            || !grant.claim_token_digest
+            || !safeEqualDigest(sha256(parsed.claim_token), grant.claim_token_digest)) {
+            return null;
+          }
+          if (!(await this.#matchesBootstrapWorkItem(grant))) {
+            this.#failMaterializationGrant(grant, "work_item_changed");
+            return null;
+          }
+          let grantContext: string;
+          try {
+            grantContext = this.#renderMaterializationGrantContext(grant, {
+              sessionId: input.session_id,
+              turnId: freshPrompt!.turn_id,
+              claimedAt: now,
+            });
+          } catch {
+            this.#failMaterializationGrant(grant, "plan_body_unavailable");
+            return null;
+          }
+          const currentWorkItem = await this.#readWorkItemRecord(grant.work_id);
+          const lease = await this.#issueLease(
+            input.session_id,
+            cwdDigest,
+            grant.workspace_id,
+            grant.application_id,
+            grant.work_id,
+            "materialization",
+            "plan_handoff_capsule",
+            now,
+          );
+          leaseToClean = this.#leasePath(input.session_id);
+          const syntheticTicket: PersistedTicket = {
+            ticket_id: `materialization-grant:${grant.grant_id}`,
+            workspace_eligibility: "factory",
+            workspace_id: grant.workspace_id,
+            application_id: grant.application_id,
+            work_id: grant.work_id,
+            requested_role: "materialization",
+            activation_origin: "manual_attach_confirmed",
+            canonical_cwd_digest: cwdDigest,
+            issued_at: grant.created_at,
+            expires_at: grant.expires_at,
+            status: "claimed",
+            claimed_by_session_id: input.session_id,
+            claimed_at: now,
+            nonce_digest: sha256("materialization_grant"),
+            claim_token_digest: grant.claim_token_digest,
+            hook_mode: "side_effect_gated",
+            work_item_etag: currentWorkItem.etag,
+          };
+          this.#state.sessions.push(
+            this.#newSession(input, cwd, syntheticTicket, lease, now, "plan_handoff_capsule"),
+          );
+          grant.status = "claimed";
+          grant.claimed_by_session_id = input.session_id;
+          grant.claimed_by_turn_id = freshPrompt!.turn_id;
+          grant.claimed_at = now;
+          grant.failure_code = null;
+          grant.claim_token_digest = null;
+          this.#clearMaterializationPlan(grant);
+          this.#recordActivity(input, now);
+          this.#recordPromptReceipt(input, now);
+          this.#state.activities.push({
+            activity_id: randomUUID(),
+            session_id: input.session_id,
+            turn_id: freshPrompt!.turn_id,
+            event: "session_handoff",
+            tool_name: null,
+            work_id: grant.work_id,
+            handoff_id: grant.grant_id,
+            at: now,
+          });
+          return {
+            hookSpecificOutput: {
+              hookEventName: "UserPromptSubmit",
+              additionalContext: grantContext,
+            },
+          };
         }
         const handoff = this.#state.handoffs.find((item) => item.handoff_id === parsed.handoff_id);
         if (handoff && !(await this.#matchesCurrentCanonicalHandoff(handoff))) {
@@ -1096,11 +1401,11 @@ export class CodexBridgeStore {
           work_item_etag: currentWorkItem.etag,
         };
         this.#state.sessions.push(this.#newSession(input, cwd, syntheticTicket, lease, now, "plan_handoff_capsule"));
-        handoff.status = "claimed"; handoff.claimed_by_session_id = input.session_id; handoff.claimed_by_turn_id = handoffPrompt!.turn_id; handoff.claimed_at = now; handoff.failure_code = null;
+        handoff.status = "claimed"; handoff.claimed_by_session_id = input.session_id; handoff.claimed_by_turn_id = freshPrompt!.turn_id; handoff.claimed_at = now; handoff.failure_code = null;
         this.#clearPlanBody(handoff);
         this.#recordActivity(input, now);
         this.#recordPromptReceipt(input, now);
-        this.#state.activities.push({ activity_id: randomUUID(), session_id: input.session_id, turn_id: handoffPrompt!.turn_id, event: "session_handoff", tool_name: null, work_id: handoff.work_id, handoff_id: handoff.handoff_id, at: now });
+        this.#state.activities.push({ activity_id: randomUUID(), session_id: input.session_id, turn_id: freshPrompt!.turn_id, event: "session_handoff", tool_name: null, work_id: handoff.work_id, handoff_id: handoff.handoff_id, at: now });
         return { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: handoffContext } };
       });
     } catch (error) {
@@ -1238,6 +1543,189 @@ export class CodexBridgeStore {
 
   #hasReceipt(sessionId: string, turnId: string): boolean {
     return this.#state.prompt_receipts.some((item) => item.session_id === sessionId && item.turn_id === turnId);
+  }
+
+  async createMaterializationGrant(
+    input: CreateMaterializationGrantInput,
+  ): Promise<MaterializationGrantCreateReceipt> {
+    return this.#mutate(async (now) => {
+      const source = this.#state.sessions.find((item) => item.session_id === input.from_session_id);
+      if (!source
+        || source.participation !== "companion_active"
+        || source.status !== "active"
+        || source.role !== "plan"
+        || source.permission_mode !== "plan") {
+        throw new CodexBridgeValidationError(
+          "materialization grant requires an active enrolled Plan session",
+          409,
+          "plan_session_required",
+        );
+      }
+      if (!(await this.#currentLease(source))) {
+        throw new CodexBridgeValidationError(
+          "materialization grant source lease is missing, invalid, or expired",
+          409,
+          "invalid_lease",
+        );
+      }
+      if (source.work_id !== input.work_id) {
+        throw new CodexBridgeValidationError(
+          "materialization grant scope does not match the source session",
+          409,
+          "scope_mismatch",
+        );
+      }
+      if (source.last_turn_id !== input.from_turn_id
+        || !this.#hasReceipt(input.from_session_id, input.from_turn_id)) {
+        throw new CodexBridgeValidationError(
+          "from_turn_id must match the latest observed source Plan turn",
+          409,
+          "source_turn_mismatch",
+        );
+      }
+      const workItem = await this.#readWorkItemRecord(input.work_id);
+      if (!isPristineWorkItem(workItem.manifest)) {
+        throw new CodexBridgeValidationError(
+          "materialization bootstrap is available only for a pristine Work Item",
+          409,
+          "work_item_not_pristine",
+        );
+      }
+      const expiresAt = input.expires_at
+        ?? new Date(Date.parse(now) + DEFAULT_MATERIALIZATION_GRANT_TTL_MS).toISOString();
+      if (Date.parse(expiresAt) <= Date.parse(now)) {
+        throw new CodexBridgeValidationError(
+          "expires_at must be in the future",
+          409,
+          "materialization_grant_expired",
+        );
+      }
+      for (const existing of this.#state.materialization_grants) {
+        if (existing.work_id !== input.work_id
+          || (existing.status !== "ready" && existing.status !== "waiting_for_fresh_session")) continue;
+        existing.status = "superseded";
+        existing.failure_code = null;
+        existing.claim_token_digest = null;
+        this.#clearMaterializationPlan(existing);
+      }
+      const grantId = randomUUID();
+      const marker = renderMaterializationMarker(grantId, input.work_id, input.plan_body_hash);
+      const grant: PersistedMaterializationGrant = {
+        grant_id: grantId,
+        workspace_id: source.workspace_id,
+        application_id: source.application_id,
+        work_id: input.work_id,
+        from_session_id: input.from_session_id,
+        from_turn_id: input.from_turn_id,
+        bootstrap_work_item_etag: workItem.etag,
+        plan_body_hash: input.plan_body_hash,
+        marker_digest: sha256(marker),
+        target_skill: PLAN_HANDOFF_TARGET,
+        status: "ready",
+        created_at: now,
+        expires_at: expiresAt,
+        claimed_by_session_id: null,
+        claimed_by_turn_id: null,
+        claimed_at: null,
+        finalized_at: null,
+        failure_code: null,
+        claim_token_digest: null,
+        plan_body: input.plan_body,
+      };
+      this.#state.materialization_grants.push(grant);
+      return { grant: this.#publicMaterializationGrant(grant), portable_marker: marker };
+    });
+  }
+
+  async continueMaterializationGrant(
+    grantId: string,
+    _input: ContinueHandoffInput,
+  ): Promise<MaterializationGrantContinueReceipt> {
+    const result = await this.#mutate(async (now): Promise<MaterializationGrantContinueReceipt | null> => {
+      const grant = this.#state.materialization_grants.find((item) => item.grant_id === grantId);
+      if (!grant) {
+        throw new CodexBridgeValidationError(
+          "Materialization Grant not found",
+          404,
+          "materialization_grant_not_found",
+        );
+      }
+      if (grant.status !== "ready" && grant.status !== "waiting_for_fresh_session") {
+        throw new CodexBridgeValidationError(
+          "Materialization Grant cannot be continued",
+          409,
+          "materialization_grant_not_ready",
+        );
+      }
+      if (Date.parse(grant.expires_at) <= Date.parse(now)) {
+        grant.status = "expired";
+        grant.claim_token_digest = null;
+        this.#clearMaterializationPlan(grant);
+        return null;
+      }
+      const source = this.#state.sessions.find((item) => item.session_id === grant.from_session_id);
+      if (!source
+        || source.participation === "revoked"
+        || source.workspace_id !== grant.workspace_id
+        || source.application_id !== grant.application_id
+        || source.work_id !== grant.work_id
+        || source.role !== "plan"
+        || source.last_turn_id !== grant.from_turn_id) {
+        this.#failMaterializationGrant(grant, "source_changed");
+        return null;
+      }
+      if (!(await this.#matchesBootstrapWorkItem(grant))) {
+        this.#failMaterializationGrant(grant, "work_item_changed");
+        return null;
+      }
+      try {
+        this.#renderMaterializationGrantContext(grant);
+      } catch {
+        this.#failMaterializationGrant(grant, "plan_body_unavailable");
+        return null;
+      }
+      const claimToken = secret();
+      const payload: MaterializationGrantCapsule = {
+        kind: "materialization_grant",
+        schema_version: 2,
+        grant_id: grant.grant_id,
+        claim_token: claimToken,
+        workspace_id: grant.workspace_id,
+        application_id: grant.application_id,
+        work_id: grant.work_id,
+        from_session_id: grant.from_session_id,
+        from_turn_id: grant.from_turn_id,
+        bootstrap_work_item_etag: grant.bootstrap_work_item_etag,
+        plan_body_hash: grant.plan_body_hash,
+        marker_digest: grant.marker_digest,
+        canonical_cwd_digest: source.canonical_cwd_digest,
+        expires_at: grant.expires_at,
+      };
+      const activationCapsule = capsule(
+        COMPANION_HANDOFF_CAPSULE_START,
+        COMPANION_HANDOFF_CAPSULE_END,
+        payload,
+      );
+      grant.status = "waiting_for_fresh_session";
+      grant.failure_code = null;
+      grant.claim_token_digest = sha256(claimToken);
+      return {
+        grant: this.#publicMaterializationGrant(grant),
+        activation_capsule: activationCapsule,
+        command: ["codex", activationCapsule],
+      };
+    });
+    if (!result) {
+      const grant = this.#state.materialization_grants.find((item) => item.grant_id === grantId);
+      const failureCode = grant?.failure_code
+        ?? (grant?.status === "expired" ? "materialization_grant_expired" : "materialization_grant_stale");
+      throw new CodexBridgeValidationError(
+        "Materialization Grant is expired or no longer matches its source Work Item",
+        409,
+        failureCode,
+      );
+    }
+    return result;
   }
 
   async createPlanHandoff(input: CreatePlanHandoffInput): Promise<PlanHandoff> {
@@ -1416,6 +1904,12 @@ export class CodexBridgeStore {
           handoff.claim_token_digest = null; handoff.capsule_digest = null;
         }
       }
+      for (const grant of this.#state.materialization_grants) {
+        if (grant.from_session_id === sessionId
+          && (grant.status === "ready" || grant.status === "waiting_for_fresh_session")) {
+          this.#failMaterializationGrant(grant, "source_revoked");
+        }
+      }
       return clone(found);
     });
     await rm(this.#leasePath(sessionId), { force: true });
@@ -1468,17 +1962,27 @@ export class CodexBridgeStore {
   async resetState(_input: ResetStateInput): Promise<void> {
     await this.#mutate(() => {
       this.#state.enrollment_tickets = []; this.#state.sessions = []; this.#state.deliveries = [];
-      this.#state.handoffs = []; this.#state.prompt_receipts = []; this.#state.activities = [];
+      this.#state.handoffs = []; this.#state.materialization_grants = [];
+      this.#state.prompt_receipts = []; this.#state.activities = [];
     });
     for (const name of await readdir(this.leaseDir)) await rm(join(this.leaseDir, name), { force: true });
   }
 
   async snapshot(): Promise<CodexBridgeSnapshotV2> {
-    await this.#mutate(async () => {
+    await this.#mutate(async (now) => {
       for (const handoff of this.#state.handoffs) {
         if (handoff.status !== "ready" && handoff.status !== "waiting_for_fresh_session") continue;
         if (!(await this.#matchesCurrentCanonicalHandoff(handoff))) {
           this.#failHandoff(handoff, "canonical_handoff_stale");
+        }
+      }
+      for (const grant of this.#state.materialization_grants) {
+        if (grant.status === "ready" || grant.status === "waiting_for_fresh_session") {
+          if (!(await this.#matchesBootstrapWorkItem(grant))) {
+            this.#failMaterializationGrant(grant, "work_item_changed");
+          }
+        } else if (grant.status === "claimed") {
+          await this.#finalizeMaterializationGrant(grant, now);
         }
       }
     });
@@ -1486,7 +1990,9 @@ export class CodexBridgeStore {
       schema_version: 2, bridge_instance_id: this.bridgeInstanceId, capabilities: this.capabilities(),
       enrollment_tickets: this.#state.enrollment_tickets.filter((ticket) => ticket.status === "pending").map((ticket) => this.#publicTicket(ticket)),
       sessions: clone(this.#state.sessions), deliveries: clone(this.#state.deliveries),
-      handoffs: this.#state.handoffs.map((handoff) => this.#publicHandoff(handoff)), activities: clone(this.#state.activities),
+      handoffs: this.#state.handoffs.map((handoff) => this.#publicHandoff(handoff)),
+      materialization_grants: this.#state.materialization_grants.map((grant) => this.#publicMaterializationGrant(grant)),
+      activities: clone(this.#state.activities),
       diagnostics: clone(this.#diagnostics),
     };
   }
@@ -1521,6 +2027,15 @@ export class CodexBridgeStore {
       plan_body_auth_tag: _authTag,
       ...visible
     } = handoff;
+    return clone(visible);
+  }
+
+  #publicMaterializationGrant(grant: PersistedMaterializationGrant): MaterializationGrant {
+    const {
+      claim_token_digest: _claim,
+      plan_body: _planBody,
+      ...visible
+    } = grant;
     return clone(visible);
   }
 
@@ -1583,6 +2098,19 @@ export class CodexBridgeStore {
           handoff.claim_token_digest = null;
           handoff.capsule_digest = null;
         }
+      }
+    }
+    for (const grant of this.#state.materialization_grants) {
+      if (grant.status !== "ready" && grant.status !== "waiting_for_fresh_session") continue;
+      if (Date.parse(grant.expires_at) <= nowMs) {
+        grant.status = "expired";
+        grant.claim_token_digest = null;
+        this.#clearMaterializationPlan(grant);
+        continue;
+      }
+      const source = this.#state.sessions.find((session) => session.session_id === grant.from_session_id);
+      if (!source || source.participation === "revoked" || source.last_turn_id !== grant.from_turn_id) {
+        this.#failMaterializationGrant(grant, "source_changed");
       }
     }
   }

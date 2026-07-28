@@ -1,9 +1,13 @@
 # Web-First Journey Handoff
 
-> **2026-07-28:** Web bootstrap→multi-root VS Code→fresh exact Luna low Plan
-> Session과 `bridge_down` 복구는 실제 동작하지만, 새 빈 Work Item에서는 canonical
-> Handoff가 생성되지 않아 Materialization·Graph/source까지의 end-to-end 여정은
-> **BLOCKED**다. CLI Question 본문·선택지·답변은 Web projection 대상이 아니다.
+> **2026-07-28:** P7에서는 Web bootstrap→multi-root VS Code→fresh exact Luna low Plan
+> Session과 `bridge_down` 복구만 실제 동작했고, 새 빈 Work Item의 canonical Handoff
+> 순환 때문에 Materialization·Graph/source는 **BLOCKED**였다. 후속 source는 strict
+> pristine ledger 전용 Bootstrap Grant로 그 계약 blocker를 해소했고, 실제 fresh CLI의
+> one-time claim까지 확인했다. 그러나 Phase B materialization·automatic finalization과
+> Graph/source를 포함한 uninterrupted live acceptance는 아직 완료하지 않았으므로 P7을
+> PASS로 소급하지 않는다.
+> CLI Question 본문·선택지·답변은 Web projection 대상이 아니다.
 
 이 파일은 별도 대화 history가 없는 후속 세션이 현재 상태를 재현하고 다음 계약 결정을
 내릴 수 있도록 작성했다. 현재 source와 [P7 acceptance 상태](web-first-journey-status.md)가
@@ -21,6 +25,8 @@
 | P5 | `agent/web-first-error-recovery` | [#13](https://github.com/gttmr/af-companion/pull/13) | `697b953f18e1e7d7a2aab693066bf440acd4a881` | [recovery decision](../decision-log.md) |
 | P6 | `agent/web-first-materialization-handoff` | [#14](https://github.com/gttmr/af-companion/pull/14) | `2166f67413ecf1b90191d759bcba582ee8fdd47e` | [Materialization launch decision](../decision-log.md) |
 | P7 | `agent/web-first-journey-acceptance` | [#15](https://github.com/gttmr/af-companion/pull/15) | `54fa43305ad9a94fe1cb19370465f67e452c9285` | [P7 actual acceptance](web-first-journey-status.md) |
+| Graph-primary correction | `agent/web-first-graph-primary` | [#17](https://github.com/gttmr/af-companion/pull/17) | `04a4eb5eb01618cfc2430905bdf765c153d0f64c` | [Graph-primary decision](../decision-log.md) |
+| Bootstrap follow-up | `agent/web-first-materialization-bootstrap` | PR pending | merge pending | [Bootstrap Grant decision](../decision-log.md) |
 
 PR #15의 `mergeCommit.oid`와 현재 `origin/main`의 first-parent history에서 위 SHA를
 재확인했다.
@@ -110,7 +116,7 @@ curl -s http://127.0.0.1:8899/json/version
 
 ## 계약 경계
 
-Web-first 구현이 추가한 여섯 경계는 [Decision Log](../decision-log.md)에 날짜순으로
+Web-first 구현이 추가한 일곱 경계는 [Decision Log](../decision-log.md)에 날짜순으로
 남아 있다.
 
 1. Web canonical write는 guarded `POST /api/work-items`의 **새 빈 v2 ledger 한 건**으로
@@ -125,6 +131,9 @@ Web-first 구현이 추가한 여섯 경계는 [Decision Log](../decision-log.md
    뭉개지 않고 stable cause code로 복구 UX를 고른다.
 6. Factory-cwd Codex는 app root `.codex/config.toml` MCP를 소비하지 않는다. Export는
    future app-rooted client용으로만 유지한다.
+7. Strict pristine Work Item의 첫 Plan→Materialization 전환만 local Bootstrap Grant를
+   사용한다. exact ETag/source turn/Plan hash/expiry/one-time fresh claim을 검사하고,
+   browser는 Grant ID 외 Capsule/Plan을 받지 않는다. 이후 전환은 canonical Handoff다.
 
 P7은 이 경계를 넓히지 않았다. Generated workspace의 terminal panel만 최대화해 CLI가
 이미 제공한 여러 Question option을 보이게 했다. Handoff authority나 Decision 의미는
@@ -227,25 +236,21 @@ phase가 실제로 같은 active 문서를 갱신했기 때문에 그대로 둔�
 | G2 external watcher | P4 fixture/실측 PASS | depth 6과 excluded tree 한계는 유지. P7에서는 durable source 생성 단계 미도달. |
 | P7 terminal choices | PASS after panel fix | semantic one-choice fallback 없음; 여러 option이 정상 계약. |
 | Web Question body | N/A | CLI-owned이며 Web projection 대상에서 제외. |
-| Plan→Materialization | BLOCKED | canonical Handoff 없는 경우 Continue/launch를 가장하지 않음. |
+| Plan→Materialization | CLAIM LIVE VERIFIED / PHASE B UNVERIFIED | pristine Bootstrap Grant가 실제 Luna low fresh CLI에서 exact claim됨. Materialization write, auto-finalize, Graph/source까지의 uninterrupted acceptance 필요. |
 | Bridge recovery | PASS | Web은 spawn하지 않고 operator에게 restart 명령을 안내; restart는 기존 participation을 만료시켜 fresh launch 필요. |
 
 ## 미완료 후속 작업
 
 우선순위는 다음과 같다.
 
-1. **빈 Work Item Handoff 순환 선행조건 해소:** Phase A-safe 별도 lifecycle write를
-   명시적으로 허용할지, materialization authority가 Handoff 이전에 제한된 bootstrap
-   write를 하도록 재설계할지 결정한다. 기존 canonical Handoff exact-match/TTL/crypto를
-   우회하지 않는다.
-2. 위 항목 뒤 §9 전체 acceptance를 한 번의 끊기지 않은 cold run으로 반복하고
+1. §9 전체 acceptance를 Bootstrap Grant 경로로 한 번의 끊기지 않은 cold run에서 반복하고
    T2/T3/T4/T5를 다시 측정한다.
-3. **run/test/eval 결과의 Web 표시** — 결정 6에서 유예된 필수 후속이다.
-4. VS Code extension chat 경로 — 별도 feasibility gate 통과 전 지원 선언 금지.
-5. `registered_application` workspace eligibility — 별도 보안 검토 필요.
-6. Factory-cwd Session의 app-root project MCP 미소비 문제.
-7. External app watcher `depth: 6`의 깊은 tree 누락과 large tree 성능 측정.
-8. Native Windows 지원.
+2. **run/test/eval 결과의 Web 표시** — 결정 6에서 유예된 필수 후속이다.
+3. VS Code extension chat 경로 — 별도 feasibility gate 통과 전 지원 선언 금지.
+4. `registered_application` workspace eligibility — 별도 보안 검토 필요.
+5. Factory-cwd Session의 app-root project MCP 미소비 문제.
+6. External app watcher `depth: 6`의 깊은 tree 누락과 large tree 성능 측정.
+7. Native Windows 지원.
 
 ## 다음 세션이 먼저 실행할 명령
 
@@ -270,23 +275,27 @@ npm run test:companion
 npm run build
 ```
 
-그 다음 현재 blocker를 source에서 다시 확인한다.
+그 다음 Bootstrap Grant source와 exact canonical finalization을 다시 확인한다.
 
 ```bash
 cd /home/ilmaswsl/work/af-companion
-rg -n "matchesCurrentCanonicalHandoff|createPlanHandoff|session_handoffs" \
+rg -n "createMaterializationGrant|continueMaterializationGrant|finalized|session_handoffs" \
   packages/web/server/codexBridgeStore.ts .agents/skills/af-discover-assets/SKILL.md
 ```
 
 ## 사용자 승인이 필요한 결정
 
-다음은 기존 9개 제품 결정으로 답할 수 없고 canonical/security/privacy 경계를 바꾸므로
-구현 전에 사용자 판단이 필요하다.
+Bootstrap blocker 결정은 다음과 같이 확정됐다.
 
-1. **`web-first.plan-handoff-bootstrap.v1`:** canonical Handoff를 만들기 위한 제한된
-   Phase A lifecycle write를 허용할지, Handoff 없이 시작하는 별도 materialization
-   authority를 설계할지. 두 선택 모두 기존 exact claim 보안 검토가 필요하다.
-2. **`web-first.launch-slo-clock.v1`:** `T2≤90s` 측정에서 사용자가 Workspace Trust를
+- **`web-first.plan-handoff-bootstrap.v1`:** 로컬 단일 사용자의 무결성만 보장하는 별도
+  pristine Bootstrap Grant. Phase A tracked write와 fake revision은 만들지 않고, ignored
+  mode-`0600` local Plan state, exact ETag/source turn/hash/expiry/one-time claim, restart
+  recovery와 exact canonical auto-finalization을 사용한다. Existing Handoff crypto와
+  restart-fail 계약은 유지한다.
+
+아직 사용자 판단이 필요한 결정은 하나다.
+
+1. **`web-first.launch-slo-clock.v1`:** `T2≤90s` 측정에서 사용자가 Workspace Trust를
    판단하는 시간을 포함할지, Trust 승인 시점을 별도 gate clock으로 분리할지.
 
-이 결정 전에는 fresh Materialization 성공을 구현됐다고 문서화하지 않는다.
+새 Bootstrap 경로의 live acceptance 전에는 fresh Materialization 성공을 선언하지 않는다.

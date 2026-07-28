@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { lstat, mkdir, readFile, realpath, rename, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
@@ -17,6 +18,7 @@ import {
   parseAfWorkItemManifest,
   serializeAfWorkItemManifest,
 } from "../packages/web/src/analyzer/afWorkItem.ts";
+import { canonicalizePlanBody } from "../packages/web/src/companion/sessionContract.ts";
 import { createWorkItemRevision } from "../packages/web/server/workItemRevision.ts";
 import {
   computeContextRevision,
@@ -50,6 +52,7 @@ const ENROLLMENT_START = "[AF_COMPANION_ENROLLMENT_V2]";
 const ENROLLMENT_END = "[/AF_COMPANION_ENROLLMENT_V2]";
 const HANDOFF_START = "[AF_COMPANION_HANDOFF_V2]";
 const HANDOFF_END = "[/AF_COMPANION_HANDOFF_V2]";
+const MAX_PLAN_BODY_BYTES = 64 * 1024;
 const PUBLIC_TICKET_FIELDS = [
   "ticket_id",
   "workspace_eligibility",
@@ -86,6 +89,26 @@ const PUBLIC_HANDOFF_FIELDS = [
   "claimed_by_turn_id",
   "claimed_at",
   "target_session_id",
+  "failure_code",
+];
+const PUBLIC_MATERIALIZATION_GRANT_FIELDS = [
+  "grant_id",
+  "workspace_id",
+  "application_id",
+  "work_id",
+  "from_session_id",
+  "from_turn_id",
+  "bootstrap_work_item_etag",
+  "plan_body_hash",
+  "marker_digest",
+  "target_skill",
+  "status",
+  "created_at",
+  "expires_at",
+  "claimed_by_session_id",
+  "claimed_by_turn_id",
+  "claimed_at",
+  "finalized_at",
   "failure_code",
 ];
 
@@ -189,6 +212,19 @@ async function readJsonFile(path, label) {
   } catch {
     validation("invalid_json", `${label} must contain valid JSON`, { path });
   }
+}
+
+async function readStdinText(maxBytes, label) {
+  const chunks = [];
+  let bytes = 0;
+  for await (const rawChunk of process.stdin) {
+    const chunk = Buffer.isBuffer(rawChunk) ? rawChunk : Buffer.from(rawChunk);
+    bytes += chunk.byteLength;
+    if (bytes > maxBytes) validation("input_too_large", `${label} is too large`);
+    chunks.push(chunk);
+  }
+  if (bytes === 0) validation("input_required", `${label} must be provided on stdin`);
+  return Buffer.concat(chunks).toString("utf8");
 }
 
 function parseAssetRef(value) {
@@ -781,29 +817,96 @@ async function launchEnrolledCompanion(root, options, activationOrigin, codexArg
   };
 }
 
+async function companionPrepareMaterialization(args) {
+  const { options, positionals } = parseOptions(args, {
+    ...ROOT_OPTIONS,
+    "--work": valueOption("workId"),
+    "--session": valueOption("sessionId"),
+    "--turn": valueOption("turnId"),
+    "--expires-at": valueOption("expiresAt"),
+  });
+  requirePositionals(
+    positionals,
+    0,
+    "companion prepare-materialization --work ID --session ID --turn ID [--expires-at ISO] [--root PATH]",
+  );
+  if (!options.workId || !WORK_ID_PATTERN.test(options.workId)) {
+    usage("--work must be a valid Work Item identifier");
+  }
+  if (!options.sessionId || !IDENTIFIER_PATTERN.test(options.sessionId)) {
+    usage("--session must be an explicit session identifier");
+  }
+  if (!options.turnId || !IDENTIFIER_PATTERN.test(options.turnId)) {
+    usage("--turn must be an explicit turn identifier");
+  }
+  if (options.expiresAt !== undefined && !Number.isFinite(Date.parse(options.expiresAt))) {
+    usage("--expires-at must be an ISO date-time");
+  }
+  const root = rootFrom(options);
+  await requireCompanionWorkItem(root, options.workId);
+  let planBody;
+  try {
+    planBody = canonicalizePlanBody(await readStdinText(MAX_PLAN_BODY_BYTES * 2, "Plan body"));
+  } catch (error) {
+    if (error instanceof CliError) throw error;
+    validation("invalid_plan_body", error instanceof Error ? error.message : "Plan body is invalid");
+  }
+  if (Buffer.byteLength(planBody, "utf8") > MAX_PLAN_BODY_BYTES) {
+    validation("input_too_large", "Canonical Plan body is too large");
+  }
+  const planBodyHash = createHash("sha256").update(planBody, "utf8").digest("hex");
+  const endpoint = await readCompanionEndpoint(root);
+  const receipt = await bridgePost(endpoint, "/v1/materialization-grants", {
+    work_id: options.workId,
+    from_session_id: options.sessionId,
+    from_turn_id: options.turnId,
+    plan_body_hash: planBodyHash,
+    plan_body: planBody,
+    ...(options.expiresAt === undefined ? {} : { expires_at: new Date(options.expiresAt).toISOString() }),
+  }, "Codex Bridge materialization grant request failed");
+  return validatedMaterializationGrantReceipt(receipt, {
+    workId: options.workId,
+    sessionId: options.sessionId,
+    turnId: options.turnId,
+    planBodyHash,
+  });
+}
+
 async function companionContinue(args) {
   const { options, positionals } = parseOptions(args, {
     ...ROOT_OPTIONS,
     "--handoff": valueOption("handoffId"),
+    "--grant": valueOption("grantId"),
   });
-  requirePositionals(positionals, 0, "companion continue --handoff ID [--root PATH]");
-  if (!options.handoffId || !IDENTIFIER_PATTERN.test(options.handoffId)) {
-    usage("--handoff must be an explicit handoff identifier");
+  requirePositionals(positionals, 0, "companion continue (--handoff ID | --grant ID) [--root PATH]");
+  if (Boolean(options.handoffId) === Boolean(options.grantId)) {
+    usage("companion continue requires exactly one of --handoff or --grant");
+  }
+  const authorityId = options.handoffId ?? options.grantId;
+  if (!IDENTIFIER_PATTERN.test(authorityId)) {
+    usage(`--${options.handoffId ? "handoff" : "grant"} must be an explicit identifier`);
   }
   const root = rootFrom(options);
   const endpoint = await readCompanionEndpoint(root);
-  const encodedHandoff = encodeURIComponent(options.handoffId);
+  const encodedAuthority = encodeURIComponent(authorityId);
+  const grant = Boolean(options.grantId);
   const receipt = await bridgePost(
     endpoint,
-    `/v1/handoffs/${encodedHandoff}/continue`,
+    grant
+      ? `/v1/materialization-grants/${encodedAuthority}/continue`
+      : `/v1/handoffs/${encodedAuthority}/continue`,
     { confirmation: "CONTINUE_COMPANION_HANDOFF" },
-    "Codex Bridge handoff continuation request failed",
+    grant
+      ? "Codex Bridge materialization grant continuation request failed"
+      : "Codex Bridge handoff continuation request failed",
   );
-  const validated = validatedContinueReceipt(receipt, options.handoffId);
+  const validated = grant
+    ? validatedGrantContinueReceipt(receipt, authorityId)
+    : validatedContinueReceipt(receipt, authorityId);
   const launch = await launchCodex(root, validated.command.slice(1), null);
   return {
     launched: true,
-    handoff: validated.handoff,
+    ...(grant ? { grant: validated.grant } : { handoff: validated.handoff }),
     command: ["codex", "[handoff-capsule]"],
     exit_code: launch.exitCode,
   };
@@ -845,6 +948,38 @@ function validatedEnrollmentReceipt(value, expected) {
   return { ticket: publicFields(ticket, PUBLIC_TICKET_FIELDS), activationCapsule };
 }
 
+function validatedMaterializationGrantReceipt(value, expected) {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || !value.grant || typeof value.grant !== "object" || Array.isArray(value.grant)) {
+    validation("invalid_bridge_response", "Codex Bridge returned an invalid materialization grant receipt");
+  }
+  const grant = value.grant;
+  if (typeof grant.grant_id !== "string" || !IDENTIFIER_PATTERN.test(grant.grant_id)
+    || grant.work_id !== expected.workId
+    || grant.from_session_id !== expected.sessionId
+    || grant.from_turn_id !== expected.turnId
+    || grant.plan_body_hash !== expected.planBodyHash
+    || grant.target_skill !== "af-discover-assets.materialize"
+    || grant.status !== "ready") {
+    validation("invalid_bridge_response", "Materialization Grant does not match the requested Plan scope");
+  }
+  const marker = [
+    `AF_MATERIALIZATION_GRANT=${grant.grant_id}`,
+    `AF_WORK_ITEM=${expected.workId}`,
+    `AF_PLAN_BODY_HASH=${expected.planBodyHash}`,
+    "AF_TARGET=materialize-discovery",
+    "",
+  ].join("\n");
+  if (value.portable_marker !== marker
+    || grant.marker_digest !== createHash("sha256").update(marker, "utf8").digest("hex")) {
+    validation("invalid_bridge_response", "Materialization Grant marker is invalid");
+  }
+  return {
+    grant: publicFields(grant, PUBLIC_MATERIALIZATION_GRANT_FIELDS),
+    portable_marker: marker,
+  };
+}
+
 function validatedContinueReceipt(value, handoffId) {
   if (!value || typeof value !== "object" || Array.isArray(value)
     || !value.handoff || typeof value.handoff !== "object" || Array.isArray(value.handoff)
@@ -854,6 +989,17 @@ function validatedContinueReceipt(value, handoffId) {
   const capsule = requireCapsule(value.activation_capsule, HANDOFF_START, HANDOFF_END);
   const command = requireContinueCommand(value.command, capsule);
   return { handoff: publicFields(value.handoff, PUBLIC_HANDOFF_FIELDS), command };
+}
+
+function validatedGrantContinueReceipt(value, grantId) {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || !value.grant || typeof value.grant !== "object" || Array.isArray(value.grant)
+    || value.grant.grant_id !== grantId) {
+    validation("invalid_bridge_response", "Codex Bridge returned an invalid materialization grant receipt");
+  }
+  const capsule = requireCapsule(value.activation_capsule, HANDOFF_START, HANDOFF_END);
+  const command = requireContinueCommand(value.command, capsule);
+  return { grant: publicFields(value.grant, PUBLIC_MATERIALIZATION_GRANT_FIELDS), command };
 }
 
 function requireCapsule(value, start, end) {
@@ -1089,6 +1235,7 @@ function dispatchWork(command, args) {
 function dispatchCompanion(command, args) {
   if (command === "start" || command === "join") return companionEnroll(args, command);
   if (command === "vscode-start") return companionVscodeStart(args);
+  if (command === "prepare-materialization") return companionPrepareMaterialization(args);
   if (command === "continue") return companionContinue(args);
   if (command === "reset") return companionReset(args);
   usage(`unknown companion command: ${command ?? "(missing)"}`);

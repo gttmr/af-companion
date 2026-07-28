@@ -52,7 +52,8 @@ If any required choice is unresolved, use the Decision Input Adapter for exactly
 
 ## Fresh-session handoff
 
-For a complete decision set, the Plan emits this exact portable block:
+For a complete decision set with current real discovery/decision revisions and
+an exact pending canonical Handoff, the Plan emits this portable block:
 
 ```text
 AF_WORK_ITEM=<work-id>
@@ -61,38 +62,50 @@ AF_DISCOVERY_REVISION=<discovery-revision-digest>
 AF_TARGET=materialize-discovery
 ```
 
-The portable marker is deliberately short. It identifies the requested continuation but is not itself an authorization or claim receipt.
+For the exact strict pristine Work Item, do not invent those revisions. Pipe
+the canonical Plan body to `companion prepare-materialization` and preserve its
+returned block instead:
+
+```text
+AF_MATERIALIZATION_GRANT=<grant-id>
+AF_WORK_ITEM=<work-id>
+AF_PLAN_BODY_HASH=<plan-body-sha256>
+AF_TARGET=materialize-discovery
+```
+
+Both portable markers are deliberately short. They identify the requested
+continuation but are not themselves an authorization or claim receipt.
 
 Current Work Item v2 stores a handoff with `work_id`, source session/turn, structured discovery and decision revisions, plan hash, timestamps, marker digest, claim metadata, and internal `target_skill: "af-discover-assets.materialize"`. The portable `AF_TARGET` and internal `target_skill` are different contract surfaces; preserve each exact value.
 
-Canonicalize the Plan body without any Companion capsule and compute Companion `plan_body_hash` from those exact bytes. The Work Item `plan_hash` equals that value. Keep application/workspace/work, revisions, target, expiry, and capsule/marker digest as separate handoff metadata.
+Canonicalize the Plan body without any Companion capsule or marker and compute Companion `plan_body_hash` from those exact bytes. The existing or eventually materialized Work Item `plan_hash` equals that value. Keep application/workspace/work, revisions or pristine ETag, target, expiry, and capsule/marker digest as separate authority metadata.
 
 If Companion returns a signed marker containing additional decision revision, plan hash, or claim-token lines, copy that complete marker unchanged. Never invent a token, strip signed fields, or derive a claim from the first active session.
 
-An automatic claim is accepted only when an explicitly identified handoff and all of these match:
+An exact claim is accepted only when an explicitly identified Handoff or Grant and all applicable fields match:
 
 - exact application, workspace, Work Item, materialization attachment, and canonical cwd;
-- exact pending handoff ID;
-- discovery and decision revisions;
+- exact pending Handoff ID or Bootstrap Grant ID;
+- discovery and decision revisions for a canonical Handoff, or pristine Work Item ETag plus exact source latest turn for a Grant;
 - plan hash and marker digest;
 - a distinct fresh session and its first claiming turn;
 - unexpired, non-superseded, not-previously-claimed status.
 
-Built-in fresh-context carriage is `unverified` without current first-prompt proof. Companion Continue and Copy Capsule claim an exact Bridge Handoff whose encrypted, hash-verified Plan body is injected into the claiming prompt. Exact existing-session Attach injects the same body into only the named session's next leased prompt. A bare new exact-scope Join remains the final enrollment-only fallback:
+Built-in fresh-context carriage is `unverified` without current first-prompt proof. Companion Continue and Copy Capsule claim an exact canonical Bridge Handoff whose encrypted, hash-verified Plan body is injected into the claiming prompt. A Bootstrap Grant is continued only by exact Grant ID and injects its local hash-verified Plan into one distinct fresh claim. Exact existing-session Attach is canonical-Handoff-only and injects that body into the named session's next leased prompt. A bare new exact-scope Join remains the final enrollment-only fallback:
 
 ```bash
 node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization [--root PATH]
 ```
 
-This command launches a new enrollment for the named application/work/role. Confirm the resulting exact session/application/workspace/work state. It does not guess a session, claim a handoff, or replace revision/Plan verification. Only this bare Join path requires the user to provide the complete Decision Plan and Capsule when no exact Handoff claim/Attach context exists.
+This command launches a new enrollment for the named application/work/role. Confirm the resulting exact session/application/workspace/work state. It does not guess a session, claim a Handoff/Grant, or replace revision/Plan verification. Only this bare Join path requires the user to provide the complete Decision Plan and Capsule when no exact authority context exists.
 
 ## Phase B preflight
 
 Phase B runs only in Default/coding mode. Before writing:
 
 1. verify current Companion participation/lease, exact application/workspace/work/materialization scope, mode, repository, Work Item identity, artifact root, and active session/turn;
-2. verify the exact claimed or manually attached handoff and complete Decision Plan;
-3. compare the plan hash, marker, requirement/decision/Asset-decision/discovery digests, Registry snapshot, Asset refs/versions, strategy, and Root Executable;
+2. verify the exact claimed canonical Handoff, exact manually attached Handoff, or exact claimed pristine Bootstrap Grant and complete Decision Plan;
+3. compare the plan hash, marker, requirement/decision/Asset-decision/discovery digests, Registry snapshot, Asset refs/versions, strategy, and Root Executable; for a Grant also compare its pristine ETag and source session/latest turn before materialization;
 4. reject expired, superseded, duplicate, ambiguous, wrong-worktree, or mismatched continuation;
 5. re-read `schemas/af-work-item.schema.json`, `schemas/analysis-result.schema.json`, `packages/web/src/analyzer/types.ts`, `scripts/af.mjs`, and `scripts/validate-artifacts.mjs` before serializing exact nested shapes;
 6. for re-entry, re-read the current Work Item, previous discovery cycle, current composition cycle, `return_to_discover`, review gates, and invalidations.

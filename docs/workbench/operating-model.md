@@ -34,8 +34,8 @@ Discover has two distinct execution phases.
 
 1. Phase A runs in actual Codex Plan mode. It may inspect the repository, Handbook, and bounded Registry results, use a bounded planning subagent, and ask the user questions. It must not write tracked repository artifacts.
 2. Required decisions remain open until the user selects an option. A recommendation is evidence, not consent; the model never fills `selected_by: "user"` by itself.
-3. The final Phase A output is a Discovery Decision Plan and an explicit handoff marker, not source code or a final Graph.
-4. Phase B runs in a distinct explicitly enrolled session, claims the exact handoff Capsule, reopens current source, verifies revisions and decisions, and materializes Work Item v2 artifacts. When built-in fresh-context transport is unavailable or unverified, Companion Continue is the supported transport.
+3. The final Phase A output is a Discovery Decision Plan and an explicit continuity marker, not source code or a final Graph. If the Work Item already has exact discovery/decision revisions, this is a canonical Handoff. If it is still the strict pristine ledger, the Plan CLI may create one local Materialization Bootstrap Grant without writing tracked artifacts or fake revisions.
+4. Phase B runs in a distinct explicitly enrolled session, claims that exact Handoff or Grant, reopens current source, verifies revisions and decisions, and materializes Work Item v2 artifacts. Companion Continue is the supported explicit fresh-context transport.
 
 Repository and Registry evidence must be checked before asking the user a question they can answer. Solution Control Strategy (`single_agent`, `agent_delegation`, `explicit_workflow`, or `hybrid`) and Root Executable (exact Agent or Workflow Asset/version) are separate decisions. `hybrid` is never a default inferred from Graph shape.
 
@@ -113,22 +113,23 @@ descriptor, and invokes `code --new-window` with fixed argv. Plan mode generates
 a `folderOpen` Task for `af companion vscode-start`; only that CLI boundary
 creates the `af_vscode_launch` ticket and starts interactive Codex from the
 factory root with the external app added as a sandbox writable root.
-Materialization mode also requires one exact currently launchable Handoff and
-active leased Plan source Session, then generates a Task for
-`af companion continue --handoff <id>`. After Workspace Trust, that trusted
-terminal Task—not the browser—performs the existing consume-once claim and
-starts the fresh Materialization Session. The endpoint itself creates no
-enrollment, claim, or Codex turn. The existing contained file and diff open
-boundaries are unchanged.
+Materialization mode also requires exactly one currently launchable canonical
+Handoff or pristine bootstrap Grant. It generates a Task for either
+`af companion continue --handoff <id>` or `af companion continue --grant <id>`.
+After Workspace Trust, that trusted terminal Task—not the browser—performs the
+consume-once claim and starts the fresh Materialization Session. The endpoint
+itself creates no enrollment, claim, or Codex turn. The existing contained file
+and diff open boundaries are unchanged.
 
 Home is the normal browser entrypoint for this pair of guarded operations. It
 accepts one new application name or existing Work Item and offers one primary
 VS Code start action. A new application path is confirmed before the create
 request; Trust and MCP guidance follows launch without treating editor
 acceptance as Session proof. On the Discover Plan screen, one primary action
-may select the latest launchable exact Handoff and request its Materialization
-descriptor. Browser components do not call enrollment or fresh-session
-Continue and do not render activation Capsules, Plan bytes, or launch commands.
+selects the latest launchable exact Plan authority, either a canonical Handoff
+or bootstrap Grant, and requests its Materialization descriptor. Browser
+components do not call enrollment or fresh-session Continue and do not render
+activation Capsules, Plan bytes, or launch commands.
 
 Home classifies launch/recovery UI from stable response codes plus current
 snapshot evidence. A pending ticket is remembered only in browser state for the
@@ -179,7 +180,26 @@ The local bridge can create a pending Plan handoff only from a current leased Pl
 
 The first eligible prompt in one distinct fresh session claims only that exact Capsule and receives the hash-verified Plan body through Hook context. The body remains encrypted in ignored local state until that claim and is then erased. Claim rejects the source session and wrong-scope, wrong-marker, duplicate, canonical-revision-stale, expired, superseded, ambiguous, or subagent events. Snapshot projection also rechecks active pending authority against the canonical Handoff and fails it closed, erasing the protected body, when that authority is removed or drifts. As a separately confirmed fallback, `/connections` may durably attach the pending Handoff to one explicitly selected, already-enrolled materialization session whose current lease and workspace/application/Work Item scope match. This path returns no raw Capsule or Plan body, stores the exact target, and only that session's next leased prompt can receive it. The Bridge never selects a first active session or infers a claim from one pending candidate.
 
-Automatic fresh-session handoff transport is not yet assumed. The low-level `node scripts/af.mjs companion continue --handoff <id>` command remains available, but `/connections` does not call it or expose a copyable Capsule/launch command. `/connections` exposes durable exact existing-session attachment and pending-handoff cancellation only. Capsule-free fresh Materialization launch remains separate work. If a client strips a low-level Capsule, the handoff remains waiting; it is not silently attached. Revoking a target detaches it; source revocation/staleness, source-turn drift, canonical Work Item revision drift, or Bridge restart closes pending authority.
+Automatic built-in fresh-context transport is not assumed. The low-level `node scripts/af.mjs companion continue --handoff <id>` command and Discover's trusted VS Code Task both use the explicit Continue boundary, while `/connections` does not expose a copyable Capsule/launch command. `/connections` exposes durable exact existing-session attachment and pending-handoff cancellation only. If a client strips a low-level Capsule, the handoff remains waiting; it is not silently attached. Revoking a target detaches it; source revocation/staleness, source-turn drift, canonical Work Item revision drift, or Bridge restart closes pending canonical Handoff authority.
+
+For the strict pristine Work Item only, the local Bridge may instead create one
+Materialization Bootstrap Grant from the exact enrolled Plan session/latest
+turn and canonical Plan body. It requires the unchanged default-ledger shape
+and ETag, binds scope/hash/target/expiry, and uses a rotated consume-once claim
+for one distinct fresh session. The Plan is temporarily plaintext in ignored
+mode-`0600` local state, omitted from public/browser surfaces, and erased on
+claim, failure, expiry, or supersession. This reduced design protects a local
+single user from accidental wrong-session, stale, or replayed continuation; it
+does not add protection from same-user hostile processes.
+
+The Grant survives Bridge/host restart and can be continued while its source
+record and exact latest turn remain present and non-revoked, even though the old
+source lease cannot remain current across the restart. Phase B must write real
+discovery/decision revisions and one exact claimed canonical
+`session_handoffs[]` record using the Grant identity and claim provenance.
+Snapshot projection automatically marks the Grant finalized only after that
+record matches; no browser write or explicit finalize operation exists. All
+later transfers use the ordinary canonical Handoff contract above.
 
 Enrollment activation rechecks the exact Work Item ETag captured when its ticket was issued. Queued context delivery likewise rechecks the canonical Work Item and repository/Graph source revision at consume time. Decision and Asset Decision records preserve decision/recommendation revisions, explicit-vs-delegated selection source, bounded answer summary, structured-vs-conversational input mode, and exact session/turn provenance. A superseded record may preserve a selection only as one complete provenance set, including a non-null input mode.
 
@@ -213,7 +233,7 @@ Outcomes are `passed`, `failed`, `unverified`, or `stale`. Verify can be complet
 | `/api/codex-companion` | Plan VS Code descriptor launch, enrollment, leased sessions, Plan Continue/exact attach/claim/cancel, revoke, exact scoped next-prompt queue | ignored launch descriptor or bounded v2 interaction state; browser session launch does not enroll |
 | `/api/asset-registry` | L0/L1/L2, search, usage, compare, validate, lifecycle | guarded Registry mutations |
 
-Routes are `/`, `/work/:workId/discover`, `/compose`, `/scaffold`, `/verify`, `/connections`, and `/assets`. `/connections` contains Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics registers; it does not list ordinary Codex sessions. Stage routes, `/api/af`, `/api/catalog`, proposal/apply, old manifest parsers, legacy imports, and compatibility aliases are unsupported.
+Routes are `/`, `/work/:workId/discover`, `/compose`, `/scaffold`, `/verify`, `/connections`, and `/assets`. `/connections` contains Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics registers; it does not list ordinary Codex sessions. The browser launch facade accepts one exact Handoff or bootstrap Grant ID for Materialization, while direct Grant creation/Continue remains a local Bridge/CLI boundary. Stage routes, `/api/af`, `/api/catalog`, proposal/apply, old manifest parsers, legacy imports, and compatibility aliases are unsupported.
 
 ## 12. Documentation impact
 

@@ -48,8 +48,9 @@ external application source를 같은 행에서 비교한다. `waiting_for_input
 
 - normalized requirement와 evidence를 먼저 표시한다.
 - Candidate register는 Agent·Workflow·Tool을 한 표에서 비교한다.
-- Solution Control Strategy, Root Executable, Discovery cycle과 Session Handoff 결과를 별도 운영 register로 표시한다.
-- Plan Session과 Materialization Session, handoff 상태를 같은 Work Item 안에서 연결해 보여 준다.
+- Solution Control Strategy, Root Executable, Discovery cycle과 Plan authority 결과를 별도 운영 register로 표시한다.
+- Plan authority는 canonical Handoff 또는 pristine Bootstrap Grant 중 최신 exact 항목 하나를 표시하고, 둘 모두 같은 `새 Materialization Session 열기` primary action을 사용한다.
+- Plan Session과 Materialization Session, 선택한 authority의 상태를 같은 Work Item 안에서 연결해 보여 준다. Capsule, Plan body, CLI Question은 표시하지 않는다.
 - dependency와 Missing Information은 별도 register로 분리한다.
 - 수정 action은 제공하지 않고 VS Code에서 canonical artifact 열기만 제공한다.
 
@@ -77,7 +78,7 @@ external application source를 같은 행에서 비교한다. `waiting_for_input
 
 ## Connections와 Assets
 
-Connections는 조용한 운영 register 안에서 명시적 참여 범위와 만료·위험만 선명하게 드러낸다. 기본 순서는 `Companion Sessions` → `Pending Handoffs` → `Deliveries` → `Setup / Diagnostics`다. 일반 Codex Session은 표시하지 않으며, 각 row는 application, Work Item, role, activation origin, lease expiry, last event, participation을 구분한다. Plan session 시작은 Home이 소유하고 Connections에는 수동 enrollment form, launch command, raw Capsule 또는 copy action이 없다. 현재 handoff action은 exact existing-session Attach, Cancel, Revoke이며 첫 active session이나 global default를 추측하지 않는다. Existing Attach의 select는 최초에 빈 값이고 Attach 후에는 영속 target만 표시한다. Capsule-free fresh-session Continue는 별도 Materialization handoff 구현 전까지 화면에 노출하지 않는다.
+Connections는 조용한 운영 register 안에서 명시적 참여 범위와 만료·위험만 선명하게 드러낸다. 기본 순서는 `Companion Sessions` → `Pending Handoffs` → `Deliveries` → `Setup / Diagnostics`다. 일반 Codex Session은 표시하지 않으며, 각 row는 application, Work Item, role, activation origin, lease expiry, last event, participation을 구분한다. Plan session 시작은 Home이 소유하고 Connections에는 수동 enrollment form, launch command, raw Capsule 또는 copy action이 없다. 현재 canonical Handoff action은 exact existing-session Attach, Cancel, Revoke이며 첫 active session이나 global default를 추측하지 않는다. Existing Attach의 select는 최초에 빈 값이고 Attach 후에는 영속 target만 표시한다. Fresh-session Continue는 Discover의 exact Plan-authority primary action과 trusted VS Code Task가 소유하며 Connections에 raw command나 Bootstrap Grant control을 추가하지 않는다.
 
 Bridge health, Hook side-effect gate, strict no-hook 검증 여부, CLI/VS Code launch capability, Capsule transport capability를 별도 진단으로 표시한다. Editor launch accepted, enrollment pending, leased Companion active, delivery consumed를 하나의 성공 상태로 합치지 않는다. 진단은 aggregate count만 보여 주고 raw prompt, transcript, token, Capsule 본문을 노출하지 않는다.
 

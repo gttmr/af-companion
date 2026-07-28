@@ -7,6 +7,7 @@ import type {
   CompanionSession,
   CompanionSessionRole,
   HandoffTransportCapability,
+  MaterializationGrant as ScopedMaterializationGrant,
   PlanHandoff as ScopedPlanHandoff,
   SessionEnrollmentTicket,
 } from "./sessionContract";
@@ -156,6 +157,7 @@ export interface CompanionBridgeCapabilitiesV2 {
   direct_turn_start: boolean;
   inflight_steer: boolean;
   fresh_session_handoff: boolean;
+  materialization_bootstrap_grant: boolean;
   fresh_context_transport: HandoffTransportCapability;
   cli_environment_enrollment: "verified" | "unverified" | "unsupported";
   vscode_environment_enrollment: "verified" | "unverified" | "unsupported";
@@ -169,6 +171,7 @@ export interface CodexBridgeSnapshotV2 {
   sessions: CompanionSession[];
   deliveries: ScopedContextDelivery[];
   handoffs: ScopedPlanHandoff[];
+  materialization_grants: ScopedMaterializationGrant[];
   activities: CodexActivity[];
   diagnostics: CompanionDiagnostics;
 }
@@ -202,4 +205,15 @@ export interface HandoffContinueReceipt {
 export interface HandoffAttachReceipt {
   handoff: ScopedPlanHandoff;
   target_session_id: string;
+}
+
+export interface MaterializationGrantCreateReceipt {
+  grant: ScopedMaterializationGrant;
+  portable_marker: string;
+}
+
+export interface MaterializationGrantContinueReceipt {
+  grant: ScopedMaterializationGrant;
+  activation_capsule: string;
+  command: string[];
 }

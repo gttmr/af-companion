@@ -55,9 +55,9 @@ observed, then bounded MCP approval guidance. The top shell no longer exposes a
 factory-only VS Code shortcut, and Connections does not render enrollment or
 handoff Capsule/command copy surfaces. Generated Plan and Materialization
 descriptors maximize the dedicated Task terminal panel so structured Questions
-show their multiple choices. Explicit CLI enrollment remains an operator path;
-capsule-free fresh Materialization launch is available when an exact canonical
-pending Handoff already exists.
+show their multiple choices. Explicit CLI enrollment remains an operator path.
+Capsule-free fresh Materialization launch is available for either an exact
+canonical pending Handoff or the strict pristine-ledger Bootstrap Grant.
 
 Selecting a Work Item also scopes the existing workspace SSE connection to its
 registered application. A second bounded watcher observes only that realpath-
@@ -75,10 +75,12 @@ launch, one exact `af_vscode_launch` Plan Session, Luna low multi-choice termina
 flow, and `bridge_down` recovery. It observed that an ephemeral
 `request_user_input` question is not present in the strict ledger that Web
 projects; this is now an intentional CLI/Web ownership boundary. It also found
-that the Phase A no-write rule cannot create the canonical Work Item Handoff
-required by the fresh Materialization launcher. That Handoff prerequisite
-remains the product blocker. Consequently the
-continuous new-work journey through Graph/source is not yet complete. See the
+that the Phase A no-write rule could not create the canonical Work Item Handoff
+required by the fresh Materialization launcher. A follow-up now implements a
+strict pristine-ledger Bootstrap Grant with exact ETag/source turn/Plan hash,
+expiry, one-time fresh claim, restart recovery, and automatic finalization
+against the actual claimed canonical Handoff record. The uninterrupted new-work
+journey through Graph/source still needs live acceptance. See the
 [measured status](docs/migration/web-first-journey-status.md) and
 [zero-context handoff](docs/migration/web-first-journey-handoff.md).
 
@@ -123,11 +125,20 @@ node scripts/af.mjs companion continue --handoff <handoff-id>
 
 The Bridge accepts only the exact canonical Work Item Handoff ID and marker, recomputes the canonical Plan body hash, and keeps the bounded body encrypted in ignored local state until one successful claim. Its 512 KiB JSON request envelope safely carries a valid canonical Plan capped at 64 KiB even under worst-case escaping, while snapshot reads fail removed or drifted canonical Handoff authority closed and erase the body. `/connections` additionally allows a user to durably attach that pending Handoff to one explicitly selected, already-enrolled materialization session with the same exact scope, or cancel it. Attach returns no raw Capsule or Plan body; the named session receives the verified body on its next leased prompt, and no candidate is ever preselected.
 
-This is a supported continuation mechanism for an existing canonical Handoff,
-not proof that a fresh empty Work Item can currently produce one. The P7
-acceptance found that Phase A writes no tracked ledger while Bridge creation
-requires matching non-null discovery/decision revisions and one pending
-`session_handoffs[]` entry; that bootstrap gap remains open.
+For the strict pristine Work Item, the Plan session instead prepares and
+continues one local Bootstrap Grant:
+
+```bash
+printf '%s' "$PLAN_BODY" | node scripts/af.mjs companion prepare-materialization \
+  --work <work-id> --session <plan-session-id> --turn <latest-turn-id>
+node scripts/af.mjs companion continue --grant <grant-id>
+```
+
+The Grant prevents accidental wrong-session, stale, or replayed continuation
+for a local single user; it is not a new same-user security layer. The Plan is
+temporary plaintext in ignored mode-`0600` Bridge state and absent from public
+or browser surfaces. Phase B must write real revisions and one exact claimed
+canonical Handoff record before snapshot auto-finalizes the Grant.
 
 A queued Graph/context delivery is attached once only when the active lease and delivery scope match the exact workspace, application, Work Item, and allowed role. Its canonical source revision is checked again at consume time. The workbench does not choose a default target, start a turn, or steer an in-flight turn.
 

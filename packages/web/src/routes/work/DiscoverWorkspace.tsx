@@ -5,7 +5,7 @@ import { parseTargetAnalysisResult } from "../../analyzer/targetAnalysisResult";
 import type { AfWorkItemManifest } from "../../analyzer/afWorkItem";
 import type { AnalysisResult, AssetCandidate } from "../../analyzer/types";
 import type { CodexCompanionSnapshotV2 } from "../../companion/types";
-import { useCodexSessions } from "../../state/useCodexSessions";
+import { useCodexSessions, type MaterializationLaunchAuthority } from "../../state/useCodexSessions";
 import { useEditorActions, useWorkItem, useWorkItemFile } from "../../workspace/useWorkspaceProjection";
 import { ReviewGateLine, ScreenState, SkillScreenHeader } from "./SkillScreenHeader";
 
@@ -39,10 +39,10 @@ export default function DiscoverWorkspace() {
         launchPending={codex.vscodeSessionPending}
         launchError={codex.vscodeSessionError}
         launchMessage={handoffLaunchMessage}
-        onLaunchHandoff={async (handoffId) => {
+        onLaunchHandoff={async (authority) => {
           setHandoffLaunchMessage(null);
           try {
-            await codex.launchMaterializationSession(workId, handoffId);
+            await codex.launchMaterializationSession(workId, authority);
             setHandoffLaunchMessage("VS Code에서 fresh Materialization session을 열었습니다. trusted Task가 Plan을 자동으로 이어갑니다.");
           } catch {
             // The mutation exposes the stable server message below the action.
@@ -69,7 +69,7 @@ function DiscoveryLifecycle({
   launchPending: boolean;
   launchError: string | null;
   launchMessage: string | null;
-  onLaunchHandoff: (handoffId: string) => Promise<void>;
+  onLaunchHandoff: (authority: MaterializationLaunchAuthority) => Promise<void>;
 }) {
   const sessions = snapshot?.sessions.filter((session) => (
     session.participation === "companion_active"
@@ -79,14 +79,23 @@ function DiscoveryLifecycle({
   const planSessions = sessions.filter((session) => session.role === "plan");
   const materializationSessions = sessions.filter((session) => session.role === "materialization");
   const bridgeHandoffs = snapshot?.handoffs.filter((handoff) => handoff.work_id === workId) ?? [];
-  const latestBridgeHandoff = bridgeHandoffs[bridgeHandoffs.length - 1] ?? null;
+  const bootstrapGrants = snapshot?.materialization_grants.filter((grant) => grant.work_id === workId) ?? [];
+  const bridgeAuthorities = [
+    ...bridgeHandoffs.map((value) => ({ kind: "handoff" as const, value })),
+    ...bootstrapGrants.map((value) => ({ kind: "grant" as const, value })),
+  ].sort((left, right) => Date.parse(left.value.created_at) - Date.parse(right.value.created_at));
+  const latestBridgeAuthority = bridgeAuthorities[bridgeAuthorities.length - 1] ?? null;
   const latestLedgerHandoff = manifest.session_handoffs[manifest.session_handoffs.length - 1] ?? null;
   const latestCycle = manifest.discovery_cycles[manifest.discovery_cycles.length - 1] ?? null;
-  const launchableHandoff = latestBridgeHandoff
-    && ["ready", "waiting_for_fresh_session"].includes(latestBridgeHandoff.status)
-    && Date.parse(latestBridgeHandoff.expires_at) > Date.now()
-    ? latestBridgeHandoff
+  const launchableAuthority = latestBridgeAuthority
+    && ["ready", "waiting_for_fresh_session"].includes(latestBridgeAuthority.value.status)
+    && Date.parse(latestBridgeAuthority.value.expires_at) > Date.now()
+    ? latestBridgeAuthority
     : null;
+  const authorityStatus = latestBridgeAuthority?.value.status ?? latestLedgerHandoff?.status ?? "none";
+  const authorityCapability = launchableAuthority?.kind === "grant"
+    ? snapshot?.capabilities.materialization_bootstrap_grant
+    : snapshot?.capabilities.fresh_session_handoff;
   return (
     <section className="discovery-lifecycle-register">
       <div className="section-title-line"><div><span>Plan → Materialization</span><h2>Discovery cycle과 Session Handoff</h2></div><p>Work Item이 primary identity이며 Session은 명시적으로 붙는 실행 actor입니다.</p></div>
@@ -94,19 +103,24 @@ function DiscoveryLifecycle({
         <LifecycleMetric label="Control strategy" value={manifest.solution_control_strategy ?? "결정 필요"} tone={manifest.solution_control_strategy ? "ok" : "warning"} />
         <LifecycleMetric label="Root executable" value={manifest.root_executable ? `${manifest.root_executable.asset_type} · ${manifest.root_executable.asset_ref}@${manifest.root_executable.asset_version}` : "결정 필요"} tone={manifest.root_executable ? "ok" : "warning"} />
         <LifecycleMetric label="Discovery cycle" value={latestCycle ? `${latestCycle.cycle_id} · ${latestCycle.status}` : "not started"} tone={latestCycle?.status === "complete" ? "ok" : "neutral"} />
-        <LifecycleMetric label="Handoff" value={latestBridgeHandoff?.status ?? latestLedgerHandoff?.status ?? "none"} tone={(latestBridgeHandoff?.status ?? latestLedgerHandoff?.status) === "claimed" ? "ok" : "warning"} />
+        <LifecycleMetric label="Plan authority" value={authorityStatus} tone={["claimed", "finalized"].includes(authorityStatus) ? "ok" : "warning"} />
       </div>
       <div className="session-role-register">
         <SessionRole title="Plan Session" sessions={planSessions} empty="Plan Mode session이 아직 Work Item에 연결되지 않았습니다." />
         <SessionRole title="Materialization Session" sessions={materializationSessions} empty="Fresh handoff claim 또는 exact-scope Companion Join이 필요합니다." />
         <div className="handoff-summary">
-          <span>Latest handoff</span>
-          {latestBridgeHandoff ? <><strong>{latestBridgeHandoff.status}</strong><code>{latestBridgeHandoff.handoff_id}</code><small>{latestBridgeHandoff.claimed_by_session_id ? `claimed by ${compactId(latestBridgeHandoff.claimed_by_session_id)}` : `expires ${new Date(latestBridgeHandoff.expires_at).toLocaleString()}`}</small></> : latestLedgerHandoff ? <><strong>{latestLedgerHandoff.status}</strong><code>{latestLedgerHandoff.handoff_id}</code><small>ledger revision {latestLedgerHandoff.discovery_revision.digest.slice(0, 10)}</small></> : <p>Plan marker가 생성되면 exact claim 상태를 표시합니다.</p>}
-          {launchableHandoff ? <button
+          <span>Latest Plan authority</span>
+          {latestBridgeAuthority ? <><strong>{latestBridgeAuthority.kind === "grant" ? `Bootstrap Grant · ${latestBridgeAuthority.value.status}` : `Canonical Handoff · ${latestBridgeAuthority.value.status}`}</strong><code>{latestBridgeAuthority.kind === "grant" ? latestBridgeAuthority.value.grant_id : latestBridgeAuthority.value.handoff_id}</code><small>{latestBridgeAuthority.value.claimed_by_session_id ? `claimed by ${compactId(latestBridgeAuthority.value.claimed_by_session_id)}` : `expires ${new Date(latestBridgeAuthority.value.expires_at).toLocaleString()}`}</small></> : latestLedgerHandoff ? <><strong>{latestLedgerHandoff.status}</strong><code>{latestLedgerHandoff.handoff_id}</code><small>ledger revision {latestLedgerHandoff.discovery_revision.digest.slice(0, 10)}</small></> : <p>Plan authority가 준비되면 fresh-session 상태를 표시합니다.</p>}
+          {launchableAuthority ? <button
             type="button"
             className="primary handoff-launch-action"
-            disabled={launchPending || !snapshot?.capabilities.fresh_session_handoff}
-            onClick={() => void onLaunchHandoff(launchableHandoff.handoff_id)}
+            disabled={launchPending || !authorityCapability}
+            onClick={() => void onLaunchHandoff({
+              kind: launchableAuthority.kind,
+              id: launchableAuthority.kind === "grant"
+                ? launchableAuthority.value.grant_id
+                : launchableAuthority.value.handoff_id,
+            })}
           >{launchPending ? "Workspace 여는 중…" : "새 Materialization Session 열기"}<span aria-hidden="true">↗</span></button> : null}
           {launchMessage ? <p className="handoff-launch-message" role="status">{launchMessage}</p> : null}
           {launchError ? <p className="handoff-launch-message is-error" role="alert">{launchError}</p> : null}

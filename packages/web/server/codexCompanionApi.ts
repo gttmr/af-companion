@@ -139,38 +139,84 @@ export function createCodexCompanionMiddleware(repoRoot: string, options: CodexC
         }
         const bridge = await fetchSnapshot(repoRoot);
         if (input.mode === "materialization") {
-          const handoff = bridge.handoffs.find((entry) => entry.handoff_id === input.handoffId);
-          if (!handoff) throw new CompanionApiError(404, "handoff_not_found", "선택한 Plan Handoff를 찾을 수 없습니다.");
-          if (handoff.workspace_id !== await workspaceId(repoRoot)
-            || handoff.application_id !== registration.application_id
-            || handoff.work_id !== registration.work_id
-            || handoff.target_skill !== PLAN_HANDOFF_TARGET) {
-            throw new CompanionApiError(409, "handoff_scope_mismatch", "Plan Handoff가 현재 application과 Work Item 범위에 속하지 않습니다.");
-          }
-          if (handoff.status !== "ready" && handoff.status !== "waiting_for_fresh_session") {
-            throw new CompanionApiError(409, "handoff_not_ready", "Plan Handoff를 새 session에서 이어갈 수 없는 상태입니다.");
-          }
-          if (Date.parse(handoff.expires_at) <= Date.now()) {
-            throw new CompanionApiError(409, "handoff_expired", "Plan Handoff가 만료됐습니다.");
-          }
-          const source = bridge.sessions.find((session) => session.session_id === handoff.from_session_id);
-          if (!source
-            || source.participation !== "companion_active"
-            || source.status !== "active"
-            || source.role !== "plan"
-            || source.permission_mode !== "plan"
-            || Date.parse(source.lease_expires_at) <= Date.now()) {
-            throw new CompanionApiError(409, "source_inactive", "Plan Handoff의 source session이 더 이상 active 상태가 아닙니다.");
+          if (input.handoffId) {
+            const handoff = bridge.handoffs.find((entry) => entry.handoff_id === input.handoffId);
+            if (!handoff) throw new CompanionApiError(404, "handoff_not_found", "선택한 Plan Handoff를 찾을 수 없습니다.");
+            if (handoff.workspace_id !== await workspaceId(repoRoot)
+              || handoff.application_id !== registration.application_id
+              || handoff.work_id !== registration.work_id
+              || handoff.target_skill !== PLAN_HANDOFF_TARGET) {
+              throw new CompanionApiError(409, "handoff_scope_mismatch", "Plan Handoff가 현재 application과 Work Item 범위에 속하지 않습니다.");
+            }
+            if (handoff.status !== "ready" && handoff.status !== "waiting_for_fresh_session") {
+              throw new CompanionApiError(409, "handoff_not_ready", "Plan Handoff를 새 session에서 이어갈 수 없는 상태입니다.");
+            }
+            if (Date.parse(handoff.expires_at) <= Date.now()) {
+              throw new CompanionApiError(409, "handoff_expired", "Plan Handoff가 만료됐습니다.");
+            }
+            const source = bridge.sessions.find((session) => session.session_id === handoff.from_session_id);
+            if (!source
+              || source.participation !== "companion_active"
+              || source.status !== "active"
+              || source.role !== "plan"
+              || source.permission_mode !== "plan"
+              || Date.parse(source.lease_expires_at) <= Date.now()) {
+              throw new CompanionApiError(409, "source_inactive", "Plan Handoff의 source session이 더 이상 active 상태가 아닙니다.");
+            }
+          } else {
+            const grant = bridge.materialization_grants.find((entry) => entry.grant_id === input.grantId);
+            if (!grant) {
+              throw new CompanionApiError(
+                404,
+                "materialization_grant_not_found",
+                "선택한 Materialization Grant를 찾을 수 없습니다.",
+              );
+            }
+            if (grant.workspace_id !== await workspaceId(repoRoot)
+              || grant.application_id !== registration.application_id
+              || grant.work_id !== registration.work_id
+              || grant.target_skill !== PLAN_HANDOFF_TARGET) {
+              throw new CompanionApiError(
+                409,
+                "materialization_grant_scope_mismatch",
+                "Materialization Grant가 현재 application과 Work Item 범위에 속하지 않습니다.",
+              );
+            }
+            if (grant.status !== "ready" && grant.status !== "waiting_for_fresh_session") {
+              throw new CompanionApiError(
+                409,
+                "materialization_grant_not_ready",
+                "Materialization Grant를 새 session에서 이어갈 수 없는 상태입니다.",
+              );
+            }
+            if (Date.parse(grant.expires_at) <= Date.now()) {
+              throw new CompanionApiError(
+                409,
+                "materialization_grant_expired",
+                "Materialization Grant가 만료됐습니다.",
+              );
+            }
           }
         }
-        const launchInput: VscodeSessionWorkspaceInput = input.mode === "materialization" ? {
-          applicationId: registration.application_id,
-          applicationRoot: registration.application_root,
-          applicationsRoot: applicationRegistry.applicationsRoot,
-          workId: registration.work_id,
-          mode: "materialization",
-          handoffId: input.handoffId,
-        } : {
+        const launchInput: VscodeSessionWorkspaceInput = input.mode === "materialization"
+          ? input.handoffId
+            ? {
+              applicationId: registration.application_id,
+              applicationRoot: registration.application_root,
+              applicationsRoot: applicationRegistry.applicationsRoot,
+              workId: registration.work_id,
+              mode: "materialization",
+              handoffId: input.handoffId,
+            }
+            : {
+              applicationId: registration.application_id,
+              applicationRoot: registration.application_root,
+              applicationsRoot: applicationRegistry.applicationsRoot,
+              workId: registration.work_id,
+              mode: "materialization",
+              grantId: input.grantId as string,
+            }
+          : {
           applicationId: registration.application_id,
           applicationRoot: registration.application_root,
           applicationsRoot: applicationRegistry.applicationsRoot,
@@ -280,14 +326,15 @@ async function mutationBody<T>(request: IncomingMessage, validate: (value: unkno
 
 type VscodeSessionRequest =
   | { workId: string; mode: "plan" }
-  | { workId: string; mode: "materialization"; handoffId: string };
+  | { workId: string; mode: "materialization"; handoffId: string; grantId?: never }
+  | { workId: string; mode: "materialization"; handoffId?: never; grantId: string };
 
 function parseVscodeSessionRequest(value: unknown): VscodeSessionRequest {
   if (!isRecord(value) || !("work_id" in value) || !("mode" in value)) {
     throw new CompanionApiError(
       400,
       "invalid_vscode_session_request",
-      "work_id, mode와 materialization의 handoff_id만 지정할 수 있습니다.",
+      "work_id, mode와 materialization의 handoff_id 또는 grant_id만 지정할 수 있습니다.",
     );
   }
   if (typeof value.work_id !== "string" || !REQ_ID_PATTERN.test(value.work_id)) {
@@ -300,11 +347,26 @@ function parseVscodeSessionRequest(value: unknown): VscodeSessionRequest {
     return { workId: value.work_id, mode: "plan" };
   }
   if (value.mode === "materialization") {
-    if (Object.keys(value).length !== 3 || !("handoff_id" in value)
-      || typeof value.handoff_id !== "string" || !HANDOFF_ID_PATTERN.test(value.handoff_id)) {
-      throw new CompanionApiError(400, "invalid_handoff_id", "Materialization mode에는 유효한 handoff_id가 필요합니다.");
+    const hasHandoff = typeof value.handoff_id === "string";
+    const hasGrant = typeof value.grant_id === "string";
+    if (Object.keys(value).length !== 3 || hasHandoff === hasGrant) {
+      throw new CompanionApiError(
+        400,
+        "invalid_materialization_authority",
+        "Materialization mode에는 handoff_id 또는 grant_id 하나가 필요합니다.",
+      );
     }
-    return { workId: value.work_id, mode: "materialization", handoffId: value.handoff_id };
+    if (hasHandoff && HANDOFF_ID_PATTERN.test(value.handoff_id as string)) {
+      return { workId: value.work_id, mode: "materialization", handoffId: value.handoff_id as string };
+    }
+    if (hasGrant && HANDOFF_ID_PATTERN.test(value.grant_id as string)) {
+      return { workId: value.work_id, mode: "materialization", grantId: value.grant_id as string };
+    }
+    throw new CompanionApiError(
+      400,
+      "invalid_materialization_authority",
+      "Materialization authority 식별자가 올바르지 않습니다.",
+    );
   }
   throw new CompanionApiError(400, "invalid_vscode_session_mode", "vscode session mode는 plan 또는 materialization이어야 합니다.");
 }
@@ -340,9 +402,10 @@ function unavailableSnapshot(): CodexBridgeSnapshotV2 {
       bridge_available: false, codex_version: null, hook_side_effect_isolation: true, strict_no_hook_mode: "unverified",
       session_enrollment: false, session_lease: false, next_prompt_context: false, session_end_event: "unsupported",
       delivery_ack: false, direct_turn_start: false, inflight_steer: false, fresh_session_handoff: false,
+      materialization_bootstrap_grant: false,
       fresh_context_transport: "unverified", cli_environment_enrollment: "unverified", vscode_environment_enrollment: "unverified",
     },
-    enrollment_tickets: [], sessions: [], deliveries: [], handoffs: [], activities: [],
+    enrollment_tickets: [], sessions: [], deliveries: [], handoffs: [], materialization_grants: [], activities: [],
     diagnostics: { ignored_hook_invocations: 0, invalid_activation_attempts: 0, expired_tickets: 0 },
   };
 }

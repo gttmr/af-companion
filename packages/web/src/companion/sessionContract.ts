@@ -42,6 +42,14 @@ export type PlanHandoffStatus =
   | "superseded"
   | "failed"
   | "canceled";
+export type MaterializationGrantStatus =
+  | "ready"
+  | "waiting_for_fresh_session"
+  | "claimed"
+  | "finalized"
+  | "expired"
+  | "superseded"
+  | "failed";
 export type DecisionInputMode = "structured" | "conversational";
 
 export interface CompanionScope {
@@ -165,6 +173,32 @@ export interface PlanHandoff {
   claimed_by_turn_id: string | null;
   claimed_at: string | null;
   target_session_id: string | null;
+  failure_code: string | null;
+}
+
+/**
+ * Ignored local authority for carrying a Plan out of a pristine Work Item.
+ * It becomes durable lifecycle provenance only after Phase B writes and
+ * finalizes the matching claimed Work Item session_handoffs[] record.
+ */
+export interface MaterializationGrant {
+  grant_id: string;
+  workspace_id: string;
+  application_id: string;
+  work_id: string;
+  from_session_id: string;
+  from_turn_id: string;
+  bootstrap_work_item_etag: string;
+  plan_body_hash: string;
+  marker_digest: string;
+  target_skill: "af-discover-assets.materialize";
+  status: MaterializationGrantStatus;
+  created_at: string;
+  expires_at: string;
+  claimed_by_session_id: string | null;
+  claimed_by_turn_id: string | null;
+  claimed_at: string | null;
+  finalized_at: string | null;
   failure_code: string | null;
 }
 

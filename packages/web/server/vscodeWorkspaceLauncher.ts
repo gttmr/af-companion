@@ -34,7 +34,8 @@ interface VscodeSessionWorkspaceScope {
 
 export type VscodeSessionWorkspaceInput = VscodeSessionWorkspaceScope & (
   | { mode: "plan"; handoffId?: never }
-  | { mode: "materialization"; handoffId: string }
+  | { mode: "materialization"; handoffId: string; grantId?: never }
+  | { mode: "materialization"; handoffId?: never; grantId: string }
 );
 
 export class VscodeWorkspaceLauncherError extends Error {
@@ -301,7 +302,10 @@ async function resolveTrustedApplicationRoot(input: VscodeSessionWorkspaceInput)
   if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(input.applicationId)
     || !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(input.workId)
     || (input.mode !== "plan" && input.mode !== "materialization")
-    || (input.mode === "materialization" && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(input.handoffId))
+    || (input.mode === "materialization" && (
+      Boolean(input.handoffId) === Boolean(input.grantId)
+      || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(input.handoffId ?? input.grantId ?? "")
+    ))
     || !isAbsolute(input.applicationsRoot)
     || !isAbsolute(input.applicationRoot)) {
     throw new VscodeWorkspaceLauncherError(400, "invalid_session_workspace", "VS Code session workspace scope is invalid");
@@ -371,13 +375,13 @@ async function writeSessionWorkspace(
         ],
       }
       : {
-        label: "Continue AF Handoff",
+        label: input.grantId ? "Continue AF Materialization" : "Continue AF Handoff",
         args: [
           join(canonicalRoot, "scripts", "af.mjs"),
           "companion",
           "continue",
-          "--handoff",
-          input.handoffId,
+          input.grantId ? "--grant" : "--handoff",
+          input.grantId ?? input.handoffId,
         ],
       };
     const document = {

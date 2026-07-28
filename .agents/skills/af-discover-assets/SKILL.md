@@ -48,12 +48,12 @@ Determine the active Codex collaboration mode from the current mode indicator or
 
 - A raw or revised discovery request starts Phase A only when the active collaboration mode is actually Plan and the enrolled session has the exact `plan` scope.
 - If Phase A is requested outside Plan Mode, make no repository-tracked write, do not initialize a Work Item, and ask the user to enter Plan Mode. Do not assume the mode can be changed automatically.
-- Phase B runs only in Default/coding mode from a complete Discovery Decision Plan, with current `companion_active` participation and exact `materialization` scope plus an exact handoff/revision claim or exact confirmed attachment.
+- Phase B runs only in Default/coding mode from a complete Discovery Decision Plan, with current `companion_active` participation and exact `materialization` scope plus an exact canonical Handoff claim/attachment or exact pristine Bootstrap Grant claim.
 - If a materialization request arrives while still in Plan Mode, make no repository-tracked write and ask the user to continue in Default/coding mode.
 
 ## Phase A — Plan Conversation
 
-Phase A is non-mutating exploration. Do not create or update `af-work-item.json`, discovery artifacts, source, Registry records, or any other repository-tracked file.
+Phase A is non-mutating exploration. Do not create or update `af-work-item.json`, discovery artifacts, source, Registry records, or any other repository-tracked file. After every decision is resolved, the one permitted local interaction-state side effect is `companion prepare-materialization` for an exact pristine Work Item; it stores the bounded Plan in ignored Bridge state and does not write the ledger.
 
 ### 1. Explore before asking
 
@@ -109,9 +109,9 @@ Resolve all applicable decisions with explicit user input:
 
 After every required decision is resolved, return the in-conversation **Discovery Decision Plan** defined in [Analysis Result Output](references/analysis-result-output.md). It must include evidence, Registry search results, selected and rejected alternatives, exact Asset dispositions, Resources/Dependencies, open/resolved decision refs and recommendation revisions, user provenance, Compose handoff constraints, and exact application/workspace/work/revision/target/expiry metadata. It is a decision plan, not a code-change plan.
 
-Canonicalize and hash only the Plan body as specified by [Fresh-context Handoff](../_shared/fresh-context-handoff.md). Exclude the Companion capsule from the Plan body; keep its digest separate. The Companion `plan_body_hash` and Work Item `plan_hash` identify the same canonical bytes.
+Canonicalize and hash only the Plan body as specified by [Fresh-context Handoff](../_shared/fresh-context-handoff.md). Exclude every Companion capsule or marker from those bytes. The Companion `plan_body_hash` and the eventual Work Item `plan_hash` identify the same canonical bytes.
 
-End the plan with this exact portable marker shape:
+If current real discovery/decision revisions and an exact pending canonical Work Item Handoff already exist, use the canonical Handoff path and end with this portable marker:
 
 ```text
 AF_WORK_ITEM=<work-id>
@@ -122,7 +122,25 @@ AF_TARGET=materialize-discovery
 
 These four keys identify the portable Plan-to-materialization request. Work Item v2 separately serializes `session_handoffs[].target_skill` as `"af-discover-assets.materialize"`; do not copy the portable `AF_TARGET` value into that schema field. If Companion creates a larger signed claim marker, preserve that returned marker byte-for-byte alongside the portable marker; do not reconstruct claim tokens or internal fields.
 
-The marker is a claim request, not proof of attachment. Built-in fresh-context carriage is `unverified` by default. Use Companion Continue, then Copy Capsule, then exact confirmed attach. Automatic continuation is valid only when a fresh session's first prompt claims the explicitly identified handoff and the observed session/turn, application/workspace/work, Plan hash, target, expiry, and revisions match. A fork, resumed Plan session, Bridge health, one pending candidate, or a marker pasted into an unrelated cwd is not a fresh-session claim.
+If the Work Item instead exactly equals the strict default v2 ledger, do not invent discovery/decision revisions or a canonical Handoff. Pipe only the canonical Plan body to:
+
+```bash
+printf '%s' "$PLAN_BODY" | node scripts/af.mjs companion prepare-materialization \
+  --work <work-id> --session <current-plan-session-id> --turn <latest-plan-turn-id> [--root PATH]
+```
+
+Preserve the returned marker byte-for-byte:
+
+```text
+AF_MATERIALIZATION_GRANT=<grant-id>
+AF_WORK_ITEM=<work-id>
+AF_PLAN_BODY_HASH=<plan-body-sha256>
+AF_TARGET=materialize-discovery
+```
+
+The Grant is local single-user integrity authority only. Its ignored mode-`0600` plaintext Plan state is acceptable for this boundary; never copy Plan bytes into public receipts, browser state, or workspace descriptors. Grant creation must fail if the Work Item is not pristine or its ETag/source latest turn has drifted.
+
+Either marker is a claim request, not proof of attachment. For a canonical Handoff, use Companion Continue, then Copy Capsule, then exact confirmed attach when needed. For a Bootstrap Grant, use only `companion continue --grant <grant-id>`. Continuation is valid only when a fresh session's first prompt claims the explicitly identified authority and the observed session/turn, application/workspace/work, Plan hash, target, expiry, and authority-specific revision or pristine-ETag evidence match. A fork, resumed Plan session, Bridge health, one pending candidate, or a marker pasted into an unrelated cwd is not a fresh-session claim.
 
 When Companion Continue and Copy Capsule are unavailable or stripped, launch one new explicitly scoped materialization session with the implemented safe command:
 
@@ -130,7 +148,7 @@ When Companion Continue and Copy Capsule are unavailable or stripped, launch one
 node scripts/af.mjs companion join --application <application-id> --work <work-id> --role materialization [--root PATH]
 ```
 
-Join never selects the first active session and does not by itself prove Plan/revision identity or claim the handoff. Confirm the newly activated exact session/application/workspace/work/materialization scope and provide the complete Decision Plan plus revisions in that session. There is no current `work attach-session` CLI.
+Join never selects the first active session and does not by itself prove Plan/revision identity or claim a Handoff or Grant. Confirm the newly activated exact session/application/workspace/work/materialization scope and provide the complete Decision Plan plus exact authority in that session. There is no current `work attach-session` CLI.
 
 ## Phase B — Default-mode materialization
 
@@ -140,8 +158,8 @@ Before any write:
 
 1. verify the active mode is Default/coding, not Plan;
 2. verify current Companion participation, lease freshness, exact `workspace_id`, `application_id`, `work_id`, `role: materialization`, canonical repository root, and artifact root;
-3. read the complete canonical Discovery Decision Plan and compare its handoff ID, discovery/decision revisions, Plan-body hash, open/resolved decision refs, recommendation revisions, selected Asset refs/versions, and Registry snapshot;
-4. require an exact fresh-session claim receipt or exact confirmed attachment plus the complete Plan; reject expired, superseded, duplicate, ambiguous, wrong-scope, wrong-cwd, or mismatched claims;
+3. read the complete canonical Discovery Decision Plan and compare its authority ID, Plan-body hash, open/resolved decision refs, recommendation revisions, selected Asset refs/versions, and Registry snapshot; for a canonical Handoff also compare discovery/decision revisions, and for a Bootstrap Grant compare pristine ETag plus source session/latest turn;
+4. require an exact fresh-session claim receipt or canonical exact confirmed attachment plus the complete Plan; reject expired, superseded, duplicate, ambiguous, wrong-scope, wrong-cwd, or mismatched claims;
 5. re-read an existing Work Item and any `return_to_discover` record; preserve its scope and decision provenance and never choose the newest root by guesswork.
 
 Use only current Work Item CLI commands:
@@ -163,7 +181,9 @@ Materialize the exact Phase A choices using the paths and mappings in [Analysis 
 - Agent/Workflow/Tool candidates into `analysis-result.json.assetCandidates` and `asset-candidates.json`;
 - structured user decisions into Work Item v2 `decisions`, `solution_control_strategy`, and `root_executable`;
 - structured per-Asset dispositions into Work Item v2 `asset_decisions`;
-- the discovery aggregate, summary, revision subjects, current Registry revision, discovery cycle, active materializer run, claimed handoff, gate state, and invalidations into their schema-owned fields.
+- the discovery aggregate, summary, revision subjects, current Registry revision, discovery cycle, active materializer run, claimed Handoff, gate state, and invalidations into their schema-owned fields.
+
+For a Bootstrap Grant, the one claimed `session_handoffs[]` record must use the Grant ID, original source session/turn, actual materialized discovery/decision revision objects, canonical Plan hash, target `af-discover-assets.materialize`, Grant creation/expiry, marker checksum, and observed claim session/turn/time. Do not create a pending intermediate record or a fake bootstrap revision. After the canonical write validates, re-read the Bridge snapshot and require that exact Grant to be `finalized`; there is no finalize endpoint or CLI.
 
 Do not invent separate decision artifact filenames. `root_executable` must identify an Agent or Workflow with exact `asset_ref`, positive `asset_version`, and its `decision_id`. Every resolved `decision` and `assetDecision` records explicit user provenance as required by `schemas/af-work-item.schema.json`.
 
@@ -208,12 +228,12 @@ Set Discover to `waiting_for_review` with the current output revision and refs. 
 
 ## Write boundary
 
-Phase A writes no repository-tracked file. Phase B writes only the confirmed Work Item root and only from exact materialization scope. Discover never writes runtime source, Graph topology, Catalog/Registry mutations, deployment files, or workbench state. Ordinary-session observations are not durable lifecycle evidence.
+Phase A writes no repository-tracked file. Its pristine-only Grant command may write the bounded Plan to ignored local Bridge interaction state. Phase B writes only the confirmed Work Item root and only from exact materialization scope. Discover never writes runtime source, Graph topology, Catalog/Registry mutations, deployment files, or canonical workbench state. Ordinary-session observations are not durable lifecycle evidence.
 
 ## Stop conditions
 
-Stop when mode, participation, lease, application/workspace/work/role scope, Work Item, handoff, session, turn, Plan hash, recommendation revision, revision, or Registry snapshot is unverified or ambiguous; a required user decision is open; evidence would require invention; a candidate hard gate is hidden; a claim is expired/duplicate/mismatched; strict v2 cannot represent the result; validation fails; or a write would escape the confirmed artifact root.
+Stop when mode, participation, lease, application/workspace/work/role scope, Work Item, Handoff/Grant, session, turn, Plan hash, recommendation revision, revision or pristine ETag, or Registry snapshot is unverified or ambiguous; a required user decision is open; evidence would require invention; a candidate hard gate is hidden; a claim is expired/duplicate/mismatched; a Grant is requested for a non-pristine ledger; strict v2 cannot represent the result; validation or Grant finalization fails; or a write would escape the confirmed artifact root.
 
 ## Completion report
 
-Report the phase performed, exact Work Item/handoff/revisions, files written, user decisions preserved, candidate and disposition summary, unresolved information, invalidations, review-gate state, verification commands/results, and the exact next action. A Phase A plan is not materialization, and Phase B materialization is not Compose authorization until the revision-bound discovery gate is approved.
+Report the phase performed, exact Work Item/authority/revisions, files written, user decisions preserved, candidate and disposition summary, unresolved information, invalidations, review-gate state, verification commands/results, and the exact next action. For Bootstrap Phase B include the finalized Grant evidence. A Phase A plan is not materialization, and Phase B materialization is not Compose authorization until the revision-bound discovery gate is approved.

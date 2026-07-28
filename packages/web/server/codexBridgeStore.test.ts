@@ -28,6 +28,7 @@ import {
   validateContinueHandoffInput,
   validateCreateDeliveryInput,
   validateCreateEnrollmentInput,
+  validateCreateMaterializationGrantInput,
   validateCreatePlanHandoffInput,
   validateRevokeSessionInput,
 } from "./codexBridgeStore.ts";
@@ -50,6 +51,18 @@ function planHandoffRequest(store: CodexBridgeStore, overrides: Record<string, u
     plan_body_hash: PLAN,
     plan_body: TEST_PLAN_BODY,
     transport_capability: "client_dependent",
+    expires_at: "2030-01-01T00:10:00.000Z",
+    ...overrides,
+  });
+}
+
+function materializationGrantRequest(overrides: Record<string, unknown> = {}) {
+  return validateCreateMaterializationGrantInput({
+    work_id: "work-1",
+    from_session_id: "bootstrap-plan-session",
+    from_turn_id: "bootstrap-plan-turn",
+    plan_body_hash: PLAN,
+    plan_body: TEST_PLAN_BODY,
     expires_at: "2030-01-01T00:10:00.000Z",
     ...overrides,
   });
@@ -361,6 +374,226 @@ test("negative: delivery and handoff creation revalidate deleted or scope-tamper
   await rm(join(handoffClock.store.leaseDir, `${createHash("sha256").update("plan-session").digest("hex")}.json`));
   await assert.rejects(handoffClock.store.createPlanHandoff(handoffRequest), /lease is missing, invalid, or expired/);
   await assert.rejects(handoffClock.store.continueHandoff(created.handoff_id, validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION })), /lease is missing, invalid, or expired/);
+});
+
+test("materialization bootstrap grant resumes after Bridge restart and claims exactly one fresh session", async (t) => {
+  const clock = await fixture(t);
+  const { lease } = await enroll(
+    clock.store,
+    clock.root,
+    "bootstrap-plan-session",
+    "plan",
+    "work-1",
+  );
+  await clock.store.handleHook(hook(
+    "UserPromptSubmit",
+    "bootstrap-plan-session",
+    clock.root,
+    lease,
+    { turn: "bootstrap-plan-turn", permission: "plan" },
+  ));
+
+  const created = await clock.store.createMaterializationGrant(materializationGrantRequest());
+  assert.equal(created.grant.status, "ready");
+  assert.match(created.portable_marker, new RegExp(`AF_MATERIALIZATION_GRANT=${created.grant.grant_id}`));
+  assert.equal(JSON.stringify(created).includes(TEST_PLAN_BODY), false);
+  assert.equal(JSON.stringify(await clock.store.snapshot()).includes(TEST_PLAN_BODY), false);
+  const localState = await readFile(clock.store.statePath, "utf8");
+  assert.equal(
+    JSON.parse(localState).materialization_grants[0].plan_body,
+    TEST_PLAN_BODY,
+    "the local-only 0600 state carries the resumable Plan",
+  );
+  assert.equal((await lstat(clock.store.statePath)).mode & 0o777, 0o600);
+
+  const first = await clock.store.continueMaterializationGrant(
+    created.grant.grant_id,
+    validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION }),
+  );
+  const restarted = await CodexBridgeStore.open(clock.root, { now: clock.now });
+  assert.equal((await restarted.snapshot()).materialization_grants[0].status, "waiting_for_fresh_session");
+  const rotated = await restarted.continueMaterializationGrant(
+    created.grant.grant_id,
+    validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION }),
+  );
+  assert.notEqual(first.activation_capsule, rotated.activation_capsule);
+
+  assert.equal(await restarted.handleHook(hook(
+    "UserPromptSubmit",
+    "old-bootstrap-target",
+    clock.root,
+    { kind: "activation", activation_capsule: first.activation_capsule },
+    { turn: "old-bootstrap-turn" },
+  )), null);
+  const proof = { kind: "activation" as const, activation_capsule: rotated.activation_capsule };
+  const claimed = await restarted.handleHook(hook(
+    "UserPromptSubmit",
+    "fresh-bootstrap-target",
+    clock.root,
+    proof,
+    { turn: "fresh-bootstrap-turn" },
+  ));
+  const context = claimed?.hookSpecificOutput.additionalContext ?? "";
+  assert.match(context, /materialization bootstrap was claimed/);
+  for (const expected of [
+    `Grant: ${created.grant.grant_id}`,
+    "Source Plan session: bootstrap-plan-session",
+    "Source Plan turn: bootstrap-plan-turn",
+    `Bootstrap Work Item ETag: ${created.grant.bootstrap_work_item_etag}`,
+    `Plan body hash: ${created.grant.plan_body_hash}`,
+    `Marker digest: ${created.grant.marker_digest}`,
+    `Grant created at: ${created.grant.created_at}`,
+    `Grant expires at: ${created.grant.expires_at}`,
+    "Claim session: fresh-bootstrap-target",
+    "Claim turn: fresh-bootstrap-turn",
+    `Claimed at: ${clock.now().toISOString()}`,
+    TEST_PLAN_BODY,
+  ]) assert.ok(context.includes(expected), `claim context must include ${expected}`);
+  assert.equal(await restarted.handleHook(hook(
+    "UserPromptSubmit",
+    "bootstrap-replay",
+    clock.root,
+    proof,
+    { turn: "bootstrap-replay-turn" },
+  )), null);
+  const snapshot = await restarted.snapshot();
+  assert.equal(snapshot.materialization_grants[0].status, "claimed");
+  assert.equal(snapshot.materialization_grants[0].claimed_by_session_id, "fresh-bootstrap-target");
+  assert.equal(Object.hasOwn(snapshot.materialization_grants[0], "plan_body"), false);
+  assert.equal(Object.hasOwn(snapshot.materialization_grants[0], "claim_token_digest"), false);
+  assert.equal(snapshot.sessions.filter((session) => session.role === "materialization").length, 1);
+  const persisted = JSON.parse(await readFile(restarted.statePath, "utf8")).materialization_grants[0];
+  assert.equal(persisted.plan_body, null);
+  assert.equal(persisted.claim_token_digest, null);
+});
+
+test("materialization bootstrap requires a pristine unchanged Work Item and the latest Plan turn", async (t) => {
+  const clock = await fixture(t);
+  const { lease } = await enroll(
+    clock.store,
+    clock.root,
+    "bootstrap-plan-session",
+    "plan",
+    "work-1",
+  );
+  await clock.store.handleHook(hook(
+    "UserPromptSubmit",
+    "bootstrap-plan-session",
+    clock.root,
+    lease,
+    { turn: "bootstrap-plan-turn", permission: "plan" },
+  ));
+  const created = await clock.store.createMaterializationGrant(materializationGrantRequest());
+  const path = join(clock.root, "artifacts", "af", "work-1", "af-work-item.json");
+  const manifest = parseAfWorkItemManifest(await readFile(path, "utf8"));
+  manifest.ledger_revision += 1;
+  await writeFile(path, serializeAfWorkItemManifest(manifest), "utf8");
+  await assert.rejects(
+    clock.store.continueMaterializationGrant(
+      created.grant.grant_id,
+      validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION }),
+    ),
+    /expired or no longer matches/,
+  );
+  let snapshot = await clock.store.snapshot();
+  assert.equal(snapshot.materialization_grants[0].status, "failed");
+  assert.equal(snapshot.materialization_grants[0].failure_code, "work_item_changed");
+
+  const secondClock = await fixture(t);
+  const second = await enroll(
+    secondClock.store,
+    secondClock.root,
+    "bootstrap-plan-session",
+    "plan",
+    "work-1",
+  );
+  await secondClock.store.handleHook(hook(
+    "UserPromptSubmit",
+    "bootstrap-plan-session",
+    secondClock.root,
+    second.lease,
+    { turn: "bootstrap-plan-turn", permission: "plan" },
+  ));
+  await secondClock.store.createMaterializationGrant(materializationGrantRequest());
+  await secondClock.store.handleHook(hook(
+    "UserPromptSubmit",
+    "bootstrap-plan-session",
+    secondClock.root,
+    second.lease,
+    { turn: "later-bootstrap-plan-turn", permission: "plan" },
+  ));
+  snapshot = await secondClock.store.snapshot();
+  assert.equal(snapshot.materialization_grants[0].status, "failed");
+  assert.equal(snapshot.materialization_grants[0].failure_code, "source_changed");
+});
+
+test("claimed bootstrap finalizes only after one exact canonical materialization record exists", async (t) => {
+  const clock = await fixture(t);
+  const { lease } = await enroll(
+    clock.store,
+    clock.root,
+    "bootstrap-plan-session",
+    "plan",
+    "work-1",
+  );
+  await clock.store.handleHook(hook(
+    "UserPromptSubmit",
+    "bootstrap-plan-session",
+    clock.root,
+    lease,
+    { turn: "bootstrap-plan-turn", permission: "plan" },
+  ));
+  const created = await clock.store.createMaterializationGrant(materializationGrantRequest());
+  const continued = await clock.store.continueMaterializationGrant(
+    created.grant.grant_id,
+    validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION }),
+  );
+  await clock.store.handleHook(hook(
+    "UserPromptSubmit",
+    "fresh-bootstrap-target",
+    clock.root,
+    { kind: "activation", activation_capsule: continued.activation_capsule },
+    { turn: "fresh-bootstrap-turn" },
+  ));
+  const claimed = (await clock.store.snapshot()).materialization_grants[0];
+  const path = join(clock.root, "artifacts", "af", "work-1", "af-work-item.json");
+  const manifest = parseAfWorkItemManifest(await readFile(path, "utf8"));
+  manifest.ledger_revision += 1;
+  manifest.revisions.discovery = {
+    digest: DISCOVERY,
+    subjects: [{ ref: "analysis-result.json", sha256: DISCOVERY }],
+    registry_revision: null,
+  };
+  manifest.revisions.decision = {
+    digest: DECISIONS,
+    subjects: [{ ref: "af-work-item.json#decisions", sha256: DECISIONS }],
+    registry_revision: null,
+  };
+  await writeFile(path, serializeAfWorkItemManifest(manifest), "utf8");
+  assert.equal((await clock.store.snapshot()).materialization_grants[0].status, "claimed");
+
+  manifest.session_handoffs.push({
+    handoff_id: claimed.grant_id,
+    work_id: claimed.work_id,
+    from_session_id: claimed.from_session_id,
+    from_turn_id: claimed.from_turn_id,
+    discovery_revision: manifest.revisions.discovery,
+    decision_revision: manifest.revisions.decision,
+    plan_hash: claimed.plan_body_hash,
+    target_skill: "af-discover-assets.materialize",
+    status: "claimed",
+    created_at: claimed.created_at,
+    expires_at: claimed.expires_at,
+    marker_digest: claimed.marker_digest,
+    claimed_by_session_id: claimed.claimed_by_session_id,
+    claimed_turn_id: claimed.claimed_by_turn_id,
+    claimed_at: claimed.claimed_at,
+    superseded_by_handoff_id: null,
+  });
+  await writeFile(path, serializeAfWorkItemManifest(manifest), "utf8");
+  const finalized = (await clock.store.snapshot()).materialization_grants[0];
+  assert.equal(finalized.status, "finalized");
+  assert.equal(finalized.finalized_at, clock.now().toISOString());
 });
 
 test("restart invalidates prior leases and pending interaction authority", async (t) => {

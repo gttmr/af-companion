@@ -18,6 +18,7 @@ import {
   validateContinueHandoffInput,
   validateCreateDeliveryInput,
   validateCreateEnrollmentInput,
+  validateCreateMaterializationGrantInput,
   validateCreatePlanHandoffInput,
   validateResetStateInput,
   validateRevokeSessionInput,
@@ -180,6 +181,14 @@ async function route(
     json(response, 201, await store.createPlanHandoff(validateCreatePlanHandoffInput(postBody)));
     return;
   }
+  if (request.method === "POST" && url.pathname === "/v1/materialization-grants") {
+    json(
+      response,
+      201,
+      await store.createMaterializationGrant(validateCreateMaterializationGrantInput(postBody)),
+    );
+    return;
+  }
   if (request.method === "POST" && url.pathname === "/v1/sessions/attach") {
     json(response, 200, await store.attachSession(validateAttachSessionInput(postBody)));
     return;
@@ -190,6 +199,18 @@ async function route(
   if (continueMatch) {
     const handoffId = decodePathIdentifier(continueMatch[1], "handoff_id");
     json(response, 200, await store.continueHandoff(handoffId, validateContinueHandoffInput(postBody)));
+    return;
+  }
+  const continueGrantMatch = request.method === "POST"
+    ? /^\/v1\/materialization-grants\/([^/]+)\/continue$/.exec(url.pathname)
+    : null;
+  if (continueGrantMatch) {
+    const grantId = decodePathIdentifier(continueGrantMatch[1], "grant_id");
+    json(
+      response,
+      200,
+      await store.continueMaterializationGrant(grantId, validateContinueHandoffInput(postBody)),
+    );
     return;
   }
   const attachHandoffMatch = request.method === "POST"
@@ -234,7 +255,7 @@ async function route(
   throw new HttpError(404, "not_found", "Route not found");
 }
 
-function decodePathIdentifier(value: string, field: "delivery_id" | "session_id" | "handoff_id"): string {
+function decodePathIdentifier(value: string, field: "delivery_id" | "session_id" | "handoff_id" | "grant_id"): string {
   let decoded: string;
   try {
     decoded = decodeURIComponent(value);
