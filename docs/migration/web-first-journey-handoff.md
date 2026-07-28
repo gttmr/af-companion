@@ -20,11 +20,11 @@
 | P4 | `agent/web-first-live-projection` | [#12](https://github.com/gttmr/af-companion/pull/12) | `782557bf7d62b43130af01a68f3da6ffb5b0bb58` | [live projection decision](../decision-log.md) |
 | P5 | `agent/web-first-error-recovery` | [#13](https://github.com/gttmr/af-companion/pull/13) | `697b953f18e1e7d7a2aab693066bf440acd4a881` | [recovery decision](../decision-log.md) |
 | P6 | `agent/web-first-materialization-handoff` | [#14](https://github.com/gttmr/af-companion/pull/14) | `2166f67413ecf1b90191d759bcba582ee8fdd47e` | [Materialization launch decision](../decision-log.md) |
-| P7 | `agent/web-first-journey-acceptance` | pending publish | pending landing | [P7 actual acceptance](web-first-journey-status.md) |
+| P7 | `agent/web-first-journey-acceptance` | [#15](https://github.com/gttmr/af-companion/pull/15) | pending landing | [P7 actual acceptance](web-first-journey-status.md) |
 
-P7의 PR 번호는 publish 뒤 이 행에 고정한다. 이 문서가 포함된 commit 안에서는 아직
-생성되지 않은 P7 merge SHA를 알 수 없으므로 merge 전에는 `pending landing`이
-정확한 상태다. PR의 `mergeCommit.oid`가 landing 뒤 canonical locator다.
+이 문서가 포함된 commit 안에서는 아직 생성되지 않은 P7 merge SHA를 알 수 없으므로
+merge 전에는 `pending landing`이 정확한 상태다. PR #15의 `mergeCommit.oid`가 landing
+뒤 canonical locator다.
 
 ## 실제 구현 여정
 
