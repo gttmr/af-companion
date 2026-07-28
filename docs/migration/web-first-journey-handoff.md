@@ -1,9 +1,9 @@
 # Web-First Journey Handoff
 
 > **2026-07-28:** Web bootstrap→multi-root VS Code→fresh exact Luna low Plan
-> Session과 `bridge_down` 복구는 실제 동작하지만, 새 빈 Work Item에서는 Plan 질문 본문
-> projection과 canonical Handoff가 생성되지 않아 Materialization·Graph/source까지의
-> end-to-end 여정은 **BLOCKED**다.
+> Session과 `bridge_down` 복구는 실제 동작하지만, 새 빈 Work Item에서는 canonical
+> Handoff가 생성되지 않아 Materialization·Graph/source까지의 end-to-end 여정은
+> **BLOCKED**다. CLI Question 본문·선택지·답변은 Web projection 대상이 아니다.
 
 이 파일은 별도 대화 history가 없는 후속 세션이 현재 상태를 재현하고 다음 계약 결정을
 내릴 수 있도록 작성했다. 현재 source와 [P7 acceptance 상태](web-first-journey-status.md)가
@@ -40,7 +40,7 @@ PR #15의 `mergeCommit.oid`와 현재 `origin/main`의 first-parent history에�
 | 9 | 사용자 | 자연어 요구사항 입력, `/model`에서 `gpt-5.6-luna`, 이어지는 effort picker에서 `low` 선택. |
 | 10 | Web | exact active Plan Session, application/Work Item/role과 Hook activity 표시. |
 | 11 | CLI | `request_user_input`으로 여러 선택지를 한 질문씩 표시하고 사용자 결정 9개 수집. |
-| 12 | Web | tool start/end activity는 표시했지만 질문 본문은 표시하지 못함. |
+| 12 | Web | bounded tool activity와 Skill 상태만 표시하고 CLI 질문 본문은 투영하지 않음. |
 | 13 | Plan | 빈 ledger와 Bridge canonical check의 순환 선행조건을 확인하고 marker 없이 `BLOCKED` 종료. |
 | 14 | Web | Bridge 종료 probe에서 `bridge_down`과 재시작 안내 표시; 재시작 뒤 offline 해제. |
 
@@ -129,6 +129,10 @@ Web-first 구현이 추가한 여섯 경계는 [Decision Log](../decision-log.md
 P7은 이 경계를 넓히지 않았다. Generated workspace의 terminal panel만 최대화해 CLI가
 이미 제공한 여러 Question option을 보이게 했다. Handoff authority나 Decision 의미는
 바꾸지 않았다.
+
+후속 제품 결정은 P7의 “Web Question body FAIL” 분류를 철회했다. Web은 CLI 대화를
+복제하지 않고 Graph IR, Root Executable, composition, application/source evidence를
+표시한다. 이 정정은 Handoff 순환 blocker를 해소하지 않는다.
 
 ## Phase별 파일 지도
 
@@ -222,7 +226,7 @@ phase가 실제로 같은 active 문서를 갱신했기 때문에 그대로 둔�
 | G1 production `af_vscode_launch` | PASS | P7에서도 claimed ticket 1건 재확인. |
 | G2 external watcher | P4 fixture/실측 PASS | depth 6과 excluded tree 한계는 유지. P7에서는 durable source 생성 단계 미도달. |
 | P7 terminal choices | PASS after panel fix | semantic one-choice fallback 없음; 여러 option이 정상 계약. |
-| Web Question body | FAIL | durable `waiting_for_input` ledger가 있을 때만 현재 projection 가능. |
+| Web Question body | N/A | CLI-owned이며 Web projection 대상에서 제외. |
 | Plan→Materialization | BLOCKED | canonical Handoff 없는 경우 Continue/launch를 가장하지 않음. |
 | Bridge recovery | PASS | Web은 spawn하지 않고 operator에게 restart 명령을 안내; restart는 기존 participation을 만료시켜 fresh launch 필요. |
 
@@ -230,21 +234,18 @@ phase가 실제로 같은 active 문서를 갱신했기 때문에 그대로 둔�
 
 우선순위는 다음과 같다.
 
-1. **Phase A question projection 계약 결정:** `request_user_input` 본문과 options를
-   durable prompt/tool-argument 저장 없이 Web에 read-only로 전달할 bounded ephemeral
-   channel을 설계하거나, strict Work Item materialization 시점을 변경한다.
-2. **빈 Work Item Handoff 순환 선행조건 해소:** Phase A-safe 별도 lifecycle write를
+1. **빈 Work Item Handoff 순환 선행조건 해소:** Phase A-safe 별도 lifecycle write를
    명시적으로 허용할지, materialization authority가 Handoff 이전에 제한된 bootstrap
    write를 하도록 재설계할지 결정한다. 기존 canonical Handoff exact-match/TTL/crypto를
    우회하지 않는다.
-3. 위 두 항목 뒤 §9 전체 acceptance를 한 번의 끊기지 않은 cold run으로 반복하고
+2. 위 항목 뒤 §9 전체 acceptance를 한 번의 끊기지 않은 cold run으로 반복하고
    T2/T3/T4/T5를 다시 측정한다.
-4. **run/test/eval 결과의 Web 표시** — 결정 6에서 유예된 필수 후속이다.
-5. VS Code extension chat 경로 — 별도 feasibility gate 통과 전 지원 선언 금지.
-6. `registered_application` workspace eligibility — 별도 보안 검토 필요.
-7. Factory-cwd Session의 app-root project MCP 미소비 문제.
-8. External app watcher `depth: 6`의 깊은 tree 누락과 large tree 성능 측정.
-9. Native Windows 지원.
+3. **run/test/eval 결과의 Web 표시** — 결정 6에서 유예된 필수 후속이다.
+4. VS Code extension chat 경로 — 별도 feasibility gate 통과 전 지원 선언 금지.
+5. `registered_application` workspace eligibility — 별도 보안 검토 필요.
+6. Factory-cwd Session의 app-root project MCP 미소비 문제.
+7. External app watcher `depth: 6`의 깊은 tree 누락과 large tree 성능 측정.
+8. Native Windows 지원.
 
 ## 다음 세션이 먼저 실행할 명령
 
@@ -282,14 +283,10 @@ rg -n "matchesCurrentCanonicalHandoff|createPlanHandoff|session_handoffs" \
 다음은 기존 9개 제품 결정으로 답할 수 없고 canonical/security/privacy 경계를 바꾸므로
 구현 전에 사용자 판단이 필요하다.
 
-1. **`web-first.phase-a-question-projection.v1`:** structured Question 본문을 ephemeral
-   Web stream으로 전달할지, 아니면 Phase A가 bounded Decision draft를 canonical ledger에
-   쓰도록 기존 no-write 원칙을 바꿀지.
-2. **`web-first.plan-handoff-bootstrap.v1`:** canonical Handoff를 만들기 위한 제한된
+1. **`web-first.plan-handoff-bootstrap.v1`:** canonical Handoff를 만들기 위한 제한된
    Phase A lifecycle write를 허용할지, Handoff 없이 시작하는 별도 materialization
    authority를 설계할지. 두 선택 모두 기존 exact claim 보안 검토가 필요하다.
-3. **`web-first.launch-slo-clock.v1`:** `T2≤90s` 측정에서 사용자가 Workspace Trust를
+2. **`web-first.launch-slo-clock.v1`:** `T2≤90s` 측정에서 사용자가 Workspace Trust를
    판단하는 시간을 포함할지, Trust 승인 시점을 별도 gate clock으로 분리할지.
 
-이 결정 전에는 Web 질문 표시나 fresh Materialization 성공을 구현됐다고 문서화하지
-않는다.
+이 결정 전에는 fresh Materialization 성공을 구현됐다고 문서화하지 않는다.

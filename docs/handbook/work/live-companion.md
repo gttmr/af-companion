@@ -65,12 +65,13 @@ closes the watcher. Factory Git change/diff and editor-open scope stay unchanged
 
 `WorkLiveStrip` projects exact active Companion count, current/focus Work Skill,
 Graph revision/latest Graph event, and latest application-source event for the
-Home selection and every Work Skill route. `WaitingDecisionStrip` renders a
-current Decision topic and its options only when the ledger also contains a
-`waiting_for_input` active run. It does not answer the Decision. Run/test/eval
-result display remains a follow-up. A structured `request_user_input` Question
-that exists only in the live CLI conversation is not forwarded by bounded Hook
-activity and is therefore not rendered until a durable ledger record exists.
+Home selection and every Work Skill route. `HomeGraphOverview` adds a read-only
+Graph preview plus Root Executable, solution control, Graph revision, and recent
+app-source context; its single link opens the full Compose Graph. Compose keeps
+the full canvas and inspector before review/readiness registers. CLI Question
+text, options, answers, and transcript are not Web projection surfaces, even
+when strict Decision records exist. Run/test/eval result display remains a
+follow-up.
 
 `JourneyRecoveryPanel` receives a pure classification from stable API error
 codes and the current launch observation. Bridge unavailable, missing Work Item,
@@ -95,8 +96,8 @@ Source:
 
 - `packages/web/src/companion/sessionContract.ts` (`deliveryEligibility`, `canonicalizePlanBody`)
 - `packages/web/server/workspaceProjection.ts`, `workspaceApi.ts`, `vscodeWorkspaceLauncher.ts`
-- `packages/web/src/layout/LiveRail.tsx`, `WorkLiveStrip.tsx`, `WaitingDecisionStrip.tsx`
-- `packages/web/src/routes/WorkspaceHome.tsx`, `packages/web/src/components/JourneyGuideDialog.tsx`, `JourneyRecoveryPanel.tsx`
+- `packages/web/src/layout/LiveRail.tsx`, `WorkLiveStrip.tsx`
+- `packages/web/src/routes/WorkspaceHome.tsx`, `packages/web/src/components/HomeGraphOverview.tsx`, `JourneyGuideDialog.tsx`, `JourneyRecoveryPanel.tsx`
 - `packages/web/src/companion/journeyRecovery.ts`
 - `packages/web/server/codexBridgeStore.ts`
 - `packages/web/server/codexBridgeServer.ts`, `codexCompanionApi.ts`

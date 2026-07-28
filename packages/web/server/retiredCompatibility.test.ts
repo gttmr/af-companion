@@ -23,6 +23,7 @@ test("retired lifecycle, importer, and Catalog compatibility surfaces stay absen
     "src/analyzer/assetReview.ts",
     "src/analyzer/nestedWorkflowInsert.ts",
     "src/analyzer/localA2aProvider.ts",
+    "src/layout/WaitingDecisionStrip.tsx",
   ]) {
     assert.equal(existsSync(resolve(webRoot, retiredPath)), false, `${retiredPath} must stay removed`);
   }

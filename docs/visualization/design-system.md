@@ -31,6 +31,9 @@ Home의 첫 운영 surface는 Web-first 시작 register다. `새 작업 시작`�
 approval은 순서가 분명한 dialog로 안내한다. Editor launch receipt와 Companion 연결을 같은
 상태로 표시하지 않으며, Trust 안내는 fresh exact session이 관찰된 뒤에만 다음 안내로
 전환한다. 상단 shell에는 factory root만 여는 별도 VS Code action을 두지 않는다.
+기존 Work Item을 선택하면 같은 Home에 `HomeGraphOverview`가 읽기 전용 Graph preview와
+Root Executable, solution control, Graph revision, 최근 application source를 표시한다. preview는
+선택·편집·zoom control을 제공하지 않고 하나의 `전체 Graph IR 열기` 링크로 Compose에 연결한다.
 
 현재 desktop viewport가 acceptance 기준이다. 좁은 화면에서는 rail과 register가 단일 열로 내려가야 하지만 모바일 전용 제품을 만들지는 않는다.
 
@@ -38,15 +41,14 @@ approval은 순서가 분명한 dialog로 안내한다. Editor launch receipt와
 
 Home의 현재 선택과 모든 Work Skill 화면 상단에는 카드 묶음이 아닌 하나의 얇은 live strip을 둔다. Work Item,
 exact active Companion 수, current/focus Work Skill 상태, Graph revision/최근 변화, 최근
-external application source를 같은 행에서 비교한다. `waiting_for_input` run과 open Decision이
-함께 있으면 header 아래 warning register에 Decision topic과 options를 그대로 표시하고,
-응답 위치가 VS Code terminal임을 밝힌다. Browser 답변 action은 제공하지 않는다.
+external application source를 같은 행에서 비교한다. `waiting_for_input`은 Skill 상태로만
+표시한다. CLI Question 본문·선택지·답변·transcript는 Web에 표시하지 않는다.
 
 ### Discover
 
 - normalized requirement와 evidence를 먼저 표시한다.
 - Candidate register는 Agent·Workflow·Tool을 한 표에서 비교한다.
-- Solution Control Strategy, Root Executable, Discovery cycle과 required Decision/Asset Decision을 별도 운영 register로 표시한다.
+- Solution Control Strategy, Root Executable, Discovery cycle과 Session Handoff 결과를 별도 운영 register로 표시한다.
 - Plan Session과 Materialization Session, handoff 상태를 같은 Work Item 안에서 연결해 보여 준다.
 - dependency와 Missing Information은 별도 register로 분리한다.
 - 수정 action은 제공하지 않고 VS Code에서 canonical artifact 열기만 제공한다.
@@ -54,7 +56,8 @@ external application source를 같은 행에서 비교한다. `waiting_for_input
 ### Compose
 
 - Graph IR이 주 작업면이다.
-- 현재 Strategy, Root Executable, Registry revision, Asset disposition을 Graph보다 먼저 확인할 수 있어야 한다.
+- full Graph canvas와 Inspector를 header 바로 다음에 배치한다.
+- Strategy, Root Executable, Registry revision, Asset disposition, review/readiness는 Graph 아래의 해석 맥락으로 배치한다.
 - Discovery와 Composition review gate를 함께 표시하되 웹에서 결정하지 않는다.
 - 명시적 active Codex session을 선택해야 Graph save가 가능하다.
 - Graph edit mode에서 `GraphElementEditor`가 Canvas 옆에 표시된다.
@@ -130,7 +133,7 @@ Graph는 `GraphCanvas.tsx`, `GraphInspector.tsx`, `GraphElementEditor.tsx`, `com
 - Edge의 `control`과 optional `channel`을 별도로 보여 준다.
 - `parallel`과 `loop`는 Region overlay로 표시한다.
 - Node 위치는 presentation state이며 Graph IR에 저장하지 않는다.
-- 기본은 read-only이고 Compose 화면만 `editable`을 켠다.
+- 기본은 read-only이고 Compose 화면만 `editable`을 켠다. Home은 interaction control과 Inspector가 없는 explicit `preview` variant를 사용한다.
 - Inspector와 Editor는 Canvas 옆 두 번째 column이며 retired Design sidebar selector에 의존하지 않는다.
 
 Graph save는 현재 `analysis-result.json.graph`과 `graph-ir.json`을 동기화한다. 웹은 runtime contract, review gate, source, validator result를 자동 수정하지 않는다. save 결과는 Compose review와 downstream Work Skill evidence를 무효화하고 exact Codex session에 `graph_change` context를 queue한다.
@@ -151,7 +154,8 @@ Graph save는 현재 `analysis-result.json.graph`과 `graph-ir.json`을 동기�
 | shell과 route | `packages/web/src/layout/LiveWorkbenchLayout.tsx`, `packages/web/src/routes/router.tsx` |
 | Web-first 시작과 gate 안내 | `packages/web/src/routes/WorkspaceHome.tsx`, `packages/web/src/components/JourneyGuideDialog.tsx` |
 | Work Skill rail | `packages/web/src/layout/WorkSkillRail.tsx` |
-| selected-work live strip와 대기 질문 | `packages/web/src/layout/WorkLiveStrip.tsx`, `WaitingDecisionStrip.tsx`, `packages/web/src/routes/work/SkillScreenHeader.tsx` |
+| selected-work live strip | `packages/web/src/layout/WorkLiveStrip.tsx`, `packages/web/src/routes/work/SkillScreenHeader.tsx` |
+| Home Graph preview | `packages/web/src/components/HomeGraphOverview.tsx`, `GraphCanvas.tsx`의 `preview` variant |
 | live Activity/Git/Codex rail | `packages/web/src/layout/LiveRail.tsx` |
 | Discover/Compose/Scaffold/Verify | `packages/web/src/routes/work/*Workspace.tsx` |
 | Connections/Assets | `packages/web/src/routes/ConnectionsPage.tsx`, `AssetsPage.tsx` |

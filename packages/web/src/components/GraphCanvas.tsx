@@ -75,6 +75,7 @@ interface GraphCanvasProps {
   contextSelectedNodeIds?: readonly string[];
   onContextNodeToggle?: (nodeId: string) => void;
   onContextSelectionModeChange?: (active: boolean) => void;
+  variant?: "workspace" | "preview";
 }
 
 export interface Selection {
@@ -109,7 +110,8 @@ export function GraphCanvas({
   contextSelectionMode = false,
   contextSelectedNodeIds = [],
   onContextNodeToggle,
-  onContextSelectionModeChange
+  onContextSelectionModeChange,
+  variant = "workspace"
 }: GraphCanvasProps) {
   const [internalSelection, setInternalSelection] = useState<Selection>({ nodeId: null, edgeId: null });
   const [editMode, setEditMode] = useState(false);
@@ -125,7 +127,9 @@ export function GraphCanvas({
   const stageRef = useRef<HTMLDivElement | null>(null);
   const edgeCreationGuardRef = useRef<string | null>(null);
   const selection = selectionProp ?? internalSelection;
-  const editModeActive = editable && editMode && draft !== null;
+  const preview = variant === "preview";
+  const editEnabled = editable && !preview;
+  const editModeActive = editEnabled && editMode && draft !== null;
   const activeGraph = editModeActive && draft ? draft : graphIR;
 
   const setSelection = useCallback((next: Selection) => {
@@ -156,12 +160,12 @@ export function GraphCanvas({
   }, []);
 
   useEffect(() => {
-    if (editable) return;
+    if (editEnabled) return;
     setEditMode(false);
     setDraft(null);
     setDirty(false);
     cancelConnectMode();
-  }, [cancelConnectMode, editable]);
+  }, [cancelConnectMode, editEnabled]);
 
   const enterEditMode = useCallback(() => {
     onContextSelectionModeChange?.(false);
@@ -322,16 +326,16 @@ export function GraphCanvas({
   }, [draft, editModeActive, onEditStateChange, replaceEdge, replaceNode, replaceRegions, selectedEdge, selectedNode]);
 
   return (
-    <div className={`graph-canvas-root${hideInspector ? " graph-canvas-root--no-inspector" : ""}`}>
+    <div className={`graph-canvas-root${hideInspector || preview ? " graph-canvas-root--no-inspector" : ""}${preview ? " graph-canvas-root--preview" : ""}`}>
       <section className="ui-panel graph-canvas-panel">
-        <div className="section-heading">
+        {preview ? null : <div className="section-heading">
           <div><p className="eyebrow">Target Graph IR</p><h2>Workflow 실행 그래프</h2></div>
           <span className="graph-canvas-stats">Node {activeGraph.nodes.length} · Edge {activeGraph.edges.length} · 실행 범위 {activeGraph.regions.length}</span>
-        </div>
+        </div>}
         <div className="graph-canvas-workspace">
           <ReactFlowProvider>
             <ReactFlowErrorPolicy>
-              {editable ? (
+              {editEnabled ? (
                 <GraphEditToolbar
                   addKind={addKind}
                   addLabel={addLabel}
@@ -372,6 +376,7 @@ export function GraphCanvas({
                   selection={selection}
                   contextSelectionMode={contextSelectionMode}
                   contextSelectedNodeIds={contextSelectedNodeIds}
+                  preview={preview}
                   onConnect={createEdge}
                   onEdgeClick={handleEdgeInteraction}
                   onNodeClick={handleNodeInteraction}
@@ -384,7 +389,7 @@ export function GraphCanvas({
         </div>
         {onContinue ? <div className="actions align-end graph-canvas-actions"><button type="button" className="primary" onClick={onContinue}>{continueLabel ?? "다음 단계"}</button></div> : null}
       </section>
-      {hideInspector ? null : editModeActive && draft ? (
+      {hideInspector || preview ? null : editModeActive && draft ? (
         <GraphElementEditor
           editState={{
             editModeActive,
@@ -457,10 +462,11 @@ function GraphEditToolbar({
   );
 }
 
-function GraphFlowStage({ baseNodes, baseEdges, regionRects, editModeActive, selection, contextSelectionMode, contextSelectedNodeIds, onConnect, onEdgeClick, onNodeClick, onPaneClick, onPositionCommit }: {
+function GraphFlowStage({ baseNodes, baseEdges, regionRects, editModeActive, selection, contextSelectionMode, contextSelectedNodeIds, preview, onConnect, onEdgeClick, onNodeClick, onPaneClick, onPositionCommit }: {
   baseNodes: ReactFlowNode<GraphNodeData>[]; baseEdges: ReactFlowEdge<GraphEdgeData>[];
   regionRects: ReturnType<typeof layoutGraphIR>["regionRects"]; editModeActive: boolean; selection: Selection;
   contextSelectionMode: boolean; contextSelectedNodeIds: readonly string[];
+  preview: boolean;
   onConnect: (source: string, target: string) => void; onEdgeClick: (id: string) => void; onNodeClick: (id: string) => void;
   onPaneClick: () => void; onPositionCommit: (nodeId: string, position: XYPosition) => void;
 }) {
@@ -492,13 +498,15 @@ function GraphFlowStage({ baseNodes, baseEdges, regionRects, editModeActive, sel
   return (
     <ReactFlow
       nodes={renderedNodes} edges={renderedEdges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} fitView
-      nodesDraggable={editModeActive} nodesConnectable={editModeActive} elementsSelectable proOptions={{ hideAttribution: true }}
+      nodesDraggable={editModeActive} nodesConnectable={editModeActive} elementsSelectable={!preview}
+      nodesFocusable={!preview} edgesFocusable={!preview} panOnDrag={!preview} zoomOnScroll={!preview}
+      zoomOnPinch={!preview} zoomOnDoubleClick={!preview} preventScrolling={!preview} proOptions={{ hideAttribution: true }}
       onError={reportReactFlowError}
       onConnect={handleConnect} onEdgesChange={handleEdgesChange} onNodesChange={handleNodesChange} onPaneClick={onPaneClick}
       onNodeClick={(_, node) => onNodeClick(node.id)} onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
       onNodeDragStop={(_, node) => { if (editModeActive) onPositionCommit(node.id, node.position); }}
     >
-      <Background gap={18} size={1} /><MiniMap pannable zoomable /><Controls showInteractive={false} />
+      <Background gap={18} size={1} />{preview ? null : <><MiniMap pannable zoomable /><Controls showInteractive={false} /></>}
       <RegionOverlay rects={regionRects} />
     </ReactFlow>
   );
