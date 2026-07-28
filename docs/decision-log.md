@@ -10,6 +10,12 @@
 
 ---
 
+## 2026-07-28 · PR [#17](https://github.com/gttmr/af-companion/pull/17) — Web은 CLI Question 대신 Graph IR과 확정 구조를 투영
+
+- **결정**: CLI Question 본문·선택지·답변·transcript를 Home과 Work Skill 화면에서 제거한다. `waiting_for_input`은 Work Skill 상태로만 남긴다. Home은 선택된 Work Item의 읽기 전용 Graph preview와 Root Executable, solution control, Graph revision, application-source 맥락을 표시하고, Compose는 full Graph canvas/Inspector를 review·readiness보다 먼저 배치한다. (대체: 2026-07-28 `agent/web-first-live-projection` 항목의 Decision topic/options 화면 조항)
+- **배경**: Web의 제품 목적은 CLI 대화를 복제하는 것이 아니라 어떤 Agent/Workflow/Tool application을 만들고 있는지 Graph IR과 구조적 결과로 이해하게 하는 것이다. P7에서 Question 본문 부재를 결함으로 분류한 것은 이 목적을 확대 해석한 것이었다.
+- **영향**: `WaitingDecisionStrip`과 Discover의 사용자 Decision 표를 제거하고 `HomeGraphOverview`, `GraphCanvas` preview variant, Graph-first Compose hierarchy를 추가한다. strict Work Item의 Decision provenance, CLI Question semantics, Graph/Registry write authority, Plan→Materialization Handoff 보안 경계는 변경하지 않는다.
+
 ## 2026-07-28 · 작업 브랜치 `agent/web-first-journey-acceptance` — generated Task terminal의 다중 선택 가시성
 
 - **결정**: Plan과 Materialization의 private generated `.code-workspace`는 `workbench.panel.opensMaximized: "always"`를 설정한다. `folderOpen` Task의 dedicated terminal이 열릴 때 panel을 최대화해 structured Question의 여러 option이 함께 보이게 한다.

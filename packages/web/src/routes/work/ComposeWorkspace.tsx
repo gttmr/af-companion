@@ -76,12 +76,6 @@ export default function ComposeWorkspace() {
           </select>
         </label>
       </SkillScreenHeader>
-      <div className="compose-gates"><ReviewGateLine manifest={manifest} gate="discovery" /><ReviewGateLine manifest={manifest} gate="composition" /></div>
-
-      {manifest ? <CompositionDecisionStrip manifest={manifest} /> : null}
-
-      {!discoveryReady ? <ScreenState tone="warning" title="Compose gate가 닫혀 있습니다" detail="외부 Codex에서 Discover 산출물을 검토하고 discovery review를 승인한 뒤 Graph를 편집할 수 있습니다." /> : null}
-      {activeSessions.length === 0 ? <ScreenState tone="warning" title="활성 Companion session 없음" detail="Home에서 이 Work Item의 VS Code Plan session을 시작하세요. Materialization handoff는 별도 capsule-free launch 경로가 제공될 때 사용합니다." /> : null}
       {message ? <div className={`compose-message is-${message.tone}`}>{message.text}{message.tone === "error" ? <button type="button" onClick={() => void graphQuery.refetch()}>최신 Graph 불러오기</button> : null}</div> : null}
 
       {graphQuery.isLoading ? <ScreenState title="Graph IR을 읽는 중" detail="analysis-result.json의 canonical embedded Graph를 투영합니다." /> : null}
@@ -104,12 +98,23 @@ export default function ComposeWorkspace() {
         </section>
       ) : null}
 
+      <section className="composition-context" aria-labelledby="composition-context-title">
+        <div className="section-title-line compact">
+          <div><span>Resolved structure</span><h2 id="composition-context-title">Graph 해석과 readiness</h2></div>
+          <p>Graph 아래에서 승인 상태, Root Executable, binding과 runtime seam을 확인합니다.</p>
+        </div>
+        <div className="compose-gates"><ReviewGateLine manifest={manifest} gate="discovery" /><ReviewGateLine manifest={manifest} gate="composition" /></div>
+        {manifest ? <CompositionOutcomeStrip manifest={manifest} /> : null}
+        {!discoveryReady ? <ScreenState tone="warning" title="Compose gate가 닫혀 있습니다" detail="외부 Codex에서 Discover 산출물을 검토하고 discovery review를 승인한 뒤 Graph를 편집할 수 있습니다." /> : null}
+        {activeSessions.length === 0 ? <ScreenState tone="warning" title="활성 Companion session 없음" detail="Home에서 이 Work Item의 VS Code Plan session을 시작하세요. Materialization handoff는 별도 capsule-free launch 경로가 제공될 때 사용합니다." /> : null}
+      </section>
+
       {analysis && manifest ? <CompositionRegisters analysis={analysis} manifest={manifest} /> : null}
     </div>
   );
 }
 
-function CompositionDecisionStrip({ manifest }: { manifest: AfWorkItemManifest }) {
+function CompositionOutcomeStrip({ manifest }: { manifest: AfWorkItemManifest }) {
   const requiredOpen = manifest.decisions.some((decision) => decision.required && decision.status === "open")
     || manifest.asset_decisions.some((decision) => decision.required && decision.status === "open");
   const currentRevisions = ["discovery", "graph", "root_executable", "runtime_contract", "composition"] as const;
@@ -118,7 +123,7 @@ function CompositionDecisionStrip({ manifest }: { manifest: AfWorkItemManifest }
     && Boolean(manifest.solution_control_strategy && manifest.root_executable)
     && currentRevisions.every((key) => manifest.revisions[key]);
   return (
-    <section className="composition-decision-strip">
+    <section className="composition-outcome-strip">
       <div><span>Solution control</span><strong>{manifest.solution_control_strategy ?? "결정 필요"}</strong></div>
       <div><span>Root Executable</span>{manifest.root_executable ? <><strong>{manifest.root_executable.asset_type}</strong><code>{manifest.root_executable.asset_ref}@{manifest.root_executable.asset_version}</code></> : <strong>결정 필요</strong>}</div>
       <div><span>Registry snapshot</span><strong>{manifest.revisions.catalog_snapshot?.registry_revision?.slice(0, 12) ?? "unbound"}</strong></div>

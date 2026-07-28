@@ -149,10 +149,11 @@ app-relative path and Work ID. It does not add external files to factory Git
 status/diff or widen editor-open containment.
 
 The Home selection and Work Skill live strips combine that signal with exact
-active Companion count, current/focus Skill status, and Graph revision/change. A
-`waiting_for_input` active run plus an unresolved Decision projects the current
-topic and options read-only; the trusted Codex terminal remains the answer and
-write surface. Run/test/eval result projection is not part of this minimal set.
+active Companion count, current/focus Skill status, and Graph revision/change.
+Home adds a read-only Graph preview and resolved Root/composition/app-source
+context; Compose owns the full Graph canvas and Inspector. CLI Question text,
+options, answers, and transcript remain CLI-owned and are not Web projection
+surfaces. Run/test/eval result projection is not part of this minimal set.
 
 ## 7. Graph collaboration and re-entry
 

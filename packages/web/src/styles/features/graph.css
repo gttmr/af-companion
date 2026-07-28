@@ -21,6 +21,16 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.graph-canvas-root--preview,
+.graph-canvas-root--preview .graph-canvas-panel,
+.graph-canvas-root--preview .graph-canvas-workspace {
+  min-width: 0;
+}
+
+.graph-canvas-root--preview .graph-canvas-panel {
+  gap: 0;
+}
+
 .graph-canvas-panel {
   display: grid;
   gap: var(--space-xl);

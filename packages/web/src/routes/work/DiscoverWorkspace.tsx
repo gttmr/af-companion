@@ -49,7 +49,7 @@ export default function DiscoverWorkspace() {
           }
         }}
       /> : null}
-      {parsed.analysis ? <DiscoveryContent analysis={parsed.analysis} manifest={manifest} /> : null}
+      {parsed.analysis ? <DiscoveryContent analysis={parsed.analysis} /> : null}
     </div>
   );
 }
@@ -89,7 +89,7 @@ function DiscoveryLifecycle({
     : null;
   return (
     <section className="discovery-lifecycle-register">
-      <div className="section-title-line"><div><span>Plan → Materialization</span><h2>Decision cycle과 Session Handoff</h2></div><p>Work Item이 primary identity이며 Session은 명시적으로 붙는 실행 actor입니다.</p></div>
+      <div className="section-title-line"><div><span>Plan → Materialization</span><h2>Discovery cycle과 Session Handoff</h2></div><p>Work Item이 primary identity이며 Session은 명시적으로 붙는 실행 actor입니다.</p></div>
       <div className="lifecycle-metrics">
         <LifecycleMetric label="Control strategy" value={manifest.solution_control_strategy ?? "결정 필요"} tone={manifest.solution_control_strategy ? "ok" : "warning"} />
         <LifecycleMetric label="Root executable" value={manifest.root_executable ? `${manifest.root_executable.asset_type} · ${manifest.root_executable.asset_ref}@${manifest.root_executable.asset_version}` : "결정 필요"} tone={manifest.root_executable ? "ok" : "warning"} />
@@ -116,7 +116,7 @@ function DiscoveryLifecycle({
   );
 }
 
-function DiscoveryContent({ analysis, manifest }: { analysis: AnalysisResult; manifest: AfWorkItemManifest | null }) {
+function DiscoveryContent({ analysis }: { analysis: AnalysisResult }) {
   const missing = [
     ...analysis.evidence.missing_information.map((value) => ({ owner: "requirement", value })),
     ...analysis.assetCandidates.flatMap((candidate) => candidate.missing_information.map((value) => ({ owner: candidate.asset_id, value }))),
@@ -145,8 +145,6 @@ function DiscoveryContent({ analysis, manifest }: { analysis: AnalysisResult; ma
         </div>
       </section>
 
-      {manifest ? <DecisionRegisters manifest={manifest} /> : null}
-
       <section className="candidate-register">
         <div className="section-title-line"><div><span>Candidate register</span><h2>Agent · Workflow · Tool</h2></div><p>{analysis.assetCandidates.length} candidates · top-level category는 세 종류뿐입니다.</p></div>
         <table>
@@ -174,35 +172,6 @@ function DiscoveryContent({ analysis, manifest }: { analysis: AnalysisResult; ma
         </div>
       </section>
     </>
-  );
-}
-
-function DecisionRegisters({ manifest }: { manifest: AfWorkItemManifest }) {
-  const decisions = manifest.decisions.filter((decision) => decision.status !== "superseded");
-  const assetDecisions = manifest.asset_decisions.filter((decision) => decision.status !== "superseded");
-  const openRequired = decisions.filter((decision) => decision.required && decision.status === "open").length
-    + assetDecisions.filter((decision) => decision.required && decision.status === "open").length;
-  return (
-    <section className="discovery-decision-grid">
-      <div className="decision-register">
-        <div className="section-title-line compact"><div><span>User decisions</span><h2>Required choices</h2></div><strong>{openRequired ? `${openRequired} open` : "resolved"}</strong></div>
-        {decisions.length ? <table><thead><tr><th>Topic</th><th>Selection</th><th>Recommendation</th><th>Status</th></tr></thead><tbody>{decisions.map((decision) => <tr key={decision.decision_id}>
-          <td><strong>{decision.topic}</strong><code>{decision.decision_id}</code></td>
-          <td>{decision.selected_option ?? "사용자 응답 필요"}<small>{decision.selection_reason ?? "자동 선택 없음"}</small></td>
-          <td>{decision.recommended_option ?? "—"}</td>
-          <td><span className={`decision-status is-${decision.status}`}>{decision.status}</span></td>
-        </tr>)}</tbody></table> : <ScreenState title="Decision record 없음" detail="Plan Conversation이 materialize되면 사용자 선택과 provenance가 나타납니다." />}
-      </div>
-      <div className="asset-decision-register">
-        <div className="section-title-line compact"><div><span>Asset search</span><h2>Match & disposition</h2></div><strong>{assetDecisions.length}</strong></div>
-        {assetDecisions.length ? <table><thead><tr><th>Asset</th><th>Match</th><th>Disposition</th><th>Status</th></tr></thead><tbody>{assetDecisions.map((decision) => <tr key={decision.asset_decision_id}>
-          <td><strong>{decision.asset_ref}{decision.asset_version ? `@${decision.asset_version}` : ""}</strong><small>{decision.asset_type} · {decision.catalog_refs.join(", ") || "project candidate"}</small></td>
-          <td><span className={`match-grade is-${decision.match_grade}`}>{decision.match_grade}</span></td>
-          <td>{decision.selected_disposition ?? "사용자 응답 필요"}<small>{decision.selected_disposition ? decision.selection_reason : `추천: ${decision.recommended_disposition ?? "없음"}`}</small></td>
-          <td><span className={`decision-status is-${decision.status}`}>{decision.status}</span></td>
-        </tr>)}</tbody></table> : <ScreenState title="Asset Decision 없음" detail="Registry 검색 결과와 reuse/extend/create 선택이 materialize되면 나타납니다." />}
-      </div>
-    </section>
   );
 }
 

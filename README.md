@@ -65,16 +65,19 @@ contained app root, excludes dependency/build/private state, and emits metadata-
 only `application_source` activity with an app-relative path and exact Work ID.
 The selected Work Item on Home and every Work Skill screen keep connection
 count, current Skill status, Graph revision/change, and the latest app-source
-signal visible without another navigation click. When the ledger has a
-`waiting_for_input` run plus an open Decision, its topic and options are rendered
-read-only; the answer still belongs in the trusted Codex terminal.
+signal visible without another navigation click. Home also renders a read-only
+Graph preview with Root Executable and composition context; Compose keeps the
+full Graph canvas first. CLI Question text, options, answers, and transcript are
+not Web projection surfaces.
 
 The 2026-07-28 P7 acceptance verified the Web bootstrap, multi-root VS Code
 launch, one exact `af_vscode_launch` Plan Session, Luna low multi-choice terminal
-flow, and `bridge_down` recovery. It also found two current gaps: an ephemeral
+flow, and `bridge_down` recovery. It observed that an ephemeral
 `request_user_input` question is not present in the strict ledger that Web
-projects, and the Phase A no-write rule cannot create the canonical Work Item
-Handoff that the fresh Materialization launcher requires. Consequently the
+projects; this is now an intentional CLI/Web ownership boundary. It also found
+that the Phase A no-write rule cannot create the canonical Work Item Handoff
+required by the fresh Materialization launcher. That Handoff prerequisite
+remains the product blocker. Consequently the
 continuous new-work journey through Graph/source is not yet complete. See the
 [measured status](docs/migration/web-first-journey-status.md) and
 [zero-context handoff](docs/migration/web-first-journey-handoff.md).

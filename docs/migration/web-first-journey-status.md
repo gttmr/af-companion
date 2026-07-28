@@ -1,7 +1,7 @@
 # Web-First Journey P7 Acceptance 상태
 
 상태: **PARTIAL / BLOCKED — Web→VS Code exact Plan 연결과 복구는 실측됐지만,
-Web 질문 내용·Plan→Materialization·Graph/source까지의 연속 여정은 통과하지 못함**
+Plan→Materialization·Graph/source까지의 연속 여정은 통과하지 못함**
 
 실행일: 2026-07-28 (KST)
 
@@ -10,6 +10,10 @@ test, Bridge health, editor receipt만으로 성공을 선언하지 않았으며
 Remote-WSL terminal, fresh Hook receipt, current Bridge state, Web DOM과 source를 함께
 확인했다. 호스트 PC가 중간에 종료되어 launch timing과 최종 Plan audit은 각각의 fresh
 run으로 재검증했으며, 끊기지 않은 한 번의 end-to-end 성공으로 합치지 않는다.
+
+> **후속 제품 범위 정정:** CLI Question 본문·선택지·답변은 Web projection 대상이 아니다.
+> P7 당시 본문 부재를 FAIL로 분류한 판단은 철회한다. 아래 실측 사실은 보존하되 현재
+> 제품 blocker는 canonical Plan→Materialization Handoff와 그 뒤 Graph/source 미도달이다.
 
 ## 기준선과 실행 환경
 
@@ -64,7 +68,7 @@ state에서 확인한 뒤에만 Web 연결을 인정했다.
 | natural-language first turn | **PASS** | 사용자가 `사내 문서를 분류하는 간단한 Agent를 만들어 줘`를 terminal에 입력했다. |
 | exact Companion connection | **PASS** | claimed ticket 1건, fresh prompt receipt, current leased exact Plan Session 확인. |
 | 다중 선택 Question UX | **PASS after P7 fix** | 생성 workspace가 terminal panel을 최대화하자 Question의 여러 선택지가 동시에 보였다. `/model`은 model picker 뒤 effort picker가 연속 표시됐고 `gpt-5.6-luna` + `low`를 선택했다. |
-| Web의 대기 질문 **내용** | **FAIL** | Web에는 `request_user_input` tool activity만 보이고 질문/선택지 본문은 나타나지 않았다. 빈 ledger는 `not_started` 그대로였다. |
+| Web의 대기 질문 **내용** | **OUT OF SCOPE** | Web에는 bounded tool activity와 Skill 상태만 보였고 질문/선택지 본문은 나타나지 않았다. 후속 제품 결정으로 이 동작을 의도된 경계로 확정했다. |
 | Plan→Materialization 1-click | **BLOCKED** | canonical pending Handoff가 생성되지 않아 P6 action의 launchable input이 존재하지 않았다. |
 | Graph IR + app source | **NOT REACHED** | Materialization을 시작할 수 없어 Graph/source를 생성하지 않았다. App에는 bootstrap MCP 파일만 남았다. |
 | `bridge_down` 실패 probe | **PASS** | Bridge 종료 뒤 Web이 `bridge_down`, “Codex Bridge가 멈춰 있습니다”, “Bridge 재시작 안내”를 구분해 표시했다. 재시작 뒤 offline 표시는 해제됐다. |
@@ -103,14 +107,19 @@ Question payload에는 여러 선택지가 있었지만 generated Task terminal�
 `workbench.panel.opensMaximized: "always"`를 추가했다. CLI의 option semantics,
 Decision Input Adapter, model/effort 선택 순서는 바꾸지 않았다.
 
-### 2. structured Question과 Web projection의 소유 데이터가 다름 — 미해결
+### 2. structured Question과 Web projection의 소유 데이터가 다름 — 제품 경계로 해소
 
-Current Web은 strict Work Item에 `waiting_for_input` run과 open Decision이 이미
-materialize된 경우에만 `WaitingDecisionStrip`을 렌더링한다. 실제 Plan Mode의
+P7 baseline의 Web은 strict Work Item에 `waiting_for_input` run과 open Decision이 이미
+materialize된 경우 `WaitingDecisionStrip`을 렌더링했다. 실제 Plan Mode의
 `request_user_input` 질문은 TUI 대화 안에만 존재하며 Hook/Bridge activity에는 bounded
-tool name만 남는다. Phase A는 tracked artifact write를 금지하므로 빈 Work Item은
-`ledger_revision: 0`, Discover `not_started`, `decisions: []`를 유지했다. 따라서 Web이
-질문의 **내용**을 표시할 source가 없다.
+tool name만 남았다. Phase A는 tracked artifact write를 금지하므로 빈 Work Item은
+`ledger_revision: 0`, Discover `not_started`, `decisions: []`를 유지했다.
+
+후속 제품 결정은 이 데이터 차이를 transport 결함으로 보지 않는다. CLI가 질문·선택·답변을
+소유하고 Web은 Work Skill 상태, Graph IR, Root Executable, composition과 app/source
+evidence를 투영한다. 후속 Graph-primary slice는 `WaitingDecisionStrip`과 Discover의
+질문/답변 표를 제거했고, ephemeral Question channel이나 Phase A Decision draft write를
+새로 만들지 않았다.
 
 ### 3. 빈 ledger의 Plan→Materialization Handoff 선행조건이 순환함 — 미해결
 
@@ -134,7 +143,7 @@ endpoint에 연결하지 못했으므로 이를 Bridge outage나 Handoff blocker
 | primary click 1, gate ≤3 | **PASS** |
 | exact claimed `af_vscode_launch` ticket 1건 + factory cwd | **PASS** |
 | strict empty Work Item validator | **PASS** — root와 exact artifact root 모두 통과 |
-| Web이 대기 질문 본문 표시 | **FAIL** |
+| Web이 대기 질문 본문 표시 | **N/A** — 제품 범위에서 제외 |
 | durable external app source 1개 이상 projection | **FAIL** |
 | “지원하지 않습니다” 오도 문구 없음 | **PASS** |
 | intentional `bridge_down` + recovery action | **PASS** |
@@ -152,7 +161,7 @@ endpoint에 연결하지 못했으므로 이를 Bridge outage나 Handoff blocker
 | --- | --- | --- |
 | `vscode-question-options-host-recovery-luna-low.png` | `82f5a4ca54600ecd7df97cf62d9fa2695409965d1b57b9a94dcc6a149e32310f` | recovery 후 Luna low와 다중 선택 Question |
 | `vscode-output-label-set-question-luna-low.png` | `ffd70a5034f3a8dfd705407a6dc5f867243fa276948bd334bc59f23f961f1213` | 마지막 exact label-set 선택지 |
-| `web-connected-no-plan-question.png` | `cea82a7c8446d9fecb45ae3657afa3788d7662bcdcd2f947074c5377a32bffd0` | exact session 연결 중에도 질문 본문 부재 |
+| `web-connected-no-plan-question.png` | `cea82a7c8446d9fecb45ae3657afa3788d7662bcdcd2f947074c5377a32bffd0` | exact session 연결 중 질문 본문을 투영하지 않은 P7 baseline |
 | `web-bridge-down-recovery.png` | `36690737102036398aa332a8f02ccb72c358c5fef2579003efd491c5bb306003` | 원인별 `bridge_down`과 복구 안내 |
 
 전체 선택 질문 screenshot 7개와 hash는 같은 local evidence directory에 남겼다.

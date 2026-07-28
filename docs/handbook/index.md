@@ -4,9 +4,9 @@
 
 | Route | Purpose | Source |
 | --- | --- | --- |
-| `/` | New/existing Work Item start, VS Code gate guidance, current focus, and lifecycle map | `packages/web/src/routes/WorkspaceHome.tsx`, `packages/web/src/components/JourneyGuideDialog.tsx` |
-| `/work/:workId/discover` | discovery cycles, decisions, Assets, and Plan/materialization handoff projection | `packages/web/src/routes/work/DiscoverWorkspace.tsx` |
-| `/work/:workId/compose` | strategy/Root/Asset decisions, Return-to-Discover, invalidations, and Graph edit | `packages/web/src/routes/work/ComposeWorkspace.tsx` |
+| `/` | New/existing Work Item start, VS Code gate guidance, selected-work Graph preview, and lifecycle map | `packages/web/src/routes/WorkspaceHome.tsx`, `packages/web/src/components/HomeGraphOverview.tsx`, `JourneyGuideDialog.tsx` |
+| `/work/:workId/discover` | discovery cycles, Assets, evidence, and Plan/materialization handoff projection | `packages/web/src/routes/work/DiscoverWorkspace.tsx` |
+| `/work/:workId/compose` | Graph-first edit/inspection, resolved strategy/Root/Asset composition, Return-to-Discover, and invalidations | `packages/web/src/routes/work/ComposeWorkspace.tsx` |
 | `/work/:workId/scaffold` | source/handoff and Git change projection | `packages/web/src/routes/work/ScaffoldWorkspace.tsx` |
 | `/work/:workId/verify` | five-level evidence projection | `packages/web/src/routes/work/VerifyWorkspace.tsx` |
 | `/connections` | enrolled Companion sessions, pending handoffs, scoped deliveries, and diagnostics without browser enrollment/Capsule copy | `packages/web/src/routes/ConnectionsPage.tsx` |
@@ -14,9 +14,10 @@
 
 Router ownership: `packages/web/src/routes/router.tsx`.
 Home's current selection and all `/work/:workId/*` routes receive the shared
-current-session, Skill, Graph, application-source, and waiting-Decision
-projection from `packages/web/src/layout/WorkLiveStrip.tsx`,
-`WaitingDecisionStrip.tsx`, and `routes/work/SkillScreenHeader.tsx`.
+current-session, Skill, Graph, and application-source projection from
+`packages/web/src/layout/WorkLiveStrip.tsx` and
+`routes/work/SkillScreenHeader.tsx`. CLI Question text, options, answers, and
+transcript remain outside the Web projection.
 
 ## APIs
 

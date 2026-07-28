@@ -4,12 +4,12 @@ import { Link } from "react-router-dom";
 import { afWorkSkillIds, afWorkSkillLabels } from "../analyzer/afWorkItem";
 import { JourneyGuideDialog } from "../components/JourneyGuideDialog";
 import { JourneyRecoveryPanel } from "../components/JourneyRecoveryPanel";
+import { HomeGraphOverview } from "../components/HomeGraphOverview";
 import {
   classifyJourneyRecovery,
   type JourneyRecoveryAction,
 } from "../companion/journeyRecovery";
 import type { CompanionDiagnostics } from "../companion/types";
-import { WaitingDecisionStrip } from "../layout/WaitingDecisionStrip";
 import { WorkLiveStrip } from "../layout/WorkLiveStrip";
 import { CodexCompanionRequestError, useCodexSessions } from "../state/useCodexSessions";
 import { Button } from "../ui/primitives";
@@ -328,9 +328,10 @@ export default function WorkspaceHome() {
       {startMode === "existing" && selectedWorkId ? (
         <section className="home-live-work" aria-label="선택된 Work Item 진행 상태">
           <div className="section-title-line compact">
-            <div><span>Current work</span><h2>자동 projection</h2></div>
-            <p>추가 navigation 없이 현재 Session, Skill, Graph, application source와 대기 질문을 갱신합니다.</p>
+            <div><span>Current work</span><h2>실행 구조와 live 상태</h2></div>
+            <p>Graph IR과 확정된 application 구조를 중심으로 현재 상태를 갱신합니다.</p>
           </div>
+          <HomeGraphOverview workId={selectedWorkId} manifest={selectedManifest} workspace={snapshot ?? null} />
           <WorkLiveStrip
             workId={selectedWorkId}
             routeSkillId={selectedManifest?.focus_skill ?? "af-discover-assets"}
@@ -339,7 +340,6 @@ export default function WorkspaceHome() {
             codex={codex.snapshot}
             live={workspace.live}
           />
-          <WaitingDecisionStrip manifest={selectedManifest} />
         </section>
       ) : null}
 
