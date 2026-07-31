@@ -81,7 +81,7 @@ mode: Literal['chat', 'task', 'single_turn'] | None = None
 - As a graph/workflow node, the default `mode` is `single_turn`.
 - **Always set `mode` explicitly rather than relying on the default** — the default is context-dependent and a wrong default is silent.
 
-Mode also decides what the Agent can read. `single_turn` forces `include_contents='none'` unless `include_contents` is set explicitly (`workflow/_llm_agent_wrapper.py` — sets `agent.include_contents = 'none'` when `mode == 'single_turn'` and the field was not set explicitly), so **by default** a `single_turn` node sees no conversation history — setting `include_contents` explicitly is what restores it, and this is a default rather than a hard prohibition. `task` and `single_turn` get isolation-scope filtered contents; only `chat` sees the full conversation (`workflow/_llm_agent_wrapper.py`). An Agent whose approved responsibility requires history is a `chat` unit, not a workflow node.
+Mode also decides what the Agent can read. `single_turn` forces `include_contents='none'` unless `include_contents` is set explicitly (`workflow/_llm_agent_wrapper.py` — sets `agent.include_contents = 'none'` when `mode == 'single_turn'` and the field was not set explicitly), so **by default** a `single_turn` node sees no conversation history. Setting `include_contents` explicitly restores isolation-scope-filtered history; it does not turn the node into a full-conversation `chat` unit. Use `chat` when the approved responsibility needs the full conversation. A graph node may use explicit `include_contents` only when the approved input is the resulting scoped history.
 
 `mode='task'` agents MUST NOT be used as static graph nodes — `Workflow` raises `ValueError` (`_validate_no_task_mode_graph_nodes`). `mode='chat'` graph nodes MUST have `START` as their only predecessor — `Workflow` raises `ValueError` otherwise (`_validate_chat_agent_wiring`). See `graph-and-dynamic-workflows.md` for the mechanism and the dispatch recipe.
 
@@ -101,7 +101,7 @@ The globally installed Google skill still carries the old restriction — `googl
 ## Verification Scenarios
 
 - Single Agent, no Tool, and no forced Workflow.
-- Agent mode selection matches approved history visibility (`single_turn` node cannot read prior turns).
+- Agent mode selection matches approved history visibility (`single_turn` defaults to no prior turns; explicit `include_contents` is tested only for approved scoped history).
 - Workflow-controlled Tool call.
 - Agent-controlled optional Tool use without a fixed Tool Node in the main flow.
 - Function Node versus Function-bound Tool distinction.

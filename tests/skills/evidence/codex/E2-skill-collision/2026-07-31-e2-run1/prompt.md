@@ -15,8 +15,8 @@ Why discarded as primary evidence: the model answered by running
 `rg --files -uu ~/.agents/skills <repo>/.agents/skills ~/.codex/skills | rg '/SKILL\.md$'`,
 i.e. it enumerated the **filesystem**, not its injected context. That output
 cannot distinguish "Codex injected these skills" from "the model went and looked".
-Its conclusions are still recorded in `run-2-1a-observed.md`, but the load-bearing
-run is 2-1b.
+Its bounded observed output is folded into `selected-skills.md`, but the
+load-bearing run is 2-1b.
 
 ## Run 2-1b — discovery probe, context-only (primary evidence)
 

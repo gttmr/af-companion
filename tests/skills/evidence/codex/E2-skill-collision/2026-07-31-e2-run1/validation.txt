@@ -2,6 +2,9 @@ E2 (skill collision) — Validation
 Date: 2026-07-31
 
 Legend: VERIFIED = directly observed in this session's tool output.
+        RECORDED = observed in the original run, but the raw transcript was
+                   intentionally not retained; the bounded record is not
+                   independently replayable from this directory.
         unverified = not directly observed; do not treat as fact.
 
 --------------------------------------------------------------------------------
@@ -26,46 +29,44 @@ VERIFIED
 [VERIFIED] Codex ran without --skip-git-repo-check and did not complain.
            Evidence: both runs produced a normal banner and completed.
 
-[VERIFIED] Run 2-1b executed ZERO shell commands.
-           Evidence: grep -c '^/bin/bash -lc' run-2-1-raw.log -> 0.
-           The raw log contains no `exec` blocks between the prompt echo and the
-           final answer.
+[RECORDED] Run 2-1b executed ZERO shell commands.
+           Bounded record: selected-skills.md, "Run 2-1b".
 
-[VERIFIED] With zero tool calls, the model listed all 5 repo-local af-* skills
+[RECORDED] With zero tool calls, the model listed all 5 repo-local af-* skills
            with correct absolute worktree paths AND all 7 global
            google-agents-cli-* skills with correct absolute paths.
            => Codex auto-discovers .agents/skills at the git worktree root and
               injects it alongside ~/.agents/skills.
-           Evidence: run-2-1-raw.log final table.
+           Bounded record: selected-skills.md, "what Codex injected".
 
-[VERIFIED] The absolute paths the model emitted match the filesystem.
-           Evidence: independent `find ... -name SKILL.md` in artifact-tree.txt.
+[RECORDED] The absolute paths the model emitted matched the filesystem.
+           Bounded record: selected-skills.md contains the emitted inventory;
+           re-run a current `find ... -name SKILL.md` before relying on it.
 
 [VERIFIED] Repo AGENTS.md does not enumerate the four Work Skill names or any
            absolute SKILL.md path, so it cannot account for run 2-1b's answer.
            Evidence: grep -n -i "skill" AGENTS.md — line 36 says only "af-workflow
            plus four canonical Work Skills"; no names, no paths.
 
-[VERIFIED] Run 2-2 executed 40 shell commands, all read-only
+[RECORDED] Run 2-2 executed 40 shell commands, all read-only
            (rg / sed / wc / nl / git status --short / git diff).
-           Evidence: grep -c '^/bin/bash -lc' run-2-2-raw.log -> 40; command list
-           in commands.log and selected-skills.md.
+           Bounded record: commands.log and selected-skills.md.
 
-[VERIFIED] In run 2-2 the model opened files from BOTH skill sets:
+[RECORDED] In run 2-2 the model opened files from BOTH skill sets:
            all 5 repo af-*/SKILL.md + 10 _shared/reference files, and
            2 of 7 global skills (google-agents-cli-workflow read in full across
            three sed calls, google-agents-cli-scaffold lines 1-400).
-           Evidence: exec lines in run-2-2-raw.log.
+           Bounded record: selected-skills.md, "what the model actually READ".
 
-[VERIFIED] The model chose the repo-local af-* lifecycle
+[RECORDED] The model chose the repo-local af-* lifecycle
            (Discover -> Compose -> Scaffold -> Verify) and explicitly ruled out
            starting with `agents-cli scaffold create`.
-           Evidence: run-2-2-raw.log final answer.
+           Bounded record: result-summary.md, Q2.
 
-[VERIFIED] The model reported the contradiction between the two sets
+[RECORDED] The model reported the contradiction between the two sets
            unprompted-in-detail, citing file:line on both sides. It listed 5
            conflicts (see result-summary.md).
-           Evidence: run-2-2-raw.log "현재 발견된 충돌" section.
+           Bounded record: result-summary.md, Q3.
 
 [VERIFIED] Neither run modified or created any file in the working tree.
            Evidence: `git status --porcelain` after both runs shows exactly the
@@ -111,11 +112,8 @@ unverified
 [unverified] Reproducibility. n=1 per probe; no repeat runs, no seed control.
 
 NOTE ON RAW LOGS
-  run-2-1-raw.log and run-2-2-raw.log were produced by the commands in
-  commands.log but are NOT committed: the 380 KB run-2-2 log carried
-  extensive local/session paths and pushed this run to 10 files, against
-  the seven-file layout required by tests/skills/README.md. The counts and
-  quotations cited above were taken from those logs at the time of the run
-  and are therefore NOT independently reproducible from this directory —
-  treat them as recorded observations, not as re-checkable evidence.
-  Re-run the commands in commands.log to regenerate them locally.
+  The commands in commands.log originally produced two raw logs. They are not
+  retained: the 380 KB run-2-2 log carried extensive local/session paths and
+  pushed this run to 10 files, against the seven-file layout required by
+  tests/skills/README.md. Claims derived only from those logs are marked
+  RECORDED above, not VERIFIED. Re-run the commands locally for fresh proof.

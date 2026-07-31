@@ -2,9 +2,10 @@
 
 ## Run 2-1b: what Codex injected (zero tool calls)
 
-Run 2-1b executed **0 shell commands** (`grep -c '^/bin/bash -lc' (raw log removed — bounded summary only)`
-returns `0`). The model answered directly from context. It therefore could not have
-read any file. Everything it listed was injected by Codex.
+The retained run record reports that run 2-1b executed **0 shell commands**. The
+model answered directly from context, so it could not have read any file. The raw
+transcript was intentionally not retained; this is a bounded recorded observation,
+not independently replayable evidence from this directory.
 
 It listed 24 skills. Both contested sets appeared:
 
@@ -57,7 +58,8 @@ another way; the head of run 2-1a's log was truncated by `tail -150`).
 
 ## Run 2-2: what the model actually READ (40 shell commands)
 
-Skill files opened via `sed`/`rg` during run 2-2, from `(raw log removed — bounded summary only)`:
+The retained bounded command/read inventory for run 2-2 records these files opened
+via `sed`/`rg`:
 
 Repo-local `.agents/skills` (read):
 

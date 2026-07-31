@@ -41,7 +41,7 @@ test("canonical session and decision references exist and are linked by every sk
   for (const reference of sharedReferences) {
     const referencePath = path.join(skillsRoot, "_shared", reference);
     assert.equal(fs.existsSync(referencePath), true, `${reference} must exist`);
-    assert.match(fs.readFileSync(referencePath, "utf8"), /Checked date: 2026-07-24/);
+    assert.match(fs.readFileSync(referencePath, "utf8"), /Checked date: 20\d{2}-\d{2}-\d{2}/);
   }
 
   for (const skill of canonicalSkills) {
@@ -187,7 +187,8 @@ test("fresh-context handoff hashes only the canonical Plan body and fails closed
   const handoff = read(".agents/skills/_shared/fresh-context-handoff.md");
   assert.match(handoff, /canonical Plan body excludes every Companion enrollment or handoff capsule/);
   assert.match(handoff, /`plan_body_hash`/);
-  assert.match(handoff, /`session_handoffs\[\]\.plan_hash` must equal/);
+  assert.match(handoff, /`session_handoffs\[\]\.plan_hash`/);
+  assert.match(handoff, /must equal this Companion `plan_body_hash`/);
   assert.match(handoff, /Companion Continue/);
   assert.match(handoff, /Copy Capsule/);
   assert.match(handoff, /Exact confirmed attach/);

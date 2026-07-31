@@ -81,7 +81,7 @@ For each material claim, verify the applicable layer:
 node scripts/validate-artifacts.mjs <artifact-root-or-proposed-dir>
 ```
 
-For Python surface claims, use `.agent-factory/runtime/.venv/bin/python` and inspect the installed source or `inspect.signature`. For documentation-only reference edits, run `git diff --check` and relative-link checks.
+For ADK reference-card Python claims, select an executable with `AF_TEST_PYTHON`, verify with `importlib.metadata.version("google-adk")` that it is exactly `2.4.0`, and use that interpreter to inspect installed source or `inspect.signature`. Do not assume a fresh worktree contains the ignored `.agent-factory/runtime/.venv`, and do not use the generated runtime's current `<2.4.0` environment as the reference baseline. When the claim is about generated Current Implementation behavior instead, test the interpreter built from `requirements/adk-runtime.txt` and label that result separately. For documentation-only reference edits, run `git diff --check` over the actual branch range and relative-link checks.
 
 ## Stop conditions
 

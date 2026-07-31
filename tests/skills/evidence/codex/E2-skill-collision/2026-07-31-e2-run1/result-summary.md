@@ -3,6 +3,10 @@
 Run id `2026-07-31-e2-run1` · Codex CLI 0.146.0 · gpt-5.6-sol · effort high ·
 run root `/home/ilmaswsl/work/af-companion-skillsync` (git worktree).
 
+The raw transcripts are intentionally not retained because they carried extensive
+local/session paths. Run-level claims below are bounded recorded observations, not
+independently replayable evidence from this directory; see `validation.txt`.
+
 ## Q1 — Does Codex auto-discover `.agents/skills` in a git repo root?
 
 **Yes.** Confirmed, and confirmed for a git *worktree* whose path is not itself
