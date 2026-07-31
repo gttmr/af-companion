@@ -35,7 +35,7 @@ Record trigger source, endpoint mode, event identity/schema, normalization, auth
 
 ## Scaffold Output
 
-No `google.adk.ambient` module or named ambient-agent API is present in installed 2.3.0. Installed ambient behavior uses generic API-server routes and opt-in trigger routes.
+No `google.adk.ambient` module or named ambient-agent API is present in installed 2.4.0. Installed ambient behavior uses generic API-server routes and opt-in trigger routes.
 
 Installed surfaces include:
 
@@ -44,7 +44,9 @@ Installed surfaces include:
 - `POST /apps/{app_name}/trigger/pubsub` and `/apps/{app_name}/trigger/eventarc` when trigger sources are enabled;
 - standard Pub/Sub push envelopes and structured/binary CloudEvents.
 
-Official checked docs describe generic run entry as `/apps/{app_name}/run`; this differs from the installed route probe. Inspect the deployed API route before generating a client.
+**Target `/run` and `/run_sse` as the canonical run endpoints for the installed `adk web` / `adk api_server`.** These are top-level routes, not namespaced under `/apps/{app_name}/`. The `/apps/{app_name}/...` paths that exist on the installed server are eval/test endpoints only (e.g. `/dev/apps/{app_name}/eval-sets/{id}/run`, `/dev/apps/{app_name}/tests/run`), not the generic run entry.
+
+Note: some official docs describe generic run entry as `/apps/{app_name}/run`, and other deploy targets (Agent Engine, Cloud Run) may expose a different path — confirm the path per deploy target, but `/apps/{app_name}/run` is NOT the default to generate against for the installed server.
 
 Official defaults recorded on 2026-07-18 are process-local concurrency 10, transient retry count 3 with exponential backoff/jitter, and a 10-minute synchronous acknowledgement ceiling. Trigger processing creates one new session per event; retries are stateless and may create another session. Treat duplicate handling as application responsibility. Status 200 acknowledges, 400 rejects malformed input without retry, and 500 requests source retry.
 
@@ -73,7 +75,7 @@ Authenticate event sources, validate schemas before Agent execution, sanitize at
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-18
+- Checked date: 2026-07-31
 - Official sources: ADK ambient-agents documentation
-- Installed package version: `google-adk 2.3.0`
-- Known compatibility note: Installed generic run routes differ from the checked official path, and no ambient-specific module exists; verify the deployed route before scaffolding clients.
+- Installed package version: `google-adk 2.4.0`
+- Known compatibility note: Installed generic run routes differ from the checked official path, and no ambient-specific module exists. Verified against the live server's OpenAPI on 2026-07-29: the canonical run endpoints on the installed server are top-level `/run` and `/run_sse`; `/apps/{app_name}/run` (as some official docs describe) is not present at that path on the installed server and is NOT the default to generate against. Other deploy targets (Agent Engine, Cloud Run) may still differ and should be confirmed per target.

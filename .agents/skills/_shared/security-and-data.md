@@ -17,7 +17,9 @@ Use the minimum data and authority needed for review:
 - use deterministic synthetic inputs and outputs for mocks and smoke tests;
 - separate read, write, notification, transaction, and approval side effects;
 - require explicit auth, authorization, audit, masking, retention, and replay decisions where the pattern crosses a boundary;
-- keep local Runtime Handoff and `/run` evidence distinct from production readiness.
+- keep local Runtime Handoff and `/run` evidence distinct from production readiness;
+- treat guardrail flags (e.g. `synthetic_only`, `no_private_data`) as declarations, not runtime checks — nothing validates them automatically, so a spec's own description can contradict a declared flag undetected;
+- define what each guardrail flag means for the pattern before relying on it: if any identifier in a payload is a real production value, `synthetic_only` is not true regardless of what the flag says.
 
 ## Required evidence
 
@@ -44,6 +46,8 @@ Do not place any of the following in requirements normalized for examples, propo
 
 Preserve only sanitized summaries and references. Catalog proposals may contain deterministic synthetic mock payloads, not production data.
 
+The same list bounds what you may **read**, not only what you may write. In particular, do not read the operator's coding-session transcript — the file named by `CODEX_COMPANION_TRANSCRIPT_PATH`, or any equivalent agent/terminal history — to recover scope, identity, or lifecycle state. Measured: when a card demanded a scope value that no command exposes, a strong model went to that transcript and printed raw private session JSONL, and in doing so also read evaluator files it was supposed to be blind to. A missing observation surface is a Stop condition and a Missing-Information item, never a licence to mine the transcript. If a card asks you to observe something and no read command provides it, report that gap rather than sourcing it from history.
+
 ## Scaffold implications
 
 - Use environment lookups with approved variable names; do not generate secret defaults.
@@ -57,11 +61,12 @@ Preserve only sanitized summaries and references. Catalog proposals may contain 
 - Inspect the changed-file inventory and generated artifact tree.
 - Search the authorized output set for secret patterns, private hosts, and copied production payloads.
 - Run applicable artifact validation and pattern-specific negative scenarios.
+- Run this check on every mock spec file: `grep -inE 'synthetic_only|no_private_data|no_production_business_logic' <mock-spec-file>` to find each guardrail flag, then `grep -inE "real (data|customer|production)|production data|live data|actual customer" <mock-spec-file>` on the same file to find words asserting real/production/live data. If a guardrail flag declared `true` and any such real/production/live-data wording both appear in the same spec file, this is a **Stop condition** — stop and report a Blocker rather than approving the mock spec. `packages/mock-lab/scripts/validate-mock-spec.mjs` does not currently perform this check (confirmed: it only asserts the guardrail keys equal `true`); a proper lint rule for this contradiction is still wanted. Note the path — an earlier revision of this card wrote it as `scripts/validate-mock-spec.mjs`, which does not exist. `scripts/validate-skills.mjs` resolves markdown `](…)` links only, so a path written inline in backticks is checked by nobody; run `ls` on any such path before writing it.
 - Record redactions and residual security uncertainty without reproducing the sensitive value.
 
 ## Stop conditions
 
-Stop when a task requires a real secret, private endpoint, customer record, unapproved side effect, production deployment authority, or retention policy that has not been decided.
+Stop when a task requires a real secret, private endpoint, customer record, unapproved side effect, production deployment authority, or retention policy that has not been decided, or when the guardrail-flag/real-data-wording grep check above finds a hit in a mock spec.
 
 ## Official sources checked
 
@@ -71,7 +76,8 @@ Stop when a task requires a real secret, private endpoint, customer record, unap
 
 ## Checked date
 
-- Checked date: 2026-07-18
+- Checked date: 2026-07-31
 - Official sources: Agent Factory Operating Model and local-development security guidance
-- Installed package version: `google-adk 2.3.0`
-- Known compatibility note: Local Workbench and Runtime Handoff success is not evidence of production authorization, security review, or deployment readiness.
+- Installed package version: `google-adk 2.4.0`
+- Known compatibility note: Local Workbench and Runtime Handoff success is not evidence of production authorization, security review, or deployment readiness. A mock spec's prose must not claim real data while declaring `synthetic_only: true`; guardrail flags are declarations, not automatic runtime checks, so the Verification section above now specifies a grep-based check plus a Stop condition instead of relying on manual confirmation.
+- 2026-07-31: corrected the `validate-mock-spec.mjs` path (it lives under `packages/mock-lab/scripts/`, not `scripts/`); note that `validate-skills.mjs` resolves markdown links only, so inline backticked paths go unchecked. Added an explicit prohibition on reading the operator's coding-session transcript to recover scope or identity — observed in a recorded run, where an unsatisfiable participation check drove a model into raw session JSONL.

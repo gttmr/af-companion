@@ -1,0 +1,54 @@
+# E2 (skill collision) — Commands run by the operator (Claude Code harness)
+
+All codex invocations: Bash tool, timeout 600000 ms, foreground, sequential,
+stdin redirected from /dev/null.
+
+## Pre-flight
+
+codex --version
+# -> codex-cli 0.146.0
+
+cat /home/ilmaswsl/work/af-companion-skillsync/.git
+# -> gitdir: /home/ilmaswsl/work/af-companion/.git/worktrees/af-companion-skillsync
+
+ls -la /home/ilmaswsl/.agents/skills/
+ls -la /home/ilmaswsl/work/af-companion-skillsync/.agents/skills/
+cat /home/ilmaswsl/.codex/config.toml
+
+## Run 2-1a (discarded as primary evidence; model filesystem-scanned)
+
+codex exec -s workspace-write -C /home/ilmaswsl/work/af-companion-skillsync \
+  -m gpt-5.6-sol -c model_reasoning_effort=high "<run 2-1 prompt>" \
+  < /dev/null 2>&1 | tail -150
+
+## Run 2-1b (primary evidence; context-only constraint added)
+
+RUN=/home/ilmaswsl/work/af-companion-skillsync/tests/skills/evidence/codex/E2-skill-collision/2026-07-31-e2-run1
+codex exec -s workspace-write -C /home/ilmaswsl/work/af-companion-skillsync \
+  -m gpt-5.6-sol -c model_reasoning_effort=high "<run 2-1b prompt>" \
+  < /dev/null 2>&1 | tee "$RUN/run-2-1-raw.log" | tail -150
+# session id: 019fb626-b4dd-7022-bcb7-3571cfc749e7
+# tokens used: 17,718
+# shell commands executed by codex: 0
+
+## Run 2-2 (collision probe)
+
+codex exec -s workspace-write -C /home/ilmaswsl/work/af-companion-skillsync \
+  -m gpt-5.6-sol -c model_reasoning_effort=high "<run 2-2 prompt>" \
+  < /dev/null 2>&1 | tee "$RUN/run-2-2-raw.log" | tail -150
+# tokens used: 111,365
+# shell commands executed by codex: 40 (all read-only: rg / sed / wc / nl /
+#   git status --short / git diff)
+
+## Post-run verification
+
+git -C /home/ilmaswsl/work/af-companion-skillsync status --porcelain
+grep -c '^/bin/bash -lc' "$RUN/run-2-1-raw.log"   # 0
+grep -c '^/bin/bash -lc' "$RUN/run-2-2-raw.log"   # 40
+grep -n -i "skill" /home/ilmaswsl/work/af-companion-skillsync/AGENTS.md
+
+## Note
+
+Run 2-1a was not tee'd (per the original spec it was piped straight to
+`tail -150`), so no raw log exists for it; its observed output is transcribed in
+run-2-1a-observed.md.

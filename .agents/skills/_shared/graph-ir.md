@@ -72,5 +72,5 @@ Stop when the Workflow boundary is unresolved, required route/loop/resume eviden
 
 - Checked date: 2026-07-18
 - Official sources: Agent Factory Graph IR and Google ADK graphs
-- Installed package version: `google-adk 2.3.0`
+- Installed package version: `google-adk 2.4.0`
 - Contract note: strict v2 Graphs use only the node kinds, typed refs, control, channel, and regions defined by `target-contract-v2.md`.

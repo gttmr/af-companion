@@ -47,8 +47,8 @@ Read the selected Work Skill in full before executing it.
 
    The launch request is not activation or attachment proof. Re-read the exact session/application/workspace/work/role and current lease before proceeding. There is no current `work attach-session` CLI.
 5. Use `focus_skill` for the user's current Work Skill surface. Add `active_runs` only for enrolled lifecycle actors and preserve unrelated runs.
-6. Before Discover Phase A, verify both `role: plan` and actual Plan collaboration mode. If either cannot be confirmed, make no repository or Work Item write, explain the required enrollment/mode transition, and stop. Do not assume the agent can change modes.
-7. Discover Phase B, Compose, Scaffold, and Verify durable work require `role: materialization` in the exact scope. Default/Coding mode alone is insufficient.
+6. Before Discover Phase A, verify `role: plan`. If it cannot be confirmed, make no repository or Work Item write, explain the required enrollment, and stop.
+7. Discover Phase B, Compose, Scaffold, and Verify durable work require `role: materialization` in the exact scope.
 
 If the Work Item does not exist, initialize it only for an explicit valid ID and only outside non-mutating Discover Phase A:
 
@@ -77,7 +77,7 @@ Artifact presence is not approval. `complete` is not current when its input/outp
 
 | Current evidence | Route |
 | --- | --- |
-| initial requirement or invalidated Asset/decision evidence needs exploration | `af-discover-assets` Phase A in confirmed Plan Mode |
+| initial requirement or invalidated Asset/decision evidence needs exploration | `af-discover-assets` Phase A |
 | approved Plan must be written, or a valid fresh-session canonical Handoff or pristine Bootstrap Grant was claimed | `af-discover-assets` Phase B materialization |
 | required decision or Asset disposition is open | owning skill; use the Decision Input Adapter for one question, then stop `waiting_for_input` |
 | Discover output exists but discovery review is pending/changes requested/stale | `af-discover-assets` |
@@ -131,7 +131,7 @@ Before invoking the selected skill, state:
 
 ## Stop conditions
 
-Stop when participation, lease, application/workspace/work/role attachment, identity, or mode is ambiguous; Work Item validation fails; a required decision lacks explicit user selection; a gate binding differs from current revisions; a Handoff or Bootstrap Grant cannot be explicitly and exactly claimed; a Grant's pristine ETag/source turn drifts or it is requested for a non-pristine ledger; actual files contradict state; a requested transition skips approval; or continuing would require an unsupported CLI command, legacy parser, compatibility projection, or router-owned Work Skill output.
+Stop when participation, lease, application/workspace/work/role attachment, or identity is ambiguous; Work Item validation fails; a required decision lacks explicit user selection; a gate binding differs from current revisions; a Handoff or Bootstrap Grant cannot be explicitly and exactly claimed; a Grant's pristine ETag/source turn drifts or it is requested for a non-pristine ledger; actual files contradict state; a requested transition skips approval; or continuing would require an unsupported CLI command, legacy parser, compatibility projection, or router-owned Work Skill output.
 
 ## Router verification
 

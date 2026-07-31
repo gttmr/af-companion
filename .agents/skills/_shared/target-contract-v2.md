@@ -27,11 +27,11 @@ Read before writing, replacing, reviewing, scaffolding from, or verifying:
 
 Split artifacts use `asset-candidates.json` and `graph-ir.json`. Never write alternate candidate or Graph filenames.
 
-`af-work-item.json`은 `schemas/af-work-item.schema.json`의 별도 lifecycle schema version 2를 사용하며 `contract_version`을 넣지 않는다. `focus_skill`, `active_runs`, 네 Work Skill 상태, revisions, cycles, decisions, invalidations, review provenance, session handoffs, verification outcome을 완전하게 기록한다. 누락값을 default로 보정하지 않으며 current generator input에서는 Work Item이 필수다.
+`af-work-item.json` uses the separate lifecycle schema version 2 defined in `schemas/af-work-item.schema.json` and does not include `contract_version`. It fully records `focus_skill`, `active_runs`, all four Work Skill states, revisions, cycles, decisions, invalidations, review provenance, session handoffs, and verification outcome. Do not default missing values. A Work Item is required for current generator input.
 
-정상 경로의 Discover review → Compose review → Scaffold → Verify gate는 건너뛰지 않지만 Lifecycle Router는 고정된 단방향 순서를 가정하지 않는다. Compose는 Asset 또는 계약 문제를 구조화해 새 Discover cycle로 돌아갈 수 있고 Scaffold/Verify 문제도 Evidence 소유 Skill로 돌아간다. 관련 canonical bytes 또는 Registry revision이 바뀌면 owning review gate를 새 review용 `pending`으로 reset하거나 이전 결정을 `stale`로 표시하고 downstream gate/evidence를 무효화하며 history를 보존한다.
+The normal path's Discover review → Compose review → Scaffold → Verify gates are never skipped, but the Lifecycle Router does not assume a fixed one-way order. Compose can structure an Asset or contract problem and return to a new Discover cycle, and Scaffold/Verify problems also return to the Skill that owns the evidence. When the related canonical bytes or Registry revision change: reset the owning review gate to `pending` for a new review, or mark the prior decision `stale`; invalidate downstream gates/evidence; and preserve history.
 
-`decisions`와 `asset_decisions`의 required 항목은 사용자 선택 없이 resolved가 될 수 없다. 추천은 selection이 아니며 자동 default를 쓰지 않는다. `solution_control_strategy`와 Agent/Workflow `root_executable`도 현재 사용자 결정과 revision binding을 보존한다.
+Required items in `decisions` and `asset_decisions` must not become `resolved` without an explicit user selection. A recommendation is not a selection, and no automatic default is used. `solution_control_strategy` and the Agent/Workflow `root_executable` must also preserve the current user decision and revision binding.
 
 Each `assetCandidates[]` entry uses exactly one `asset_type`: `agent`, `workflow`, or `tool`. Keep Resource and Dependency records outside the asset list.
 
@@ -68,7 +68,7 @@ Represent execution decisions under `control`, data and state movement under `ch
 - Discover and Compose outputs must parse and pass the active strict v2 validator before review.
 - External Codex owns canonical analysis and split artifacts. The web workbench has two canonical write surfaces: Graph IR and the versioned Asset Registry. Graph writes synchronize `analysis-result.json.graph` and `graph-ir.json`; Registry writes go through the shared service with the current optimistic `registry_revision`.
 - Changed discovery, decision, Asset selection, or Registry snapshot invalidates Discovery approval and downstream evidence bound to the old revision. Compose-owned Graph, root-executable, runtime-contract, or composition changes preserve the current approved Discovery binding, reset or stale Composition review, and invalidate Scaffold/Verify evidence.
-- Compose produces a coherent `analysis-result.json`, `graph-ir.json`, `boundary-design.md`, and `scaffold-plan.json` when readiness is achieved.
+- Compose produces `analysis-result.json`, `graph-ir.json`, `boundary-design.md`, and `scaffold-plan.json` that satisfy both concrete conditions: `node scripts/validate-artifacts.mjs <artifact-root>` exits `0`, and the composition review gate's status is `approved`.
 - Scaffold consumes reviewed and approved v2 artifacts only.
 - Registry entries and versions remain Agent, Workflow, or Tool only. Skills and web/CLI callers never bypass the Asset Registry service by directly editing Registry storage or `catalog/*.yaml`.
 - Missing required Target data is a Blocker. Do not repair it by inventing a retired field or selector.
@@ -107,6 +107,7 @@ Stop and report a Blocker when:
 
 ## Checked date
 
-- Checked date: 2026-07-24
+- Checked date: 2026-07-29
 - Product contract: strict Target Contract v2 only
-- Installed package version: `google-adk 2.3.0`
+- Installed package version: `google-adk 2.4.0`
+- Compatibility note: the Work Item schema-version-2 rule, the non-linear Lifecycle Router rule, and the decisions/`asset_decisions` no-default rule were translated from Korean to English verbatim (no rule content changed). The Compose readiness gate now names the concrete pass condition (`scripts/validate-artifacts.mjs` exit `0` plus an `approved` composition review gate) instead of "coherent"/"readiness."

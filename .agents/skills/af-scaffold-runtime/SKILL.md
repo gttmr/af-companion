@@ -105,6 +105,11 @@ Use [Artifact and Source Generation](references/artifact-and-source-generation.m
 
 Stop when participation, lease, application/workspace/work/materialization scope, session/turn, or authorized roots are absent; any required decision is open; approval or revision is stale; the Registry snapshot changed; an exact version/source/protocol binding is absent; Graph and Root disagree; duplicate generation would occur; lowering is unsupported; source ownership conflicts; or any required validation fails.
 
+**Stopping means generating nothing.** If a precondition cannot be observed, the only permitted outputs are the Missing-Information report and the named product gap — not a prototype "so the work is not wasted", and not a generated tree with the unmet precondition noted afterwards. `companion-session-participation.md` records that the participation fields currently have no read-only command; a strong model met exactly that gap here, dropped the precondition without comment, and produced a complete runtime anyway. Partial compliance with a hard gate is non-compliance, and it is harder to detect than an outright refusal.
+
+The same rule governs step 12 above: if the application/workspace/work/session/turn provenance it requires is unobtainable, do not emit `implementation-handoff.md` with those fields silently missing. Either stop, or write them as explicitly named unknowns. An absent field in a provenance record reads as "not applicable"; it has to read as "could not be observed".
+
 ## Completion report
 
 Report generated/edited files, output mode and roots, Work Item/Graph/runtime/composition/Registry revisions, Root Executable and generated symbol, exact Asset binding actions, commands/results, source diff summary, remaining TODOs, and the claims reserved for Verify.
+- 2026-07-31: stated that stopping means generating nothing, after a recorded run met an unobservable participation precondition, dropped it without comment, and produced a complete runtime. Step 12 provenance must be emitted as named unknowns rather than silently omitted fields.

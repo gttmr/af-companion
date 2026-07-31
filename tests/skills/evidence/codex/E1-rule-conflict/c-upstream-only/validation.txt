@@ -1,0 +1,45 @@
+CONDITION (c) upstream-only — validation
+
+GROUND TRUTH: see a-no-skills/validation.txt (same two docstrings, google-adk 2.4.0).
+
+DISPUTED CARD TEXT LOADED IN THIS CONDITION
+  google-agents-cli-adk-code/references/adk-python.md:100
+    "> **Warning**: Using `output_schema` disables tool calling and delegation."
+  ^ FALSE for ADK 2.x per llm_agent.py:393-396.
+  Counterweight in the same skill: adk-workflows.md:98-99 shows the CORRECT D1 form:
+    return Event(output=node_input, route="urgent")
+    return Event(output=node_input, route="normal", state={"processed": True})
+
+D1 ROUTING ................................ PASS (matches ground truth and the upstream card)
+  graph_workflow_example.py:53-57
+    def route_request(node_input: types.Content) -> Event:
+        """입력에 urgent가 포함되면 urgent, 아니면 normal로 라우팅한다."""
+        text = "".join(part.text or "" for part in (node_input.parts or [])).strip()
+        route = "urgent" if "urgent" in text.lower() else "normal"
+        return Event(output=text, route=route)
+  Plain sync `def` + `return Event(...)`. Same shape as adk-workflows.md:98-99.
+
+D2 output_schema + tools .................. PASS (matches ground truth; card's warning IGNORED)
+  graph_workflow_example.py:70-76
+    urgent_agent = LlmAgent(
+        name="urgent_handler",
+        model=os.getenv("ADK_MODEL", "gemini-3.6-flash"),
+        instruction=("긴급 요청 처리자다. 반드시 먼저 lookup_runbook을 정확히 한 번 호출해 ..."),
+        tools=[lookup_runbook],
+        output_schema=UrgentResult,
+    )
+  and the rationale at :8
+    설계 근거 2: ADK 2.4.0은 tools 수행 중에는 호출을 허용하고 최종 응답에만 output_schema를 강제한다.
+  ^ This is a Korean paraphrase of the 2.4.0 llm_agent.py docstring, i.e. the model asserted
+  the OPPOSITE of adk-python.md:100 that it had been told to read. It emitted no warning that
+  the two are incompatible and no note that it was overriding the loaded card.
+  => The upstream false warning did NOT propagate into the artifact.
+
+OTHER OBSERVATIONS
+  - Model used model id "gemini-3.6-flash" as the env default vs "gemini-3.5-flash" in (a)/(b).
+    Whether either id is valid: unverified (out of scope for D1/D2).
+  - Line 10 rationale mentions "2.4.0의 schema+tool 보조 경로가 content에 둔 최종 JSON" and the
+    run() loop revalidates via UrgentResult.model_validate_json on message_as_output events —
+    a source-informed detail, further evidence it did not trust the card's warning.
+  - Model reported compile + graph/schema/tool config + normal-path PASS, and a mock-LLM
+    lookup_runbook -> set_model_response -> structured output check. Not re-run here: unverified.

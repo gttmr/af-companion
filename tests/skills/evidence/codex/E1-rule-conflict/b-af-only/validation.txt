@@ -1,0 +1,47 @@
+CONDITION (b) af-only — validation
+
+GROUND TRUTH: see a-no-skills/validation.txt (same two docstrings, google-adk 2.4.0).
+
+DISPUTED CARD TEXT LOADED IN THIS CONDITION
+  _shared/adk/graph-and-dynamic-workflows.md:100
+    "Routing out of a `FunctionNode` requires an async generator that yields
+     `Event(route=..., output=...)`. A plain `return` cannot carry a route; ..."
+  ^ FALSE per _function_node.py `_to_event` ("Pass-through types (returned as-is): Event").
+  Reinforced at the same file's line 133: "routed `FunctionNode` yields ... rather than returning".
+
+D1 ROUTING ................................ FAIL (adopted the card's false form)
+  graph_workflow_minimal.py:61-64
+    async def route_by_priority(node_input: types.Content):
+        text = _content_text(node_input)
+        route = "urgent" if "urgent" in text.casefold() else "normal"
+        yield Event(output=text, route=route)
+  Async generator + `yield`. This is the exact construction the af card mandates and that
+  condition (a) (same model, same prompt body, no cards) did NOT choose.
+  Note: the generated code is not *broken* — an async generator yielding a routed Event is a
+  legal FunctionNode body. The failure is that the model was steered away from the simpler,
+  documented plain-return form; it did not consider or mention the alternative.
+
+D2 output_schema + tools .................. PASS (matches ground truth)
+  graph_workflow_minimal.py:74-83
+    urgent_handler = LlmAgent(
+        name="urgent_handler",
+        model=os.getenv("ADK_MODEL", "gemini-3.5-flash"),
+        mode="single_turn",
+        instruction=(...),
+        tools=[lookup_on_call_policy],
+        output_schema=UrgentResult,
+    )
+  and the rationale comment at :95-96
+    # ADK 2.4.0 supports tools during the thought loop and enforces output_schema
+    # on the final agent result, so one LlmAgent can both look up and return typed data.
+  ^ near-verbatim restatement of the 2.4.0 llm_agent.py docstring. ONE agent, both kwargs.
+
+OTHER OBSERVATIONS
+  - The routing comment "FunctionNode emits Event.route because static graph edges match
+    explicit route values" states a reason for using route= but never justifies the
+    generator form specifically — the card's rule was applied without being defended.
+  - Model also applied the af card's mode-placement rule (`mode="single_turn"` for a static
+    graph node) and wrote "task 모드는 정적 배치가 금지됩니다". That claim IS supported by
+    the card's cited source (`workflow/_workflow.py:189-217`); not independently re-run here.
+  - Model added a hard `version("google-adk") != "2.4.0"` guard — no other condition did.
+  - Model reported runtime PASS on normal + a scripted-LLM urgent run. Not re-run here: unverified.

@@ -1,0 +1,61 @@
+# E2 (skill collision) — Artifact tree
+
+## Evidence dir (the ONLY thing this experiment created)
+```
+tests/skills/evidence/codex/E2-skill-collision/2026-07-31-e2-run1/artifact-tree.txt  (103 bytes)
+tests/skills/evidence/codex/E2-skill-collision/2026-07-31-e2-run1/commands.log  (2103 bytes)
+tests/skills/evidence/codex/E2-skill-collision/2026-07-31-e2-run1/environment.md  (2592 bytes)
+tests/skills/evidence/codex/E2-skill-collision/2026-07-31-e2-run1/prompt.md  (2223 bytes)
+tests/skills/evidence/codex/E2-skill-collision/2026-07-31-e2-run1/run-2-1-raw.log  (7876 bytes)
+tests/skills/evidence/codex/E2-skill-collision/2026-07-31-e2-run1/run-2-1a-observed.md  (1428 bytes)
+tests/skills/evidence/codex/E2-skill-collision/2026-07-31-e2-run1/run-2-2-raw.log  (387128 bytes)
+tests/skills/evidence/codex/E2-skill-collision/2026-07-31-e2-run1/selected-skills.md  (5837 bytes)
+```
+
+## Global skill tree ~/.agents/skills (SKILL.md files)
+```
+/home/ilmaswsl/.agents/skills/google-agents-cli-adk-code/SKILL.md
+/home/ilmaswsl/.agents/skills/google-agents-cli-deploy/SKILL.md
+/home/ilmaswsl/.agents/skills/google-agents-cli-eval/SKILL.md
+/home/ilmaswsl/.agents/skills/google-agents-cli-observability/SKILL.md
+/home/ilmaswsl/.agents/skills/google-agents-cli-publish/SKILL.md
+/home/ilmaswsl/.agents/skills/google-agents-cli-scaffold/SKILL.md
+/home/ilmaswsl/.agents/skills/google-agents-cli-workflow/SKILL.md
+```
+
+## Repo-local skill tree .agents/skills (SKILL.md files)
+```
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/af-compose-solution/SKILL.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/af-discover-assets/SKILL.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/af-scaffold-runtime/SKILL.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/af-verify-runtime/SKILL.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/af-workflow/SKILL.md
+```
+
+## Repo-local _shared references
+```
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/adk/a2a.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/adk/agents-workflows-tools.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/adk/ambient-agents.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/adk/callbacks.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/adk/event-loop.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/adk/function-and-mcp-tools.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/adk/graph-and-dynamic-workflows.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/adk/human-input-and-resume.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/adk/state-and-artifacts.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/catalog-and-reuse.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/companion-session-participation.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/decision-input-adapter.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/fresh-context-handoff.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/graph-ir.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/lifecycle-invariants.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/missing-information.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/runtime-pattern-selection.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/security-and-data.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/session-and-work-item-provenance.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/source-of-truth.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/target-contract-v2.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/taxonomy.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/testing-contract.md
+/home/ilmaswsl/work/af-companion-skillsync/.agents/skills/_shared/work-item-and-external-codex.md
+```

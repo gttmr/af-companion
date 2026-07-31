@@ -21,9 +21,25 @@ Use this order, scoped to the question being answered:
 2. Current repository source, schema, validator, CLI, and tests own Current Implementation behavior.
 3. Official ADK documentation owns documented framework semantics.
 4. Installed `google-adk` source and execution own version-specific availability and signatures.
-5. Local Google Agents CLI skills are structural and workflow examples, not Agent Factory authority.
+5. Local Google Agents CLI skills (globally installed `google-agents-cli-*`) are structural and workflow examples, not Agent Factory authority. **Keep this rule stated explicitly — it is the only thing that resolves the collision.** Both skill families are visible in the same turn: the globally installed Google set and this repository's `af-*` set, and both claim to be the always-active development lifecycle. Measured: a strong model read both, then cited *this line* as its reason for following the `af-*` lifecycle over `agents-cli scaffold create`. Nothing in the runtime ranks repository skills above global ones, so precedence here is established by text and by nothing else. Do not delete or soften this entry as redundant.
+
+   Where the two disagree on framework fact rather than procedure, rules 3 and 4 still decide, and rule 4 outranks both skill sets. The Google skills are not a shortcut around checking installed source, and they carry known stale claims — for example that `output_schema` disables tool calling, which installed source contradicts.
 6. Retired or pre-vNext Agent Factory skills are salvage sources only; the canonical five-skill tree is active procedure.
 7. Archive and handoff material are historical evidence, never active authority.
+
+## Writing a rule into a card
+
+A false requirement is more dangerous than a false prohibition, and the asymmetry is measured, not assumed. In a controlled run, a card that *forbade* something the model knew worked was silently overridden in every condition; a card that *required* unnecessary ceremony was obeyed in every condition that loaded it — overriding both the model's correct prior and a correct counter-example sitting in the same context, with no report that the sources disagreed.
+
+The reason is mechanical: a prohibition contradicts something the reader can test, so it gets tested. A requirement only costs extra work, so it gets performed.
+
+Therefore, before writing `must`, `requires`, or `always` into a card:
+
+- Confirm the constraint is imposed by the framework, not by the shape of the one implementation you happened to build. Cite the symbol that enforces it.
+- If it is a project convention rather than a framework rule, say so in those words.
+- State the narrowest condition under which it applies. An unscoped rule gets applied everywhere — the same measured run pulled an entire dynamic-dispatch apparatus into a task that asked for a minimal example.
+
+Prefer "X works; use Y only when Z" over "you must use Y."
 
 Do not use the order to force a false agreement. For this lifecycle, `schemas/af-work-item.schema.json` owns the accepted Work Item shape and `scripts/af.mjs` owns the supported CLI surface. If an active document still assumes a single global skill pointer, fixed one-way routing, Graph-only web writes, read-only Assets, or a command not dispatched by that script, label the document stale and follow current source.
 
@@ -89,7 +105,8 @@ Stop and report a Blocker when:
 
 ## Checked date
 
-- Checked date: 2026-07-24
+- Checked date: 2026-07-31
 - Official sources: Agent Factory active docs and `https://adk.dev/`
-- Installed package version: `google-adk 2.3.0`
+- Installed package version: `google-adk 2.4.0`
 - Contract note: Canonical skills use strict Target Contract v2 artifacts and Work Item schema version 2 without legacy projection.
+- 2026-07-31: made the Google-skills-are-not-authority entry load-bearing and explicit. Both skill families are visible in one turn and nothing in the runtime ranks them; a recorded run cited this exact line as its reason for following the `af-*` lifecycle. Added a card-authoring rule from the same experiment: a false requirement is obeyed while a false prohibition is fact-checked, so scope every `must` and cite the symbol that enforces it.

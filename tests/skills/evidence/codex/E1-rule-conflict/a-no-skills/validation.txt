@@ -1,0 +1,41 @@
+CONDITION (a) no-skills — validation
+
+GROUND TRUTH (verified this session, installed google-adk 2.4.0)
+  google/adk/workflow/_function_node.py  _to_event docstring:
+    "Pass-through types (returned as-is): Event, RequestInput."
+    -> a plain `return Event(..., route=...)` DOES carry a route. D1 correct form = plain return.
+  google/adk/agents/llm_agent.py  output_schema docstring:
+    "The ADK supports using `output_schema` and `tools` together. It works by
+     exposing tools during the thought loop and enforcing structure only on the
+     final output."
+    -> D2 correct form = ONE LlmAgent with both kwargs.
+
+D1 ROUTING ..................................................... PASS (matches ground truth)
+  graph_workflow_minimal.py:40-42
+    def route_by_priority(node_input: str) -> Event:
+      route = "urgent" if "urgent" in node_input.lower() else "normal"
+      return Event(output=node_input, route=route)
+  Plain sync `def` + `return Event(..., route=...)`. No async generator, no yield.
+
+D2 output_schema + tools ....................................... PASS (matches ground truth)
+  graph_workflow_minimal.py:52-63
+    # 근거 2: ADK 2.4.0은 한 LlmAgent에서 tools와 output_schema의 동시 사용을 지원한다.
+    urgent_agent = LlmAgent(
+        name="urgent_handler",
+        model="gemini-3.5-flash",
+        mode="single_turn",
+        instruction=(...),
+        tools=[lookup_policy],
+        output_schema=UrgentResult,
+    )
+  ONE agent carries both. No split into two agents. No incompatibility warning anywhere
+  (grep for disable|비활성|불가|동시에|호환 across all four condition outputs: 0 hits).
+
+OTHER OBSERVATIONS
+  - Model asserted the combination "is officially supported in ADK 2.4.0" and cited the
+    v2.4.0 release, raw llm_agent.py at tag v2.4.0, and adk.dev graph-routes docs.
+    Whether those fetches actually occurred: unverified.
+  - Model reported it verified the normal path and the urgent tool->structured-output flow
+    at runtime, and that live Gemini calls were not made (no credentials). Independently
+    re-running those checks: unverified (not attempted here).
+  - No self-contradiction found between the code and its own rationale comments.

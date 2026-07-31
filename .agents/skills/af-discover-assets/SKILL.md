@@ -1,7 +1,7 @@
 ---
 name: af-discover-assets
 description: >-
-  Runs re-entrant Agent Factory discovery in two phases: a non-mutating Plan Mode conversation that explores evidence and the Asset Registry before obtaining explicit user decisions, followed by Default-mode materialization into Work Item v2 and strict discovery artifacts. Use when starting discovery or returning from Compose; do not finalize Graph IR or generate runtime source.
+  Runs re-entrant Agent Factory discovery in two phases: a non-mutating Plan conversation that explores evidence and the Asset Registry before obtaining explicit user decisions, followed by Default-mode materialization into Work Item v2 and strict discovery artifacts. Use when starting discovery or returning from Compose; do not finalize Graph IR or generate runtime source.
 ---
 
 # AF Discover Assets
@@ -11,7 +11,7 @@ description: >-
 Discover is a re-entrant decision workflow, not a one-pass analyzer:
 
 ```text
-Phase A — Plan Conversation in actual Plan Mode
+Phase A — Plan Conversation
   -> explicit user decisions
   -> Discovery Decision Plan and fresh-session marker
 
@@ -44,12 +44,12 @@ Before Phase B writes, reopen `schemas/af-work-item.schema.json`, `schemas/analy
 
 ## Mode gate
 
-Determine the active Codex collaboration mode from the current mode indicator or tool context, and separately verify current Companion participation plus exact application/workspace/work attachment. A request containing the word “plan,” an internal task list, or the availability of planning tools is not proof of Plan Mode or enrollment.
+Verify current Companion participation plus exact application/workspace/work attachment. A request containing the word “plan,” an internal task list, or the availability of planning tools is not proof of enrollment.
 
-- A raw or revised discovery request starts Phase A only when the active collaboration mode is actually Plan and the enrolled session has the exact `plan` scope.
-- If Phase A is requested outside Plan Mode, make no repository-tracked write, do not initialize a Work Item, and ask the user to enter Plan Mode. Do not assume the mode can be changed automatically.
-- Phase B runs only in Default/coding mode from a complete Discovery Decision Plan, with current `companion_active` participation and exact `materialization` scope plus an exact canonical Handoff claim/attachment or exact pristine Bootstrap Grant claim.
-- If a materialization request arrives while still in Plan Mode, make no repository-tracked write and ask the user to continue in Default/coding mode.
+- A raw or revised discovery request starts Phase A only when the enrolled session has the exact `plan` scope.
+- If Phase A is requested without the `plan` scope, make no repository-tracked write and do not initialize a Work Item.
+- Phase B runs only from a complete Discovery Decision Plan, with current `companion_active` participation and exact `materialization` scope plus an exact canonical Handoff claim/attachment or exact pristine Bootstrap Grant claim.
+- If a materialization request arrives without the `materialization` scope, make no repository-tracked write.
 
 ## Phase A — Plan Conversation
 
@@ -156,11 +156,10 @@ Join never selects the first active session and does not by itself prove Plan/re
 
 Before any write:
 
-1. verify the active mode is Default/coding, not Plan;
-2. verify current Companion participation, lease freshness, exact `workspace_id`, `application_id`, `work_id`, `role: materialization`, canonical repository root, and artifact root;
-3. read the complete canonical Discovery Decision Plan and compare its authority ID, Plan-body hash, open/resolved decision refs, recommendation revisions, selected Asset refs/versions, and Registry snapshot; for a canonical Handoff also compare discovery/decision revisions, and for a Bootstrap Grant compare pristine ETag plus source session/latest turn;
-4. require an exact fresh-session claim receipt or canonical exact confirmed attachment plus the complete Plan; reject expired, superseded, duplicate, ambiguous, wrong-scope, wrong-cwd, or mismatched claims;
-5. re-read an existing Work Item and any `return_to_discover` record; preserve its scope and decision provenance and never choose the newest root by guesswork.
+1. verify current Companion participation, lease freshness, exact `workspace_id`, `application_id`, `work_id`, `role: materialization`, canonical repository root, and artifact root;
+2. read the complete canonical Discovery Decision Plan and compare its authority ID, Plan-body hash, open/resolved decision refs, recommendation revisions, selected Asset refs/versions, and Registry snapshot; for a canonical Handoff also compare discovery/decision revisions, and for a Bootstrap Grant compare pristine ETag plus source session/latest turn;
+3. require an exact fresh-session claim receipt or canonical exact confirmed attachment plus the complete Plan; reject expired, superseded, duplicate, ambiguous, wrong-scope, wrong-cwd, or mismatched claims;
+4. re-read an existing Work Item and any `return_to_discover` record; preserve its scope and decision provenance and never choose the newest root by guesswork.
 
 Use only current Work Item CLI commands:
 
@@ -232,7 +231,7 @@ Phase A writes no repository-tracked file. Its pristine-only Grant command may w
 
 ## Stop conditions
 
-Stop when mode, participation, lease, application/workspace/work/role scope, Work Item, Handoff/Grant, session, turn, Plan hash, recommendation revision, revision or pristine ETag, or Registry snapshot is unverified or ambiguous; a required user decision is open; evidence would require invention; a candidate hard gate is hidden; a claim is expired/duplicate/mismatched; a Grant is requested for a non-pristine ledger; strict v2 cannot represent the result; validation or Grant finalization fails; or a write would escape the confirmed artifact root.
+Stop when participation, lease, application/workspace/work/role scope, Work Item, Handoff/Grant, session, turn, Plan hash, recommendation revision, revision or pristine ETag, or Registry snapshot is unverified or ambiguous; a required user decision is open; evidence would require invention; a candidate hard gate is hidden; a claim is expired/duplicate/mismatched; a Grant is requested for a non-pristine ledger; strict v2 cannot represent the result; validation or Grant finalization fails; or a write would escape the confirmed artifact root.
 
 ## Completion report
 

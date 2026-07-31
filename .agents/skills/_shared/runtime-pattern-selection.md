@@ -74,5 +74,5 @@ Stop when evidence is insufficient, the simpler design has not been considered, 
 
 - Checked date: 2026-07-18
 - Official sources: Agent Factory active docs and selected Google ADK pattern pages
-- Installed package version: `google-adk 2.3.0`
+- Installed package version: `google-adk 2.4.0`
 - Contract note: Pattern selection is design evidence; unsupported strict v2 patterns remain Blockers.

@@ -1,0 +1,51 @@
+CONDITION (d) both — validation
+
+GROUND TRUTH: see a-no-skills/validation.txt (same two docstrings, google-adk 2.4.0).
+
+CONFLICT PRESENTED TO THE MODEL
+  af  graph-and-dynamic-workflows.md:100 — "a plain `return` cannot carry a route" (FALSE)
+  vs
+  upstream adk-workflows.md:98-99 — `return Event(output=node_input, route="urgent")` (CORRECT)
+  and
+  upstream adk-python.md:100 — "output_schema disables tool calling and delegation" (FALSE)
+  vs
+  af agents-workflows-tools.md / ADK source — they work together (CORRECT)
+
+D1 ROUTING ................................ FAIL (af card's false form won the conflict)
+  graph_workflow_minimal.py:100-104
+    # 근거: 두 경로가 고정되어 있으므로 동적 실행보다 검토 가능한 정적 graph가 작고 충분하다.
+    # 라우팅 값과 원문을 같은 Event에 담아 선택된 후속 노드에 입력을 그대로 넘긴다.
+    async def route_request(node_input: str) -> AsyncGenerator[Event, None]:
+      route = 'urgent' if 'urgent' in node_input.lower() else 'normal'
+      yield Event(route=route, output=node_input)
+  Async generator + `yield`, i.e. the af card's mandated form, despite the upstream card
+  showing a plain `return Event(...)` in the same context window.
+  The model recorded NO note that its two sources disagreed. It silently picked one.
+
+D2 output_schema + tools .................. PASS (upstream's false warning did not win)
+  graph_workflow_minimal.py:110-119
+    # 근거: task 모드에서 output_schema는 finish_task tool을 타입화하므로 조회 tool과 함께 사용할 수 있다.
+    urgent_agent = LlmAgent(
+        name='urgent_handler',
+        model=DeterministicDemoLlm(),
+        mode='task',
+        description='Handles urgent requests using the incident runbook.',
+        instruction='Call lookup_runbook, then return an UrgentResult.',
+        tools=[lookup_runbook],
+        output_schema=UrgentResult,
+    )
+  ONE agent, both kwargs. No incompatibility warning anywhere in the file.
+
+OTHER OBSERVATIONS (af card dominated structure, not just D1)
+  - Only this condition used `mode='task'` + dispatch from inside a FunctionNode via
+    `await ctx.run_node(urgent_agent, ..., raise_on_wait=True, override_isolation_scope=...)`
+    plus `rerun_on_resume=True` and `wait_for_output = True`. That whole pattern comes from
+    graph-and-dynamic-workflows.md:72-96 (the four "silent footguns" section), not from any
+    upstream reference. Its stated reason at :121 —
+      # 근거: ADK 2.4.0은 task-mode LlmAgent의 정적 graph 배치를 금지하므로 FunctionNode가 동적으로 호출한다.
+    restates af card line 21. Whether that rule is true was NOT re-verified here: unverified.
+  - Result: the af card raised the complexity of the artifact substantially (a hand-rolled
+    DeterministicDemoLlm BaseLlm subclass, a dispatch FunctionNode, resume flags) versus the
+    ~90-line direct graphs produced by (a) and (c) — for a prompt that asked for a "최소 예제".
+  - Model reported urgent=PASS normal=PASS tool-routing=PASS at runtime; ruff not installed.
+    Not re-run here: unverified.

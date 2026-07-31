@@ -26,7 +26,7 @@ The arrows do not authorize gate skipping. The normal path still requires curren
 ## Core invariants
 
 - `raw_requirement_to_code=false`.
-- Discover Phase A requires confirmed Plan Mode and is non-mutating: targeted exploration, Registry search, options, questions, and a Discovery Decision Plan only.
+- Discover Phase A is non-mutating: targeted exploration, Registry search, options, questions, and a Discovery Decision Plan only.
 - Discover Phase B runs in Default/Coding mode and materializes an approved Plan into canonical Work Item/artifact state.
 - Required decisions and Asset dispositions never default. Structured and conversational paths ask exactly one question per turn and normalize to the same Decision Record semantics. A recommendation is not selected until the user explicitly accepts the displayed matching revision; record session and turn provenance.
 - Discovery identifies Agent, Workflow, and Tool candidates. It does not finalize Graph topology or runtime APIs.
@@ -84,6 +84,8 @@ At a durable boundary, use only schema-supported states: `not_started`, `active`
 
 ## Verification
 
+A runtime invariant recorded only in a Verification Scenario bullet or a comment drifts. Pin every such invariant with an executing test, not prose — e.g. when two node categories have opposite requirements (one must set a flag, the other must not), each side needs its own executing assertion. Give special weight to invariants whose violation fails silently: wrong behavior with no error is exactly what a human will never notice in review.
+
 Run the phase-specific check and preserve command, cwd, exit code, concise output, bound revision, and residual uncertainty. At minimum for Work Item/artifact-sensitive work:
 
 ```bash
@@ -97,7 +99,7 @@ Before handoff, inspect the exact write inventory and confirm that no unrelated 
 
 ## Stop conditions
 
-Stop when identity or Plan Mode is ambiguous; a required decision is open; a gate binding is missing or stale; a Handoff or Bootstrap Grant cannot be exactly claimed; a predecessor artifact is absent; candidate contract data remains unresolved; a requested action would skip review, escape write roots, auto-merge stale work, mutate the Registry without expected revision, or restore a legacy stage/manifest/alias/parser.
+Stop when identity is ambiguous; a required decision is open; a gate binding is missing or stale; a Handoff or Bootstrap Grant cannot be exactly claimed; a predecessor artifact is absent; candidate contract data remains unresolved; a requested action would skip review, escape write roots, auto-merge stale work, mutate the Registry without expected revision, or restore a legacy stage/manifest/alias/parser.
 
 ## Official sources checked
 
@@ -110,7 +112,7 @@ Stop when identity or Plan Mode is ambiguous; a required decision is open; a gat
 
 ## Checked date
 
-- Checked date: 2026-07-28
+- Checked date: 2026-07-31
 - Official sources: Agent Factory active workbench documents and current repository contracts
-- Installed package version: `google-adk 2.3.0`
-- Contract note: the normal forward order remains gate-protected, but routing is re-entrant and revision-owned.
+- Installed package version: `google-adk 2.4.0`
+- Contract note: the normal forward order remains gate-protected, but routing is re-entrant and revision-owned. Runtime invariants must be pinned with an executing test, not prose. The Codex Plan Mode precondition and its Stop condition have been removed: Codex's plan-vs-default collaboration mode is not verified anywhere in this lifecycle, and Discover Phase A's non-mutating behavior stands on its own without a mode check.
