@@ -105,4 +105,4 @@ from .agent import root_agent
 - Skill의 참조 파일과 script path가 해당 Skill directory 기준 상대 경로로 해석된다.
 - secret이나 실제 고객 데이터가 Skill·sample·`.env.example`에 포함되지 않는다.
 
-ADK Agent Skills는 현재 experimental 기능이다. Python은 ADK v1.25.0 이상에서 지원되며, 이 저장소의 확인 환경은 `google-adk 2.3.0`이다. 상세 형식과 API는 [공식 ADK Skills 문서](https://adk.dev/skills/)를 기준으로 확인한다.
+ADK Agent Skills는 현재 experimental 기능이다. Python은 ADK v1.25.0 이상에서 지원되며, 이 저장소의 현재 검증 환경은 `google-adk 2.4.0`이다. 상세 형식과 API는 [공식 ADK Skills 문서](https://adk.dev/skills/)를 기준으로 확인한다.

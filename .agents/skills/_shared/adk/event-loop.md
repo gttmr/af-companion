@@ -42,7 +42,7 @@ Installed event facts:
 - `Event.output` is top-level.
 - `Event.partial` is inherited from `LlmResponse`.
 - `state_delta` and `route` live in `Event.actions` as `EventActions.state_delta` and `.route`.
-- Convenience `Event(state={...}, route=...)` input is normalized into actions; a declared top-level `Event.state_delta` field is not present in installed 2.3.0.
+- Convenience `Event(state={...}, route=...)` input is normalized into actions; a declared top-level `Event.state_delta` field is not present in installed 2.4.0.
 
 Follow the official loop: execution yields an Event and pauses; Runner appends/processes it through services; state/artifact actions become committed; execution then resumes. Official docs state that `partial=True` events are forwarded but their actions are not committed, while the final non-partial event receives full action processing.
 
@@ -75,7 +75,8 @@ Do not store secrets or raw sensitive payloads in events, state deltas, artifact
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-18
+- Checked date: 2026-07-31
 - Official sources: ADK event loop and state documentation
-- Installed package version: `google-adk 2.3.0`
+- Installed package version: `google-adk 2.4.0`
 - Known compatibility note: Installed `Event` has no declared top-level `state_delta`; use `Event.actions.state_delta` semantics, and never rely on partial-event actions being committed.
+- Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.

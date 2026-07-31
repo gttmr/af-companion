@@ -36,6 +36,8 @@ A focused structural/artifact audit may run before Scaffold, but it cannot compl
 
 Read [Runtime Validation Checks](references/runtime-validation-checks.md) for runtime claims, [Registry Publication and Reuse Evidence](references/registry-publication.md) for Registry-state or publication claims, and [Target Contract v2](../_shared/target-contract-v2.md) for artifact-contract judgments.
 
+Use the relevant `google-agents-cli-*` testing and evaluation guidance as the standalone ADK base when available. This Verify skill adds Agent Factory revision, binding, review, and Companion provenance checks. Those checks do not become prerequisites for ordinary CLI-only ADK tests outside an explicit Agent Factory Work Item.
+
 ## Evidence levels
 
 1. **Skill structure** — frontmatter, links, triggers, and instruction coherence.

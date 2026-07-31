@@ -28,7 +28,7 @@ Do not blur the boundary. A Plan response is not durable lifecycle progress, and
 
 Phase A writes no repository-tracked file. Its final response is a **Discovery Decision Plan** with these sections:
 
-1. **Identity and mode evidence** — application, workspace, repository, proposed/known Work Item, current Companion participation/role/lease observation, observed Plan Mode, session/turn, and whether this is initial discovery or re-entry.
+1. **Identity and mode evidence** — application, workspace, repository, proposed/known Work Item, current Companion participation/role/lease observation, session/turn, and whether this is initial discovery or re-entry.
 2. **Goal and success criteria** — explicit user-selected outcome and observable success/failure criteria.
 3. **Evidence summary** — observed evidence, assumptions, contradictions, Missing Information, and source locators kept separate.
 4. **Selected control strategy** — one user-selected value from `single_agent`, `agent_delegation`, `explicit_workflow`, or `hybrid`, plus considered alternatives and rationale.

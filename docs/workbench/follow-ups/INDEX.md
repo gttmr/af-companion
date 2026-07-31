@@ -8,4 +8,4 @@
 
 ## Current follow-up
 
-- [18. agents-cli 1.1.0 Skill 개선 선택 도입](18-agents-cli-1-1-skill-adoption.md) — `planned`; design dialogue, scope control, version-aware verification, 별도 ADK application/GKE 경계를 AF 계약에 선택적으로 도입한다.
+- [18. agents-cli Skill 개선 잔여 선택 도입](18-agents-cli-1-1-skill-adoption.md) — `partial`; standalone ADK base / Agent Factory overlay / Companion transport 경계와 ADK 2.4 기준은 완료했고, design dialogue, scope control, version-aware verification, 별도 ADK application/GKE 경계는 잔여다.

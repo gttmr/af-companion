@@ -31,9 +31,13 @@ Move small serializable state and versioned binary outputs across approved runti
 
 Represent state and artifacts as runtime data channels on Graph edges and contracts, not assets. Keep session, user, app, and invocation scopes explicit. Open `_shared/adk/event-loop.md` separately when commit timing matters.
 
+A Graph edge carries only the immediate predecessor's output. Data produced two or more nodes upstream is not reachable through edges; `ctx.state` is the only channel for it. Without this, designs assume "connecting nodes makes data flow" and the gap surfaces as a runtime `KeyError` instead, with cost rising as node count grows.
+
 ## Compose Artifact
 
 Record producer, consumer, Graph edge identity, channel kind, scope, schema/MIME type, persistence service, retention, access control, version behavior, overwrite/idempotency policy, commit point, missing-value behavior, and synthetic fixture.
+
+Include a state-key contract table (key / writer node / reader nodes) for any key read by a node other than the immediate producer. Producing this table before wiring is cheap and forces the data-flow question to be answered up front; it measurably reduces implementation confusion.
 
 In strict v2 Graphs, an edge records only `channel` for state or artifact movement. The current generator derives the runtime storage key deterministically from the edge `id`; do not add a separate state or artifact key field.
 
@@ -46,7 +50,7 @@ Installed session imports include `BaseSessionService`, `InMemorySessionService`
 - `app:`: app scope;
 - `temp:`: invocation-only and omitted from persistence.
 
-`State.SESSION_PREFIX` is not present in installed 2.3.0; session scope is unprefixed. `BaseSessionService` exposes async create/get/list/delete session and `append_event(session, event)` operations.
+`State.SESSION_PREFIX` is not present in installed 2.4.0; session scope is unprefixed. `BaseSessionService` exposes async create/get/list/delete session and `append_event(session, event)` operations.
 
 Installed artifact services include `BaseArtifactService`, `FileArtifactService`, `GcsArtifactService`, and `InMemoryArtifactService`. Verified core signatures:
 
@@ -90,7 +94,8 @@ Use the narrowest scope, avoid secrets, validate MIME/schema, restrict filenames
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-18
+- Checked date: 2026-07-31
 - Official sources: ADK state, artifacts, and event-loop documentation
-- Installed package version: `google-adk 2.3.0`
-- Known compatibility note: Session scope is unprefixed and `State.SESSION_PREFIX` is not present; persistence depends on the configured service, not on the state key alone.
+- Installed package version: `google-adk 2.4.0`
+- Known compatibility note: Session scope is unprefixed and `State.SESSION_PREFIX` is not present; persistence depends on the configured service, not on the state key alone. Edge-payload/state-key contract confirmed by building and live-testing a real workflow.
+- Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.

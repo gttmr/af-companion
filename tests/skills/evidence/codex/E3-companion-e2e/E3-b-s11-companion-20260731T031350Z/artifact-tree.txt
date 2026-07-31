@@ -1,0 +1,53 @@
+# Artifact tree — E3-b
+
+Paths are relative to SCENARIO_OUTPUT_ROOT (<scratch>/E3/E3-b/out).
+25 source files (42 including __pycache__/.pytest_cache byproducts, listed separately below).
+
+runtime/.env.example
+runtime/.gitignore
+runtime/README.md
+runtime/agents.config.yaml
+runtime/implementation-handoff.md
+runtime/protocol_client.py
+runtime/runtime-chat-smoke.json
+runtime/s11_human_input_resume_runtime/README.md
+runtime/s11_human_input_resume_runtime/__init__.py
+runtime/s11_human_input_resume_runtime/agent.py
+runtime/s11_human_input_resume_runtime/nodes/__init__.py
+runtime/s11_human_input_resume_runtime/nodes/agents.py
+runtime/s11_human_input_resume_runtime/nodes/functions.py
+runtime/s11_human_input_resume_runtime/nodes/gates.py
+runtime/s11_human_input_resume_runtime/nodes/human_inputs.py
+runtime/s11_human_input_resume_runtime/nodes/subworkflows.py
+runtime/s11_human_input_resume_runtime/nodes/tools.py
+runtime/s11_human_input_resume_runtime/sample_inputs.yaml
+runtime/s11_human_input_resume_runtime/schemas.py
+runtime/s11_human_input_resume_runtime/tests/__init__.py
+runtime/s11_human_input_resume_runtime/tests/test_async_resume_protocol.py
+runtime/s11_human_input_resume_runtime/tests/test_workflow_contract.py
+runtime/s11_human_input_resume_runtime/workflow.py
+runtime/s11_human_input_resume_runtime/workflow_manifest.json
+runtime/scaffold-plan.json
+
+## Run byproducts (not authored output)
+runtime/__pycache__/protocol_client.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/__pycache__/__init__.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/__pycache__/agent.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/__pycache__/schemas.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/__pycache__/workflow.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/nodes/__pycache__/__init__.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/nodes/__pycache__/agents.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/nodes/__pycache__/functions.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/nodes/__pycache__/gates.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/nodes/__pycache__/human_inputs.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/nodes/__pycache__/subworkflows.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/nodes/__pycache__/tools.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/tests/__pycache__/__init__.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/tests/__pycache__/test_async_resume_protocol.cpython-313-pytest-9.1.1.pyc
+runtime/s11_human_input_resume_runtime/tests/__pycache__/test_async_resume_protocol.cpython-313.pyc
+runtime/s11_human_input_resume_runtime/tests/__pycache__/test_workflow_contract.cpython-313-pytest-9.1.1.pyc
+runtime/s11_human_input_resume_runtime/tests/__pycache__/test_workflow_contract.cpython-313.pyc
+
+## Outside the output root
+none — git status --porcelain on /home/ilmaswsl/work/af-companion-skillsync shows no new or modified path from this run;
+the copied input context dir has no file modified after the run started.

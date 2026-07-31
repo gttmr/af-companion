@@ -34,15 +34,15 @@ const runtimeContractFixture = JSON.parse(
   )
 ).runtimeContracts[0];
 
-test("declared ADK dependency is restricted to the tested 2.3 compatibility line", () => {
+test("declared ADK dependency is restricted to the tested 2.4 compatibility line", () => {
   const requirements = readFileSync(new URL("../../requirements/adk-runtime.txt", import.meta.url), "utf8");
-  assert.match(requirements, /^google-adk\[a2a,mcp\]>=2\.3\.0,<2\.4\.0$/m);
+  assert.match(requirements, /^google-adk\[a2a,mcp\]>=2\.4\.0,<2\.5\.0$/m);
   const version = execFileSync(
     generatedPythonExecutable(),
     ["-c", 'from importlib.metadata import version; print(version("google-adk"))'],
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
   ).trim();
-  assert.equal(version, "2.3.0");
+  assert.equal(version, "2.4.0");
 });
 
 test("generator source stays neutral to regression-scenario vocabulary", () => {
@@ -205,7 +205,7 @@ test("generated S11 runtime pauses, resumes after runner restart, and fails clos
     const outputs = (result) => result.events.map((event) => event.output).filter(Boolean);
     const ledgerResult = (result) => result.state[runtime.ledger_key]?.["synthetic-change-001"]?.result;
 
-    assert.equal(runtime.google_adk_version, "2.3.0");
+    assert.equal(runtime.google_adk_version, "2.4.0");
     assert.equal(runtime.approve_start.call.id, runtime.expected_interrupt_id);
     assert.equal(runtime.approve_start.error, null);
     assert.equal(runtime.ledger_key in runtime.approve_start.state, false, "an abandoned pending request has no side effect");
@@ -246,7 +246,7 @@ test("owning Workflow representation selects static graph versus dynamic Workflo
   });
 });
 
-test("generated non-loop dynamic Workflow executes on google-adk 2.3.0", () => {
+test("generated non-loop dynamic Workflow executes on google-adk 2.4.0", () => {
   withFixture(representationFixture("dynamic"), ({ artifactRoot }) => {
     const output = join(artifactRoot, "dynamic-runtime");
     generateBundle(artifactRoot, output);
@@ -254,7 +254,7 @@ test("generated non-loop dynamic Workflow executes on google-adk 2.3.0", () => {
       outputRoot: output,
       packageName: discoverGeneratedPackage(output)
     });
-    assert.equal(runtime.google_adk_version, "2.3.0");
+    assert.equal(runtime.google_adk_version, "2.4.0");
     assert.ok(runtime.events.some((event) => event.output?.terminal_output_node_id === "output"), JSON.stringify(runtime));
   });
 });
@@ -334,7 +334,7 @@ test("condition routes without an explicit default or unmatched contract reject 
   });
 });
 
-test("generated static Workflow executes route, state-channel, and terminal behavior on google-adk 2.3.0", () => {
+test("generated static Workflow executes route, state-channel, and terminal behavior on google-adk 2.4.0", () => {
   withFixture(runtimeRouteFixture(), ({ artifactRoot }) => {
     const output = join(artifactRoot, "runtime-route");
     generateBundle(artifactRoot, output);
@@ -350,7 +350,7 @@ test("generated static Workflow executes route, state-channel, and terminal beha
       outputRoot: output,
       packageName
     });
-    assert.equal(runtime.google_adk_version, "2.3.0");
+    assert.equal(runtime.google_adk_version, "2.4.0");
     assert.ok(runtime.events.some((event) => event.output?.asset_id === "tool.fallback"), JSON.stringify(runtime));
     assert.equal(runtime.events.some((event) => event.output?.asset_id === "tool.selected"), false);
     const terminal = runtime.events.find((event) => event.output?.terminal_output_node_id === "output");
@@ -627,7 +627,7 @@ print(json.dumps(asyncio.run(main())))
   });
 });
 
-test("no-A2A bundle omits provider files, docs, and tests while importing on google-adk 2.3.0", () => {
+test("no-A2A bundle omits provider files, docs, and tests while importing on google-adk 2.4.0", () => {
   withFixture(representationFixture("graph"), ({ artifactRoot }) => {
     const output = join(artifactRoot, "no-a2a");
     generateBundle(artifactRoot, output);
@@ -636,7 +636,7 @@ test("no-A2A bundle omits provider files, docs, and tests while importing on goo
     assert.equal(existsSync(join(output, "af_adk_a2a_server.py")), false);
     assert.doesNotMatch(readFileSync(join(output, "README.md"), "utf8"), /ADK A2A provider/);
     assert.doesNotMatch(contractTest, /a2a_launcher/);
-    assertGeneratedPackageImportsOnAdk23(output);
+    assertGeneratedPackageImportsOnAdk24(output);
   });
 });
 
@@ -653,7 +653,7 @@ test("A2A consuming-only bundle emits RemoteA2aAgent but no provider surface", (
   });
 });
 
-test("approved A2A exposure emits provider files, docs, and tests that import on google-adk 2.3.0", () => {
+test("approved A2A exposure emits provider files, docs, and tests that import on google-adk 2.4.0", () => {
   withFixture(a2aExposureFixture(), ({ artifactRoot }) => {
     const output = join(artifactRoot, "a2a-exposure");
     generateBundle(artifactRoot, output);
@@ -662,7 +662,7 @@ test("approved A2A exposure emits provider files, docs, and tests that import on
     assert.equal(existsSync(join(output, "af_adk_a2a_server.py")), true);
     assert.match(readFileSync(join(output, "README.md"), "utf8"), /ADK A2A provider/);
     assert.match(contractTest, /a2a_launcher/);
-    assertGeneratedPackageImportsOnAdk23(output, { provider: true });
+    assertGeneratedPackageImportsOnAdk24(output, { provider: true });
   });
 });
 
@@ -1032,7 +1032,7 @@ function generated(outputRoot) {
   };
 }
 
-function assertGeneratedPackageImportsOnAdk23(outputRoot, { provider = false } = {}) {
+function assertGeneratedPackageImportsOnAdk24(outputRoot, { provider = false } = {}) {
   const packageName = discoverGeneratedPackage(outputRoot);
   const providerImport = provider ? "; import af_adk_a2a_server" : "";
   const stdout = execFileSync(
@@ -1040,5 +1040,5 @@ function assertGeneratedPackageImportsOnAdk23(outputRoot, { provider = false } =
     ["-c", `from importlib.metadata import version; import ${packageName}${providerImport}; print(version("google-adk"))`],
     { cwd: outputRoot, encoding: "utf8", env: { ...process.env, AF_LLM_PROVIDER: "gemini" }, stdio: ["ignore", "pipe", "pipe"] }
   );
-  assert.equal(stdout.trim(), "2.3.0");
+  assert.equal(stdout.trim(), "2.4.0");
 }

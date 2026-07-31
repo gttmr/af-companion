@@ -1,0 +1,21 @@
+# E2 (skill collision) — Artifact tree
+
+## Retained evidence surface
+
+The experiment created no scenario output or repository source change. Its retained
+evidence is exactly the seven-file surface required by `tests/skills/README.md`:
+
+```text
+artifact-tree.txt
+commands.log
+environment.md
+prompt.md
+result-summary.md
+selected-skills.md
+validation.txt
+```
+
+Raw transcripts are intentionally not retained because they carried extensive
+local/session paths. The bounded skill inventory is in `selected-skills.md`; the
+commands and outcomes are in `commands.log`, `validation.txt`, and
+`result-summary.md`.

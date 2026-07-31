@@ -1,0 +1,119 @@
+E2 (skill collision) — Validation
+Date: 2026-07-31
+
+Legend: VERIFIED = directly observed in this session's tool output.
+        RECORDED = observed in the original run, but the raw transcript was
+                   intentionally not retained; the bounded record is not
+                   independently replayable from this directory.
+        unverified = not directly observed; do not treat as fact.
+
+--------------------------------------------------------------------------------
+VERIFIED
+--------------------------------------------------------------------------------
+
+[VERIFIED] codex-cli version is 0.146.0.
+           Evidence: `codex --version` -> "codex-cli 0.146.0"; run banner
+           "OpenAI Codex v0.146.0".
+
+[VERIFIED] Run root is a git worktree, not the main checkout.
+           Evidence: /home/ilmaswsl/work/af-companion-skillsync/.git is a FILE
+           containing "gitdir: /home/ilmaswsl/work/af-companion/.git/worktrees/
+           af-companion-skillsync".
+
+[VERIFIED] ~/.codex/config.toml has a trusted entry for
+           "/home/ilmaswsl/work/af-companion" but NOT for
+           "/home/ilmaswsl/work/af-companion-skillsync".
+           It does have "/home/ilmaswsl/work" and "/home/ilmaswsl" as trusted.
+           Evidence: full read of ~/.codex/config.toml.
+
+[VERIFIED] Codex ran without --skip-git-repo-check and did not complain.
+           Evidence: both runs produced a normal banner and completed.
+
+[RECORDED] Run 2-1b executed ZERO shell commands.
+           Bounded record: selected-skills.md, "Run 2-1b".
+
+[RECORDED] With zero tool calls, the model listed all 5 repo-local af-* skills
+           with correct absolute worktree paths AND all 7 global
+           google-agents-cli-* skills with correct absolute paths.
+           => Codex auto-discovers .agents/skills at the git worktree root and
+              injects it alongside ~/.agents/skills.
+           Bounded record: selected-skills.md, "what Codex injected".
+
+[RECORDED] The absolute paths the model emitted matched the filesystem.
+           Bounded record: selected-skills.md contains the emitted inventory;
+           re-run a current `find ... -name SKILL.md` before relying on it.
+
+[VERIFIED] Repo AGENTS.md does not enumerate the four Work Skill names or any
+           absolute SKILL.md path, so it cannot account for run 2-1b's answer.
+           Evidence: grep -n -i "skill" AGENTS.md — line 36 says only "af-workflow
+           plus four canonical Work Skills"; no names, no paths.
+
+[RECORDED] Run 2-2 executed 40 shell commands, all read-only
+           (rg / sed / wc / nl / git status --short / git diff).
+           Bounded record: commands.log and selected-skills.md.
+
+[RECORDED] In run 2-2 the model opened files from BOTH skill sets:
+           all 5 repo af-*/SKILL.md + 10 _shared/reference files, and
+           2 of 7 global skills (google-agents-cli-workflow read in full across
+           three sed calls, google-agents-cli-scaffold lines 1-400).
+           Bounded record: selected-skills.md, "what the model actually READ".
+
+[RECORDED] The model chose the repo-local af-* lifecycle
+           (Discover -> Compose -> Scaffold -> Verify) and explicitly ruled out
+           starting with `agents-cli scaffold create`.
+           Bounded record: result-summary.md, Q2.
+
+[RECORDED] The model reported the contradiction between the two sets
+           unprompted-in-detail, citing file:line on both sides. It listed 5
+           conflicts (see result-summary.md).
+           Bounded record: result-summary.md, Q3.
+
+[VERIFIED] Neither run modified or created any file in the working tree.
+           Evidence: `git status --porcelain` after both runs shows exactly the
+           17 pre-existing modified skill files (all under .agents/skills/) plus
+           one untracked path, `tests/skills/evidence/codex/E2-skill-collision/`,
+           which is this evidence directory written by the operator, not by codex.
+           No unexpected paths appeared.
+
+--------------------------------------------------------------------------------
+unverified
+--------------------------------------------------------------------------------
+
+[unverified] "agents-cli skills version 1.2.1". No version file or manifest was
+             read in this session. Carried over from the task brief only.
+
+[unverified] Whether Codex has any INTERNAL precedence rule ranking repo-scope
+             skills above global-scope skills. This run shows only that the model
+             resolved precedence from skill CONTENT — _shared/source-of-truth.md
+             line 14 explicitly declares the Google skills non-authoritative. With
+             that sentence removed, the outcome is unknown. Not tested.
+
+[unverified] Whether auto-discovery depends on the trust_level entry for the
+             parent path (/home/ilmaswsl/work is trusted). A negative control in
+             an untrusted directory was not run, so it is not established that
+             .agents/skills discovery is trust-independent.
+
+[unverified] Whether auto-discovery searches upward from cwd, keys off the git
+             root, or keys off the presence of AGENTS.md. Only one directory
+             layout was tested.
+
+[unverified] The truth of the 5 substantive conflicts the model reported (Plan
+             Mode precondition, .agents-cli-spec.md, scaffold command, the
+             agents-cli create vs scaffold create typo, google-adk 2.3.0 vs
+             2.4.0). The model cited file:line for each, but those citations were
+             NOT independently checked in this session. They are the model's
+             claims, not confirmed repo facts.
+
+[unverified] Run 2-1a's figma-exclusion as proof of an authoritative injected
+             list. The head of run 2-1a's output was truncated by `tail -150`, so
+             an earlier unobserved read of config.toml cannot be excluded. Run
+             2-1b makes this point moot for the main finding.
+
+[unverified] Reproducibility. n=1 per probe; no repeat runs, no seed control.
+
+NOTE ON RAW LOGS
+  The commands in commands.log originally produced two raw logs. They are not
+  retained: the 380 KB run-2-2 log carried extensive local/session paths and
+  pushed this run to 10 files, against the seven-file layout required by
+  tests/skills/README.md. Claims derived only from those logs are marked
+  RECORDED above, not VERIFIED. Re-run the commands locally for fresh proof.

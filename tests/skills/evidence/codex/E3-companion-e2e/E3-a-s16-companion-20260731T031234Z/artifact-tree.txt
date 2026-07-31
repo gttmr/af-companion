@@ -1,0 +1,4 @@
+(no files created)
+
+SCENARIO_OUTPUT_ROOT (<scratch>/E3/E3-a/out) is empty — 0 files, 0 directories.
+Repository working tree unchanged by this run: no new or modified paths under .agents/skills/, templates/, or elsewhere.

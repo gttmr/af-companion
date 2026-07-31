@@ -27,6 +27,12 @@ Read [agents-workflows-tools.md](adk/agents-workflows-tools.md) only when choosi
 
 One requirement may justify multiple cards, but each selection needs separate evidence. “Enterprise,” “future-proof,” “several Agents,” or “ADK supports it” is not sufficient.
 
+## Standalone base and Agent Factory delta
+
+Use `google-agents-cli-workflow` plus its relevant standalone ADK skill as the general development base when those skills are available. The cards selected here add only exact-version corrections, Agent Factory asset/Graph mapping, generator support boundaries, and verification scenarios required by an explicit Agent Factory Work Item. They do not make Companion enrollment a prerequisite for ordinary ADK development. Inside an Agent Factory Work Item, approved artifacts are already the design/spec/scaffold authority; reuse the base's API, coding, test, evaluation, and operational guidance without starting a second design dialogue or scaffold unless the approved plan explicitly requires one.
+
+Companion participation, handoff, and provenance are a separate overlay applied by the owning `af-*` skill at Agent Factory durable-write boundaries. Do not copy those requirements into generic ADK code or tests.
+
 ## Required evidence
 
 For every selected pattern, record:
@@ -74,5 +80,5 @@ Stop when evidence is insufficient, the simpler design has not been considered, 
 
 - Checked date: 2026-07-18
 - Official sources: Agent Factory active docs and selected Google ADK pattern pages
-- Installed package version: `google-adk 2.3.0`
+- Installed package version: `google-adk 2.4.0`
 - Contract note: Pattern selection is design evidence; unsupported strict v2 patterns remain Blockers.

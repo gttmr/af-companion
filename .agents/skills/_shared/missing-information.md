@@ -21,7 +21,7 @@ Do not move candidate uncertainty into assumptions to bypass the hard gate. A re
 
 ## Required evidence
 
-Each missing-information record should identify:
+Each missing-information record must identify:
 
 - the unknown question;
 - evidence searched and evidence absent;
@@ -66,7 +66,7 @@ Stop when a hard-gate item remains, a reviewer answer has not been applied to th
 
 ## Checked date
 
-- Checked date: 2026-07-23
+- Checked date: 2026-07-29
 - Official sources: Agent Factory Operating Model, Taxonomy, and strict v2 schema
-- Installed package version: `google-adk 2.3.0`
-- Contract note: Soft-gate acceptance and candidate resolution fields do not replace review rationale.
+- Installed package version: `google-adk 2.4.0`
+- Contract note: Soft-gate acceptance and candidate resolution fields do not replace review rationale. The missing-information record's required-field list changed `should`→`must`: closure fields (reviewer answer, verification required) are already mandatory via the Artifact implications section's approval-blocking and resolution-application rules.

@@ -50,7 +50,7 @@ Verified callable shapes are:
 
 `None` continues default behavior; a typed return overrides it. `CallbackContext` and `ToolContext` are aliases for installed `Context`.
 
-Installed `google.adk.plugins` exports `BasePlugin` and `PluginManager`; `BasePlugin(name)` supplies keyword-only Agent/inference/Tool hooks. Official docs register Plugins at Runner scope and run them before object-level callbacks. The package probe also found `on_model_error_callback` and `on_tool_error_callback` fields on `LlmAgent`, while checked official guidance describes error hooks as Plugin capabilities. Prefer Plugin policy and source-test any per-Agent error-hook use.
+Installed `google.adk.plugins` exports `BasePlugin` and `PluginManager`; `BasePlugin(name)` supplies keyword-only Agent/inference/Tool hooks. Official docs register Plugins at Runner scope and run them before object-level callbacks. The package probe also found `on_model_error_callback` and `on_tool_error_callback` fields on `LlmAgent` (they exist on the installed class), but checked official guidance describes error hooks as Plugin capabilities only. **Route error handling through a `BasePlugin`; do NOT use the per-`LlmAgent` `on_model_error_callback`/`on_tool_error_callback` fields** unless a specific case has been verified against installed source for that task.
 
 ## Verification Scenarios
 
@@ -69,7 +69,7 @@ Specify whether callback exceptions fail the operation, are converted to a safe 
 
 ## Security / Audit
 
-Prefer Plugins for consistent guardrails. Minimize captured prompt/argument/result data, redact before logging, prevent secret leakage through overrides, and preserve hook, actor, decision, correlation, and outcome.
+Route error handling through a `BasePlugin` for consistent guardrails; do NOT use the per-`LlmAgent` error-callback fields unless a specific case has been verified against installed source for that task. Minimize captured prompt/argument/result data, redact before logging, prevent secret leakage through overrides, and preserve hook, actor, decision, correlation, and outcome.
 
 ## Official sources
 
@@ -80,7 +80,8 @@ Prefer Plugins for consistent guardrails. Minimize captured prompt/argument/resu
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-18
+- Checked date: 2026-07-31
 - Official sources: ADK callbacks, callback types, and plugins
-- Installed package version: `google-adk 2.3.0`
-- Known compatibility note: Official checked guidance places error hooks on Plugins, while installed `LlmAgent` exposes same-named error callback fields; prefer Plugin scope unless per-Agent behavior is separately verified.
+- Installed package version: `google-adk 2.4.0`
+- Known compatibility note: Official checked guidance places error hooks on Plugins, while installed `LlmAgent` exposes same-named error callback fields (`on_model_error_callback`, `on_tool_error_callback`) confirmed present on the installed class. Default rule: route error handling through `BasePlugin`; do NOT use those per-`LlmAgent` fields unless a specific case is separately verified against installed source.
+- Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.

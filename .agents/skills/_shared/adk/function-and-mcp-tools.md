@@ -26,6 +26,7 @@ Connect an approved Tool contract through an in-process function or an MCP serve
 - Which allow-list or filter applies?
 - Is Transport in-process, stdio, SSE, or streamable HTTP?
 - What auth, timeout, cancellation, cleanup, retry, idempotency, and audit policy applies?
+- Does a transport failure raise an exception (which type) or return a degraded payload (which status value)? Is that choice consistent everywhere it is consumed?
 
 ## Agent Factory representation
 
@@ -34,6 +35,8 @@ Represent the asset as Tool. Use Binding `function` or `mcp`, Transport separate
 ## Compose Artifact
 
 Record Tool contract, Binding, Transport, server reference, Tool name, schema, auth reference, lifecycle owner, allow-list, side effect, timeout, cancellation, retry, idempotency, error mapping, cleanup, mock, audit, and Invocation Control.
+
+Whichever transport-failure strategy is chosen — propagate an exception or return a degraded payload (e.g. `connection_status: "mcp_degraded"`) — the exact exception type or status value is a downstream contract and must be recorded here. Consumers coded against one strategy break silently if another code path in the same system uses the other.
 
 ## Scaffold Output
 
@@ -56,7 +59,11 @@ Verified connection surfaces:
 - `StreamableHTTPConnectionParams(*, url, headers=None, timeout=5.0, sse_read_timeout=300.0, terminate_on_close=True, httpx_client_factory=...)`
 - `McpToolset(*, connection_params, tool_filter=None, tool_name_prefix=None, ..., require_confirmation=False, ...)`
 
-`tool_filter` accepts a list of names or a predicate over `BaseTool` and optional read-only context. Generic `HttpConnectionParams` is not present in installed `google-adk 2.3.0`; use `StreamableHTTPConnectionParams`. Uppercase `MCPToolset` exists only as a deprecated subclass; use `McpToolset`.
+`tool_filter` accepts a list of names or a predicate over `BaseTool` and optional read-only context. Generic `HttpConnectionParams` is not present in installed `google-adk 2.4.0`; use `StreamableHTTPConnectionParams`. Uppercase `MCPToolset` exists only as a deprecated subclass; use `McpToolset`.
+
+Omit optional MCP arguments by leaving the key out; do not send `null` or an empty list as a placeholder. Build call arguments with a `_drop_none`-style helper. This is a general MCP calling habit, not specific to any one server.
+
+Attribute the failure correctly. `additionalProperties: false` only rejects keys the schema does not declare — it says nothing about the values of declared ones. Whether an explicit `null` or `[]` is rejected is decided per field by that field's own `type` (a plain `"string"` does not admit `null`; it would have to be `["string","null"]`) and by constraints such as `minItems`. Omitting the key sidesteps all of that, which is why the helper is the robust habit whatever a given server wrote. Read the specific tool's `inputSchema` before concluding why a call was rejected.
 
 ## Verification Scenarios
 
@@ -67,11 +74,19 @@ Verified connection surfaces:
 - duplicate side effect and cleanup;
 - Agent-selected Tool trajectory;
 - Workflow-fixed Tool call;
-- local deterministic mock.
+- local deterministic mock;
+- optional argument omitted (not sent as `null`) when unset;
+- malformed tool response produces the declared failure mode (the recorded exception type or degraded-payload status), not an unhandled exception type.
 
 ## Failure / Retry / Timeout
 
 Define connect, discovery, call, and read timeouts separately where the transport supports them. Close sessions/processes on success, error, and cancellation. Retry only classified transient failures and require idempotency for side effects.
+
+Transport-failure handling is an explicit design decision, not an accident of the fallback path: propagate an exception (and state which type) or return a degraded payload (and state which status value) — do not mix strategies silently within the same codebase. A too-narrow `except` clause breaks when a different path raises a different type (e.g. a `json.JSONDecodeError` fallback is a `ValueError`, not a `RuntimeError`).
+
+A per-operation client timeout (e.g. `httpx.AsyncClient(timeout=30)`) bounds each connect/read/write individually, not total call duration. Streamable HTTP uses `client.stream()`/SSE, so the read timer resets per chunk: a legitimate non-streaming response with no intermediate bytes for >30s aborts, while an SSE session emitting events more often than every 30s runs unbounded overall. "A timeout is set" and "the call is bounded" are different claims. For a true ceiling, wrap the call, e.g. `async with asyncio.timeout(5)`. Pick the value per binding — a RAG lookup and a long-running agentic workflow want different ceilings, so one global constant is usually wrong — and remember an unbounded tool call freezes a chat-facing turn.
+
+A caller-supplied `http_client` is never closed by the MCP client library — only a client the library itself created is entered into its exit stack. If the caller passes its own `http_client`, the caller must close it (e.g. `async with`), or every call leaks a connection.
 
 ## Security / Audit
 
@@ -85,7 +100,8 @@ Use approved Tool allow-lists, least-privilege auth references, sanitized schema
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-18
+- Checked date: 2026-07-31
 - Official sources: ADK Function tools and ADK MCP tools
-- Installed package version: `google-adk 2.3.0`
-- Known compatibility note: Generic `HttpConnectionParams` is not present; use the installed streamable-HTTP class, and do not rely on deprecated uppercase `MCPToolset`.
+- Installed package version: `google-adk 2.4.0`, `mcp 1.29.0`
+- Known compatibility note: Generic `HttpConnectionParams` is not present; use the installed streamable-HTTP class, and do not rely on deprecated uppercase `MCPToolset`. In `mcp 1.29.0`, `streamable_http_client` takes a configured `http_client`; its transport-constructor timeout arguments are deprecated and ignored. The configured `httpx` timeout still applies per operation rather than as a total-call ceiling, and the raw MCP helper never closes a caller-provided `http_client`.
+- Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.

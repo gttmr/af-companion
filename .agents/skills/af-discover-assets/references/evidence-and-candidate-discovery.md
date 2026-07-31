@@ -22,7 +22,7 @@ Guide non-mutating Phase A exploration from requirement evidence through determi
 
 ## Phase A write boundary
 
-Phase A runs only in actual Codex Plan Mode. Confirm mode from the active collaboration-mode signal; do not infer it from the prompt or an internal plan.
+Phase A is defined by its behavior, not by the coding agent's collaboration mode: it runs in an enrolled session holding `role: plan` and writes no repository-tracked file. Do not gate it on the agent being in a "plan"-named mode — nothing in this lifecycle observes or records that mode, so the check can neither be performed nor verified.
 
 During Phase A:
 
@@ -30,7 +30,7 @@ During Phase A:
 - do not write discovery, decision, candidate, Registry, Graph, or source files;
 - do not mutate a Registry draft or publication state;
 - do not use a planning subagent to perform writes;
-- if Plan Mode cannot be verified, stop before all repository-tracked writes.
+- if the enrolled `plan` scope cannot be confirmed, stop before all repository-tracked writes.
 
 Read-only repository and CLI inspection is allowed. The Plan response itself may carry decisions and a handoff marker because it is conversation output, not a tracked artifact.
 
@@ -218,7 +218,7 @@ Do not edit or merge the prior Graph in Discover. Graph conflict resolution belo
 
 Before completing Phase A, verify in conversation that:
 
-- actual Plan Mode was observed;
+- the enrolled session's `role: plan` scope was confirmed and no repository-tracked file was written;
 - no repository-tracked file changed because of Phase A;
 - Registry search preceded Asset questions;
 - only bounded L0/L1/L2 context was read;
@@ -231,7 +231,7 @@ Phase B performs artifact and Work Item validation; Phase A does not claim those
 
 ## Stop conditions
 
-Stop when Plan Mode is absent or unverified, the Work Item or requirement is ambiguous, exploration cannot access material evidence, deterministic compatibility cannot be established, a required decision is unanswered, a hard gate would be hidden as an assumption, a Resource/Dependency would have to masquerade as an Asset, or the next action would write a repository-tracked file.
+Stop when the enrolled `plan` scope is absent or unconfirmed, the Work Item or requirement is ambiguous, exploration cannot access material evidence, deterministic compatibility cannot be established, a required decision is unanswered, a hard gate would be hidden as an assumption, a Resource/Dependency would have to masquerade as an Asset, or the next action would write a repository-tracked file.
 
 ## Sources checked
 
@@ -245,4 +245,4 @@ Stop when Plan Mode is absent or unverified, the Work Item or requirement is amb
 ## Checked date
 
 - Checked date: 2026-07-24
-- Contract note: Phase A is Plan Mode only, deterministic Registry exploration precedes questions, and every required Asset disposition is an explicit user decision.
+- Contract note: Phase A is non-mutating and `plan`-scoped, deterministic Registry exploration precedes questions, and every required Asset disposition is an explicit user decision.

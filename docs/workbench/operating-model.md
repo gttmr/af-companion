@@ -2,10 +2,12 @@
 
 Agent Factory work executes in an external Codex CLI or VS Code session. The web product is a live companion: it projects repository state, may create one strict empty Work Item through a guarded create-only bootstrap, and exposes two shared canonical edit surfaces, Graph IR and the Asset Registry. It does not run lifecycle stages, generate source, or execute runtime verification.
 
+The skill model is layered. `google-agents-cli-*` provides the standalone ADK development base and remains usable in an ordinary CLI session with no Companion or Work Item. The five `af-*` skills activate only for explicit Agent Factory scope and add Target artifacts, Graph/Registry decisions, reviews, lowering, and verification. In that scoped path, approved Agent Factory artifacts are the specification/scaffold authority while the base supplies ADK API, coding, test, evaluation, and operational guidance; a duplicate `.agents-cli-spec.md` dialogue or scaffold is not started unless the approved scaffold plan selects it. Companion is the connection, handoff, write-authority, and provenance overlay for that scoped lifecycle; repository cwd or skill visibility alone does not activate it.
+
 ## 1. Re-entrant lifecycle
 
 ```text
-Discover Phase A in Plan mode (conversation only)
+Discover Phase A with `role: plan` (conversation only)
   -> explicit user decisions
   -> fresh-session Discover materialization
   -> discovery review
@@ -21,7 +23,7 @@ Discover Phase A in Plan mode (conversation only)
 
 | Work Skill | Responsibility | Current gate | Durable output |
 | --- | --- | --- | --- |
-| `af-discover-assets` | Plan conversation, evidence, Registry search, user decisions, normalized requirement, Agent·Workflow·Tool candidates | explicit requirement; Plan mode for Phase A | decision plan, analysis aggregate/splits, discovery cycle/revision |
+| `af-discover-assets` | Plan conversation, evidence, Registry search, user decisions, normalized requirement, Agent·Workflow·Tool candidates | explicit requirement; `plan` scope for Phase A | decision plan, analysis aggregate/splits, discovery cycle/revision |
 | `af-compose-solution` | control strategy, Root Executable, Graph IR, Asset dispositions, bindings, runtime contracts, readiness | current approved discovery revision | composition cycle/revision, Graph/contracts, boundary design, scaffold plan |
 | `af-scaffold-runtime` | exact approved composition and Asset versions to ADK source or Runtime Handoff | current approved composition revision | source roots, manifest, implementation handoff |
 | `af-verify-runtime` | current artifact/code/runtime/behavior proof | claim-matched current scaffold evidence | validation report, evidence, outcome |
@@ -32,7 +34,7 @@ Raw requirement to code is forbidden. A Work Skill may stop at `waiting_for_inpu
 
 Discover has two distinct execution phases.
 
-1. Phase A runs in actual Codex Plan mode. It may inspect the repository, Handbook, and bounded Registry results, use a bounded planning subagent, and ask the user questions. It must not write tracked repository artifacts.
+1. Phase A runs in an enrolled session holding `role: plan`, and is defined by its behavior, not by the coding agent's collaboration mode. It may inspect the repository, Handbook, and bounded Registry results, use a bounded planning subagent, and ask the user questions. It must not write tracked repository artifacts. Do not gate Phase A on the agent being in a "plan"-named mode: no surface in this lifecycle observes or records that mode, so the check cannot be performed or verified. The non-mutating requirement stands on its own.
 2. Required decisions remain open until the user selects an option. A recommendation is evidence, not consent; the model never fills `selected_by: "user"` by itself.
 3. The final Phase A output is a Discovery Decision Plan and an explicit continuity marker, not source code or a final Graph. If the Work Item already has exact discovery/decision revisions, this is a canonical Handoff. If it is still the strict pristine ledger, the Plan CLI may create one local Materialization Bootstrap Grant without writing tracked artifacts or fake revisions.
 4. Phase B runs in a distinct explicitly enrolled session, claims that exact Handoff or Grant, reopens current source, verifies revisions and decisions, and materializes Work Item v2 artifacts. Companion Continue is the supported explicit fresh-context transport.
@@ -214,7 +216,7 @@ Scaffold may write to an artifact-local handoff tree or an explicitly declared e
 
 The generator recomputes decision, Asset decision, and Root revision hashes; resolves exact Registry versions at the bound Registry revision; rejects duplicate/version/staleness drift; and preserves project-only Assets separately. Local exact reuse requires one reviewed `python:module#symbol` source reference and imports that object/callable instead of regenerating it. MCP and Remote A2A reuse follows reviewed bindings.
 
-Solution strategy and Root type must agree with Graph ownership. With installed `google-adk 2.3.0`, a Workflow Root is a `google.adk.workflow.Workflow`; an Agent Root is the selected `BaseAgent` object, and generated `root_agent` points to that exact object. Scaffold never changes the strategy or Root to make generation pass.
+Solution strategy and Root type must agree with Graph ownership. With the verified `google-adk 2.4.0` runtime, a Workflow Root is a `google.adk.workflow.Workflow`; an Agent Root is the selected `BaseAgent` object, and generated `root_agent` points to that exact object. Scaffold never changes the strategy or Root to make generation pass.
 
 Neither output mode implies production integration or deployment. Private endpoints, credentials, real customer data, deploy scripts, and organization-specific production logic remain forbidden.
 

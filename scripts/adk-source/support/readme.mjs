@@ -11,7 +11,7 @@ export function buildReadme(context) {
   if (outputMode === "runnable") {
     return `# ${packageName}
 
-${normalizedRequirement.title}의 승인된 scaffold-plan.json에서 생성한 runnable ADK 2.3 Runtime Handoff입니다.
+${normalizedRequirement.title}의 승인된 scaffold-plan.json에서 생성한 runnable ADK 2.4 Runtime Handoff입니다.
 
 \`\`\`bash
 # repository root
@@ -117,7 +117,7 @@ curl http://127.0.0.1:8896/a2a/${context.packageName}/.well-known/agent-card.jso
 
 \`af_adk_a2a_server.py\` uses ADK's FastAPI/Web runner and A2A executor, but applies a local in-memory compatibility patch for ADK CLI versions whose \`api_server --a2a\` path fails before registering \`agent.json\`.
 
-When generated \`RequestInput\` nodes pause the workflow, the local provider keeps that pause as an A2A \`input-required\` task state and exposes the ADK long-running function call as \`adk_request_input\`. Agent Card metadata advertises the ADK A2A extension used by ADK 2.3 for this local executor path, but it does not prove full remote HITL resume support; verify same-task function-response continuation before treating plain chat follow-up as resume.
+When generated \`RequestInput\` nodes pause the workflow, the local provider keeps that pause as an A2A \`input-required\` task state and exposes the ADK long-running function call as \`adk_request_input\`. Agent Card metadata advertises the ADK A2A extension used by ADK 2.4 for this local executor path, but it does not prove full remote HITL resume support; verify same-task function-response continuation before treating plain chat follow-up as resume.
 `;
 }
 

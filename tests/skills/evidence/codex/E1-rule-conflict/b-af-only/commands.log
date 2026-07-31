@@ -1,0 +1,29 @@
+# commands.log — condition b-af-only
+
+## 1. exact codex invocation (Bash tool, timeout 600000 ms, foreground, sequential)
+
+S=/tmp/claude-1000/-home-ilmaswsl-work-adk-apps/be23ad91-f1a7-4e71-a593-54ed74ca24cf/scratchpad
+
+codex exec --skip-git-repo-check -s workspace-write -C $S/E1/b-af-only \
+  -m gpt-5.6-sol -c model_reasoning_effort=high "$(cat $S/prompts/b.txt)" \
+  < /dev/null 2>&1 | tail -120
+
+- `$S/prompts/b.txt` contains exactly the string in `prompt.md`.
+- `< /dev/null` is required; without it `codex exec` blocks on stdin EOF.
+- exit code: 0 (pipeline completed; `tail` exit status). Per-stage exit code of `codex` itself: unverified (pipe swallows it).
+- start/end wall-clock timestamps: unverified (not captured by the harness).
+- tokens used (reported by codex): 146876
+- stdout/stderr: bounded to the last 120 lines; full transcript not retained.
+
+## 2. post-run inspection (read-only)
+
+find . -type f            # in $S/E1/b-af-only  -> artifact-tree.txt
+grep -n "output_schema|tools=|yield Event|return Event|def route|async def|mode=" <generated .py>
+grep -rn "disable|비활성|불가|동시에|호환" $S/E1/*/*.py   # 0 hits
+
+## 3. ground-truth checks against installed google-adk 2.4.0
+
+F=/home/ilmaswsl/.cache/uv/archive-v0/PHhgWul_Cu4fzzXPz937I
+sed -n '394,401p' $F/google/adk/workflow/_function_node.py
+sed -n '393,396p' $F/google/adk/agents/llm_agent.py
+codex --version                                   # -> codex-cli 0.146.0

@@ -10,6 +10,13 @@
 
 ---
 
+## 2026-07-31 · PR [#20](https://github.com/gttmr/af-companion/pull/20) — standalone ADK base와 Agent Factory/Companion overlay 분리, runtime 2.4 전환
+
+- **결정**: 일반 ADK 개발은 `google-agents-cli-*`를 standalone base로 사용하며 Companion enrollment나 Agent Factory Work Item을 요구하지 않는다. 명시적인 Agent Factory scope가 있을 때만 `af-*`가 Target artifact, Graph IR, Asset Registry, review, lowering 계약을 추가하고, Companion은 그 lifecycle의 connection·handoff·write authority·provenance만 추가한다. 이 경로에서는 approved Agent Factory artifact가 specification/scaffold authority이므로 base skill의 ADK API·coding·test·eval 지침만 재사용하고 별도 `.agents-cli-spec.md` dialogue나 scaffold를 반복하지 않는다. Repository cwd나 두 skill family의 동시 노출만으로 Agent Factory overlay를 활성화하지 않는다.
+- **Runtime 계약**: generated Runtime Handoff dependency를 `google-adk[a2a,mcp]>=2.4.0,<2.5.0`으로 올리고 exact `google-adk 2.4.0`을 repository verification baseline으로 사용한다. 생성 source, A2A metadata, README, scenario와 runtime regression의 2.3 표기를 2.4로 정렬한다. (대체: 2026-07-20 ADK dependency `>=2.3.0,<2.4.0` 결정과 2026-07-12 active ADK 2.3 baseline 결정)
+- **배경**: skill collision 실험은 두 family 사이에 관찰 가능한 runtime ranking이 없음을 보였고, blanket `af-*` 우선 규칙은 CLI 단독 ADK 요청까지 Companion gate로 끌어들일 수 있었다. 별도 2.4 + A2A/MCP extras 환경에서 변경 전 generator suite는 51건 중 45건의 behavior/import가 통과했고 실패 6건은 모두 exact 2.3 version assertion이었다.
+- **영향**: five-skill routing/source-of-truth/runtime-card 경계, active Operating Model·Graph IR·follow-up status, generated ADK descriptions/metadata, runtime requirements와 generator/scenario tests를 함께 갱신한다. Agent Factory review/Graph/Registry 계약, Web Graph-primary 경계, model/provider 선택, 배포 권한은 변경하지 않는다.
+
 ## 2026-07-28 · PR [#19](https://github.com/gttmr/af-companion/pull/19) — VS Code terminal 연결과 Codex Plan mode를 분리
 
 - **결정**: Home의 정상 시작 경로를 일반 `Codex terminal session`으로 설명한다. 현재 wire의 `mode: "plan"`과 Session `role: plan`은 initial Agent Factory lifecycle attachment일 뿐이며, generated Task는 Codex `--plan`을 전달하지 않는다. 기본 Codex 모드의 fresh prompt도 같은 exact enrollment/lease를 claim하고 next-prompt context를 consume할 수 있어야 한다.

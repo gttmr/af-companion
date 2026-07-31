@@ -1,0 +1,38 @@
+# E3-a validation
+
+Run from repo root /home/ilmaswsl/work/af-companion-skillsync with
+SCENARIO_OUTPUT_ROOT=<scratch>/E3/E3-a/out.
+Every non-empty, non-`#` line of
+templates/skill-scenarios/S16-canonical-direct/verification-commands.txt, in order.
+
+CMD1  node scripts/validate-skills.mjs
+      exit=0
+      Skill root: .agents/skills
+      Summary: files=46 markdown=41 skills=5 errors=0 warnings=0
+      Result: PASS
+
+CMD2  node -e 'JSON.parse(... "templates/skill-scenarios/S16-canonical-direct/expected-skill.json" ...)'
+      exit=0   (no output)
+
+CMD3  rg -n '^name: af-discover-assets$' .agents/skills/af-discover-assets/SKILL.md
+      exit=0
+      2:name: af-discover-assets
+
+CMD4  for d in af-analyze-requirement af-design-boundaries af-build-runtime-stub af-verify-feedback; do test ! -e ".agents/skills/$d" || exit 1; done
+      exit=0   (no retired skill directory present)
+
+CMD5  test "$(find templates/skill-scenarios -maxdepth 1 -mindepth 1 -type d -name 'S[0-9][0-9]-*' | wc -l)" -eq 16
+      exit=0
+
+Summary: 5/5 exit 0.
+
+CAVEAT: CMD3 and CMD4 were also executed by the run under test, because it had
+read the hidden verification-commands.txt. Their green status is therefore not
+independent evidence of unaided behavior. The deterministic value of CMD1/CMD5
+(repository structure) is unaffected.
+
+## Additional grader checks
+
+git status --porcelain               exit=0   no new/unexpected path from this run
+find <SCENARIO_OUTPUT_ROOT> -type f  exit=0   0 files (read-only boundary respected)
+broken-relative-link scan over .agents/skills/**/*.md   0 broken links out of all markdown link targets

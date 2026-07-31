@@ -60,7 +60,7 @@ export function buildRunnableAgentPy(context) {
 
   const joinDecls = joins.map((join) => `${join.sym} = JoinNode(name=${toPyStr(join.name)})`);
   const edgeLiteral = workflowEdgeLiteral(edges);
-  const description = `검토된 workbench artifact에서 생성한 실행 가능한 ADK 2.3 워크플로우입니다: ${truncate(
+  const description = `검토된 workbench artifact에서 생성한 실행 가능한 ADK 2.4 워크플로우입니다: ${truncate(
     normalizedRequirement.title || packageName
   )}.`;
 

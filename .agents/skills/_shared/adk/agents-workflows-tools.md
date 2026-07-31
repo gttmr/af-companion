@@ -2,7 +2,7 @@
 
 ## Problem this pattern solves
 
-Choose the smallest ADK execution unit that implements an approved Agent Factory asset or Graph responsibility. Read this card when the base runtime shape is undecided or when generated output must be checked against installed ADK 2.3.0.
+Choose the smallest ADK execution unit that implements an approved Agent Factory asset or Graph responsibility. Read this card when the base runtime shape is undecided or when generated output must be checked against installed ADK 2.4.0.
 
 ## Evidence for use
 
@@ -19,6 +19,8 @@ Evidence for several Agents is not, by itself, evidence for a Workflow. Evidence
 - Do not turn a resource, dependency, protocol, callback, event loop, or Human Input Node into an asset.
 - Do not use ADK class names to override Agent Factory Target classification.
 - Do not generate runtime code directly from a raw requirement.
+- Do not use `SequentialAgent`, `ParallelAgent`, or `LoopAgent` for Workflow composition. Those classes do exist in installed 2.4.0 (exported from `google.adk.agents`), so their absence here is a deliberate stance, not a version gap; the graph-based `Workflow` is the composition primitive these cards prescribe.
+- Do not wrap a `Workflow` in `AgentTool` or attach it as an `LlmAgent` sub-agent. `Workflow` is a `BaseNode`, not a `BaseAgent` (`class Workflow(BaseNode)` in `workflow/_workflow.py`), and `AgentTool` takes a `BaseAgent`.
 
 ## Required questions
 
@@ -26,6 +28,7 @@ Evidence for several Agents is not, by itself, evidence for a Workflow. Evidence
 - Which component owns deterministic flow?
 - Which callable capabilities are independent Tool contracts?
 - Is Tool Invocation Control Workflow or Agent?
+- Which `LlmAgent.mode` does each Agent unit need, and does that mode's conversation visibility match its approved inputs?
 - Is the Graph static, dynamic, or unnecessary?
 - Which inputs, outputs, state, artifacts, side effects, and failure boundaries are approved?
 
@@ -65,9 +68,40 @@ Workflow(*, name, description='', rerun_on_resume=True, wait_for_output=False,
 
 Use only reviewed fields. The package evidence did not record a general Agent constructor recipe or Function Tool constructor; inspect installed source before emitting exact parameters beyond the verified surface. Let the repository generator own generated Python when a supported lowering exists.
 
+`LlmAgent.mode` selects the runtime shape of an Agent unit and must be decided alongside the class (`mode: Literal['chat','task','single_turn'] | None` on `LlmAgent`):
+
+```text
+mode: Literal['chat', 'task', 'single_turn'] | None = None
+```
+
+- `chat`: Standard chat agent reachable via transfer_to_agent.
+- `task`: Task agent that chats with the user to accomplish a task.
+- `single_turn`: Agents that complete a task without chatting with the user.
+- As a sub-agent, the default `mode` is `chat`.
+- As a graph/workflow node, the default `mode` is `single_turn`.
+- **Always set `mode` explicitly rather than relying on the default** — the default is context-dependent and a wrong default is silent.
+
+Mode also decides what the Agent can read. `single_turn` forces `include_contents='none'` unless `include_contents` is set explicitly (`workflow/_llm_agent_wrapper.py` — sets `agent.include_contents = 'none'` when `mode == 'single_turn'` and the field was not set explicitly), so **by default** a `single_turn` node sees no conversation history. Setting `include_contents` explicitly restores isolation-scope-filtered history; it does not turn the node into a full-conversation `chat` unit. Use `chat` when the approved responsibility needs the full conversation. A graph node may use explicit `include_contents` only when the approved input is the resulting scoped history.
+
+`mode='task'` agents MUST NOT be used as static graph nodes — `Workflow` raises `ValueError` (`_validate_no_task_mode_graph_nodes`). `mode='chat'` graph nodes MUST have `START` as their only predecessor — `Workflow` raises `ValueError` otherwise (`_validate_chat_agent_wiring`). See `graph-and-dynamic-workflows.md` for the mechanism and the dispatch recipe.
+
+In `task` mode `output_schema` types the auto-injected `finish_task` tool, not the conversational reply (`agents/llm/task/_finish_task_tool.py`, `flows/llm_flows/basic.py`, `flows/llm_flows/_output_schema_processor.py`). It therefore does not disable tools and does not constrain intermediate conversational turns. Object schemas return their fields top-level; non-object schemas such as `list[str]` or `int` are wrapped under the key `"result"` (`workflow/_llm_agent_wrapper.py`).
+
+`output_key` is ignored in `task` mode: `process_llm_agent_output` runs only on the `single_turn` branch (`process_llm_agent_output` in `workflow/_llm_agent_wrapper.py`, called only on the `single_turn` branch). Pass values through the return value instead. Task pause and completion semantics belong to `human-input-and-resume.md`.
+
+`output_schema` and `tools` are **not** mutually exclusive in 2.4.0. The `LlmAgent.output_schema` docstring states it directly: the ADK
+"supports using `output_schema` and `tools` together — it works by exposing tools during the thought loop
+and enforcing structure only on the" final response. An older ADK restriction where a response schema
+disabled tool use no longer applies, so a graph-node agent may both call tools and return a typed result.
+
+The globally installed Google skill still carries the old restriction — `google-agents-cli-adk-code/references/adk-python.md` warns that "Using `output_schema` disables tool calling and delegation." That warning is stale; installed source contradicts it. Do not adopt it, and do not weaken this paragraph to agree with it.
+
+`ManagedAgent` (`google.adk.agents.ManagedAgent`, new in 2.4.0) connects to Google's server-hosted agents: reasoning, tools, and execution all run in Google's managed environment. It is a `BaseAgent`, so it can be a sub-agent or wrapped as `AgentTool`. It is **not** a candidate for this lifecycle's default shapes: client-side tools raise `NotImplementedError`, and that includes both Python callables and client-side `McpToolset` — the two things every Tool asset here is built from. Treat it as a watch item; if a requirement genuinely needs server-side execution, raise it as a decision rather than substituting it for an `LlmAgent`.
+
 ## Verification Scenarios
 
 - Single Agent, no Tool, and no forced Workflow.
+- Agent mode selection matches approved history visibility (`single_turn` defaults to no prior turns; explicit `include_contents` is tested only for approved scoped history).
 - Workflow-controlled Tool call.
 - Agent-controlled optional Tool use without a fixed Tool Node in the main flow.
 - Function Node versus Function-bound Tool distinction.
@@ -92,7 +126,9 @@ Keep prompts, state, Tool arguments, and outputs within approved data policy. Pr
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-18
+- Checked date: 2026-07-31
 - Official sources: ADK agents, Agent configuration, workflows, and graphs
-- Installed package version: `google-adk 2.3.0`
-- Known compatibility note: ADK `Agent` aliases `LlmAgent` in the installed package; that alias does not alter the Agent Factory Target responsibility or Invocation Control owner.
+- Installed package version: `google-adk 2.4.0`
+- Known compatibility note: ADK `Agent` aliases `LlmAgent` in the installed package; that alias does not alter the Agent Factory Target responsibility or Invocation Control owner. `LlmAgent.mode` semantics and the `ctx.run_node` dispatch requirements were verified by execution against installed 2.4.0, not by documentation alone. The per-context `mode` default (`chat` as sub-agent, `single_turn` as graph node) and the `mode='task'`/`mode='chat'` graph-placement `ValueError` guards were confirmed against installed source; always set `mode` explicitly rather than relying on context-dependent defaults.
+- 2026-07-31 re-verification against 2.4.0: `mode` semantics, both graph-placement guards, and the `output_schema`+`tools` compatibility were re-checked in installed source and are unchanged. Line citations were replaced with symbol names after two symbols moved file in this release. Recorded that the globally installed Google skill still carries the stale "`output_schema` disables tool calling" warning, which installed source contradicts. Added `ManagedAgent` (new in 2.4.0) as a watch item only — it rejects client-side callables and `McpToolset`, which is what every Tool asset here uses.
+- Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.

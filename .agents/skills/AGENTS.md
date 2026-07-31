@@ -19,6 +19,15 @@ Only these five IDs are valid. Do not add aliases, compatibility entrypoints, or
 
 `_shared` is reference material only, never a triggerable skill. Pattern cards live under `_shared/adk/` and are read conditionally via `_shared/runtime-pattern-selection.md`, not all at once.
 
+## Skill layering
+
+- `google-agents-cli-*` skills are the standalone ADK-development base. They must work in an ordinary CLI session without Companion enrollment or an Agent Factory Work Item.
+- The five `af-*` skills are an Agent Factory overlay for explicit Work Item, Target Contract, Graph IR, Asset Registry, review, scaffold, or verification scope.
+- Companion-specific references add connection, handoff, write-authority, and provenance checks only inside that Agent Factory scope. They do not redefine general ADK development.
+- `_shared/adk/*` contains verified Agent Factory lowering deltas and exact-version corrections. It is not a second general-purpose ADK skill suite.
+
+Repository cwd or simultaneous discovery of both skill families does not activate the Agent Factory overlay. For ordinary ADK development, use the standalone base. For an Agent Factory Work Item, reuse its ADK coding/test/eval guidance, then apply the Agent Factory product contract and Companion transport/provenance at durable-write boundaries. Approved Agent Factory artifacts replace a duplicate standalone spec/scaffold dialogue unless the scaffold plan explicitly selects an agents-cli scaffold operation.
+
 ## Where To Look
 
 | Task | Location |
@@ -44,6 +53,7 @@ Only these five IDs are valid. Do not add aliases, compatibility entrypoints, or
 ## Local Rules
 
 - Keep the five canonical IDs only. The normal forward path is Discover → Compose → Scaffold → Verify, but routing is re-entrant and follows current revisions, gates, invalidations, and failure ownership rather than a fixed next-stage counter.
+- Do not route an ordinary ADK project request into `af-workflow` merely because this repository or its skills are visible. Require explicit Agent Factory scope or an identified Work Item.
 - `af-scaffold-runtime` must not consume raw requirements or unapproved compose output.
 - Tool Invocation Control uses only Workflow | Agent.
 - New canonical artifacts write only strict Target v2 fields from `_shared/target-contract-v2.md`; do not emit retired fields or accept retired artifact shapes.

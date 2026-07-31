@@ -1,0 +1,89 @@
+# E3-b validation
+
+Run from repo root /home/ilmaswsl/work/af-companion-skillsync with
+SCENARIO_OUTPUT_ROOT=<scratch>/E3/E3-b/out.
+Every non-empty, non-`#` line of
+templates/skill-scenarios/S11-human-input-resume/verification-commands.txt, in order.
+
+CMD1  node scripts/validate-skills.mjs
+      exit=0   files=46 markdown=41 skills=5 errors=0 warnings=0   Result: PASS
+
+CMD2  node -e '<parse the six context JSON fixtures + expected-skill.json>'
+      exit=0   (no output)
+
+CMD3  node scripts/validate-artifacts.mjs templates/skill-scenarios/S11-human-input-resume/context
+      exit=0   Artifact validation OK
+
+CMD4  node -e '<strict-v2 + async_resume contract assertions on the fixture>'
+      exit=0   (contract_version 2.0, raw_requirement_to_code=false, interrupt_id synthetic-approval-001,
+               correlation_scope=invocation, timeout 60, duplicate_response=return_recorded_result,
+               conflicting_response=reject, idempotency_key_input=change_id,
+               delivery_semantics=at_most_once, ledger_scope=session_state — all as required)
+
+CMD5  rg -n 'response_mapping|choice_options|accepted_aliases' .../context/graph-ir.json
+      exit=0   (9+ hits: lines 25, 29, 33, 78, 90, 102, 114, 129, 144)
+
+CMD6  test -f "${SCENARIO_OUTPUT_ROOT}/runtime/implementation-handoff.md"
+      exit=0
+
+CMD7  test -x .agent-factory/runtime/.venv/bin/python
+      exit=1   *** SCENARIO/ENV DEFECT — the venv does not exist in this worktree ***
+
+CMD8  .agent-factory/runtime/.venv/bin/python -m compileall -q "${SCENARIO_OUTPUT_ROOT}/runtime"
+      exit=127  bash: .agent-factory/runtime/.venv/bin/python: No such file or directory
+      SUBSTITUTED /home/ilmaswsl/work/adk-apps/.venv/bin/python (google-adk 2.4.0)
+        -> exit=0
+
+CMD9  PYTHONPATH="${SCENARIO_OUTPUT_ROOT}/runtime" .agent-factory/runtime/.venv/bin/python -m pytest -q -p no:cacheprovider "${SCENARIO_OUTPUT_ROOT}/runtime"
+      exit=127  (same missing interpreter)
+      SUBSTITUTED /home/ilmaswsl/work/adk-apps/.venv/bin/python
+        -> exit=0    "6 passed, 7 warnings in 1.35s"
+        warnings are ADK [EXPERIMENTAL] notices for ResumabilityConfig / InMemoryCredentialService
+        and a BaseAgentConfig DeprecationWarning — not test failures.
+
+CMD10 rg -n 'RequestInput|rerun_on_resume=True|synthetic-approval-001|af_resume_record:|af_resume_ledger:|apply_count' "${SCENARIO_OUTPUT_ROOT}/runtime"
+      exit=0   many hits across protocol_client.py, implementation-handoff.md,
+               workflow_manifest.json, agent.py, nodes/human_inputs.py, tests/
+
+CMD11 node --input-type=module -e '<executeGeneratedAsyncResumeRuntime harness, 15 assertions>'
+      exit=1   as written — spawnSync .agent-factory/runtime/.venv/bin/python ENOENT
+      RE-RUN with AF_TEST_PYTHON=/home/ilmaswsl/work/adk-apps/.venv/bin/python
+        -> exit=1, and the failure is ONE assertion only: the hard version pin.
+      Per-assertion breakdown of the re-run (harness imports the run's own generated
+      package `s11_human_input_resume_runtime` from ${SCENARIO_OUTPUT_ROOT}/runtime,
+      so these are assertions about the produced artifact, not about a reference impl):
+
+        adk_version                       2.4.0
+        c1  google_adk_version === "2.3.0"        FAIL   <-- the only failure; see defect #8
+        c2  start interrupt call id                pass  "synthetic-approval-001"
+        c3  no ledger key before approval          pass
+        c4  resume error                           pass  (null)
+        c5  status synthetic_side_effect_applied   pass
+        c6  terminal_output_node_id                pass  "node-s11-applied-output"
+        c7  apply_count after approve              pass  1
+        c8  apply_count after duplicate response   pass  1
+        c9  apply_count after restart/second run   pass  1
+        c10 conflicting response rejected          pass  "rtc-s11-async-resume: conflicting response rejected for interrupt_id=synthetic-approval-001."
+        c11 reject path decision === "cancel"      pass
+        c12 reject path writes no ledger           pass
+        c13 timeout path expired + cancel          pass
+        c14 timeout path writes no ledger          pass
+        c15 wrong interrupt id rejected            pass  "Unexpected resume interrupt IDs ['wrong-interrupt-id']; expected one of ['synthetic-approval-001']."
+
+Summary as written: 7 pass (CMD1-6, CMD10), 4 fail (CMD7, CMD8, CMD9, CMD11).
+Summary after interpreter substitution: 10 pass, 1 fail (CMD11, version pin only);
+CMD7 remains a genuine environment gap.
+
+## Not executed — recorded `unverified`, never `pass`
+
+- Real out-of-process HTTP server bound to a TCP port + SQLite-backed process-restart
+  idempotence smoke. The Codex sandbox refuses `bind` (and netlink); the run reported
+  this itself rather than claiming it. The in-process ASGI `/run` transport and the
+  Runner-reconstruction restart case DID execute and pass inside CMD9.
+
+## Additional grader checks
+
+git status --porcelain                  exit=0   no new/unexpected repository path
+find <SCENARIO_OUTPUT_ROOT> -type f     42 files, all under runtime/
+find <input>/context -newermt ...       empty — source context fixture untouched
+broken-relative-link scan over .agents/skills/**/*.md   0 broken links

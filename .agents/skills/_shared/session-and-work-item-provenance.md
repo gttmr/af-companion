@@ -35,7 +35,7 @@ Companion-local state owns enrollment, lease, application/workspace scope, and d
 
 ## Durable-write gate
 
-Durable lifecycle writes require `role: materialization`, except that an explicitly supported current contract may durably record Plan/handoff interaction state outside the non-mutating Discover Phase A boundary. The four Work Skills must never attribute durable output to an ordinary session.
+Durable lifecycle writes require `role: materialization`, without exception. Discover Phase A writes nothing durable: `companion prepare-materialization` stores the bounded Plan and the Handoff/Grant metadata (`handoff_id` or grant id, `plan_body_hash`, marker digest, discovery/decision revisions, target `af-discover-assets.materialize`, expiry, source session/turn) in **ignored Bridge state only**, exactly as `fresh-context-handoff.md` and `af-discover-assets/SKILL.md` define it. The corresponding `session_handoffs[]` ledger entry is written in Phase B by the materialization session that claims it, never in Phase A. The four Work Skills must never attribute durable output to an ordinary session.
 
 Scaffold always requires exact materialization scope before it changes source or Work Item state. Verify requires the same scope before it records evidence or outcome. Read-only inspection from an ordinary session remains ordinary observation and is not imported automatically.
 
@@ -72,5 +72,5 @@ Stop when application/workspace/work attachment, role, session/turn, lease, revi
 
 ## Checked date
 
-- Checked date: 2026-07-24
-- Contract note: interaction-state provenance and Work Item provenance must correlate without changing either parent-owned schema.
+- Checked date: 2026-07-31
+- Contract note: interaction-state provenance and Work Item provenance must correlate without changing either parent-owned schema. The `role: materialization` exception now names its exact covered write (the Plan/handoff marker's `session_handoffs[]` entry) and links `fresh-context-handoff.md` instead of relying on the undefined phrase "an explicitly supported current contract."

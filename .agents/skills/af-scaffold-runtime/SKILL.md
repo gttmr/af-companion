@@ -50,6 +50,8 @@ Do not generate TODO source when any precondition is absent or stale.
 
 Read only the selected cards in [Runtime Pattern Selection](../_shared/runtime-pattern-selection.md), plus [Generated Output Checks](references/generated-output-checks.md) when generation is in scope. Verify exact ADK symbols through installed source or official documentation as required by [Source of Truth](../_shared/source-of-truth.md).
 
+When available, apply `google-agents-cli-workflow` and `google-agents-cli-adk-code` as the standalone ADK development base. Reuse their API and implementation guidance; the approved Agent Factory composition and scaffold plan already own specification and scaffold authority, so do not start a second `.agents-cli-spec.md` dialogue or `agents-cli scaffold create` unless that exact operation is approved in the plan. This skill adds approved-artifact lowering, exact Asset binding, generator support, and Companion provenance; it must not copy Companion gates into generated application code.
+
 ## Exact Asset binding rules
 
 - `reuse_exact`: bind one exact `published` version, or an explicitly accepted `deprecated` version. Import a local Agent, Workflow, or callable Tool from exactly one reviewed `python:module#symbol` source ref. A published local executable contract without that source ref fails closed; never recreate it as a new Agent or stub. MCP Tools and Remote A2A Agents use their reviewed protocol binding instead of a local source ref.
@@ -105,6 +107,11 @@ Use [Artifact and Source Generation](references/artifact-and-source-generation.m
 
 Stop when participation, lease, application/workspace/work/materialization scope, session/turn, or authorized roots are absent; any required decision is open; approval or revision is stale; the Registry snapshot changed; an exact version/source/protocol binding is absent; Graph and Root disagree; duplicate generation would occur; lowering is unsupported; source ownership conflicts; or any required validation fails.
 
+**Stopping means generating nothing.** If a precondition cannot be observed, the only permitted outputs are the Missing-Information report and the named product gap — not a prototype "so the work is not wasted", and not a generated tree with the unmet precondition noted afterwards. `companion-session-participation.md` records that the participation fields currently have no read-only command; a strong model met exactly that gap here, dropped the precondition without comment, and produced a complete runtime anyway. Partial compliance with a hard gate is non-compliance, and it is harder to detect than an outright refusal.
+
+The same rule governs step 12 above: if the application/workspace/work/session/turn provenance it requires is unobtainable, do not emit `implementation-handoff.md` with those fields silently missing. Either stop, or write them as explicitly named unknowns. An absent field in a provenance record reads as "not applicable"; it has to read as "could not be observed".
+
 ## Completion report
 
 Report generated/edited files, output mode and roots, Work Item/Graph/runtime/composition/Registry revisions, Root Executable and generated symbol, exact Asset binding actions, commands/results, source diff summary, remaining TODOs, and the claims reserved for Verify.
+- 2026-07-31: stated that stopping means generating nothing, after a recorded run met an unobservable participation precondition, dropped it without comment, and produced a complete runtime. Step 12 provenance must be emitted as named unknowns rather than silently omitted fields.

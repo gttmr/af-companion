@@ -43,7 +43,7 @@ from google.adk.a2a.agent import A2aRemoteAgentConfig, RequestInterceptor
 from a2a.types import AgentCard
 ```
 
-`RemoteA2aAgent(name, agent_card, *, description='', httpx_client=None, timeout=600.0, ..., config=None, use_legacy=True, **kwargs)` accepts an `AgentCard`, URL string, or JSON file path. It is not re-exported from `google.adk.agents` in installed 2.3.0. `A2aRemoteAgentConfig` accepts `request_interceptors`; `RequestInterceptor` accepts before/after request hooks.
+`RemoteA2aAgent(name, agent_card, *, description='', httpx_client=None, timeout=600.0, ..., config=None, use_legacy=True, **kwargs)` accepts an `AgentCard`, URL string, or JSON file path. It is not re-exported from `google.adk.agents`. **Always pass `use_legacy=False` explicitly when constructing `RemoteA2aAgent`.** The constructor default is `use_legacy=True`; omitting the kwarg silently selects the legacy path. `A2aRemoteAgentConfig` accepts `request_interceptors`; `RequestInterceptor` accepts before/after request hooks.
 
 Installed exposure uses:
 
@@ -51,7 +51,7 @@ Installed exposure uses:
 from google.adk.a2a.utils.agent_to_a2a import to_a2a
 ```
 
-`to_a2a(agent, *, host='localhost', port=8000, protocol='http', agent_card=None, ..., runner=None, ...)` returns a Starlette app. The package signature accepts `BaseAgent | Workflow`, but the checked official evidence did not directly establish Workflow exposure as a general Target rule. Do not generalize it without separate approval and official verification. `to_a2a` is not re-exported from `google.adk.a2a.utils`.
+`to_a2a(agent, *, host='localhost', port=8000, protocol='http', agent_card=None, ..., runner=None, ...)` returns a Starlette app. **Expose an `Agent` via `to_a2a`; never call `to_a2a` on a `Workflow`.** `docs/workbench/taxonomy.md` forbids granting a Workflow an A2A Binding or Exposure, so this is unsupported in Agent Factory — stop and report it as unsupported rather than treating it as a human-overridable default. Note the trap: the package signature accepts `BaseAgent | Workflow` and Workflow exposure will run, so the framework will not stop you. If a requirement genuinely needs a Workflow reachable over A2A, raise it as a taxonomy decision; do not satisfy it by calling `to_a2a` on the Workflow. `to_a2a` is not re-exported from `google.adk.a2a.utils`.
 
 Preserve valid current-generator knowledge during review: runnable consumption requires one approved A2A Agent binding, an Agent Card URL, and valid runtime policy. The current generator emits `RemoteA2aAgent` with `use_legacy=False`, can add request-interceptor auth for `bearer_env` or `metadata_env` only when the environment name matches `AF_A2A_*`, and leaves retry/fallback as handoff policy rather than emitted wrappers. Reverify the generator before changing those limits.
 
@@ -82,7 +82,9 @@ Use least-privilege auth references, approved data modes, outbound allow-lists, 
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-18
+- Checked date: 2026-07-31
 - Official sources: ADK A2A overview, consuming, and exposing guides
-- Installed package version: `google-adk 2.3.0`
-- Known compatibility note: A2A is documented as experimental; installed `to_a2a` accepts Workflow, but checked official evidence did not justify making Workflow exposure a general Agent Factory rule.
+- Installed package version: `google-adk 2.4.0`
+- Known compatibility note: A2A is documented as experimental. Installed `to_a2a` accepts a `Workflow` and will run, but `docs/workbench/taxonomy.md` forbids A2A Binding/Exposure on a Workflow, so Workflow exposure is **unsupported in Agent Factory** — stop and report it, do not treat it as human-overridable. `RemoteA2aAgent`'s constructor default is `use_legacy=True`; always pass `use_legacy=False` explicitly.
+- Re-verification scope at 2.4.0: imported `to_a2a`, `RemoteA2aAgent`, and `Workflow` in the exact runtime environment with `a2a-sdk 0.3.26`. Their public signatures match this card, including `BaseAgent | Workflow` acceptance and `use_legacy=True`; `to_a2a(Workflow(name="probe_workflow"))` constructed a Starlette application. This proves local construction and the taxonomy mismatch, not remote protocol behavior or production readiness.
+- Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.

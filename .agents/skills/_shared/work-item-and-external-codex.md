@@ -74,7 +74,7 @@ An invalidation records source/target skills, triggering and invalidated revisio
 
 ## Decisions
 
-Required decisions never default. An open `decisions[]` record has null selection/provenance. It becomes resolved only after the user chooses an offered option and the record contains `selected_by: "user"`, a selection reason, session ID, and turn ID. “Use the recommendation” is a valid explicit user choice; model silence or inference is not.
+Required decisions never default. An open `decisions[]` record has null selection/provenance. It becomes resolved only after the user chooses an offered option and the record contains `selected_by: "user"`, a selection reason, session ID, and turn ID. “Use the recommendation” is a valid explicit user choice; model silence or inference is not. **Exception:** recommendation shorthand must never resolve a hard, credential, deployment, security, or irreversible gate — those gates require an explicit named option plus the user's confirmation of the material consequence, not recommendation shorthand.
 
 `asset_decisions[]` follows the same provenance rule and uses only these dispositions:
 
@@ -100,7 +100,7 @@ A skill never self-approves. Before honoring an approval, compare every bound re
 
 ## Session and Plan handoff
 
-Discover Phase A runs in confirmed Plan Mode and makes no repository or Work Item write. It ends with a Discovery Decision Plan and a machine-readable marker. When actual discovery/decision revisions already exist, use the canonical Bridge Handoff path. When the Work Item is still the exact strict default ledger, use one Bootstrap Grant bound to its ETag, exact source session/latest turn, Plan hash, target `af-discover-assets.materialize`, expiry, and marker checksum; do not invent revisions to create a canonical Handoff.
+Discover Phase A makes no repository or Work Item write. It ends with a Discovery Decision Plan and a machine-readable marker. When actual discovery/decision revisions already exist, use the canonical Bridge Handoff path. When the Work Item is still the exact strict default ledger, use one Bootstrap Grant bound to its ETag, exact source session/latest turn, Plan hash, target `af-discover-assets.materialize`, expiry, and marker checksum; do not invent revisions to create a canonical Handoff.
 
 A fresh materialization session must present an exact marker on its first prompt. Claim only one unexpired authority after its exact scope/hash/target/expiry and source match, the new session differs from the Plan session, and it was not already claimed. Canonical Handoffs also require the current revision/marker tuple. Bootstrap Grants require the unchanged pristine ETag and latest source turn, and may survive Bridge restart while the preserved source record remains non-revoked. Duplicate, expired, superseded, ambiguous, stale, wrong-work-item, wrong-cwd, or Plan-hash-mismatched claims stop materialization.
 
@@ -160,7 +160,7 @@ Also run the selected skill's checks and inspect the exact output inventory and 
 
 ## Stop conditions
 
-Stop when repository/Work Item/session identity is ambiguous; Plan Mode cannot be confirmed for Phase A; a required decision is open; a gate binding is stale or incomplete; a Handoff or Bootstrap Grant cannot be exactly claimed; a Bootstrap Grant's pristine ETag/source turn drifts; a write would escape declared roots; Registry mutation lacks expected revision; or proceeding would restore legacy manifests, stages, aliases, APIs, importers, or compatibility projection.
+Stop when repository/Work Item/session identity is ambiguous; a required decision is open; a gate binding is stale or incomplete; a Handoff or Bootstrap Grant cannot be exactly claimed; a Bootstrap Grant's pristine ETag/source turn drifts; a write would escape declared roots; Registry mutation lacks expected revision; or proceeding would restore legacy manifests, stages, aliases, APIs, importers, or compatibility projection.
 
 ## Sources checked
 
@@ -173,4 +173,5 @@ Stop when repository/Work Item/session identity is ambiguous; Plan Mode cannot b
 
 ## Checked date
 
-- Checked date: 2026-07-28
+- Checked date: 2026-07-31
+- Compatibility note: the "use the recommendation" rule now carries an explicit inline carve-out for hard/credential/deployment/security/irreversible gates (matching `decision-input-adapter.md`). The Codex Plan Mode precondition and its Stop condition have been removed: Codex's plan-vs-default collaboration mode is not verified anywhere in this lifecycle, and Discover Phase A's no-write behavior stands on its own without a mode check.

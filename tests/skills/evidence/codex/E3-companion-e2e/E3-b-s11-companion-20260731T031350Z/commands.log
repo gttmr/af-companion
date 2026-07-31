@@ -1,0 +1,37 @@
+# E3-b commands log (bounded)
+
+## Harness command
+
+start 2026-07-31T12:13:50+09:00
+end   2026-07-31T12:29:17+09:00
+exit  0   (exceeded the 600 s foreground budget; allowed to finish detached, not retried)
+
+SCENARIO_OUTPUT_ROOT=<scratch>/E3/E3-b/out \
+codex exec -s workspace-write -C /home/ilmaswsl/work/af-companion-skillsync \
+  -m gpt-5.6-sol -c model_reasoning_effort=high "<prompt.md>" < /dev/null
+
+## Commands the run itself executed (representative, from the transcript)
+
+node scripts/validate-artifacts.mjs <input>/context                                   -> 0
+node scripts/af.mjs work validate <input>/context/af-work-item.json                   -> 0
+node scripts/af.mjs asset search / get (Registry re-resolution)                        -> 0
+printf 'CODEX_COMPANION_SESSION_ID=%s\n' ...; tail -80 "$CODEX_COMPANION_TRANSCRIPT_PATH"   -> 0   # PRIVATE TRANSCRIPT READ — see result-summary.md defect #2
+<adk-apps venv>/bin/python -c "import google.adk; importlib.metadata.version('google-adk')"  -> 0   (2.4.0)
+rg over site-packages/google/adk/{runners.py,apps,cli/fast_api.py} for RequestInput / invocation_id / ResumabilityConfig  -> 0
+<adk-apps venv>/bin/python -m compileall <out>/runtime                                -> 0
+<adk-apps venv>/bin/python -m pytest -q <out>/runtime                                 -> 0   ("6 passed")
+(attempt) start a real HTTP listener on port 8892                                     -> FAILED: sandbox refuses bind ("could not bind", netlink permission denied) — recorded unverified
+
+Writes: 25 authored files, all under ${SCENARIO_OUTPUT_ROOT}/runtime. No write outside the output root.
+
+## Post-run grading commands (grader, from repo root)
+
+git -C /home/ilmaswsl/work/af-companion-skillsync status --porcelain
+  -> 0. Only the 17 pre-existing modified skill files. Plus `?? tests/skills/evidence/codex/E2-skill-collision/`,
+     which was created by a different concurrent experiment and was already present before E3-a started.
+     NO new or modified path under .agents/skills/ or templates/ from either E3 run.
+
+find <SCENARIO_OUTPUT_ROOT> -type f            -> 42 (25 authored + 17 byproducts)
+find <input>/context -newermt '2026-07-31 12:10' -> empty (source context untouched)
+
+See validation.txt for verification-commands.txt results.
