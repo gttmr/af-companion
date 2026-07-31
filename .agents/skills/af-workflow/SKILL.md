@@ -21,6 +21,12 @@ The normal forward path is Discover → Compose → Scaffold → Verify, but thi
 
 The router may inspect state, establish the supported session binding, and record the selected focus/run context. It does not perform a Work Skill's discovery, composition, scaffolding, verification, review decision, or Asset Registry mutation on that skill's behalf.
 
+## Agent Factory scope gate
+
+Activate this router only when the user explicitly invokes Agent Factory work or identifies an Agent Factory Work Item, Target artifact, Graph IR, Asset Registry operation, review gate, or lifecycle continuation. The current repository, presence of `.agents/skills`, or simultaneous visibility of `google-agents-cli-*` and `af-*` skills is not scope evidence.
+
+An ordinary request to design, scaffold, code, test, evaluate, deploy, publish, or observe an ADK project belongs to the standalone `google-agents-cli-*` skill set and requires no Companion enrollment. Do not initialize a Work Item, ask for Agent Factory identity, or impose the lifecycle gates below. When an explicit Agent Factory Work Item does exist, reuse the standalone skills' ADK implementation guidance while treating approved Agent Factory artifacts as the specification/scaffold authority; this tree adds the Agent Factory plus Companion overlay without a duplicate lifecycle.
+
 ## Required reading
 
 1. [Source of Truth](../_shared/source-of-truth.md)

@@ -46,12 +46,12 @@ tested runtime baseline:
 
 ```bash
 test -x .agent-factory/runtime/.venv/bin/python
-.agent-factory/runtime/.venv/bin/python -c 'from importlib.metadata import version; assert version("google-adk") == "2.3.0"'
+.agent-factory/runtime/.venv/bin/python -c 'from importlib.metadata import version; assert version("google-adk") == "2.4.0"'
 ```
 
 Run this preflight from the repository root. If the worktree-local interpreter
 is absent, prepare the ignored worktree-local runtime before starting the test
-suite, or set `AF_TEST_PYTHON` to an explicitly verified `google-adk==2.3.0`
+suite, or set `AF_TEST_PYTHON` to an explicitly verified `google-adk==2.4.0`
 interpreter for that command. Do not copy a virtual environment from another
 checkout; its scripts may contain absolute paths to the source checkout. Runtime
 preparation must not modify tracked files.

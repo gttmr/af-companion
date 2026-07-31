@@ -27,7 +27,7 @@ function workflowRootPlan({ graph, root, rootAsset, strategy }) {
     throw new Error("single_agent requires an Agent Root Executable.");
   }
   if (strategy === "agent_delegation") {
-    throw new Error("agent_delegation requires an Agent Root Executable in the current ADK 2.3 lowering contract.");
+    throw new Error("agent_delegation requires an Agent Root Executable in the current ADK 2.4 lowering contract.");
   }
   const coordination = rootAsset.workflow_profile?.coordination;
   if (strategy === "explicit_workflow" && coordination !== "explicit") {

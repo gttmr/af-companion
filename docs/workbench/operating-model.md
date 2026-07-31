@@ -2,6 +2,8 @@
 
 Agent Factory work executes in an external Codex CLI or VS Code session. The web product is a live companion: it projects repository state, may create one strict empty Work Item through a guarded create-only bootstrap, and exposes two shared canonical edit surfaces, Graph IR and the Asset Registry. It does not run lifecycle stages, generate source, or execute runtime verification.
 
+The skill model is layered. `google-agents-cli-*` provides the standalone ADK development base and remains usable in an ordinary CLI session with no Companion or Work Item. The five `af-*` skills activate only for explicit Agent Factory scope and add Target artifacts, Graph/Registry decisions, reviews, lowering, and verification. In that scoped path, approved Agent Factory artifacts are the specification/scaffold authority while the base supplies ADK API, coding, test, evaluation, and operational guidance; a duplicate `.agents-cli-spec.md` dialogue or scaffold is not started unless the approved scaffold plan selects it. Companion is the connection, handoff, write-authority, and provenance overlay for that scoped lifecycle; repository cwd or skill visibility alone does not activate it.
+
 ## 1. Re-entrant lifecycle
 
 ```text
@@ -214,7 +216,7 @@ Scaffold may write to an artifact-local handoff tree or an explicitly declared e
 
 The generator recomputes decision, Asset decision, and Root revision hashes; resolves exact Registry versions at the bound Registry revision; rejects duplicate/version/staleness drift; and preserves project-only Assets separately. Local exact reuse requires one reviewed `python:module#symbol` source reference and imports that object/callable instead of regenerating it. MCP and Remote A2A reuse follows reviewed bindings.
 
-Solution strategy and Root type must agree with Graph ownership. With installed `google-adk 2.3.0`, a Workflow Root is a `google.adk.workflow.Workflow`; an Agent Root is the selected `BaseAgent` object, and generated `root_agent` points to that exact object. Scaffold never changes the strategy or Root to make generation pass.
+Solution strategy and Root type must agree with Graph ownership. With the verified `google-adk 2.4.0` runtime, a Workflow Root is a `google.adk.workflow.Workflow`; an Agent Root is the selected `BaseAgent` object, and generated `root_agent` points to that exact object. Scaffold never changes the strategy or Root to make generation pass.
 
 Neither output mode implies production integration or deployment. Private endpoints, credentials, real customer data, deploy scripts, and organization-specific production logic remain forbidden.
 

@@ -50,6 +50,8 @@ Do not generate TODO source when any precondition is absent or stale.
 
 Read only the selected cards in [Runtime Pattern Selection](../_shared/runtime-pattern-selection.md), plus [Generated Output Checks](references/generated-output-checks.md) when generation is in scope. Verify exact ADK symbols through installed source or official documentation as required by [Source of Truth](../_shared/source-of-truth.md).
 
+When available, apply `google-agents-cli-workflow` and `google-agents-cli-adk-code` as the standalone ADK development base. Reuse their API and implementation guidance; the approved Agent Factory composition and scaffold plan already own specification and scaffold authority, so do not start a second `.agents-cli-spec.md` dialogue or `agents-cli scaffold create` unless that exact operation is approved in the plan. This skill adds approved-artifact lowering, exact Asset binding, generator support, and Companion provenance; it must not copy Companion gates into generated application code.
+
 ## Exact Asset binding rules
 
 - `reuse_exact`: bind one exact `published` version, or an explicitly accepted `deprecated` version. Import a local Agent, Workflow, or callable Tool from exactly one reviewed `python:module#symbol` source ref. A published local executable contract without that source ref fails closed; never recreate it as a new Agent or stub. MCP Tools and Remote A2A Agents use their reviewed protocol binding instead of a local source ref.

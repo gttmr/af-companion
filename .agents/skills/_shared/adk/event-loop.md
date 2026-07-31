@@ -79,4 +79,4 @@ Do not store secrets or raw sensitive payloads in events, state deltas, artifact
 - Official sources: ADK event loop and state documentation
 - Installed package version: `google-adk 2.4.0`
 - Known compatibility note: Installed `Event` has no declared top-level `state_delta`; use `Event.actions.state_delta` semantics, and never rely on partial-event actions being committed.
-- Baseline split: `google-adk 2.4.0` is the **reference verification baseline** for this card — the version its symbols were checked against. It is not the version the generated runtime pins. `requirements/adk-runtime.txt` currently constrains generated projects to `>=2.3.0,<2.4.0`, so a fact verified here may not be available in a generated runtime until that pin moves. Check the requirements file before relying on a 2.4.0-only symbol in emitted code.
+- Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.

@@ -1,16 +1,24 @@
-# 18. agents-cli 1.1.0 Skill 개선 선택 도입
+# 18. agents-cli Skill 개선 잔여 선택 도입
 
-상태: **planned**
+상태: **partial**
 
 작성일: 2026-07-23 KST
 
-구현 여부: **아직 구현하지 않음**
+구현 여부: **계층 경계와 ADK 2.4 기준은 구현, Slice A–D의 세부 수용 기준은 미완료**
 
 ## 목적
 
-전역 `google-agents-cli`를 1.0.0에서 1.1.0으로 갱신한 뒤 확인된 Skill 변경 중 Agent Factory의 네 Work Skill에 도움이 되는 규칙만 선택적으로 도입한다. Upstream 문구나 lifecycle을 그대로 복제하지 않고 [Operating Model](../operating-model.md), [Taxonomy](../taxonomy.md), [Graph IR](../graph-ir.md)의 현재 계약을 유지한다.
+전역 `google-agents-cli` Skill에서 확인된 개선 중 Agent Factory의 네 Work Skill에 도움이 되는 규칙만 선택적으로 도입한다. Upstream 문구나 lifecycle을 그대로 복제하지 않고 [Operating Model](../operating-model.md), [Taxonomy](../taxonomy.md), [Graph IR](../graph-ir.md)의 현재 계약을 유지한다.
 
 이 계획은 Skill 개선과 별도 ADK application workspace/GKE 배포 경계를 연결하지만, deployment 실행이나 product contract 변경이 완료됐다고 주장하지 않는다.
+
+## 2026-07-31 현재 상태
+
+- 전역 standalone base는 `google-agents-cli ~= 1.2.1`이다. 아래 1.1.0 delta는 이 계획이 만들어진 당시의 비교 기록이다.
+- PR #20에서 standalone `google-agents-cli-*` base, 명시적 Agent Factory 범위에서만 활성화되는 `af-*` overlay, 그 범위의 연결·handoff·write authority·provenance만 담당하는 Companion 경계를 계약화했다.
+- 승인된 Agent Factory artifact가 specification/scaffold authority인 동안 base의 ADK API·coding·test·eval 지침을 재사용한다. 승인된 scaffold plan이 선택하지 않은 `.agents-cli-spec.md` 대화나 `agents-cli scaffold create`를 중복 실행하지 않는다.
+- ADK Runtime Handoff와 generator는 `>=2.4.0,<2.5.0`을 생성하고 exact `google-adk==2.4.0`에서 검증한다.
+- 아래 Slice A–D의 dialogue 세분화, topology 비교, 별도 application workspace/GKE 제품화, version-aware locator·governance evidence는 각 수용 기준이 아직 충족되지 않았으므로 open 상태다.
 
 ## 확인된 업데이트
 
@@ -145,7 +153,7 @@
 
 - Upstream Skill 전체 복사
 - Agent Factory lifecycle을 `agents-cli` 8-phase lifecycle로 교체
-- ADK 2.3 runtime contract, model, provider를 자동 변경
+- 별도 승인 없는 future ADK runtime contract, model, provider 변경
 - `.agents-cli-spec.md`를 추가 정본으로 도입
 - Agent Gateway/SGP를 자동 provision
 - human approval 없는 실제 cloud deployment

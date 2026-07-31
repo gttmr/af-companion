@@ -17,7 +17,7 @@ export function buildAgentCard({ packageName, normalizedRequirement, baseUrl = D
           uri: ADK_A2A_EXTENSION_URI,
           required: false,
           description:
-            "ADK 2.3 A2A executor metadata; RequestInput is surfaced as the A2A input-required state with adk_request_input, but this does not claim verified remote HITL resume support."
+            "ADK 2.4 A2A executor metadata; RequestInput is surfaced as the A2A input-required state with adk_request_input, but this does not claim verified remote HITL resume support."
         }
       ],
       streaming: false,

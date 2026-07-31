@@ -45,7 +45,7 @@ regions: []
 | `explicit_workflow` | Workflow | `graph.workflow_ref`가 Root Workflow와 같고 `workflow_profile.coordination: explicit`이다. |
 | `hybrid` | Agent 또는 Workflow | Agent root는 delegation topology, Workflow root는 `workflow_profile.coordination: mixed`를 사용한다. |
 
-Agent Root Graph는 `workflow_ref: null`이어야 한다. 현재 ADK 2.3 lowering에서 허용되는 edge는 channel 없는 `next` 중 `Input → Root Agent`, `Root Agent → Output`, `Root Agent → delegated Agent`뿐이다. 마지막 형태는 순차 Workflow 실행이 아니라 coordinator의 `task` sub-agent 관계다. Tool/Function/Human Input/Subworkflow/Join Node, 조건·분기·data channel이 필요하면 Workflow Root를 선택해야 하며 generator는 이를 암묵 변환하지 않는다.
+Agent Root Graph는 `workflow_ref: null`이어야 한다. 현재 ADK 2.4 lowering에서 허용되는 edge는 channel 없는 `next` 중 `Input → Root Agent`, `Root Agent → Output`, `Root Agent → delegated Agent`뿐이다. 마지막 형태는 순차 Workflow 실행이 아니라 coordinator의 `task` sub-agent 관계다. Tool/Function/Human Input/Subworkflow/Join Node, 조건·분기·data channel이 필요하면 Workflow Root를 선택해야 하며 generator는 이를 암묵 변환하지 않는다.
 
 ## 권장 Node 종류
 

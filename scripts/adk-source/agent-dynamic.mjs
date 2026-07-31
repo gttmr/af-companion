@@ -45,7 +45,7 @@ export function buildDynamicRunnableAgentPy(context) {
     terminalOutputNodes
   });
 
-  const description = `검토된 workbench artifact에서 생성한 ADK 2.3 dynamic workflow wiring입니다: ${truncate(
+  const description = `검토된 workbench artifact에서 생성한 ADK 2.4 dynamic workflow wiring입니다: ${truncate(
     normalizedRequirement.title || packageName
   )}.`;
   const usesArtifacts = usesArtifactChannels(graphContext);

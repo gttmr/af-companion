@@ -52,6 +52,20 @@ test("canonical session and decision references exist and are linked by every sk
   }
 });
 
+test("standalone ADK development stays separate from the Agent Factory Companion overlay", () => {
+  const sourceOfTruth = read(".agents/skills/_shared/source-of-truth.md");
+  const workflow = read(".agents/skills/af-workflow/SKILL.md");
+  const operatingModel = read("docs/workbench/operating-model.md");
+
+  assert.match(sourceOfTruth, /standalone ADK-development base/);
+  assert.match(sourceOfTruth, /Repository cwd or simultaneous skill visibility alone does not activate the overlay/);
+  assert.match(sourceOfTruth, /do not restart a duplicate `.agents-cli-spec\.md` dialogue/);
+  assert.match(workflow, /ordinary request to design, scaffold, code, test, evaluate, deploy, publish, or observe an ADK project/);
+  assert.match(workflow, /requires no Companion enrollment/);
+  assert.match(operatingModel, /Companion is the connection, handoff, write-authority, and provenance overlay/);
+  assert.doesNotMatch(sourceOfTruth, /reason for following the `af-\*` lifecycle over `agents-cli scaffold create`/);
+});
+
 test("decision adapter is turn-capability based and path independent", () => {
   const adapter = read(".agents/skills/_shared/decision-input-adapter.md");
   const discoveryReference = read(".agents/skills/af-discover-assets/references/evidence-and-candidate-discovery.md");

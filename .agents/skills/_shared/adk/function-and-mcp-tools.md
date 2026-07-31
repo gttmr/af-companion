@@ -102,6 +102,6 @@ Use approved Tool allow-lists, least-privilege auth references, sanitized schema
 
 - Checked date: 2026-07-31
 - Official sources: ADK Function tools and ADK MCP tools
-- Installed package version: `google-adk 2.4.0`, `mcp 1.28.1`
-- Known compatibility note: Generic `HttpConnectionParams` is not present; use the installed streamable-HTTP class, and do not rely on deprecated uppercase `MCPToolset`. `mcp 1.28.1`'s `streamable_http_client` (`mcp/client/streamable_http.py`) applies its `httpx` timeout per operation, not per call, and never closes a caller-provided `http_client`.
-- Baseline split: `google-adk 2.4.0` is the **reference verification baseline** for this card — the version its symbols were checked against. It is not the version the generated runtime pins. `requirements/adk-runtime.txt` currently constrains generated projects to `>=2.3.0,<2.4.0`, so a fact verified here may not be available in a generated runtime until that pin moves. Check the requirements file before relying on a 2.4.0-only symbol in emitted code.
+- Installed package version: `google-adk 2.4.0`, `mcp 1.29.0`
+- Known compatibility note: Generic `HttpConnectionParams` is not present; use the installed streamable-HTTP class, and do not rely on deprecated uppercase `MCPToolset`. In `mcp 1.29.0`, `streamable_http_client` takes a configured `http_client`; its transport-constructor timeout arguments are deprecated and ignored. The configured `httpx` timeout still applies per operation rather than as a total-call ceiling, and the raw MCP helper never closes a caller-provided `http_client`.
+- Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.
