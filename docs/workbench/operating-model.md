@@ -5,7 +5,7 @@ Agent Factory work executes in an external Codex CLI or VS Code session. The web
 ## 1. Re-entrant lifecycle
 
 ```text
-Discover Phase A in Plan mode (conversation only)
+Discover Phase A with `role: plan` (conversation only)
   -> explicit user decisions
   -> fresh-session Discover materialization
   -> discovery review
@@ -21,7 +21,7 @@ Discover Phase A in Plan mode (conversation only)
 
 | Work Skill | Responsibility | Current gate | Durable output |
 | --- | --- | --- | --- |
-| `af-discover-assets` | Plan conversation, evidence, Registry search, user decisions, normalized requirement, Agent·Workflow·Tool candidates | explicit requirement; Plan mode for Phase A | decision plan, analysis aggregate/splits, discovery cycle/revision |
+| `af-discover-assets` | Plan conversation, evidence, Registry search, user decisions, normalized requirement, Agent·Workflow·Tool candidates | explicit requirement; `plan` scope for Phase A | decision plan, analysis aggregate/splits, discovery cycle/revision |
 | `af-compose-solution` | control strategy, Root Executable, Graph IR, Asset dispositions, bindings, runtime contracts, readiness | current approved discovery revision | composition cycle/revision, Graph/contracts, boundary design, scaffold plan |
 | `af-scaffold-runtime` | exact approved composition and Asset versions to ADK source or Runtime Handoff | current approved composition revision | source roots, manifest, implementation handoff |
 | `af-verify-runtime` | current artifact/code/runtime/behavior proof | claim-matched current scaffold evidence | validation report, evidence, outcome |
@@ -32,7 +32,7 @@ Raw requirement to code is forbidden. A Work Skill may stop at `waiting_for_inpu
 
 Discover has two distinct execution phases.
 
-1. Phase A runs in actual Codex Plan mode. It may inspect the repository, Handbook, and bounded Registry results, use a bounded planning subagent, and ask the user questions. It must not write tracked repository artifacts.
+1. Phase A runs in an enrolled session holding `role: plan`, and is defined by its behavior, not by the coding agent's collaboration mode. It may inspect the repository, Handbook, and bounded Registry results, use a bounded planning subagent, and ask the user questions. It must not write tracked repository artifacts. Do not gate Phase A on the agent being in a "plan"-named mode: no surface in this lifecycle observes or records that mode, so the check cannot be performed or verified. The non-mutating requirement stands on its own.
 2. Required decisions remain open until the user selects an option. A recommendation is evidence, not consent; the model never fills `selected_by: "user"` by itself.
 3. The final Phase A output is a Discovery Decision Plan and an explicit continuity marker, not source code or a final Graph. If the Work Item already has exact discovery/decision revisions, this is a canonical Handoff. If it is still the strict pristine ledger, the Plan CLI may create one local Materialization Bootstrap Grant without writing tracked artifacts or fake revisions.
 4. Phase B runs in a distinct explicitly enrolled session, claims that exact Handoff or Grant, reopens current source, verifies revisions and decisions, and materializes Work Item v2 artifacts. Companion Continue is the supported explicit fresh-context transport.
