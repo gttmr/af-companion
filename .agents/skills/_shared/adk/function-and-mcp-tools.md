@@ -61,7 +61,9 @@ Verified connection surfaces:
 
 `tool_filter` accepts a list of names or a predicate over `BaseTool` and optional read-only context. Generic `HttpConnectionParams` is not present in installed `google-adk 2.4.0`; use `StreamableHTTPConnectionParams`. Uppercase `MCPToolset` exists only as a deprecated subclass; use `McpToolset`.
 
-When a Tool's `inputSchema` sets `additionalProperties: false` and enumerates optional fields, an explicit `null` for an omitted optional argument fails validation — the key must be absent, not null-valued (drop empty lists for the same reason). Build call arguments with a `_drop_none`-style helper. This is a general MCP calling trap, not specific to any one server.
+Omit optional MCP arguments by leaving the key out; do not send `null` or an empty list as a placeholder. Build call arguments with a `_drop_none`-style helper. This is a general MCP calling habit, not specific to any one server.
+
+Attribute the failure correctly. `additionalProperties: false` only rejects keys the schema does not declare — it says nothing about the values of declared ones. Whether an explicit `null` or `[]` is rejected is decided per field by that field's own `type` (a plain `"string"` does not admit `null`; it would have to be `["string","null"]`) and by constraints such as `minItems`. Omitting the key sidesteps all of that, which is why the helper is the robust habit whatever a given server wrote. Read the specific tool's `inputSchema` before concluding why a call was rejected.
 
 ## Verification Scenarios
 
@@ -102,3 +104,4 @@ Use approved Tool allow-lists, least-privilege auth references, sanitized schema
 - Official sources: ADK Function tools and ADK MCP tools
 - Installed package version: `google-adk 2.4.0`, `mcp 1.28.1`
 - Known compatibility note: Generic `HttpConnectionParams` is not present; use the installed streamable-HTTP class, and do not rely on deprecated uppercase `MCPToolset`. `mcp 1.28.1`'s `streamable_http_client` (`mcp/client/streamable_http.py`) applies its `httpx` timeout per operation, not per call, and never closes a caller-provided `http_client`.
+- Baseline split: `google-adk 2.4.0` is the **reference verification baseline** for this card — the version its symbols were checked against. It is not the version the generated runtime pins. `requirements/adk-runtime.txt` currently constrains generated projects to `>=2.3.0,<2.4.0`, so a fact verified here may not be available in a generated runtime until that pin moves. Check the requirements file before relying on a 2.4.0-only symbol in emitted code.

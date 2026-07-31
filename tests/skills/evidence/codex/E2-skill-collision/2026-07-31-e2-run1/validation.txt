@@ -109,3 +109,13 @@ unverified
              2-1b makes this point moot for the main finding.
 
 [unverified] Reproducibility. n=1 per probe; no repeat runs, no seed control.
+
+NOTE ON RAW LOGS
+  run-2-1-raw.log and run-2-2-raw.log were produced by the commands in
+  commands.log but are NOT committed: the 380 KB run-2-2 log carried
+  extensive local/session paths and pushed this run to 10 files, against
+  the seven-file layout required by tests/skills/README.md. The counts and
+  quotations cited above were taken from those logs at the time of the run
+  and are therefore NOT independently reproducible from this directory —
+  treat them as recorded observations, not as re-checkable evidence.
+  Re-run the commands in commands.log to regenerate them locally.

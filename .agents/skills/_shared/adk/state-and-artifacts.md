@@ -98,3 +98,4 @@ Use the narrowest scope, avoid secrets, validate MIME/schema, restrict filenames
 - Official sources: ADK state, artifacts, and event-loop documentation
 - Installed package version: `google-adk 2.4.0`
 - Known compatibility note: Session scope is unprefixed and `State.SESSION_PREFIX` is not present; persistence depends on the configured service, not on the state key alone. Edge-payload/state-key contract confirmed by building and live-testing a real workflow.
+- Baseline split: `google-adk 2.4.0` is the **reference verification baseline** for this card — the version its symbols were checked against. It is not the version the generated runtime pins. `requirements/adk-runtime.txt` currently constrains generated projects to `>=2.3.0,<2.4.0`, so a fact verified here may not be available in a generated runtime until that pin moves. Check the requirements file before relying on a 2.4.0-only symbol in emitted code.

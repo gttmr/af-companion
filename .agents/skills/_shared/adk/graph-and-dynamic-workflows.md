@@ -140,7 +140,7 @@ Dynamic selection is signaled by an approved dynamic Workflow or dynamic/loop re
 - linear static Graph and terminal reachability;
 - route value, alias, default, and invalid result;
 - fan-out/fan-in with explicit or synthesized Join;
-- unreachable node and static cycle rejection;
+- unreachable node rejection, and **unconditional** static cycle rejection — a cycle with at least one routed edge must be accepted, not rejected;
 - bounded dynamic loop, exit, max-iteration failure, and cancellation;
 - direct awaited `run_node` and rerun-on-resume enforcement;
 - `mode='task'` node placed statically is rejected, and `mode='chat'` node wired off a non-`START` predecessor is rejected;
@@ -150,7 +150,7 @@ Dynamic selection is signaled by an approved dynamic Workflow or dynamic/loop re
 - renaming a predecessor node does not break a downstream node keyed off a self-describing payload field;
 - a paused task-dispatch `FunctionNode` without `wait_for_output=True` lets successors fire while the conversation is still waiting;
 - full multi-turn conversation run to completion, then external tool invocations counted from the audit log — each exactly 1;
-- routed `FunctionNode` yields `Event(route=..., output=...)` rather than returning;
+- routed `FunctionNode` carries its route through a returned `Event(route=..., output=...)`; a generator is exercised only for the multi-event case;
 - unsupported node/edge rejection before runnable output;
 - state/artifact and Human Input integration through their cards.
 
@@ -172,8 +172,10 @@ Standard guard: return the stored result immediately if the node's result key is
 
 ```python
 # Guard EVERY node that performs work (LLM call, network call, write).
-cached = ctx.state.get("my_result_key")
-if cached:
+_MISSING = object()  # module-level sentinel
+
+cached = ctx.state.get("my_result_key", _MISSING)
+if cached is not _MISSING:                 # NOT `if cached:`
     return {"my_result_key": cached}
 ```
 
@@ -204,3 +206,4 @@ Audit route inputs/results, selected nodes, loop count, exit reason, Tool side e
 - Installed package version: `google-adk 2.4.0`
 - Known compatibility note: `ctx.run_node` requires a rerunnable caller, and current generator node/edge limits are Current Implementation constraints that must be reverified before expansion. `LlmAgent.mode` graph-placement rules and the `ctx.run_node` dispatch requirements (`raise_on_wait`, `override_isolation_scope`) were verified by execution against installed 2.4.0, including a deliberate negative test. The `FunctionNode.wait_for_output` requirement for task-dispatch nodes, the join-aggregate node-name keying, and the `rerun_on_resume` whole-graph re-traversal/idempotence requirement were additionally verified by execution and by live-model measurement against a real running workflow. Additionally verified: conditional-cycle static loops are an ADK 2.4.0 capability (`_detect_unconditional_cycles`), separate from the current AF generator's own choice to still lower loop/back-edge shapes dynamically; the five-step dispatch recipe (including result normalization via `Model.model_validate(raw).model_dump()`) was confirmed against installed source.
 - 2026-07-31 re-verification against 2.4.0: every symbol above was re-checked and the behavior is unchanged, but **two of them moved file** — `_validate_chat_agent_wiring` and `_detect_unconditional_cycles` left `workflow/_graph.py` for `workflow/utils/_graph_validation.py`. All private-module line citations in this card were therefore replaced with symbol names: one minor release invalidated every line number while leaving every symbol name intact, so cite symbols first and paths second. Two corrections in the same pass — the `rerun_on_resume` default table was wrong by omission (an `LlmAgent` placed in a graph defaults to `True`), and the claim that routing out of a `FunctionNode` requires an async generator was false (a returned `Event` is a documented pass-through). Added from installed source: `DEFAULT_ROUTE == "__DEFAULT__"`, the `ctx.state` fallback in `FunctionNode` parameter resolution, and the absence of live-streaming support (`Workflow` never overrides `_run_live_impl`, so `Runner.run_live` raises `NotImplementedError`).
+- Baseline split: `google-adk 2.4.0` is the **reference verification baseline** for this card — the version its symbols were checked against. It is not the version the generated runtime pins. `requirements/adk-runtime.txt` currently constrains generated projects to `>=2.3.0,<2.4.0`, so a fact verified here may not be available in a generated runtime until that pin moves. Check the requirements file before relying on a 2.4.0-only symbol in emitted code.
