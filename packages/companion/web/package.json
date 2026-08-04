@@ -1,0 +1,36 @@
+{
+  "name": "@agent-factory/companion-web",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/server/server/index.js"
+  },
+  "scripts": {
+    "build": "npm run typecheck && tsc -p tsconfig.server.json && vite build",
+    "dev": "vite --host 0.0.0.0 --port 8890 --strictPort",
+    "server": "tsx src/server/main.ts",
+    "start": "tsx src/server/main.ts",
+    "test": "tsx --tsconfig tsconfig.test.json --test test/**/*.test.ts test/**/*.test.tsx",
+    "typecheck": "tsc -p tsconfig.browser.json --noEmit && tsc -p tsconfig.server.json --noEmit"
+  },
+  "dependencies": {
+    "@agent-factory/companion-contracts": "file:../contracts",
+    "@agent-factory/companion-graph-control-server": "file:../graph-control-server",
+    "@agent-factory/companion-graph-domain": "file:../graph-domain",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
