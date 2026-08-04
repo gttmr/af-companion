@@ -543,6 +543,65 @@ test("validator rejects scaffold plans that drift from approved Target assets", 
   });
 });
 
+test("validator accepts a superseded Scaffold projection retained during Return-to-Discover", () => {
+  withRoot((root, analysis) => {
+    const priorAnalysis = structuredClone(analysis);
+    const plan = scaffoldPlan(priorAnalysis);
+    analysis.assetCandidates[0].owner = "application";
+    const manifest = returnToDiscoverWorkItem(priorAnalysis, analysis, plan);
+
+    writeJson(join(root, "analysis-result.json"), analysis);
+    writeJson(join(root, "scaffold-plan.json"), plan);
+    writeJson(join(root, "af-work-item.json"), manifest);
+    assert.match(run(root), /Artifact validation OK/);
+  });
+});
+
+test("validator keeps a current Scaffold projection strict when the same plan exists in superseded history", () => {
+  withRoot((root, analysis) => {
+    const priorAnalysis = structuredClone(analysis);
+    const plan = scaffoldPlan(priorAnalysis);
+    analysis.assetCandidates[0].owner = "application";
+    const manifest = returnToDiscoverWorkItem(priorAnalysis, analysis, plan);
+    const registryRevision = manifest.revisions.catalog_snapshot.registry_revision;
+    const currentComposition = revision([
+      { ref: "analysis-result.json", content: jsonBytes(analysis) },
+      { ref: "scaffold-plan.json", content: jsonBytes(plan) }
+    ], registryRevision);
+    manifest.revisions.composition = currentComposition;
+    manifest.skills["af-compose-solution"] = {
+      ...manifest.skills["af-compose-solution"],
+      status: "complete",
+      input_revision: manifest.revisions.discovery,
+      output_revision: currentComposition,
+      completed_at: "2030-01-03T00:00:00.000Z"
+    };
+    manifest.composition_cycles.push({
+      cycle_id: "composition-2",
+      status: "complete",
+      revision: currentComposition,
+      supersedes_cycle_id: manifest.composition_cycles[0].cycle_id,
+      artifact_refs: ["analysis-result.json", "scaffold-plan.json"],
+      return_to_discover: null,
+      started_at: "2030-01-03T00:00:00.000Z",
+      completed_at: "2030-01-03T00:00:00.000Z"
+    });
+    manifest.review_gates.composition = {
+      status: "pending",
+      binding: null,
+      decided_at: null,
+      session_id: null,
+      turn_id: null,
+      stale_reasons: []
+    };
+
+    writeJson(join(root, "analysis-result.json"), analysis);
+    writeJson(join(root, "scaffold-plan.json"), plan);
+    writeJson(join(root, "af-work-item.json"), manifest);
+    assert.match(fail(root), /drifts from the approved candidate contract/);
+  });
+});
+
 test("validator accepts an explicit Mock Lab MCP binding on an approved Tool projection", () => {
   withRoot((root, analysis) => {
     const tool = assetCandidate({
@@ -842,6 +901,86 @@ function completedScaffoldWorkItem(analysis) {
   };
 }
 
+function returnToDiscoverWorkItem(priorAnalysis, currentAnalysis, plan) {
+  const manifest = completedScaffoldWorkItem(currentAnalysis);
+  const at = "2030-01-02T00:00:00.000Z";
+  const registryRevision = manifest.revisions.catalog_snapshot.registry_revision;
+  const priorDiscovery = revision([
+    { ref: "analysis-result.json", content: jsonBytes(priorAnalysis) }
+  ], registryRevision);
+  const priorComposition = revision([
+    { ref: "analysis-result.json", content: jsonBytes(priorAnalysis) },
+    { ref: "scaffold-plan.json", content: jsonBytes(plan) }
+  ], registryRevision);
+
+  manifest.ledger_revision += 1;
+  manifest.focus_skill = "af-discover-assets";
+  manifest.skills["af-discover-assets"] = {
+    ...manifest.skills["af-discover-assets"],
+    status: "waiting_for_review",
+    output_revision: manifest.revisions.discovery,
+    completed_at: null,
+    updated_at: at
+  };
+  manifest.skills["af-compose-solution"] = {
+    ...manifest.skills["af-compose-solution"],
+    status: "stale",
+    input_revision: priorDiscovery,
+    output_revision: priorComposition,
+    output_refs: ["analysis-result.json", "scaffold-plan.json"],
+    completed_at: null,
+    updated_at: at
+  };
+  manifest.skills["af-scaffold-runtime"] = {
+    ...manifest.skills["af-verify-runtime"],
+    updated_at: at
+  };
+  manifest.revisions.composition = null;
+  manifest.revisions.scaffold = null;
+  manifest.generated_output_roots = [];
+  manifest.discovery_cycles = [{
+    ...manifest.discovery_cycles[0],
+    status: "superseded",
+    revision: priorDiscovery
+  }, {
+    cycle_id: "discovery-return-2",
+    status: "active",
+    revision: manifest.revisions.discovery,
+    supersedes_cycle_id: manifest.discovery_cycles[0].cycle_id,
+    trigger: "return_to_discover",
+    artifact_refs: ["analysis-result.json"],
+    started_at: at,
+    completed_at: null
+  }];
+  manifest.composition_cycles = [{
+    ...manifest.composition_cycles[0],
+    status: "superseded",
+    revision: priorComposition,
+    artifact_refs: ["analysis-result.json", "scaffold-plan.json"]
+  }];
+  manifest.review_gates.discovery = {
+    status: "pending",
+    binding: null,
+    decided_at: null,
+    session_id: null,
+    turn_id: null,
+    stale_reasons: []
+  };
+  manifest.review_gates.composition = {
+    ...manifest.review_gates.composition,
+    status: "stale",
+    binding: {
+      ...manifest.review_gates.composition.binding,
+      discovery_revision: priorDiscovery,
+      composition_revision: priorComposition,
+      artifact_etag: revisionSubjectHash(priorComposition, "analysis-result.json")
+    },
+    stale_reasons: ["A newer Discovery revision requires recomposition."]
+  };
+  manifest.artifact_refs = ["analysis-result.json", "scaffold-plan.json"];
+  return manifest;
+}
+
 function resolvedFixtureDecisions(rootRef, strategy) {
   const selected = {
     decision_revision: "1".repeat(64),
@@ -892,6 +1031,10 @@ function revision(subjectInputs, registryRevision = null) {
 
 function jsonBytes(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function revisionSubjectHash(value, ref) {
+  return value.subjects.find((subject) => subject.ref === ref).sha256;
 }
 
 function writeJson(path, value) {

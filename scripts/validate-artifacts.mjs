@@ -466,9 +466,30 @@ function validateScaffoldPlan(plan, label, path) {
   if (!existsSync(analysisPath)) return;
   const analysis = readJson(analysisPath);
   if (!record(analysis)) return;
+  if (isHistoricalScaffoldPlan(path)) return;
   pushAll(scaffoldAssetProjectionErrors(analysis.assetCandidates ?? [], assets, `${label}.assets`));
   if (!deepEqual(analysis.graph, plan.graph)) push(`${label}.graph drifts from the approved Graph IR.`);
   if (!deepEqual(analysis.runtimeContracts, plan.runtime_contracts)) push(`${label}.runtime_contracts drift from approved runtime contracts.`);
+}
+
+function isHistoricalScaffoldPlan(path) {
+  const workItemPath = join(dirname(path), "af-work-item.json");
+  if (!existsSync(workItemPath)) return false;
+  const workItem = readJson(workItemPath);
+  if (!record(workItem)) return false;
+
+  const ref = basename(path);
+  const sha256 = createHash("sha256").update(readFileSync(path)).digest("hex");
+  const matchesPlan = (revision) => revisionSubject(revision, ref)?.sha256 === sha256;
+  if (matchesPlan(workItem.revisions?.composition)) return false;
+
+  const compose = workItem.skills?.["af-compose-solution"];
+  return (
+    (compose?.status === "stale" && matchesPlan(compose.output_revision))
+    || (workItem.composition_cycles ?? []).some(
+      (cycle) => cycle?.status === "superseded" && matchesPlan(cycle.revision)
+    )
+  );
 }
 
 function validateA2aContract(contract, label, assets) {
