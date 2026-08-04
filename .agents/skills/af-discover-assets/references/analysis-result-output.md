@@ -52,8 +52,10 @@ If any required choice is unresolved, use the Decision Input Adapter for exactly
 
 ## Fresh-session handoff
 
-For a complete decision set with current real discovery/decision revisions and
-an exact pending canonical Handoff, the Plan emits this portable block:
+For a complete decision set, pipe the canonical Plan body to
+`companion prepare-materialization`. When current real discovery/decision
+revisions exist, the command prepares a Bridge-local re-entrant Handoff without
+writing the Work Item and returns this portable block:
 
 ```text
 AF_WORK_ITEM=<work-id>
@@ -62,9 +64,8 @@ AF_DISCOVERY_REVISION=<discovery-revision-digest>
 AF_TARGET=materialize-discovery
 ```
 
-For the exact strict pristine Work Item, do not invent those revisions. Pipe
-the canonical Plan body to `companion prepare-materialization` and preserve its
-returned block instead:
+For the exact strict pristine Work Item, the same command does not invent those
+revisions; it returns a Bootstrap Grant block instead:
 
 ```text
 AF_MATERIALIZATION_GRANT=<grant-id>
@@ -85,8 +86,8 @@ If Companion returns a signed marker containing additional decision revision, pl
 An exact claim is accepted only when an explicitly identified Handoff or Grant and all applicable fields match:
 
 - exact application, workspace, Work Item, materialization attachment, and canonical cwd;
-- exact pending Handoff ID or Bootstrap Grant ID;
-- discovery and decision revisions for a canonical Handoff, or pristine Work Item ETag plus exact source latest turn for a Grant;
+- exact re-entrant Handoff ID or Bootstrap Grant ID;
+- discovery and decision revisions plus source Work Item ETag/latest turn for a Handoff, or pristine Work Item ETag plus exact source latest turn for a Grant;
 - plan hash and marker digest;
 - a distinct fresh session and its first claiming turn;
 - unexpired, non-superseded, not-previously-claimed status.
@@ -104,7 +105,7 @@ This command launches a new enrollment for the named application/work/role. Conf
 Phase B runs only in Default/coding mode. Before writing:
 
 1. verify current Companion participation/lease, exact application/workspace/work/materialization scope, mode, repository, Work Item identity, artifact root, and active session/turn;
-2. verify the exact claimed canonical Handoff, exact manually attached Handoff, or exact claimed pristine Bootstrap Grant and complete Decision Plan;
+2. verify the exact claimed re-entrant Handoff, exact manually attached Handoff, or exact claimed pristine Bootstrap Grant and complete Decision Plan;
 3. compare the plan hash, marker, requirement/decision/Asset-decision/discovery digests, Registry snapshot, Asset refs/versions, strategy, and Root Executable; for a Grant also compare its pristine ETag and source session/latest turn before materialization;
 4. reject expired, superseded, duplicate, ambiguous, wrong-worktree, or mismatched continuation;
 5. re-read `schemas/af-work-item.schema.json`, `schemas/analysis-result.schema.json`, `packages/web/src/analyzer/types.ts`, `scripts/af.mjs`, and `scripts/validate-artifacts.mjs` before serializing exact nested shapes;

@@ -20,6 +20,7 @@ import {
   validateCreateEnrollmentInput,
   validateCreateMaterializationGrantInput,
   validateCreatePlanHandoffInput,
+  validatePrepareMaterializationInput,
   validateResetStateInput,
   validateRevokeSessionInput,
   validateSessionAliasInput,
@@ -186,6 +187,14 @@ async function route(
       response,
       201,
       await store.createMaterializationGrant(validateCreateMaterializationGrantInput(postBody)),
+    );
+    return;
+  }
+  if (request.method === "POST" && url.pathname === "/v1/materializations") {
+    json(
+      response,
+      201,
+      await store.prepareMaterialization(validatePrepareMaterializationInput(postBody)),
     );
     return;
   }

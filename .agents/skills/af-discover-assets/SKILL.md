@@ -48,12 +48,12 @@ Verify current Companion participation plus exact application/workspace/work att
 
 - A raw or revised discovery request starts Phase A only when the enrolled session has the exact `plan` scope.
 - If Phase A is requested without the `plan` scope, make no repository-tracked write and do not initialize a Work Item.
-- Phase B runs only from a complete Discovery Decision Plan, with current `companion_active` participation and exact `materialization` scope plus an exact canonical Handoff claim/attachment or exact pristine Bootstrap Grant claim.
+- Phase B runs only from a complete Discovery Decision Plan, with current `companion_active` participation and exact `materialization` scope plus an exact re-entrant Handoff claim/attachment or exact pristine Bootstrap Grant claim.
 - If a materialization request arrives without the `materialization` scope, make no repository-tracked write.
 
 ## Phase A — Plan Conversation
 
-Phase A is non-mutating exploration. Do not create or update `af-work-item.json`, discovery artifacts, source, Registry records, or any other repository-tracked file. After every decision is resolved, the one permitted local interaction-state side effect is `companion prepare-materialization` for an exact pristine Work Item; it stores the bounded Plan in ignored Bridge state and does not write the ledger.
+Phase A is non-mutating exploration. Do not create or update `af-work-item.json`, discovery artifacts, source, Registry records, or any other repository-tracked file. After every decision is resolved, the one permitted local interaction-state side effect is `companion prepare-materialization`; it stores the bounded Plan and either a re-entrant Handoff or pristine Bootstrap Grant in ignored Bridge state and does not write the ledger.
 
 ### 1. Explore before asking
 
@@ -111,7 +111,21 @@ After every required decision is resolved, return the in-conversation **Discover
 
 Canonicalize and hash only the Plan body as specified by [Fresh-context Handoff](../_shared/fresh-context-handoff.md). Exclude every Companion capsule or marker from those bytes. The Companion `plan_body_hash` and the eventual Work Item `plan_hash` identify the same canonical bytes.
 
-If current real discovery/decision revisions and an exact pending canonical Work Item Handoff already exist, use the canonical Handoff path and end with this portable marker:
+Pipe the canonical Plan body through the exact current Plan session and latest
+observed turn:
+
+```bash
+printf '%s' "$PLAN_BODY" | node scripts/af.mjs companion prepare-materialization \
+  --work <work-id> --session <current-plan-session-id> --turn <latest-plan-turn-id> [--root PATH]
+```
+
+The command chooses one authority without writing the Work Item:
+
+- when current real discovery and decision revisions exist, the Bridge
+  allocates a re-entrant Handoff bound to those revisions and the exact source
+  Work Item ETag, then returns this marker;
+- when the Work Item exactly equals the strict default v2 ledger, the Bridge
+  creates a Bootstrap Grant and does not invent revisions.
 
 ```text
 AF_WORK_ITEM=<work-id>
@@ -120,16 +134,7 @@ AF_DISCOVERY_REVISION=<discovery-revision-digest>
 AF_TARGET=materialize-discovery
 ```
 
-These four keys identify the portable Plan-to-materialization request. Work Item v2 separately serializes `session_handoffs[].target_skill` as `"af-discover-assets.materialize"`; do not copy the portable `AF_TARGET` value into that schema field. If Companion creates a larger signed claim marker, preserve that returned marker byte-for-byte alongside the portable marker; do not reconstruct claim tokens or internal fields.
-
-If the Work Item instead exactly equals the strict default v2 ledger, do not invent discovery/decision revisions or a canonical Handoff. Pipe only the canonical Plan body to:
-
-```bash
-printf '%s' "$PLAN_BODY" | node scripts/af.mjs companion prepare-materialization \
-  --work <work-id> --session <current-plan-session-id> --turn <latest-plan-turn-id> [--root PATH]
-```
-
-Preserve the returned marker byte-for-byte:
+For a pristine Work Item the returned marker is:
 
 ```text
 AF_MATERIALIZATION_GRANT=<grant-id>
@@ -138,9 +143,31 @@ AF_PLAN_BODY_HASH=<plan-body-sha256>
 AF_TARGET=materialize-discovery
 ```
 
+Preserve the returned marker byte-for-byte. Work Item v2 separately serializes
+`session_handoffs[].target_skill` as `"af-discover-assets.materialize"`; do not
+copy the portable `AF_TARGET` value into that schema field or reconstruct claim
+tokens.
+
+The trusted VS Code Plan launcher must start Codex with `--sandbox
+workspace-write --ask-for-approval on-request`. This leaves command-network
+access disabled by default. Request approval only for the exact
+`prepare-materialization` invocation above so that command may leave the
+sandbox and reach the loopback Bridge on port 8898. Do not enable persistent
+session network, change the global approval policy, switch to
+`danger-full-access`, or request a broader command prefix. Command approval is
+transport capability only; it does not replace the current-prompt receipt,
+Plan role, lease, scope, session, turn, source Work Item ETag/revisions, or
+Plan-hash gates.
+
+If the current execution surface cannot request that exact approval, stop and
+report the missing approval capability. Relaunch through the corrected trusted
+Plan Task and use a new prompt receipt; never reuse the prior session or turn.
+A sandboxed `bridge_unavailable` result does not by itself prove that the host
+Bridge listener is absent.
+
 The Grant is local single-user integrity authority only. Its ignored mode-`0600` plaintext Plan state is acceptable for this boundary; never copy Plan bytes into public receipts, browser state, or workspace descriptors. Grant creation must fail if the Work Item is not pristine or its ETag/source latest turn has drifted.
 
-Either marker is a claim request, not proof of attachment. For a canonical Handoff, use Companion Continue, then Copy Capsule, then exact confirmed attach when needed. For a Bootstrap Grant, use only `companion continue --grant <grant-id>`. Continuation is valid only when a fresh session's first prompt claims the explicitly identified authority and the observed session/turn, application/workspace/work, Plan hash, target, expiry, and authority-specific revision or pristine-ETag evidence match. A fork, resumed Plan session, Bridge health, one pending candidate, or a marker pasted into an unrelated cwd is not a fresh-session claim.
+Either marker is a claim request, not proof of attachment. For a re-entrant Handoff, use Companion Continue, then Copy Capsule, then exact confirmed attach when needed. For a Bootstrap Grant, use only `companion continue --grant <grant-id>`. Continuation is valid only when a fresh session's first prompt claims the explicitly identified authority and the observed session/turn, application/workspace/work, Plan hash, target, expiry, and authority-specific revision/ETag evidence match. A fork, resumed Plan session, Bridge health, one pending candidate, or a marker pasted into an unrelated cwd is not a fresh-session claim.
 
 When Companion Continue and Copy Capsule are unavailable or stripped, launch one new explicitly scoped materialization session with the implemented safe command:
 
@@ -157,7 +184,7 @@ Join never selects the first active session and does not by itself prove Plan/re
 Before any write:
 
 1. verify current Companion participation, lease freshness, exact `workspace_id`, `application_id`, `work_id`, `role: materialization`, canonical repository root, and artifact root;
-2. read the complete canonical Discovery Decision Plan and compare its authority ID, Plan-body hash, open/resolved decision refs, recommendation revisions, selected Asset refs/versions, and Registry snapshot; for a canonical Handoff also compare discovery/decision revisions, and for a Bootstrap Grant compare pristine ETag plus source session/latest turn;
+2. read the complete canonical Discovery Decision Plan and compare its authority ID, Plan-body hash, open/resolved decision refs, recommendation revisions, selected Asset refs/versions, and Registry snapshot; for a re-entrant Handoff also compare source Work Item ETag, discovery/decision revisions, and latest source turn, and for a Bootstrap Grant compare pristine ETag plus source session/latest turn;
 3. require an exact fresh-session claim receipt or canonical exact confirmed attachment plus the complete Plan; reject expired, superseded, duplicate, ambiguous, wrong-scope, wrong-cwd, or mismatched claims;
 4. re-read an existing Work Item and any `return_to_discover` record; preserve its scope and decision provenance and never choose the newest root by guesswork.
 
@@ -181,6 +208,13 @@ Materialize the exact Phase A choices using the paths and mappings in [Analysis 
 - structured user decisions into Work Item v2 `decisions`, `solution_control_strategy`, and `root_executable`;
 - structured per-Asset dispositions into Work Item v2 `asset_decisions`;
 - the discovery aggregate, summary, revision subjects, current Registry revision, discovery cycle, active materializer run, claimed Handoff, gate state, and invalidations into their schema-owned fields.
+
+For a re-entrant Bridge-prepared Handoff, append exactly one claimed
+`session_handoffs[]` record using the Handoff's source discovery/decision
+revision objects, identity, source session/turn, Plan hash, creation/expiry,
+marker checksum, and observed claim session/turn/time. If an exact pending
+record already existed, update that one record instead. Do not manufacture a
+Phase A pending record.
 
 For a Bootstrap Grant, the one claimed `session_handoffs[]` record must use the Grant ID, original source session/turn, actual materialized discovery/decision revision objects, canonical Plan hash, target `af-discover-assets.materialize`, Grant creation/expiry, marker checksum, and observed claim session/turn/time. Do not create a pending intermediate record or a fake bootstrap revision. After the canonical write validates, re-read the Bridge snapshot and require that exact Grant to be `finalized`; there is no finalize endpoint or CLI.
 
@@ -231,7 +265,7 @@ Phase A writes no repository-tracked file. Its pristine-only Grant command may w
 
 ## Stop conditions
 
-Stop when participation, lease, application/workspace/work/role scope, Work Item, Handoff/Grant, session, turn, Plan hash, recommendation revision, revision or pristine ETag, or Registry snapshot is unverified or ambiguous; a required user decision is open; evidence would require invention; a candidate hard gate is hidden; a claim is expired/duplicate/mismatched; a Grant is requested for a non-pristine ledger; strict v2 cannot represent the result; validation or Grant finalization fails; or a write would escape the confirmed artifact root.
+Stop when participation, lease, application/workspace/work/role scope, Work Item, Handoff/Grant, session, turn, Plan hash, recommendation revision, source ETag/revision or pristine ETag, or Registry snapshot is unverified or ambiguous; a required user decision is open; evidence would require invention; a candidate hard gate is hidden; a claim is expired/duplicate/mismatched; a non-pristine Work Item lacks current discovery/decision revisions; a Grant is requested for a non-pristine ledger; strict v2 cannot represent the result; validation or Grant finalization fails; or a write would escape the confirmed artifact root.
 
 ## Completion report
 

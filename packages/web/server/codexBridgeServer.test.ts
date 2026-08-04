@@ -161,6 +161,44 @@ test("direct handoff Continue rotates a claim and only an exact distinct session
   assert.equal(snapshot.handoffs[0].claimed_by_session_id, "fresh-session");
 });
 
+test("direct materialization preparation chooses a Bridge-local Handoff for a non-pristine Work Item", async (t) => {
+  const { root, running, request } = await fixture(t);
+  const path = join(root, "artifacts", "af", "work-plan", "af-work-item.json");
+  const manifest = parseAfWorkItemManifest(await readFile(path, "utf8"));
+  manifest.session_handoffs = [];
+  await writeFile(path, serializeAfWorkItemManifest(manifest), "utf8");
+  const before = await readFile(path, "utf8");
+  let response = await request("/v1/enrollments", {
+    application_id: "app-1",
+    work_id: "work-plan",
+    requested_role: "plan",
+    activation_origin: "af_cli_launch",
+  });
+  const enrollment = await response.json();
+  await request("/v1/hooks", sessionHook(
+    root,
+    "reentry-plan-session",
+    { kind: "activation", activation_capsule: enrollment.activation_capsule },
+    "plan",
+  ));
+  const lease = await running.store.leaseProofForTesting("reentry-plan-session");
+  await request("/v1/hooks", sessionHook(root, "reentry-plan-session", lease, "plan", "reentry-plan-turn"));
+
+  response = await request("/v1/materializations", {
+    work_id: "work-plan",
+    from_session_id: "reentry-plan-session",
+    from_turn_id: "reentry-plan-turn",
+    plan_body_hash: TEST_PLAN_HASH,
+    plan_body: TEST_PLAN_BODY,
+  });
+  assert.equal(response.status, 201);
+  const prepared = await response.json();
+  assert.equal(prepared.authority_kind, "handoff");
+  assert.equal(prepared.handoff.status, "ready");
+  assert.match(prepared.portable_marker, /AF_HANDOFF=/);
+  assert.equal(await readFile(path, "utf8"), before);
+});
+
 test("direct handoff attachment targets one existing Companion session and cancel is explicit", async (t) => {
   const { root, running, request } = await fixture(t);
   let response = await request("/v1/enrollments", { application_id: "app-1", work_id: "work-plan", requested_role: "plan", activation_origin: "af_cli_launch" });
@@ -204,7 +242,10 @@ test("direct handoff attachment targets one existing Companion session and cance
 
   const materializationBLease = await running.store.leaseProofForTesting("materialization-b");
   response = await request("/v1/hooks", sessionHook(root, "materialization-b", materializationBLease, "default", "wrong-turn"));
-  assert.equal(response.status, 204);
+  assert.equal(response.status, 200);
+  const unrelatedContext = (await response.json()).hookSpecificOutput.additionalContext as string;
+  assert.match(unrelatedContext, /current-prompt participation receipt/);
+  assert.equal(unrelatedContext.includes(TEST_PLAN_BODY), false, "an unrelated session must not receive the handoff Plan");
   const materializationALease = await running.store.leaseProofForTesting("materialization-a");
   response = await request("/v1/hooks", sessionHook(root, "materialization-a", materializationALease, "default", "claim-turn"));
   assert.equal(response.status, 200);

@@ -30,6 +30,7 @@ import {
   validateCreateEnrollmentInput,
   validateCreateMaterializationGrantInput,
   validateCreatePlanHandoffInput,
+  validatePrepareMaterializationInput,
   validateRevokeSessionInput,
 } from "./codexBridgeStore.ts";
 
@@ -301,8 +302,33 @@ test("one-time activation creates an exact 0600 lease and only that lease can up
   const forged = { ...lease, lease_token: "forged" };
   await store.handleHook(hook("UserPromptSubmit", "session-1", root, forged, { turn: "forged-turn" }));
   assert.equal((await store.snapshot()).sessions[0].last_turn_id, null);
-  await store.handleHook(hook("UserPromptSubmit", "session-1", root, lease, { turn: "valid-turn" }));
+  const promptOutput = await store.handleHook(hook(
+    "UserPromptSubmit",
+    "session-1",
+    root,
+    lease,
+    { turn: "valid-turn" },
+  ));
   assert.equal((await store.snapshot()).sessions[0].last_turn_id, "valid-turn");
+  const participationContext = promptOutput?.hookSpecificOutput.additionalContext ?? "";
+  assert.match(participationContext, /Agent Factory Companion current-prompt participation receipt/);
+  assert.match(participationContext, /"session_id": "session-1"/);
+  assert.match(participationContext, /"turn_id": "valid-turn"/);
+  assert.match(participationContext, /"participation": "companion_active"/);
+  assert.match(participationContext, /"session_status": "active"/);
+  assert.match(participationContext, new RegExp(`"lease_id": "${lease.lease_id}"`));
+  assert.match(participationContext, /"lease_fresh": true/);
+  assert.match(participationContext, new RegExp(`"canonical_cwd": ${JSON.stringify(root)}`));
+  assert.match(participationContext, new RegExp(`"workspace_id": "${store.workspaceId}"`));
+  assert.match(participationContext, /"application_id": "app-1"/);
+  assert.match(participationContext, /"work_id": "work-1"/);
+  assert.match(participationContext, /"role": "materialization"/);
+  assert.doesNotMatch(participationContext, new RegExp(lease.lease_token));
+  assert.equal(
+    await store.handleHook(hook("UserPromptSubmit", "session-1", root, lease, { turn: "valid-turn" })),
+    null,
+    "a duplicate Hook for the same session and turn must not inject a second receipt",
+  );
 
   const outside = await mkdtemp(join(tmpdir(), "af-outside-"));
   t.after(() => rm(outside, { recursive: true, force: true }));
@@ -313,7 +339,7 @@ test("one-time activation creates an exact 0600 lease and only that lease can up
   assert.deepEqual((await store.snapshot()).enrollment_tickets, [], "claimed ticket history is not public snapshot state");
 });
 
-test("VS Code lifecycle plan attachment consumes context when Codex permission mode is not plan", async (t) => {
+test("VS Code lifecycle Plan role can consume context and create a Grant when Codex permission mode is not plan", async (t) => {
   const { root, store } = await fixture(t);
   const ticket = await store.createEnrollment(validateCreateEnrollmentInput({
     application_id: "app-1",
@@ -356,6 +382,40 @@ test("VS Code lifecycle plan attachment consumes context when Codex permission m
   assert.equal(session.permission_mode, "bypassPermissions");
   assert.equal(session.last_turn_id, "default-mode-prompt");
   assert.match(output?.hookSpecificOutput.additionalContext ?? "", /selection-1/);
+
+  const grant = await store.createMaterializationGrant(materializationGrantRequest({
+    from_session_id: "vscode-default-session",
+    from_turn_id: "default-mode-prompt",
+  }));
+  assert.equal(grant.grant.status, "ready");
+});
+
+test("materialization lifecycle role cannot create a Grant regardless of permission mode", async (t) => {
+  const { root, store } = await fixture(t);
+  const { lease } = await enroll(
+    store,
+    root,
+    "not-a-plan-session",
+    "materialization",
+    "work-1",
+    "app-1",
+    "plan",
+  );
+  await store.handleHook(hook(
+    "UserPromptSubmit",
+    "not-a-plan-session",
+    root,
+    lease,
+    { turn: "not-a-plan-turn", permission: "plan" },
+  ));
+
+  await assert.rejects(
+    store.createMaterializationGrant(materializationGrantRequest({
+      from_session_id: "not-a-plan-session",
+      from_turn_id: "not-a-plan-turn",
+    })),
+    /active enrolled Plan session/,
+  );
 });
 
 test("negative: delivery fails closed for workspace, application, work, role, revision, stale, and revoked scope", async (t) => {
@@ -392,10 +452,16 @@ test("queued delivery rechecks the canonical source revision at consume time", a
   await clock.store.createDelivery(delivery(clock.store));
   clock.setCurrentSourceRevision({ ...TEST_SOURCE_REVISION, graph_etag: "changed-after-queue" });
 
-  assert.equal(
-    await clock.store.handleHook(hook("UserPromptSubmit", "session-1", clock.root, lease, { turn: "stale-consume" })),
-    null,
-  );
+  const output = await clock.store.handleHook(hook(
+    "UserPromptSubmit",
+    "session-1",
+    clock.root,
+    lease,
+    { turn: "stale-consume" },
+  ));
+  const context = output?.hookSpecificOutput.additionalContext ?? "";
+  assert.match(context, /current-prompt participation receipt/);
+  assert.doesNotMatch(context, /selection-1/, "stale delivery data must remain fail-closed");
   const [queued] = (await clock.store.snapshot()).deliveries;
   assert.equal(queued.status, "failed");
   assert.equal(queued.error, "stale_revision");
@@ -641,6 +707,100 @@ test("claimed bootstrap finalizes only after one exact canonical materialization
   assert.equal(finalized.finalized_at, clock.now().toISOString());
 });
 
+test("re-entrant preparation creates a Bridge-local Handoff without a Phase A Work Item write", async (t) => {
+  const clock = await fixture(t);
+  const path = join(clock.root, "artifacts", "af", "work-plan", "af-work-item.json");
+  const manifest = parseAfWorkItemManifest(await readFile(path, "utf8"));
+  manifest.session_handoffs = [];
+  await writeFile(path, serializeAfWorkItemManifest(manifest), "utf8");
+  const before = await readFile(path, "utf8");
+  const { lease } = await enroll(
+    clock.store,
+    clock.root,
+    "reentry-plan-session",
+    "plan",
+    "work-plan",
+  );
+  await clock.store.handleHook(hook(
+    "UserPromptSubmit",
+    "reentry-plan-session",
+    clock.root,
+    lease,
+    { turn: "reentry-plan-turn", permission: "plan" },
+  ));
+
+  const created = await clock.store.prepareMaterialization(validatePrepareMaterializationInput({
+    work_id: "work-plan",
+    from_session_id: "reentry-plan-session",
+    from_turn_id: "reentry-plan-turn",
+    plan_body_hash: PLAN,
+    plan_body: TEST_PLAN_BODY,
+    expires_at: "2030-01-01T00:10:00.000Z",
+  }));
+
+  assert.equal(created.authority_kind, "handoff");
+  assert.equal(created.handoff.status, "ready");
+  assert.equal(created.handoff.discovery_revision, DISCOVERY);
+  assert.equal(created.handoff.decision_revision, DECISIONS);
+  assert.equal("source_work_item_etag" in created.handoff, false);
+  assert.equal(await readFile(path, "utf8"), before, "Plan preparation must not write the Work Item");
+  const expectedMarker = [
+    "AF_WORK_ITEM=work-plan",
+    `AF_HANDOFF=${created.handoff.handoff_id}`,
+    `AF_DISCOVERY_REVISION=${DISCOVERY}`,
+    "AF_TARGET=materialize-discovery",
+    "",
+  ].join("\n");
+  assert.equal(created.portable_marker, expectedMarker);
+  assert.equal(created.handoff.marker_digest, createHash("sha256").update(expectedMarker).digest("hex"));
+
+  const continued = await clock.store.continueHandoff(
+    created.handoff.handoff_id,
+    validateContinueHandoffInput({ confirmation: CONTINUE_CONFIRMATION }),
+  );
+  const claimed = await clock.store.handleHook(hook(
+    "UserPromptSubmit",
+    "reentry-materialization-session",
+    clock.root,
+    { kind: "activation", activation_capsule: continued.activation_capsule },
+    { turn: "reentry-materialization-turn" },
+  ));
+  const context = claimed?.hookSpecificOutput.additionalContext ?? "";
+  assert.ok(context.includes(TEST_PLAN_BODY));
+  assert.match(context, /exactly one claimed session_handoffs\[\] record/);
+  assert.equal((await clock.store.snapshot()).handoffs[0].status, "claimed");
+});
+
+test("re-entrant prepared Handoff fails closed when its source Work Item changes", async (t) => {
+  const clock = await fixture(t);
+  const path = join(clock.root, "artifacts", "af", "work-plan", "af-work-item.json");
+  const manifest = parseAfWorkItemManifest(await readFile(path, "utf8"));
+  manifest.session_handoffs = [];
+  await writeFile(path, serializeAfWorkItemManifest(manifest), "utf8");
+  const { lease } = await enroll(clock.store, clock.root, "reentry-plan-session", "plan", "work-plan");
+  await clock.store.handleHook(hook(
+    "UserPromptSubmit",
+    "reentry-plan-session",
+    clock.root,
+    lease,
+    { turn: "reentry-plan-turn", permission: "plan" },
+  ));
+  const created = await clock.store.prepareMaterialization(validatePrepareMaterializationInput({
+    work_id: "work-plan",
+    from_session_id: "reentry-plan-session",
+    from_turn_id: "reentry-plan-turn",
+    plan_body_hash: PLAN,
+    plan_body: TEST_PLAN_BODY,
+  }));
+  assert.equal(created.authority_kind, "handoff");
+
+  manifest.ledger_revision += 1;
+  await writeFile(path, serializeAfWorkItemManifest(manifest), "utf8");
+  const snapshot = await clock.store.snapshot();
+  assert.equal(snapshot.handoffs[0].status, "failed");
+  assert.equal(snapshot.handoffs[0].failure_code, "canonical_handoff_stale");
+});
+
 test("restart invalidates prior leases and pending interaction authority", async (t) => {
   const clock = await fixture(t);
   const { lease } = await enroll(clock.store, clock.root, "session-1");
@@ -731,8 +891,8 @@ test("lease expiry marks participation expired and removes the lease file", asyn
 
 test("distinct fresh non-subagent session claims the exact continued handoff atomically", async (t) => {
   const { root, store } = await fixture(t);
-  const { lease } = await enroll(store, root, "plan-session", "plan", "work-plan");
-  await store.handleHook(hook("UserPromptSubmit", "plan-session", root, lease, { turn: "plan-turn", permission: "plan" }));
+  const { lease } = await enroll(store, root, "plan-session", "plan", "work-plan", "app-1", "bypassPermissions");
+  await store.handleHook(hook("UserPromptSubmit", "plan-session", root, lease, { turn: "plan-turn", permission: "bypassPermissions" }));
   assert.throws(
     () => planHandoffRequest(store, { plan_body: "# Different Plan\n" }),
     /plan_body_hash does not match/,
@@ -747,6 +907,7 @@ test("distinct fresh non-subagent session claims the exact continued handoff ato
   );
   const created = await store.createPlanHandoff(planHandoffRequest(store));
   assert.equal(created.status, "ready");
+  assert.equal((await store.snapshot()).sessions[0].permission_mode, "bypassPermissions");
   assert.equal(created.handoff_id, TEST_HANDOFF_ID);
   assert.equal(created.marker_digest, TEST_MARKER_DIGEST);
   assert.equal("plan_body" in created, false);

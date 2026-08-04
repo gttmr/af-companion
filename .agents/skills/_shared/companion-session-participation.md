@@ -18,15 +18,27 @@ A session may make a durable lifecycle write or create lifecycle evidence only w
 
 Workspace eligibility, a running Bridge, Hook installation, a visible session, an enrollment ticket, a capsule, or a prior attachment is not sufficient by itself. Recheck the lease and exact scope immediately before a durable write, review decision, handoff creation/claim, or evidence record.
 
-### Known gap: there is no read-only observation command
+### Current-prompt receipt and read-only CLI gap
 
-"Directly observed" currently has no non-mutating source. `node scripts/af.mjs companion <cmd>` dispatches exactly six subcommands — `start`, `join`, `vscode-start`, `prepare-materialization`, `continue`, `reset` — and every one of them mutates. `status`, `show`, `session`, `sessions`, `list`, and `get` all return `unknown companion command`. The protocol itself is documented in `docs/workbench/cli-companion.md`; read that before reasoning about the surface, and do not reconstruct it from `packages/web/` implementation files.
+There is still no non-mutating `companion status/show/session/list/get` CLI.
+However, every accepted top-level leased `UserPromptSubmit` receives a
+non-secret current-prompt participation receipt in Hook `additionalContext`.
+That receipt is the primary direct source for the current turn's session,
+turn, scope, role, lease metadata, canonical cwd, and cwd digest. It contains
+no activation Capsule, claim token, or Bridge secret. Read
+`docs/workbench/cli-companion.md` before reasoning about the protocol; do not
+reconstruct current authority from private Bridge implementation state.
 
-Until a read path exists, the gate resolves in exactly one of three ways, and you must pick one explicitly:
+Resolve the gate in exactly one of three ways:
 
-1. The turn already carries the scope because an implemented command returned it as a receipt in this same session. Use it.
-2. The operation is read-only inspection. Proceed; observation is not a durable write.
-3. Neither holds. **Stop, name the unobservable field as a Missing-Information item, and report the product gap.** Do not proceed with a partial check, and do not recover the values from the operator's session transcript or any other history — see `security-and-data.md`.
+1. The current prompt carries a complete participation receipt. Use only those
+   exact current-turn fields.
+2. The operation is read-only inspection. Proceed, while clearly separating
+   observation from lifecycle authority.
+3. The receipt is absent or incomplete for a lifecycle operation. **Stop, name
+   only the missing fields as Missing Information, and report the receipt
+   gap.** Do not recover values from private Bridge state, an operator-provided
+   historical transcript, or an older session.
 
 Option 3 is a real outcome, not a failure to try harder. Measured: when the card offered no third option, a strong model silently dropped the precondition and generated a full runtime anyway — the guardrail was routed around rather than fired. A gate that cannot be satisfied and cannot be declined is a gate that will be ignored.
 
@@ -77,3 +89,4 @@ Stop lifecycle work when participation, lease freshness, canonical cwd, exact sc
 - Checked date: 2026-07-31
 - Contract note: Companion-local enrollment state and the durable Work Item are correlated evidence, not interchangeable records.
 - 2026-07-31: recorded that the participation gate has no read-only observation command — `scripts/af.mjs companion` dispatches only six mutating subcommands — and gave the gate an explicit third outcome (stop and report the gap). Pointed at `docs/workbench/cli-companion.md`, which no skill card had ever cited. Observed failure mode: with no declinable option, a strong model dropped the precondition silently and generated anyway.
+- 2026-08-03: recorded the implemented current-prompt participation receipt as the primary direct current-turn source while preserving the read-only CLI gap and the prohibition on reconstructing authority from private or historical state.

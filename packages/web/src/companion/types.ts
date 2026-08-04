@@ -202,6 +202,12 @@ export interface HandoffContinueReceipt {
   command: string[];
 }
 
+export interface MaterializationHandoffCreateReceipt {
+  authority_kind: "handoff";
+  handoff: ScopedPlanHandoff;
+  portable_marker: string;
+}
+
 export interface HandoffAttachReceipt {
   handoff: ScopedPlanHandoff;
   target_session_id: string;
@@ -211,6 +217,10 @@ export interface MaterializationGrantCreateReceipt {
   grant: ScopedMaterializationGrant;
   portable_marker: string;
 }
+
+export type MaterializationPrepareReceipt =
+  | ({ authority_kind: "grant" } & MaterializationGrantCreateReceipt)
+  | MaterializationHandoffCreateReceipt;
 
 export interface MaterializationGrantContinueReceipt {
   grant: ScopedMaterializationGrant;

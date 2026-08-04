@@ -466,7 +466,7 @@ test("asset mutations require explicit inputs, preserve decisions, and reject st
   assert.equal(result.output.asset.lifecycle.deprecation_decision.decision_id, "decision-deprecate-cli");
 });
 
-test("companion start and join enroll exact scopes and launch fixed Codex argv with only enrollment proof", async (t) => {
+test("companion start and join enroll exact scopes and launch fixed Codex argv with bounded per-session approval", async (t) => {
   const root = await tempRepository(t);
   const fake = await fakeCodex(root);
   const applicationRoot = join(root, "external-application");
@@ -561,6 +561,8 @@ test("companion start and join enroll exact scopes and launch fixed Codex argv w
     "codex",
     "--sandbox",
     "workspace-write",
+    "--ask-for-approval",
+    "on-request",
     "--config",
     `sandbox_workspace_write.writable_roots=${JSON.stringify([applicationRoot])}`,
   ]);
@@ -621,6 +623,8 @@ test("companion start and join enroll exact scopes and launch fixed Codex argv w
       argv: [
         "--sandbox",
         "workspace-write",
+        "--ask-for-approval",
+        "on-request",
         "--config",
         `sandbox_workspace_write.writable_roots=${JSON.stringify([applicationRoot])}`,
       ],
@@ -708,7 +712,7 @@ test("companion continue names one handoff and launches only the Bridge-returned
   }]);
 });
 
-test("companion prepares and continues one local materialization grant without printing Plan or Capsule bytes", async (t) => {
+test("companion prepares and continues one local pristine materialization grant without printing Plan or Capsule bytes", async (t) => {
   const root = await tempRepository(t);
   const fake = await fakeCodex(root);
   let result = runCli(root, ["work", "init", "work-bootstrap", "--root", root]);
@@ -733,9 +737,10 @@ test("companion prepares and continues one local materialization grant without p
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
     received.push({ method: request.method, url: request.url, body });
     response.setHeader("content-type", "application/json");
-    if (request.url === "/v1/materialization-grants") {
+    if (request.url === "/v1/materializations") {
       response.statusCode = 201;
       response.end(JSON.stringify({
+        authority_kind: "grant",
         grant: {
           grant_id: grantId,
           work_id: body.work_id,
@@ -779,12 +784,13 @@ test("companion prepares and continues one local materialization grant without p
     "--root", root,
   ], { input: rawPlan });
   assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.output.authority_kind, "grant");
   assert.equal(result.output.grant.grant_id, grantId);
   assert.equal(result.output.portable_marker, marker);
   assert.equal(result.stdout.includes(canonicalPlan), false);
   assert.deepEqual(received[0], {
     method: "POST",
-    url: "/v1/materialization-grants",
+    url: "/v1/materializations",
     body: {
       work_id: "work-bootstrap",
       from_session_id: "plan-session",
@@ -812,6 +818,89 @@ test("companion prepares and continues one local materialization grant without p
     enrollment: null,
     stale: null,
   }]);
+});
+
+test("companion prepares one re-entrant materialization handoff without printing Plan bytes", async (t) => {
+  const root = await tempRepository(t);
+  let result = runCli(root, ["work", "init", "work-reentry", "--root", root]);
+  assert.equal(result.code, 0, result.stderr);
+  const rawPlan = "\r\n# Return-to-Discover Plan\r\n\r\nMaterialize the approved disposition change.\r\n";
+  const canonicalPlan = "# Return-to-Discover Plan\n\nMaterialize the approved disposition change.\n";
+  const planHash = createHash("sha256").update(canonicalPlan, "utf8").digest("hex");
+  const handoffId = "handoff-reentry-cli";
+  const discoveryRevision = "a".repeat(64);
+  const decisionRevision = "b".repeat(64);
+  const marker = [
+    "AF_WORK_ITEM=work-reentry",
+    `AF_HANDOFF=${handoffId}`,
+    `AF_DISCOVERY_REVISION=${discoveryRevision}`,
+    "AF_TARGET=materialize-discovery",
+    "",
+  ].join("\n");
+  const markerDigest = createHash("sha256").update(marker, "utf8").digest("hex");
+  let received;
+  const bridge = createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    received = { method: request.method, url: request.url, body };
+    response.statusCode = 201;
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({
+      authority_kind: "handoff",
+      handoff: {
+        handoff_id: handoffId,
+        work_id: body.work_id,
+        from_session_id: body.from_session_id,
+        from_turn_id: body.from_turn_id,
+        discovery_revision: discoveryRevision,
+        decision_revision: decisionRevision,
+        plan_body_hash: body.plan_body_hash,
+        marker_digest: markerDigest,
+        target_skill: "af-discover-assets.materialize",
+        status: "ready",
+      },
+      portable_marker: marker,
+    }));
+  });
+  await new Promise((resolveListen, rejectListen) => {
+    bridge.once("error", rejectListen);
+    bridge.listen(0, "127.0.0.1", resolveListen);
+  });
+  t.after(() => new Promise((resolveClose) => bridge.close(resolveClose)));
+  const address = bridge.address();
+  assert.notEqual(typeof address, "string");
+  await writeJson(join(root, ".agent-factory", "codex-bridge", "v2", "endpoint.json"), {
+    schema_version: 2,
+    bridge_instance_id: "bridge-reentry-cli-v2",
+    url: `http://127.0.0.1:${address.port}`,
+    token: "h".repeat(43),
+  });
+
+  result = await runCliAsync(root, [
+    "companion", "prepare-materialization",
+    "--work", "work-reentry",
+    "--session", "plan-session",
+    "--turn", "plan-turn",
+    "--root", root,
+  ], { input: rawPlan });
+
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.output.authority_kind, "handoff");
+  assert.equal(result.output.handoff.handoff_id, handoffId);
+  assert.equal(result.output.portable_marker, marker);
+  assert.equal(result.stdout.includes(canonicalPlan), false);
+  assert.deepEqual(received, {
+    method: "POST",
+    url: "/v1/materializations",
+    body: {
+      work_id: "work-reentry",
+      from_session_id: "plan-session",
+      from_turn_id: "plan-turn",
+      plan_body_hash: planHash,
+      plan_body: canonicalPlan,
+    },
+  });
 });
 
 test("companion reset is explicit and no companion command auto-selects scope", async (t) => {

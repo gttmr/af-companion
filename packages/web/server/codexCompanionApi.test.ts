@@ -186,9 +186,9 @@ test("Facade launches one exact materialization handoff without consuming it in 
     application_id: "app-1", work_id: "work-plan", requested_role: "plan", activation_origin: "af_cli_launch",
   });
   const enrollment = await response.json();
-  await direct("/v1/hooks", sessionHook(root, "plan-session", { kind: "activation", activation_capsule: enrollment.activation_capsule }, "plan"));
+  await direct("/v1/hooks", sessionHook(root, "plan-session", { kind: "activation", activation_capsule: enrollment.activation_capsule }, "bypassPermissions"));
   const lease = await bridge.store.leaseProofForTesting("plan-session");
-  await direct("/v1/hooks", sessionHook(root, "plan-session", lease, "plan", "plan-turn"));
+  await direct("/v1/hooks", sessionHook(root, "plan-session", lease, "bypassPermissions", "plan-turn"));
   response = await facade("/handoffs", {
     handoff_id: TEST_HANDOFF_ID, marker_digest: TEST_MARKER_DIGEST,
     workspace_id: bridge.store.workspaceId, application_id: "app-1", work_id: "work-plan",

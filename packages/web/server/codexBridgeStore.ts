@@ -36,6 +36,8 @@ import type {
   ContextDelivery,
   HandoffAttachReceipt,
   HandoffContinueReceipt,
+  MaterializationHandoffCreateReceipt,
+  MaterializationPrepareReceipt,
   MaterializationGrantContinueReceipt,
   MaterializationGrantCreateReceipt,
   ScopedContextDelivery,
@@ -98,6 +100,7 @@ interface PromptReceipt {
 }
 
 interface PersistedHandoff extends PlanHandoff {
+  source_work_item_etag: string | null;
   claim_token_digest: string | null;
   plan_body_ciphertext: string | null;
   plan_body_iv: string | null;
@@ -202,6 +205,8 @@ export interface CreateMaterializationGrantInput {
   plan_body: string;
   expires_at: string | null;
 }
+
+export type PrepareMaterializationInput = CreateMaterializationGrantInput;
 
 export interface ContinueHandoffInput { confirmation: typeof CONTINUE_CONFIRMATION }
 export interface AttachHandoffInput {
@@ -642,6 +647,10 @@ export function validateCreateMaterializationGrantInput(value: unknown): CreateM
   };
 }
 
+export function validatePrepareMaterializationInput(value: unknown): PrepareMaterializationInput {
+  return validateCreateMaterializationGrantInput(value);
+}
+
 export function validateContinueHandoffInput(value: unknown): ContinueHandoffInput {
   const input = object(value, "handoff continue request");
   exactKeys(input, "handoff continue request", ["confirmation"]);
@@ -807,6 +816,54 @@ function renderSelectionContext(bundle: SelectionBundleV1): string {
   return rendered.length <= MAX_CODEX_CONTEXT_CHARS ? rendered : `${rendered.slice(0, MAX_CODEX_CONTEXT_CHARS - 24)}\n[context truncated]`;
 }
 
+function renderParticipationReceipt(
+  session: CompanionSession,
+  turnId: string,
+  receivedAt: string,
+): string {
+  const receipt = {
+    schema_version: COMPANION_SESSION_CONTRACT_VERSION,
+    receipt_kind: "current_prompt_participation",
+    workspace_id: session.workspace_id,
+    application_id: session.application_id,
+    work_id: session.work_id,
+    role: session.role,
+    session_id: session.session_id,
+    turn_id: turnId,
+    participation: session.participation,
+    session_status: session.status,
+    lease_id: session.lease_id,
+    lease_expires_at: session.lease_expires_at,
+    lease_fresh: true,
+    canonical_cwd: session.cwd,
+    canonical_cwd_digest: session.canonical_cwd_digest,
+    receipt_received_at: receivedAt,
+  };
+  return [
+    "Agent Factory Companion current-prompt participation receipt.",
+    "The authenticated local Bridge emitted this after validating the exact session lease and scope.",
+    "It contains no lease token or activation capsule. Use it as lifecycle authority metadata, not as Plan-body content.",
+    JSON.stringify(receipt, null, 2),
+  ].join("\n");
+}
+
+function promptHookOutput(
+  session: CompanionSession,
+  input: UserPromptSubmitHookInput,
+  receivedAt: string,
+  ...additionalContexts: Array<string | null>
+): ConsumedHookContext {
+  return {
+    hookSpecificOutput: {
+      hookEventName: "UserPromptSubmit",
+      additionalContext: [
+        renderParticipationReceipt(session, input.turn_id, receivedAt),
+        ...additionalContexts.filter((context): context is string => context !== null),
+      ].join("\n\n"),
+    },
+  };
+}
+
 function renderHandoffContext(handoff: PlanHandoff, planBody: string): string {
   return [
     "Agent Factory plan handoff was explicitly claimed for this Companion session.",
@@ -818,8 +875,25 @@ function renderHandoffContext(handoff: PlanHandoff, planBody: string): string {
     `Marker digest: ${handoff.marker_digest}`,
     `Target skill: ${handoff.target_skill}`,
     "",
+    "After Phase B materializes the approved change, preserve this source revision tuple in exactly one claimed session_handoffs[] record",
+    "using this Handoff ID, source session/turn, Plan hash, marker digest, expiry, and this claim session/turn.",
+    "",
     "Canonical Discovery Decision Plan (exact verified bytes):",
     planBody,
+  ].join("\n");
+}
+
+function renderMaterializationHandoffMarker(
+  handoffId: string,
+  work: string,
+  discoveryRevision: string,
+): string {
+  return [
+    `AF_WORK_ITEM=${work}`,
+    `AF_HANDOFF=${handoffId}`,
+    `AF_DISCOVERY_REVISION=${discoveryRevision}`,
+    "AF_TARGET=materialize-discovery",
+    "",
   ].join("\n");
 }
 
@@ -879,12 +953,22 @@ function normalizePersistedState(value: unknown): PersistedBridgeStateV2 {
   if (state.schema_version !== 2) throw new Error("Unsupported state at .agent-factory/codex-bridge/v2/state.json. Move or remove the invalid V2 state before restart; V1 state is not migrated automatically.");
   if (state.materialization_grants === undefined) state.materialization_grants = [];
   if (!["enrollment_tickets", "sessions", "deliveries", "handoffs", "materialization_grants", "prompt_receipts", "activities"].every((key) => Array.isArray(state[key]))) throw new Error("Invalid Codex Bridge V2 state file");
+  for (const [index, rawHandoff] of (state.handoffs as unknown[]).entries()) {
+    const handoff = object(rawHandoff, `bridge state.handoffs[${index}]`);
+    if (handoff.source_work_item_etag === undefined) handoff.source_work_item_etag = null;
+    if (handoff.source_work_item_etag !== null) {
+      handoff.source_work_item_etag = shaDigest(
+        handoff.source_work_item_etag,
+        `bridge state.handoffs[${index}].source_work_item_etag`,
+      );
+    }
+  }
   exactKeys(state, "bridge state", ["schema_version", "bridge_instance_id", "enrollment_tickets", "sessions", "deliveries", "handoffs", "materialization_grants", "prompt_receipts", "activities"]);
   const recordKeys: Array<[string, readonly string[]]> = [
     ["enrollment_tickets", ["ticket_id", "workspace_eligibility", "workspace_id", "application_id", "work_id", "requested_role", "activation_origin", "canonical_cwd_digest", "issued_at", "expires_at", "status", "claimed_by_session_id", "claimed_at", "nonce_digest", "claim_token_digest", "hook_mode", "work_item_etag"]],
     ["sessions", ["session_id", "participation", "workspace_eligibility", "activation_origin", "hook_mode", "workspace_id", "application_id", "work_id", "role", "cwd", "canonical_cwd_digest", "model", "permission_mode", "source", "started_at", "last_seen_at", "last_event", "last_turn_id", "status", "alias", "lease_id", "lease_expires_at", "revoked_at", "revoke_reason", "decision_input_mode"]],
     ["deliveries", ["delivery_id", "selection_id", "target_session_id", "delivery_mode", "consume_policy", "status", "created_at", "delivered_at", "consumed_at", "consumed_turn_id", "error", "bundle", "scope"]],
-    ["handoffs", ["handoff_id", "workspace_id", "application_id", "work_id", "from_session_id", "from_turn_id", "discovery_revision", "decision_revision", "plan_body_hash", "marker_digest", "capsule_digest", "target_skill", "transport_capability", "status", "created_at", "expires_at", "claimed_by_session_id", "claimed_by_turn_id", "claimed_at", "target_session_id", "failure_code", "claim_token_digest", "plan_body_ciphertext", "plan_body_iv", "plan_body_auth_tag"]],
+    ["handoffs", ["handoff_id", "workspace_id", "application_id", "work_id", "from_session_id", "from_turn_id", "discovery_revision", "decision_revision", "plan_body_hash", "marker_digest", "capsule_digest", "target_skill", "transport_capability", "status", "created_at", "expires_at", "claimed_by_session_id", "claimed_by_turn_id", "claimed_at", "target_session_id", "failure_code", "source_work_item_etag", "claim_token_digest", "plan_body_ciphertext", "plan_body_iv", "plan_body_auth_tag"]],
     ["materialization_grants", ["grant_id", "workspace_id", "application_id", "work_id", "from_session_id", "from_turn_id", "bootstrap_work_item_etag", "plan_body_hash", "marker_digest", "target_skill", "status", "created_at", "expires_at", "claimed_by_session_id", "claimed_by_turn_id", "claimed_at", "finalized_at", "failure_code", "claim_token_digest", "plan_body"]],
     ["prompt_receipts", ["session_id", "turn_id", "received_at"]],
     ["activities", ["activity_id", "session_id", "turn_id", "event", "tool_name", "work_id", "handoff_id", "at"]],
@@ -1056,12 +1140,15 @@ export class CodexBridgeStore {
 
   async #matchesCurrentCanonicalHandoff(handoff: Pick<PlanHandoff,
     "handoff_id" | "marker_digest" | "work_id" | "from_session_id" | "from_turn_id" | "discovery_revision" | "decision_revision" | "plan_body_hash" | "expires_at"
-  >): Promise<boolean> {
+  > & { source_work_item_etag?: string | null }): Promise<boolean> {
     try {
-      const workItem = await this.#readWorkItem(handoff.work_id);
-      return workItem.revisions.discovery?.digest === handoff.discovery_revision
-        && workItem.revisions.decision?.digest === handoff.decision_revision
-        && workItem.session_handoffs.filter((candidate) => (
+      const workItem = await this.#readWorkItemRecord(handoff.work_id);
+      if (workItem.manifest.revisions.discovery?.digest !== handoff.discovery_revision
+        || workItem.manifest.revisions.decision?.digest !== handoff.decision_revision) return false;
+      if (handoff.source_work_item_etag) {
+        return safeEqualDigest(workItem.etag, handoff.source_work_item_etag);
+      }
+      return workItem.manifest.session_handoffs.filter((candidate) => (
           candidate.status === "pending"
           && candidate.handoff_id === handoff.handoff_id
           && candidate.marker_digest === handoff.marker_digest
@@ -1256,10 +1343,13 @@ export class CodexBridgeStore {
           const lease = await this.#issueLease(input.session_id, cwdDigest, ticket.workspace_id, ticket.application_id, ticket.work_id, ticket.requested_role, ticket.activation_origin, now);
           leaseToClean = this.#leasePath(input.session_id);
           ticket.status = "claimed"; ticket.claimed_by_session_id = input.session_id; ticket.claimed_at = now;
-          this.#state.sessions.push(this.#newSession(input, cwd, ticket, lease, now));
+          const session = this.#newSession(input, cwd, ticket, lease, now);
+          this.#state.sessions.push(session);
           this.#recordActivity(input, now);
           this.#recordPromptReceipt(input, now);
-          return null;
+          return input.hook_event_name === "UserPromptSubmit"
+            ? promptHookOutput(session, input, now)
+            : null;
         }
         if (parsed.kind === "materialization_grant") {
           const grant = this.#state.materialization_grants.find((item) => item.grant_id === parsed.grant_id);
@@ -1336,9 +1426,8 @@ export class CodexBridgeStore {
             hook_mode: "side_effect_gated",
             work_item_etag: currentWorkItem.etag,
           };
-          this.#state.sessions.push(
-            this.#newSession(input, cwd, syntheticTicket, lease, now, "plan_handoff_capsule"),
-          );
+          const session = this.#newSession(input, cwd, syntheticTicket, lease, now, "plan_handoff_capsule");
+          this.#state.sessions.push(session);
           grant.status = "claimed";
           grant.claimed_by_session_id = input.session_id;
           grant.claimed_by_turn_id = freshPrompt!.turn_id;
@@ -1358,12 +1447,7 @@ export class CodexBridgeStore {
             handoff_id: grant.grant_id,
             at: now,
           });
-          return {
-            hookSpecificOutput: {
-              hookEventName: "UserPromptSubmit",
-              additionalContext: grantContext,
-            },
-          };
+          return promptHookOutput(session, freshPrompt!, now, grantContext);
         }
         const handoff = this.#state.handoffs.find((item) => item.handoff_id === parsed.handoff_id);
         if (handoff && !(await this.#matchesCurrentCanonicalHandoff(handoff))) {
@@ -1400,13 +1484,14 @@ export class CodexBridgeStore {
           status: "claimed", claimed_by_session_id: input.session_id, claimed_at: now, nonce_digest: sha256("handoff"), claim_token_digest: handoff.claim_token_digest, hook_mode: "side_effect_gated",
           work_item_etag: currentWorkItem.etag,
         };
-        this.#state.sessions.push(this.#newSession(input, cwd, syntheticTicket, lease, now, "plan_handoff_capsule"));
+        const session = this.#newSession(input, cwd, syntheticTicket, lease, now, "plan_handoff_capsule");
+        this.#state.sessions.push(session);
         handoff.status = "claimed"; handoff.claimed_by_session_id = input.session_id; handoff.claimed_by_turn_id = freshPrompt!.turn_id; handoff.claimed_at = now; handoff.failure_code = null;
         this.#clearPlanBody(handoff);
         this.#recordActivity(input, now);
         this.#recordPromptReceipt(input, now);
         this.#state.activities.push({ activity_id: randomUUID(), session_id: input.session_id, turn_id: freshPrompt!.turn_id, event: "session_handoff", tool_name: null, work_id: handoff.work_id, handoff_id: handoff.handoff_id, at: now });
-        return { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: handoffContext } };
+        return promptHookOutput(session, freshPrompt!, now, handoffContext);
       });
     } catch (error) {
       if (leaseToClean) await rm(leaseToClean, { force: true }).catch(() => undefined);
@@ -1474,7 +1559,7 @@ export class CodexBridgeStore {
       const handoff = attachedHandoffs[0];
       if (!(await this.#matchesCurrentCanonicalHandoff(handoff))) {
         this.#failHandoff(handoff, "canonical_handoff_stale");
-        return null;
+        return promptHookOutput(session, input, now);
       }
       const source = this.#state.sessions.find((candidate) => candidate.session_id === handoff.from_session_id);
       if (
@@ -1482,7 +1567,6 @@ export class CodexBridgeStore {
         && source.participation === "companion_active"
         && source.status === "active"
         && source.role === "plan"
-        && source.permission_mode === "plan"
         && Date.parse(handoff.expires_at) > Date.parse(now)
         && await this.#currentLease(source)
       ) {
@@ -1490,7 +1574,7 @@ export class CodexBridgeStore {
         try { handoffContext = this.#renderHandoffContext(handoff); }
         catch {
           this.#failHandoff(handoff, "plan_body_unavailable");
-          return null;
+          return promptHookOutput(session, input, now);
         }
         handoff.status = "claimed";
         handoff.claimed_by_session_id = sessionId;
@@ -1503,14 +1587,18 @@ export class CodexBridgeStore {
           event: "session_handoff", tool_name: null, work_id: handoff.work_id,
           handoff_id: handoff.handoff_id, at: now,
         });
-        return { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: handoffContext } };
+        return promptHookOutput(session, input, now, handoffContext);
       }
       this.#failHandoff(handoff, "source_inactive");
     }
     const delivery = this.#state.deliveries.filter((item) => item.target_session_id === sessionId && item.status === "queued").sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))[0];
-    if (!delivery) return null;
+    if (!delivery) return promptHookOutput(session, input, now);
     const eligibility = deliveryEligibility(session, delivery.scope, new Date(now));
-    if (!eligibility.allowed || Date.parse(delivery.bundle.expires_at) <= Date.parse(now)) { delivery.status = "failed"; delivery.error = eligibility.reason; return null; }
+    if (!eligibility.allowed || Date.parse(delivery.bundle.expires_at) <= Date.parse(now)) {
+      delivery.status = "failed";
+      delivery.error = eligibility.reason;
+      return promptHookOutput(session, input, now);
+    }
     try {
       await this.#readWorkItem(delivery.scope.work_id);
       const canonicalSourceRevision = sourceRevision(
@@ -1520,15 +1608,15 @@ export class CodexBridgeStore {
       if (JSON.stringify(delivery.bundle.source_revision) !== JSON.stringify(canonicalSourceRevision)) {
         delivery.status = "failed";
         delivery.error = "stale_revision";
-        return null;
+        return promptHookOutput(session, input, now);
       }
     } catch {
       delivery.status = "failed";
       delivery.error = "source_revision_unavailable";
-      return null;
+      return promptHookOutput(session, input, now);
     }
     delivery.status = "consumed"; delivery.delivered_at = now; delivery.consumed_at = now; delivery.consumed_turn_id = input.turn_id;
-    return { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: renderSelectionContext(delivery.bundle) } };
+    return promptHookOutput(session, input, now, renderSelectionContext(delivery.bundle));
   }
 
   #recordActivity(input: CodexHookInput, now: string): void {
@@ -1553,8 +1641,7 @@ export class CodexBridgeStore {
       if (!source
         || source.participation !== "companion_active"
         || source.status !== "active"
-        || source.role !== "plan"
-        || source.permission_mode !== "plan") {
+        || source.role !== "plan") {
         throw new CodexBridgeValidationError(
           "materialization grant requires an active enrolled Plan session",
           409,
@@ -1634,6 +1721,149 @@ export class CodexBridgeStore {
       };
       this.#state.materialization_grants.push(grant);
       return { grant: this.#publicMaterializationGrant(grant), portable_marker: marker };
+    });
+  }
+
+  async prepareMaterialization(
+    input: PrepareMaterializationInput,
+  ): Promise<MaterializationPrepareReceipt> {
+    const current = await this.#readWorkItemRecord(input.work_id);
+    if (isPristineWorkItem(current.manifest)) {
+      return {
+        authority_kind: "grant",
+        ...await this.createMaterializationGrant(input),
+      };
+    }
+    return this.createMaterializationHandoff(input);
+  }
+
+  async createMaterializationHandoff(
+    input: PrepareMaterializationInput,
+  ): Promise<MaterializationHandoffCreateReceipt> {
+    return this.#mutate(async (now) => {
+      const source = this.#state.sessions.find((item) => item.session_id === input.from_session_id);
+      if (!source
+        || source.participation !== "companion_active"
+        || source.status !== "active"
+        || source.role !== "plan") {
+        throw new CodexBridgeValidationError(
+          "materialization handoff requires an active enrolled Plan session",
+          409,
+          "plan_session_required",
+        );
+      }
+      if (!(await this.#currentLease(source))) {
+        throw new CodexBridgeValidationError(
+          "materialization handoff source lease is missing, invalid, or expired",
+          409,
+          "invalid_lease",
+        );
+      }
+      if (source.work_id !== input.work_id) {
+        throw new CodexBridgeValidationError(
+          "materialization handoff scope does not match the source session",
+          409,
+          "scope_mismatch",
+        );
+      }
+      if (source.last_turn_id !== input.from_turn_id
+        || !this.#hasReceipt(input.from_session_id, input.from_turn_id)) {
+        throw new CodexBridgeValidationError(
+          "from_turn_id must match the latest observed source Plan turn",
+          409,
+          "source_turn_mismatch",
+        );
+      }
+      const workItem = await this.#readWorkItemRecord(input.work_id);
+      if (isPristineWorkItem(workItem.manifest)) {
+        throw new CodexBridgeValidationError(
+          "a pristine Work Item must use a materialization bootstrap grant",
+          409,
+          "work_item_pristine",
+        );
+      }
+      const discovery = workItem.manifest.revisions.discovery;
+      const decision = workItem.manifest.revisions.decision;
+      if (!discovery || !decision) {
+        throw new CodexBridgeValidationError(
+          "a re-entrant materialization handoff requires current discovery and decision revisions",
+          409,
+          "materialization_handoff_revisions_missing",
+        );
+      }
+      const expiresAt = input.expires_at
+        ?? new Date(Date.parse(now) + DEFAULT_MATERIALIZATION_GRANT_TTL_MS).toISOString();
+      if (Date.parse(expiresAt) <= Date.parse(now)) {
+        throw new CodexBridgeValidationError(
+          "expires_at must be in the future",
+          409,
+          "handoff_expired",
+        );
+      }
+      for (const existing of this.#state.handoffs) {
+        if (existing.work_id !== input.work_id
+          || (existing.status !== "ready" && existing.status !== "waiting_for_fresh_session")) continue;
+        existing.status = "superseded";
+        existing.target_session_id = null;
+        existing.failure_code = null;
+        existing.claim_token_digest = null;
+        existing.capsule_digest = null;
+        this.#clearPlanBody(existing);
+      }
+      for (const existing of this.#state.materialization_grants) {
+        if (existing.work_id !== input.work_id
+          || (existing.status !== "ready" && existing.status !== "waiting_for_fresh_session")) continue;
+        existing.status = "superseded";
+        existing.failure_code = null;
+        existing.claim_token_digest = null;
+        this.#clearMaterializationPlan(existing);
+      }
+      const handoffId = randomUUID();
+      const marker = renderMaterializationHandoffMarker(
+        handoffId,
+        input.work_id,
+        discovery.digest,
+      );
+      const protectedPlanBody = encryptedPlanBody(
+        input.plan_body,
+        this.#planBodyKey,
+        handoffId,
+        input.plan_body_hash,
+      );
+      const handoff: PersistedHandoff = {
+        handoff_id: handoffId,
+        workspace_id: source.workspace_id,
+        application_id: source.application_id,
+        work_id: input.work_id,
+        from_session_id: input.from_session_id,
+        from_turn_id: input.from_turn_id,
+        discovery_revision: discovery.digest,
+        decision_revision: decision.digest,
+        plan_body_hash: input.plan_body_hash,
+        marker_digest: sha256(marker),
+        capsule_digest: null,
+        target_skill: PLAN_HANDOFF_TARGET,
+        transport_capability: "client_dependent",
+        status: "ready",
+        created_at: now,
+        expires_at: expiresAt,
+        claimed_by_session_id: null,
+        claimed_by_turn_id: null,
+        claimed_at: null,
+        target_session_id: null,
+        failure_code: null,
+        source_work_item_etag: workItem.etag,
+        claim_token_digest: null,
+        plan_body_ciphertext: protectedPlanBody.ciphertext,
+        plan_body_iv: protectedPlanBody.iv,
+        plan_body_auth_tag: protectedPlanBody.authTag,
+      };
+      this.#state.handoffs.push(handoff);
+      return {
+        authority_kind: "handoff",
+        handoff: this.#publicHandoff(handoff),
+        portable_marker: marker,
+      };
     });
   }
 
@@ -1734,7 +1964,7 @@ export class CodexBridgeStore {
         throw new CodexBridgeValidationError("handoff does not match one current canonical Work Item handoff", 409, "canonical_handoff_mismatch");
       }
       const source = this.#state.sessions.find((item) => item.session_id === input.from_session_id);
-      if (!source || source.participation !== "companion_active" || source.status !== "active" || source.role !== "plan" || source.permission_mode !== "plan") throw new CodexBridgeValidationError("handoff requires an active enrolled Plan session", 409, "plan_session_required");
+      if (!source || source.participation !== "companion_active" || source.status !== "active" || source.role !== "plan") throw new CodexBridgeValidationError("handoff requires an active enrolled Plan session", 409, "plan_session_required");
       if (!(await this.#currentLease(source))) throw new CodexBridgeValidationError("handoff source lease is missing, invalid, or expired", 409, "invalid_lease");
       if (source.workspace_id !== input.workspace_id || source.application_id !== input.application_id || source.work_id !== input.work_id) throw new CodexBridgeValidationError("handoff scope does not match the source session", 409, "scope_mismatch");
       if (source.last_turn_id !== input.from_turn_id) throw new CodexBridgeValidationError("from_turn_id must match the source session turn", 409, "source_turn_mismatch");
@@ -1758,6 +1988,7 @@ export class CodexBridgeStore {
         target_skill: PLAN_HANDOFF_TARGET, transport_capability: input.transport_capability, status: "ready", created_at: now,
         expires_at: input.expires_at, claimed_by_session_id: null, claimed_by_turn_id: null, claimed_at: null, failure_code: null, claim_token_digest: null,
         target_session_id: null, plan_body_ciphertext: protectedPlanBody.ciphertext,
+        source_work_item_etag: null,
         plan_body_iv: protectedPlanBody.iv, plan_body_auth_tag: protectedPlanBody.authTag,
       };
       this.#state.handoffs.push(handoff);
@@ -1776,7 +2007,7 @@ export class CodexBridgeStore {
         return null;
       }
       const source = this.#state.sessions.find((item) => item.session_id === handoff.from_session_id);
-      if (!source || source.participation !== "companion_active" || source.status !== "active" || source.role !== "plan" || source.permission_mode !== "plan") throw new CodexBridgeValidationError("Source session is not active", 409, "source_inactive");
+      if (!source || source.participation !== "companion_active" || source.status !== "active" || source.role !== "plan") throw new CodexBridgeValidationError("Source session is not active", 409, "source_inactive");
       if (!(await this.#currentLease(source))) throw new CodexBridgeValidationError("handoff source lease is missing, invalid, or expired", 409, "invalid_lease");
       try { this.#renderHandoffContext(handoff); }
       catch {
@@ -2025,6 +2256,7 @@ export class CodexBridgeStore {
       plan_body_ciphertext: _ciphertext,
       plan_body_iv: _iv,
       plan_body_auth_tag: _authTag,
+      source_work_item_etag: _sourceWorkItemEtag,
       ...visible
     } = handoff;
     return clone(visible);
@@ -2081,7 +2313,7 @@ export class CodexBridgeStore {
         continue;
       }
       const source = this.#state.sessions.find((session) => session.session_id === handoff.from_session_id);
-      if (!source || source.participation !== "companion_active" || source.status !== "active" || source.role !== "plan" || source.permission_mode !== "plan") {
+      if (!source || source.participation !== "companion_active" || source.status !== "active" || source.role !== "plan") {
         this.#failHandoff(handoff, "source_inactive");
         continue;
       }

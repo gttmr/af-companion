@@ -788,6 +788,8 @@ async function companionVscodeStart(args) {
   return launchEnrolledCompanion(root, options, "af_vscode_launch", [
     "--sandbox",
     "workspace-write",
+    "--ask-for-approval",
+    "on-request",
     "--config",
     writableRoots,
   ]);
@@ -856,20 +858,68 @@ async function companionPrepareMaterialization(args) {
   }
   const planBodyHash = createHash("sha256").update(planBody, "utf8").digest("hex");
   const endpoint = await readCompanionEndpoint(root);
-  const receipt = await bridgePost(endpoint, "/v1/materialization-grants", {
+  const receipt = await bridgePost(endpoint, "/v1/materializations", {
     work_id: options.workId,
     from_session_id: options.sessionId,
     from_turn_id: options.turnId,
     plan_body_hash: planBodyHash,
     plan_body: planBody,
     ...(options.expiresAt === undefined ? {} : { expires_at: new Date(options.expiresAt).toISOString() }),
-  }, "Codex Bridge materialization grant request failed");
-  return validatedMaterializationGrantReceipt(receipt, {
+  }, "Codex Bridge materialization authority request failed");
+  return validatedMaterializationPrepareReceipt(receipt, {
     workId: options.workId,
     sessionId: options.sessionId,
     turnId: options.turnId,
     planBodyHash,
   });
+}
+
+function validatedMaterializationPrepareReceipt(value, expected) {
+  if (value?.authority_kind === "grant") {
+    return {
+      authority_kind: "grant",
+      ...validatedMaterializationGrantReceipt(value, expected),
+    };
+  }
+  if (value?.authority_kind !== "handoff") {
+    validation("invalid_bridge_response", "Codex Bridge returned an invalid materialization authority receipt");
+  }
+  return validatedMaterializationHandoffReceipt(value, expected);
+}
+
+function validatedMaterializationHandoffReceipt(value, expected) {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || !value.handoff || typeof value.handoff !== "object" || Array.isArray(value.handoff)) {
+    validation("invalid_bridge_response", "Codex Bridge returned an invalid materialization handoff receipt");
+  }
+  const handoff = value.handoff;
+  if (typeof handoff.handoff_id !== "string" || !IDENTIFIER_PATTERN.test(handoff.handoff_id)
+    || handoff.work_id !== expected.workId
+    || handoff.from_session_id !== expected.sessionId
+    || handoff.from_turn_id !== expected.turnId
+    || !SHA256_PATTERN.test(handoff.discovery_revision)
+    || !SHA256_PATTERN.test(handoff.decision_revision)
+    || handoff.plan_body_hash !== expected.planBodyHash
+    || handoff.target_skill !== "af-discover-assets.materialize"
+    || handoff.status !== "ready") {
+    validation("invalid_bridge_response", "Materialization Handoff does not match the requested Plan scope");
+  }
+  const marker = [
+    `AF_WORK_ITEM=${expected.workId}`,
+    `AF_HANDOFF=${handoff.handoff_id}`,
+    `AF_DISCOVERY_REVISION=${handoff.discovery_revision}`,
+    "AF_TARGET=materialize-discovery",
+    "",
+  ].join("\n");
+  if (value.portable_marker !== marker
+    || handoff.marker_digest !== createHash("sha256").update(marker, "utf8").digest("hex")) {
+    validation("invalid_bridge_response", "Materialization Handoff marker is invalid");
+  }
+  return {
+    authority_kind: "handoff",
+    handoff: publicFields(handoff, PUBLIC_HANDOFF_FIELDS),
+    portable_marker: marker,
+  };
 }
 
 async function companionContinue(args) {

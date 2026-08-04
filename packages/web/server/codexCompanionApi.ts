@@ -159,7 +159,6 @@ export function createCodexCompanionMiddleware(repoRoot: string, options: CodexC
               || source.participation !== "companion_active"
               || source.status !== "active"
               || source.role !== "plan"
-              || source.permission_mode !== "plan"
               || Date.parse(source.lease_expires_at) <= Date.now()) {
               throw new CompanionApiError(409, "source_inactive", "Plan Handoff의 source session이 더 이상 active 상태가 아닙니다.");
             }
