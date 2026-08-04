@@ -1,5 +1,17 @@
 # Agent Factory Documentation
 
+## Primary Companion path
+
+New Companion product work starts in [`packages/companion`](../packages/companion/README.md):
+
+- [Architecture](../packages/companion/ARCHITECTURE.md)
+- [User acceptance](../packages/companion/USER-ACCEPTANCE.md)
+
+This App-scoped Graph/MCP workspace is the primary development path. The
+existing `packages/web` Work Item lifecycle surface and the Handbook remain
+available as legacy/reference behavior until an explicit migration or removal
+decision is implemented.
+
 ## Start here
 
 1. [README](../README.md) — product purpose and local startup.
@@ -30,5 +42,6 @@
 - [Web-first Journey P2 launch-chain and G1 evidence](migration/web-first-journey-p2-launch-chain-status.md)
 - [Web-first Journey P7 acceptance status](migration/web-first-journey-status.md)
 - [Web-first Journey zero-context handoff](migration/web-first-journey-handoff.md)
+- [Current Companion and ADK follow-up queue](workbench/follow-ups/INDEX.md)
 
 `docs/archive/**`, `docs/handoff/**`, dated reviews, and migration snapshots are historical evidence. Current source remains final authority for implementation behavior.

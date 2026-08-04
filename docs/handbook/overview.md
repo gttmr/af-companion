@@ -1,5 +1,10 @@
 # Handbook Overview
 
+This page describes the existing `packages/web` Work Item lifecycle surface.
+It remains implemented as a legacy/reference path. The primary Companion
+development surface is the App-scoped Graph/MCP workspace documented in
+[`packages/companion/README.md`](../../packages/companion/README.md).
+
 Agent Factory Companion has two cooperating execution surfaces:
 
 ```text

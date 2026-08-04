@@ -20,6 +20,8 @@ Every claim records revision, environment, command/cwd, input, exit code, observ
 
 `af-work-item.json` may mark Verify complete only with `verification.outcome: "passed"`. Discovery/composition review is never created by verification. A changed Registry, Graph, Root, contract, or scaffold revision makes claim-dependent evidence stale.
 
+Retained Scaffold plans continue to receive schema and internal Graph-reference validation. Asset, Graph, and runtime-contract projection parity is checked against the current analysis aggregate unless the Work Item proves by exact file SHA-256 that the plan belongs to a stale Compose output or superseded composition cycle. Historical Return-to-Discover plans therefore remain inspectable without being mistaken for the current composition.
+
 Common commands include:
 
 ```bash

@@ -1,5 +1,11 @@
 # External Codex Companion
 
+> Legacy lifecycle surface: this document remains authoritative for the
+> existing `packages/web` Bridge, Hook, Work Item, and multi-root launcher
+> behavior. New App-scoped Graph collaboration uses
+> [`packages/companion`](../../packages/companion/README.md) and its project-local
+> read/write MCP. No automatic migration between the two surfaces is claimed.
+
 The companion connects the canonical repository to explicitly enrolled Codex CLI or VS Code sessions without taking over turn or file ownership. A Codex process running in the same directory is not automatically a Companion session.
 
 ## Current boundary
@@ -105,16 +111,31 @@ attach that new session; rerun the trusted `Start AF Session` Task when Companio
 attachment is wanted. Automatic Plan-to-implementation continuation is optional
 lifecycle convenience, not terminal connection proof.
 
+Bootstrap Grant and re-entrant Handoff authority follows that same separation.
+Creation, continuation, pending-source reconciliation, and materialization
+workspace launch require the exact active Companion session with lifecycle
+`role: plan`, a current lease, current prompt receipt, and matching
+session/turn/scope. `permission_mode` remains observable session metadata but is
+not an authorization input; selecting a Codex collaboration mode cannot grant or
+remove Agent Factory lifecycle authority.
+
 Workspace Trust remains a user gate. After Trust, VS Code starts the Task; the
 Task creates an `af_vscode_launch` enrollment at terminal-start time and
 launches interactive Codex with `cwd` fixed to the factory root. The activation
 Capsule is carried only in `AF_COMPANION_ENROLLMENT` for the child process.
 The external app is added through the fixed argv form
-`--sandbox workspace-write --config
+`--sandbox workspace-write --ask-for-approval on-request --config
 sandbox_workspace_write.writable_roots=[...]`. Browser responses and generated
-workspace bytes contain no Capsule or Bridge secret.
+workspace bytes contain no Capsule or Bridge secret. The per-session approval
+argument prevents an inherited global `approval_policy = "never"` from silently
+removing the ability to approve one exact loopback Bridge command. It does not
+enable sandbox network or grant lifecycle authority. For Bootstrap Grant
+creation, only the exact `companion prepare-materialization` invocation may be
+approved to leave the command sandbox; persistent/global network,
+`danger-full-access`, and broad command-prefix approval remain outside this
+path.
 
-For Materialization mode with a canonical Handoff, the server first verifies
+For Materialization mode with a re-entrant Handoff, the server first verifies
 that it is currently launchable for the exact workspace, application, Work
 Item, target, and active leased Plan source Session. The generated Task is
 `Continue AF Handoff` and runs the fixed argv equivalent of:
@@ -260,6 +281,17 @@ An unmanaged or malformed event exits with no stdout, endpoint read, Agent Facto
 
 The protocol adapter removes prompt and transcript fields before transport. Persisted activity is limited to event kind, session/turn identifiers, tool name when applicable, timestamps, and bounded status metadata. Prompt text, transcript content, tool arguments, and tool output are not persisted or projected.
 
+Every accepted top-level `UserPromptSubmit` with a current exact lease returns a
+Bridge-generated current-prompt participation receipt through Hook
+`additionalContext`. The receipt names the workspace, application, Work Item,
+role, session, turn, active participation/status, lease ID/expiry, canonical
+cwd/digest, and receipt time. It never contains the lease token, activation
+Capsule, prompt, transcript, Tool payload, or Plan body. When an exact Handoff,
+Bootstrap Grant, or selected Graph context is also consumed, that verified
+payload follows the participation receipt in the same Hook output. Duplicate
+definitions for the same session/turn remain idempotent; invalid, unmanaged,
+revoked, expired, wrong-scope, and subagent events still return no context.
+
 ## Enrollment and lease lifecycle
 
 Interaction state uses the breaking v2 root:
@@ -326,15 +358,40 @@ The next eligible prompt re-reads the strict Work Item and current canonical rep
 
 ## Plan-to-materialization handoff
 
-There are two deliberately separate paths. A canonical Handoff is the durable,
-revision-bound path for a Work Item that already has materialized discovery and
-decision revisions. The pristine Materialization Bootstrap Grant exists only
-to cross the initial empty-ledger boundary without manufacturing those
-revisions in Plan mode.
+There are two deliberately separate results from one preparation command. A
+re-entrant Handoff is the revision-bound path for a Work Item that already has
+materialized discovery and decision revisions. The pristine Materialization
+Bootstrap Grant exists only to cross the initial empty-ledger boundary without
+manufacturing those revisions in Plan mode.
 
-A Plan handoff binds the exact source session and latest turn, workspace, application, canonical Work Item Handoff ID and marker digest, discovery and decision revisions, canonical Plan body hash, target skill, expiry, and consume-once claim. Creation includes the complete bounded canonical Plan body. The Bridge canonicalizes it, recomputes the hash, rejects a mismatch or embedded Capsule, and rechecks the exact current strict Work Item Handoff tuple before authority exists. Capsule metadata is excluded from the Plan body hash. Direct Bridge and browser facade requests share a 512 KiB JSON transport envelope so every valid Plan survives worst-case JSON escaping; the validated canonical Plan itself remains capped at 64 KiB.
+A re-entrant Handoff binds the exact source session and latest turn, workspace,
+application, Work Item ETag, discovery and decision revisions, generated
+Handoff ID and marker digest, canonical Plan body hash, target skill, expiry,
+and consume-once claim. Preparation includes the complete bounded canonical
+Plan body. The Bridge canonicalizes it, recomputes the hash, rejects a mismatch
+or embedded Capsule, and rechecks the exact source ETag/revision tuple before
+authority exists. It writes no Phase A pending Work Item record. The lower-level
+`POST /v1/handoffs` route still accepts an existing canonical pending record's
+exact ID and marker. Capsule metadata is excluded from the Plan body hash.
+Direct Bridge requests use a 512 KiB JSON transport envelope so every valid Plan
+survives worst-case JSON escaping; the validated canonical Plan itself remains
+capped at 64 KiB.
 
-The verified Plan body is encrypted in ignored local Bridge state, omitted from public snapshots and receipts, and injected only into the successful fresh claim or named existing target's next leased prompt. It is erased on claim, cancellation, failure, expiry, supersession, source revocation, or restart. Snapshot projection also rechecks active pending authority against the canonical Handoff and fails it closed on removal or drift. Every later authority-producing action rechecks the same canonical ID, marker, revisions, hash, target, and expiry.
+The verified Plan body is encrypted in ignored local Bridge state, omitted from public snapshots and receipts, and injected only into the successful fresh claim or named existing target's next leased prompt. It is erased on claim, cancellation, failure, expiry, supersession, source revocation, or restart. Snapshot projection rechecks active authority against the exact source Work Item ETag/revisions and fails it closed on drift. Every later authority-producing action rechecks the same ID, marker, revisions, hash, target, expiry, source turn, and lease.
+
+**Current Implementation:** after Phase A decisions are complete, the enrolled
+Plan CLI pipes the canonical Plan body to one local command:
+
+```bash
+printf '%s' "$PLAN_BODY" | node scripts/af.mjs companion prepare-materialization \
+  --work <work-id> --session <source-session-id> --turn <source-turn-id>
+```
+
+`POST /v1/materializations` selects the result from current strict Work Item
+state. A non-pristine Work Item with both revisions receives a Bridge-local
+Handoff and an `AF_HANDOFF` marker. A strict pristine Work Item receives the
+Bootstrap Grant below. A non-pristine Work Item missing either revision fails
+closed. Neither result writes the Work Item in Plan mode.
 
 Automatic built-in transfer to a fresh context is not assumed. The low-level supported path remains an explicit Companion Continue action:
 
@@ -355,14 +412,6 @@ one candidate is pending.
 
 ### Pristine Materialization Bootstrap Grant
 
-**Current Implementation:** after Phase A decisions are complete, the enrolled
-Plan CLI may pipe the canonical Plan body to one local command:
-
-```bash
-printf '%s' "$PLAN_BODY" | node scripts/af.mjs companion prepare-materialization \
-  --work <work-id> --session <source-session-id> --turn <source-turn-id>
-```
-
 The Bridge creates a Grant only while the exact Work Item still equals the
 strict default v2 ledger byte-for-structure and its current ETag matches. It
 binds the exact workspace, application, Work Item, source Plan session and
@@ -378,7 +427,7 @@ omit the Plan and claim token. The Plan is erased on claim, failure, expiry, or
 supersession. This is a local single-user integrity tradeoff, not protection
 against a hostile process running as the same OS user.
 
-Unlike a pending canonical Handoff, a ready Grant survives Bridge or host
+Unlike an unclaimed re-entrant Handoff, a ready Grant survives Bridge or host
 restart. Continue rechecks the preserved source record, exact latest source
 turn, non-revoked participation, unchanged pristine Work Item ETag, Plan hash,
 scope, target, and expiry, then rotates the one-time claim token. The source
@@ -393,10 +442,10 @@ hash, marker checksum, expiry, and claim provenance match the Grant. Snapshot
 projection marks the Grant `finalized` only after that exact canonical record
 exists. There is no finalize endpoint and the browser never performs the
 canonical write. Once real revisions exist, later fresh-context transfer uses
-the ordinary canonical Handoff path; the bootstrap Grant cannot be reused as a
-general Handoff substitute.
+the re-entrant Handoff result from the same preparation command; the Bootstrap
+Grant cannot be reused as a general Handoff substitute.
 
-When a fresh client cannot be launched, `/connections` can durably attach the pending Handoff to one user-selected existing materialization Companion session. The target must have a current lease and the exact workspace/application/Work Item scope; no candidate is preselected, no raw Capsule or Plan body is returned, and only the named session can receive the verified context on its next leased prompt. Reload preserves the target. Pending handoffs can also be canceled explicitly. Target revoke detaches; source revoke/staleness, source-turn drift, canonical ID/marker/revision drift, or Bridge restart closes pending authority.
+When a fresh client cannot be launched, `/connections` can durably attach the Handoff to one user-selected existing materialization Companion session. The target must have a current lease and the exact workspace/application/Work Item scope; no candidate is preselected, no raw Capsule or Plan body is returned, and only the named session can receive the verified context on its next leased prompt. Reload preserves the target. Handoffs can also be canceled explicitly. Target revoke detaches; source revoke/staleness, source-turn or ETag/revision drift, or Bridge restart closes unclaimed authority.
 
 If a client strips the Capsule, keep the handoff waiting and use Continue or Copy Capsule again. Do not infer participation from `cwd`, editor launch, or an observed prompt.
 
@@ -414,7 +463,7 @@ The Work Skills inspect tools exposed in the current turn. When `request_user_in
 | explicit CLI enrollment and per-session lease | supported |
 | metadata-only activity | supported for enrolled sessions |
 | exact scoped next-prompt context | supported |
-| exact Plan handoff | supported for an existing canonical Handoff through the trusted fresh VS Code Task, low-level Continue/Capsule, or explicit exact existing-session attach |
+| exact Plan handoff | supported for a prepared revision/ETag-bound Handoff through the trusted fresh VS Code Task, low-level Continue/Capsule, or explicit exact existing-session attach; existing pending-record creation remains a lower-level route |
 | pristine Materialization bootstrap | supported by a local restart-resumable, ETag/hash/source-turn/expiry/consume-once Grant that auto-finalizes against one exact canonical claimed Handoff record |
 | automatic built-in fresh-context transport | unverified; not the default |
 | structured decision prompt | current-turn capability only |

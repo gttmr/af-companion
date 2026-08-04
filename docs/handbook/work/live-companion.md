@@ -5,11 +5,12 @@
 ## Main flow
 
 1. For the Web-first terminal path, `codexCompanionApi` resolves the Work Item's local Application Registry binding and asks `VscodeWorkspaceLauncher.launchSessionWorkspace` to write and open a private multi-root descriptor. The descriptor maximizes its dedicated Task terminal panel so structured Questions show multiple choices. This browser request creates no enrollment and does not select a Codex collaboration mode.
-2. After Workspace Trust, the descriptor's `folderOpen` Task runs `af companion vscode-start` from the factory root. The CLI creates a one-time `af_vscode_launch` ticket bound to the Work Item ETag and exact workspace, application, Work Item, and role, then starts interactive Codex with the app root added to sandbox writable roots.
+2. After Workspace Trust, the descriptor's `folderOpen` Task runs `af companion vscode-start` from the factory root. The CLI creates a one-time `af_vscode_launch` ticket bound to the Work Item ETag and exact workspace, application, Work Item, and role, then starts interactive Codex with the app root added to sandbox writable roots. The child uses `workspace-write` with per-session `on-request` approval; sandbox network remains off, and only an exact user-approved Bridge command may cross that command boundary.
 3. The user submits the first terminal prompt. The new Codex session carries the activation Capsule, and the local Hook gate validates workspace and Capsule before endpoint discovery.
 4. The Bridge re-reads the unchanged Work Item, consumes the ticket once, persists only the activated Companion session, and writes an exact-session lease bound to the current Bridge instance.
-5. Later lifecycle Hooks resolve that contained lease locally. Unmanaged, revoked, expired, wrong-workspace, and subagent events no-op before Agent Factory network/state.
-6. Exact-scope deliveries recheck canonical source revision and may be consumed once by the next eligible prompt. Ordinary sessions are never candidate targets.
+5. Every accepted top-level `UserPromptSubmit` resolves that contained lease and returns a non-secret current-prompt participation receipt through Hook `additionalContext`. It carries exact session, turn, scope, lease ID/expiry, and canonical cwd metadata, but no lease token, Capsule, prompt, transcript, Tool payload, or Plan bytes. Unmanaged, revoked, expired, wrong-workspace, and subagent events no-op before Agent Factory network/state.
+6. Exact-scope deliveries recheck canonical source revision and may be consumed once after that receipt in the same next-prompt context. A stale or failed delivery contributes no project payload, while the independently valid participation receipt remains available. Ordinary sessions are never candidate targets.
+7. Grant/Handoff authority is derived from the enrolled lifecycle role and exact lease/session/turn/scope evidence. The observed Codex `permission_mode` is retained for diagnostics but does not authorize or disqualify a lifecycle Plan session.
 
 Explicit CLI enrollment remains available as a low-level operator path. The
 browser `/connections` enrollment/copy surface is removed: Home launches the
@@ -37,26 +38,51 @@ canonical mutation, session/turn fabrication, or handoff claim.
 
 ## Handoff and decisions
 
-Plan handoff creation requires the exact canonical Work Item Handoff ID/marker, leased Plan session, exact latest turn, and complete canonical Plan body. The Bridge recomputes its hash, encrypts the bounded body locally, and omits it from public state. A distinct fresh prompt claims one exact signed Capsule once and receives those verified bytes; wrong scope/marker, missing or duplicate Capsule, canonical revision drift, expiry, replay, same-session, and subagent claims fail closed. The low-level `node scripts/af.mjs companion continue --handoff <id>` remains available. The Discover Plan screen can now post the latest launchable exact Handoff ID as Materialization mode to `codexCompanionApi`; `vscodeWorkspaceLauncher` writes a capsule-free private descriptor whose trusted `folderOpen` Task invokes that same CLI boundary. The browser neither calls Continue nor receives or renders its command, Capsule, or Plan bytes. A launch receipt is not claim proof; the new exact leased Materialization Session and `claimed` Handoff snapshot are. `/connections` may durably record one user-selected, same-scope leased materialization target without returning a Capsule or Plan body; only its next leased prompt receives the Handoff. No candidate is preselected. Pending handoffs can be canceled, target revocation detaches them, and source revocation/staleness or Bridge restart closes their authority and erases body ciphertext.
+`af companion prepare-materialization` requires a leased Plan session, exact
+latest turn, and complete canonical Plan body. For a non-pristine Work Item
+with current discovery/decision revisions, the Bridge allocates a re-entrant
+Handoff bound to the exact source Work Item ETag and revisions, encrypts the
+bounded body locally, and writes no Phase A ledger record. For a strict pristine
+Work Item it creates the Bootstrap Grant below. A distinct fresh prompt claims
+one exact signed Capsule once and receives those verified bytes; wrong
+scope/marker, missing or duplicate Capsule, ETag/revision drift, expiry, replay,
+same-session, and subagent claims fail closed. The low-level `node scripts/af.mjs
+companion continue --handoff <id>` remains available. The Discover Plan screen
+posts the latest launchable exact Handoff ID as Materialization mode to
+`codexCompanionApi`; `vscodeWorkspaceLauncher` writes a capsule-free private
+descriptor whose trusted `folderOpen` Task invokes that same CLI boundary. The
+browser neither calls Continue nor receives or renders its command, Capsule, or
+Plan bytes. A launch receipt is not claim proof; the new exact leased
+Materialization Session and `claimed` Handoff snapshot are. `/connections` may
+durably record one user-selected, same-scope leased materialization target
+without returning a Capsule or Plan body; only its next leased prompt receives
+the Handoff. No candidate is preselected. Handoffs can be canceled, target
+revocation detaches them, and source revocation/staleness, source Work Item
+drift, or Bridge restart closes unclaimed authority and erases body ciphertext.
 
 Work Skills choose structured decision input only from tools actually exposed in the current turn. Otherwise they ask one conversational question and stop at `waiting_for_input`. Both adapters preserve one decision ID/option meaning plus durable decision/recommendation revisions, selection source, bounded answer summary, input mode, and exact session/turn; an ambiguous answer or stale recommendation does not write a user decision. An executable semantic fixture proves strict-parser roundtrip, path-independent semantics, delegated-recommendation binding, and protected-gate blocking; live two-client-path execution remains capability-dependent.
 
-For the strict pristine Work Item only, `af companion prepare-materialization`
-creates a separate Bootstrap Grant from stdin after checking exact Plan
+For the strict pristine Work Item, the same command creates a separate
+Bootstrap Grant from stdin after checking exact Plan
 session/latest turn, default-ledger shape and ETag, canonical Plan hash, target,
-and expiry. `continue --grant <id>` rotates a one-time token and launches the
+and expiry. A Plan agent requests bounded approval for only that exact command
+when its command sandbox must reach loopback port 8898. Host Bridge health, Web
+projection, Hook reachability, and shell-command reachability remain separate
+claims; `bridge_unavailable` from the sandbox is not listener-down evidence.
+The approval changes transport capability only, never lifecycle authority.
+`continue --grant <id>` rotates a one-time token and launches the
 same fresh-session claim boundary. A ready Grant survives Bridge/host restart
 while the preserved source record/turn remains exact and non-revoked; its old
 source lease need not survive. Wrong session/scope, stale ETag/turn, replay,
 expiry, and duplicate claims fail closed. Phase B writes the real revisions and
 one exact claimed `session_handoffs[]` record, after which snapshot matching
 automatically finalizes the Grant. There is no browser canonical write or
-finalize endpoint. Existing canonical Handoff validation, encrypted Plan state,
+finalize endpoint. Existing Handoff validation, encrypted Plan state,
 and restart-fail behavior remain unchanged.
 
 ## Projection
 
-`WorkspaceHome` owns the normal start path: new application name or existing Work Item, one VS Code launch action, path confirmation, then Trust/MCP guidance. Discover shows the latest exact Plan authority—canonical Handoff or pristine Bootstrap Grant—and uses one Materialization launch action without showing Capsule or Plan bytes. `ConnectionsPage` presents four ordered registers: Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics. Session rows keep participation, application/Work Item/role, activation origin, lease expiry, last event, alias, and revoke action distinct. Handoff rows show the source session/turn, revisions, transport, destination, expiry, exact existing-session Attach, and Cancel actions. Diagnostics expose capability labels and aggregate ignored/invalid/expired counts only. No React component renders `activation_capsule`.
+`WorkspaceHome` owns the normal start path: new application name or existing Work Item, one VS Code launch action, path confirmation, then Trust/MCP guidance. Discover shows the latest exact Plan authority—re-entrant Handoff or pristine Bootstrap Grant—and uses one Materialization launch action without showing Capsule or Plan bytes. `ConnectionsPage` presents four ordered registers: Companion Sessions, Pending Handoffs, Deliveries, and Setup/Diagnostics. Session rows keep participation, application/Work Item/role, activation origin, lease expiry, last event, alias, and revoke action distinct. Handoff rows show the source session/turn, revisions, transport, destination, expiry, exact existing-session Attach, and Cancel actions. Diagnostics expose capability labels and aggregate ignored/invalid/expired counts only. No React component renders `activation_capsule`.
 
 The Work Item selected by Home or a Work Skill route is sent only as the
 `work_id` query on its SSE connection.

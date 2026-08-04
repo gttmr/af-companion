@@ -8,7 +8,58 @@
 - 최신 항목이 위로 오는 역시간순. 항목 형식: 날짜 · PR/머지 커밋 · 결정 요약 · 배경(왜) · 영향 범위.
 - 결정을 되돌리거나 대체하면 과거 항목을 지우지 말고 새 항목에서 `(대체: YYYY-MM-DD 항목)`으로 연결한다.
 
+## 2026-08-04 · 로컬 작업 — `packages/companion`을 primary development surface로 선택
+
+- **결정**: 새 Companion 제품 작업과 사용자 acceptance는 App-scoped `packages/companion`을 기본 경로로 사용한다. 기존 `packages/web` Work Item lifecycle surface는 migration compatibility와 명시적인 legacy 유지보수를 위한 reference로 남기며, 이번 결정만으로 route redirect나 source 삭제를 수행하지 않는다.
+- **App 저장소 경계**: `~/work/af-companion-apps/<app-id>`에 생성되는 App Git 저장소는 사용자가 독립적으로 관리한다. Agent Factory source 저장소의 commit/push에 자동 포함하지 않고, 별도 remote도 자동 생성하거나 push하지 않는다.
+- **App Server 경계**: 독립 `app-server-client` 구현은 유지하지만 Graph synchronization이나 제품 turn UI가 App Server에 연결됐다고 주장하지 않는다.
+- **대체**: 아래 같은 날짜의 fixed `.runtime/demo-project` VS Code launcher 결정을 primary 경로에서 대체한다. managed App root와 active App capability가 현재 launcher target을 소유한다.
+- **영향**: root README/STATUS, docs index/Handbook/legacy CLI 안내, follow-up 22 상태, `packages/companion` README/architecture. 기존 lifecycle source와 route는 변경하지 않는다.
+
+## 2026-08-04 · 로컬 구현 — Companion의 얇은 App Workspace Manager
+
+- **결정**: greenfield `packages/companion`은 browser-supplied path나 기존 `~/work/af-apps` import 없이 `~/work/af-companion-apps` 아래에서 한 번에 하나의 active App을 관리한다. 새 App은 Git, Companion app/Asset manifest, 최소 `Input → Output` Graph, project-local Codex MCP config만 생성한다. Work Item과 ADK source scaffold는 생성하지 않는다.
+- **Asset 계약**: canonical Asset Registry는 read-only로 소비한다. published Agent·Workflow·Tool의 정확한 version과 contract hash를 App에 binding한 뒤에만 typed Graph Node가 참조할 수 있다. Asset lifecycle mutation은 이 화면의 권한이 아니다.
+- **전환 계약**: App 전환은 이전 watcher를 닫고 capability를 `inactive`로 바꾼 뒤 새 App에 현재 loopback capability를 발급한다. 이전 App의 MCP process는 `app_inactive`로 실패하며 새 active App 권한으로 승격되지 않는다.
+- **영향**: `packages/companion` App/Asset HTTP API, Context `scope.work_id: null`, VS Code launch target, MCP capability contract, 사용자 acceptance 문서. 기존 `packages/web` lifecycle surface와 App Server client는 변경하지 않는다.
+
+## 2026-08-04 · 로컬 작업 — isolated Companion의 VS Code extension 진입점 복구
+
+- **결정**: `packages/companion` v2 화면 상단에 `VS Code에서 열기` action을 두고, Web composition endpoint가 server-canonical `.runtime/demo-project`만 trusted external `code --new-window`로 연다. 요청은 path 입력을 받지 않으며 cross-site browser 요청을 거부한다. Editor launch receipt는 Codex thread 연결이나 lifecycle authority로 표시하지 않는다.
+- **후속 상태**: 같은 날짜의 App Workspace Manager와 primary surface 결정으로 대체됐다. 현재 launcher는 fixed demo가 아니라 server-selected active App root만 연다.
+- **배경**: 사용자 acceptance 문서는 VS Code extension에서 같은 MCP 흐름을 반복하라고만 적고 실제 workspace를 여는 진입점과 project-local MCP config 적용 절차를 제공하지 않았다. 기존 Agent Factory launcher는 lifecycle enrollment와 generated Task까지 소유하므로 isolated Graph acceptance에 그대로 연결할 수 없다.
+- **영향**: `packages/companion/web` Node composition/API/header action, launcher 보안 회귀 test, `packages/companion/{README,ARCHITECTURE,USER-ACCEPTANCE}`. Graph Control API, MCP Tool 두 개, Context authority, 기존 `packages/web` lifecycle launcher는 변경하지 않는다.
+
+## 2026-08-03 · 로컬 작업 — Companion Graph를 single-writer 양방향 협업으로 전환
+
+- **결정**: isolated `packages/companion`에서 pull-only Context v1과 `GraphProjection`을 폐기하고 strict Graph IR, Context v2, revision-checked operation batch, single-writer Graph Control Server, write-capable MCP, SSE Web 동기화를 도입한다. Layout은 presentation sidecar로 분리하며 invalid direct file edit는 마지막 valid Graph만 표시하고 write를 차단한다. App Server client는 실행 plane으로 분리 유지한다.
+- **배경**: 서버와 브라우저가 시작 시 Graph를 한 번만 읽어 디스크 Graph와 실행 중 Graph가 달라졌고, read-only MCP가 `source_revision_mismatch`에서 복구하거나 Graph를 정상 경로로 변경할 수 없었다. `sequence`도 Graph concurrency가 아닌 pull cursor라 사용자가 관리할 이유가 없었다.
+- **영향**: `packages/companion/{graph-domain,contracts,graph-control-server,mcp-plane,web}`, generated demo Codex config, isolated acceptance 문서. 기존 `packages/web` Graph surface와 Agent Factory 세 artifact transaction은 acceptance 이후 별도 전환으로 남긴다.
+
 ---
+
+## 2026-08-03 · local working tree — non-pristine Return-to-Discover Handoff preparation
+
+- **결정**: `companion prepare-materialization`은 strict pristine Work Item에는 기존 Bootstrap Grant를, current discovery/decision revision이 있는 non-pristine Work Item에는 Bridge-local re-entrant Handoff를 준비한다. Handoff ID와 marker는 Bridge가 할당하고 exact source Work Item ETag, revision tuple, Plan session/latest turn, Plan hash, target, expiry에 결합한다.
+- **쓰기 경계**: 두 경로 모두 Plan mode에서 repository/ledger를 쓰지 않는다. re-entrant Handoff의 `session_handoffs[]` claimed record는 fresh Materialization session이 Phase B에서 source revision tuple과 complete claim provenance로 기록한다. 기존 exact pending Work Item Handoff를 받는 lower-level `/v1/handoffs` 경로는 유지한다.
+- **실패 경계**: non-pristine Work Item에 current discovery 또는 decision revision이 없으면 준비를 거부한다. ready/waiting Handoff는 source ETag/revision/turn/lease drift, expiry, supersession, source revoke 또는 Bridge restart에서 fail-closed하며 encrypted Plan을 지운다. public snapshot/CLI receipt에는 Plan과 internal source ETag를 노출하지 않는다.
+- **배경**: Return-to-Discover Phase A는 tracked write가 금지되고 Bootstrap Grant는 pristine-only인데, 기존 Bridge Handoff 생성은 이미 존재하는 pending ledger record를 요구했다. 결과적으로 non-pristine Work Item에는 authority를 준비할 지원 명령이 없었고 Discover 화면의 `새 Materialization Session 열기` 버튼도 나타날 수 없었다.
+- **영향**: CLI는 단일 `/v1/materializations` preparation endpoint를 사용하고 결과를 `authority_kind: grant|handoff`로 검증한다. Web의 기존 launch UI는 변경 없이 ready Handoff를 투영한다. Work Item schema, Graph IR, Asset Registry, Provider artifacts와 ADK source는 변경하지 않는다.
+
+## 2026-08-03 · local working tree — standalone Agent delegation 소유권 검증 정렬
+
+- **결정**: Web strict Target read boundary는 `workflow_ref: null`인 Graph라도 정확히 하나의 Input/Output, 하나의 Root Agent, 한 개 이상의 delegated Agent, channel 없는 `next` edge의 `Input → Root`, `Root → Output`, `Root → delegated Agent` star topology이면 standalone Agent delegation으로 허용한다. 이 형태를 벗어난 다중 실행 Node, Tool/Function/Human Input/Subworkflow/Join, Region, 조건·data channel은 계속 owning approved Workflow를 요구한다.
+- **배경**: canonical Graph IR과 ADK 2.4 Root generator는 `agent_delegation`을 Agent Root가 소유하는 standalone Graph로 지원하지만, Web ownership guard가 Agent Node 수만 세어 유효한 Provider Graph를 “explicit execution Node 5개”로 거부했다. CLI artifact validator와 generator는 같은 artifact를 통과해 Web projection만 열리지 않는 split validation이 발생했다.
+- **영향**: `targetContract` ownership readiness와 scaffold-plan derivation, 해당 회귀 test를 generator topology와 정렬한다. Graph IR/schema, Work Item revision, approved composition bytes, Asset Registry는 변경하지 않는다.
+
+## 2026-08-03 · local working tree — current-prompt Companion receipt and lifecycle-role authority
+
+- **결정**: current exact lease가 검증된 모든 top-level `UserPromptSubmit`은 session/turn, workspace/application/Work Item/role, active participation/status, lease ID/expiry, canonical cwd/digest와 receipt time을 Hook `additionalContext`로 돌려준다. 같은 prompt에서 Handoff, Bootstrap Grant, 또는 selected Graph context를 consume하면 participation receipt 뒤에 해당 payload를 결합한다.
+- **권한 정렬**: Bootstrap Grant와 canonical Handoff의 생성·계속·pending source reconciliation 및 Web materialization workspace launch는 exact Companion lifecycle `role: plan`을 사용한다. Codex `permission_mode`는 진단 metadata로 보존하지만 lifecycle 권한 판정에는 사용하지 않는다. active participation/status, current lease, latest prompt receipt, exact session/turn/scope 검사는 유지한다.
+- **명령 승인 경계**: trusted VS Code Plan Task는 Codex를 `--sandbox workspace-write --ask-for-approval on-request`로 시작한다. sandbox network는 계속 기본 차단하고, pristine Grant 생성 시 exact `companion prepare-materialization` 명령만 사용자 승인으로 loopback Bridge에 도달할 수 있게 한다. 전역·persistent network, `danger-full-access`, broad prefix 승인은 사용하지 않으며 이 승인은 lifecycle authority가 아니다.
+- **보안·실패 경계**: receipt에는 lease token, activation Capsule, prompt/transcript, Tool payload, Plan body를 넣지 않는다. duplicate Hook은 같은 session/turn에 두 번째 context를 주입하지 않으며 invalid, unmanaged, revoked, expired, wrong-scope, subagent event는 기존처럼 context 없이 종료한다. Delivery revision drift나 다른 payload 실패는 그 payload만 fail-closed하고, 이미 독립적으로 검증된 current participation receipt는 유지한다.
+- **배경**: Bridge snapshot에는 active session과 prompt receipt가 기록됐지만 일반 leased prompt의 Hook 응답은 `null`이어서 Work Skill이 요구하는 exact current lifecycle provenance를 현재 turn에서 관찰할 수 없었다. 또한 VS Code launcher는 lifecycle role만 `plan`으로 부여하고 Codex collaboration mode를 선택하지 않으므로 유효한 실측 session이 `permission_mode: bypassPermissions`였는데, 일부 Grant/Handoff gate가 오래된 `permission_mode === "plan"` 조건으로 이를 거부했다. 별도로 전역 `approval_policy = "never"`가 generated Plan terminal에 상속되어, 살아 있는 8898 Bridge에도 Grant 명령이 접근하지 못하고 `bridge_unavailable`로 보였다. Web의 연결 표시나 private Bridge state 복원, collaboration mode 추정으로 lifecycle authority를 대신할 수 없다.
+- **영향**: direct Bridge의 정상 leased `UserPromptSubmit` 응답은 project payload가 없어도 `204` 대신 receipt를 포함한 `200`이 된다. `role: plan`인 session은 `permission_mode` 값과 무관하게 나머지 exact gate를 만족하면 Grant/Handoff 경로를 사용할 수 있고, `role`이 다른 session은 `permission_mode: plan`이어도 거부된다. `vscode-start`는 per-session approval policy를 명시하며, Work Skills는 host listener, Web projection, Hook, shell command reachability를 분리해 판정한다. `codexBridgeStore`, Companion facade, CLI/Bridge 회귀 test, active Companion/Operating Model/Handbook 문서를 함께 정렬한다. Browser enrollment, Capsule 비노출, Work Item write authority, Handoff/Grant claim 및 Registry 계약은 변경하지 않는다.
 
 ## 2026-07-31 · PR [#20](https://github.com/gttmr/af-companion/pull/20) — standalone ADK base와 Agent Factory/Companion overlay 분리, runtime 2.4 전환
 
