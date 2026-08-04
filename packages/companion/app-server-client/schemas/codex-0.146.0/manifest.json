@@ -1,0 +1,24 @@
+{
+  "codex_cli_version": "0.146.0",
+  "schema_channel": "non-experimental",
+  "experimental_api": false,
+  "generation_command": "codex app-server generate-json-schema --out <temp-dir>",
+  "generated_schema_artifact": "codex_app_server_protocol.v2.schemas.json",
+  "generated_schema_hash_encoding": "UTF-8 JSON with object keys recursively sorted lexicographically and array order preserved",
+  "generated_schema_sha256": "b767c1161c2c56341f3d0e313b4f93810b4b53bdaabeff95c06e1242cfc4df03",
+  "supported_methods": [
+    "initialize",
+    "thread/start",
+    "thread/resume",
+    "turn/start",
+    "turn/steer",
+    "turn/interrupt"
+  ],
+  "supported_lifecycle_notifications": [
+    "thread/started",
+    "turn/started",
+    "turn/completed",
+    "item/agentMessage/delta",
+    "error"
+  ]
+}
