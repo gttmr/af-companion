@@ -304,6 +304,7 @@ export function candidateSemanticReadinessIssues(candidate: unknown): string[] {
 export function graphOwnershipReadinessIssues(graph: unknown): string[] {
   if (!isRecord(graph) || graph.workflow_ref !== null) return [];
   const nodes = Array.isArray(graph.nodes) ? graph.nodes.filter(isRecord) : [];
+  if (isStandaloneAgentDelegationTopology(graph, nodes)) return [];
   const privateOrControlKinds = new Set(["function", "human_input", "subworkflow", "join"]);
   const privateOrControlNodes = nodes.filter((node) => privateOrControlKinds.has(String(node.node_kind)));
   const explicitExecutionNodes = nodes.filter((node) =>
@@ -319,6 +320,55 @@ export function graphOwnershipReadinessIssues(graph: unknown): string[] {
   return reasons.length
     ? [`graph.workflow_ref가 null인 standalone Graph에 ${reasons.join("; ")}가 있어 owning approved Workflow가 필요합니다.`]
     : [];
+}
+
+function isStandaloneAgentDelegationTopology(graph: Record<string, unknown>, nodes: Record<string, unknown>[]): boolean {
+  if (nodes.length < 4 || nodes.some((node) => !["input", "agent", "output"].includes(String(node.node_kind)))) {
+    return false;
+  }
+  if (Array.isArray(graph.regions) && graph.regions.length > 0) return false;
+
+  const inputs = nodes.filter((node) => node.node_kind === "input");
+  const agents = nodes.filter((node) => node.node_kind === "agent");
+  const outputs = nodes.filter((node) => node.node_kind === "output");
+  if (inputs.length !== 1 || agents.length < 2 || outputs.length !== 1) return false;
+
+  const nodeIds = nodes.map((node) => node.id);
+  if (nodeIds.some((id) => typeof id !== "string") || new Set(nodeIds).size !== nodes.length) return false;
+
+  if (!Array.isArray(graph.edges) || !graph.edges.every(isRecord)) return false;
+  const edges = graph.edges;
+  if (edges.some((edge) => edge.channel !== null || !isRecord(edge.control) || edge.control.kind !== "next")) {
+    return false;
+  }
+
+  const inputId = inputs[0]!.id;
+  const outputId = outputs[0]!.id;
+  const rootCandidates = agents.filter((agent) =>
+    edges.some((edge) => edge.from === inputId && edge.to === agent.id)
+      && edges.some((edge) => edge.from === agent.id && edge.to === outputId)
+  );
+  if (rootCandidates.length !== 1) return false;
+
+  const rootId = rootCandidates[0]!.id;
+  const delegatedIds = new Set(agents.filter((agent) => agent.id !== rootId).map((agent) => agent.id));
+  let rootIngress = 0;
+  let rootEgress = 0;
+  const delegatedIncoming = new Map([...delegatedIds].map((id) => [id, 0]));
+
+  for (const edge of edges) {
+    const ingress = edge.from === inputId && edge.to === rootId;
+    const egress = edge.from === rootId && edge.to === outputId;
+    const delegation = edge.from === rootId && delegatedIds.has(edge.to);
+    if (!ingress && !egress && !delegation) return false;
+    if (ingress) rootIngress += 1;
+    if (egress) rootEgress += 1;
+    if (delegation) delegatedIncoming.set(edge.to, (delegatedIncoming.get(edge.to) ?? 0) + 1);
+  }
+
+  return rootIngress === 1
+    && rootEgress === 1
+    && [...delegatedIncoming.values()].every((incoming) => incoming === 1);
 }
 
 export function approvedGraphReferenceIssues(assets: readonly AssetCandidate[], graph: GraphIR): string[] {

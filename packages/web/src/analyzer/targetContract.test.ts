@@ -12,6 +12,45 @@ standaloneAgent.assetCandidates = [standaloneAgent.assetCandidates[1]!];
 standaloneAgent.graph = { ...standaloneAgent.graph, workflow_ref: null };
 assert.deepEqual(validateTargetAnalysisResult(standaloneAgent), [], "one standalone Agent remains valid");
 
+const delegatedAgent = assetCandidate({
+  asset_id: "agent.specialist",
+  name: "Specialist Agent"
+});
+const standaloneDelegation = strictAnalysisFixture();
+standaloneDelegation.assetCandidates = [standaloneDelegation.assetCandidates[1]!, delegatedAgent];
+standaloneDelegation.graph = {
+  ...standaloneDelegation.graph,
+  workflow_ref: null,
+  nodes: [
+    { id: "node-input", label: "Input", node_kind: "input" },
+    { id: "node-agent", label: "Reviewer", node_kind: "agent", agent_ref: "agent.reviewer", available_tools: [] },
+    { id: "node-specialist", label: "Specialist", node_kind: "agent", agent_ref: "agent.specialist", available_tools: [] },
+    { id: "node-output", label: "Output", node_kind: "output" }
+  ],
+  edges: [
+    { id: "edge-input-root", from: "node-input", to: "node-agent", control: { kind: "next", condition: null, accepted_aliases: [], default: false }, channel: null },
+    { id: "edge-root-specialist", from: "node-agent", to: "node-specialist", control: { kind: "next", condition: null, accepted_aliases: [], default: false }, channel: null },
+    { id: "edge-root-output", from: "node-agent", to: "node-output", control: { kind: "next", condition: null, accepted_aliases: [], default: false }, channel: null }
+  ],
+  regions: []
+};
+assert.deepEqual(
+  validateTargetAnalysisResult(standaloneDelegation),
+  [],
+  "canonical standalone Agent delegation remains valid"
+);
+
+const sequencedStandaloneAgents = structuredClone(standaloneDelegation);
+sequencedStandaloneAgents.graph.edges[1] = {
+  ...sequencedStandaloneAgents.graph.edges[1]!,
+  from: "node-specialist",
+  to: "node-output"
+};
+assert.ok(
+  validateTargetAnalysisResult(sequencedStandaloneAgents).some((error) => error.includes("owning approved Workflow")),
+  "explicit Agent sequencing still requires an owning Workflow"
+);
+
 const standaloneTool = strictAnalysisFixture();
 const tool = assetCandidate({
   asset_id: "tool.lookup",

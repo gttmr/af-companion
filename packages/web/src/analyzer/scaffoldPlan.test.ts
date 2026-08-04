@@ -256,6 +256,28 @@ assert.ok(duplicateRuntimePlan.validation.blockers.some((blocker) => blocker.inc
 
 const standaloneAgentPlan = planFor([analysis.assetCandidates[1]!], { ...analysis.graph, workflow_ref: null });
 assert.equal(standaloneAgentPlan.validation.can_generate_source, true);
+const standaloneDelegatedAgent = assetCandidate({ asset_id: "agent.specialist", name: "Specialist Agent" });
+const standaloneDelegationGraph: GraphIR = {
+  ...analysis.graph,
+  workflow_ref: null,
+  nodes: [
+    { id: "node-input", label: "Input", node_kind: "input" },
+    { id: "node-agent", label: "Reviewer", node_kind: "agent", agent_ref: "agent.reviewer", available_tools: [] },
+    { id: "node-specialist", label: "Specialist", node_kind: "agent", agent_ref: "agent.specialist", available_tools: [] },
+    { id: "node-output", label: "Output", node_kind: "output" }
+  ],
+  edges: [
+    { id: "edge-input-root", from: "node-input", to: "node-agent", control: { kind: "next", condition: null, accepted_aliases: [], default: false }, channel: null },
+    { id: "edge-root-specialist", from: "node-agent", to: "node-specialist", control: { kind: "next", condition: null, accepted_aliases: [], default: false }, channel: null },
+    { id: "edge-root-output", from: "node-agent", to: "node-output", control: { kind: "next", condition: null, accepted_aliases: [], default: false }, channel: null }
+  ],
+  regions: []
+};
+const standaloneDelegationPlan = planFor(
+  [analysis.assetCandidates[1]!, standaloneDelegatedAgent],
+  standaloneDelegationGraph
+);
+assert.equal(standaloneDelegationPlan.validation.can_generate_source, true);
 const standaloneToolPlan = planFor([approvedTool], {
   ...runtimeGraph,
   nodes: [{ id: "node-tool", label: "Lookup", node_kind: "tool", tool_ref: approvedTool.asset_id, invocation_control: "workflow" }]
