@@ -8,6 +8,13 @@
 - 최신 항목이 위로 오는 역시간순. 항목 형식: 날짜 · PR/머지 커밋 · 결정 요약 · 배경(왜) · 영향 범위.
 - 결정을 되돌리거나 대체하면 과거 항목을 지우지 말고 새 항목에서 `(대체: YYYY-MM-DD 항목)`으로 연결한다.
 
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — managed App의 최초 local Git baseline 소유권
+
+- **결정**: App Manager가 새 App 생성 중 local `main` branch에 `chore: initialize Companion app workspace` commit 하나를 만든다. 이 baseline은 `.gitignore`, App manifest, exact Asset binding 문서, Graph 네 파일만 포함하며 command-scoped `Agent Factory Companion <companion@agent-factory.local>` identity를 사용한다. 사용자 global Git identity는 바꾸지 않는다.
+- **소유권 경계**: Codex config, capability, presentation, workspace state, UI context는 ignored private/runtime state다. Baseline 뒤의 Graph·Asset·runtime source 변경과 commit history는 사용자 또는 해당 App에서 동작하는 Codex가 소유한다. App Manager는 후속 commit, remote 생성, push를 하지 않는다. (구체화: 2026-08-04 primary Companion의 App 저장소 경계)
+- **원자성**: baseline path set을 명시적으로 stage하고 검증한 뒤, manager-owned commit에 user hook과 GPG signing을 적용하지 않는다. Commit이 실패하면 staging directory를 제거하고 최종 App path를 노출하지 않는다.
+- **영향**: `packages/companion/graph-control-server` App 생성 트랜잭션과 실제 Git regression, primary README·architecture·acceptance 결과, root product status. Work Item 생성, ADK scaffold, Registry authority에는 변화가 없다.
+
 ## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — primary Companion이 Asset lifecycle UX를 소유
 
 - **결정**: primary `packages/companion`에 repository-global `Assets` workspace를 추가한다. Draft create/update와 review/publish/deprecate 사용자 흐름은 Companion이 소유하지만, strict validation, contract hash, lock, Registry revision 비교, lifecycle transition, atomic write는 기존 shared `AssetRegistryService`만 수행한다. CLI는 동등한 보조 진입점으로 유지한다. (대체: 2026-08-04 항목의 “Asset lifecycle mutation은 이 화면의 권한이 아니다” 조항)

@@ -17,9 +17,12 @@ git rev-parse --short HEAD
   exact published Asset bindings, the canonical Graph writer, Context v2,
   read/write MCP, live Web synchronization, and the VS Code extension entry
   point.
-- Generated App repositories are user-controlled and independent. They are not
-  part of this repository's commit or push flow unless the user separately
-  configures their own remote.
+- Generated App repositories are independent. App creation makes one clean
+  manager-owned baseline commit on local `main` containing only `.gitignore`,
+  the App manifest, exact Asset bindings, and Graph. All later source, Graph,
+  Asset, and commit history is user/Codex-controlled. These repositories are
+  not part of this repository's commit or push flow, and the manager creates no
+  remote and performs no push.
 - `packages/web` remains implemented and test-covered as the legacy Agent
   Factory Work Item lifecycle surface. No route redirect or source removal is
   claimed yet; new work should modify it only when the task explicitly targets

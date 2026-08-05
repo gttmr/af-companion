@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
-import { lstat, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { chmod, lstat, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { promisify } from "node:util";
 import type { CompanionAssetCard } from "@agent-factory/companion-contracts";
 import { ActiveAppWorkspaceController, AppWorkspaceError, type AssetCatalog } from "../src/index.js";
 
+const execFileAsync = promisify(execFile);
 const revision = "a".repeat(64);
 const assets: CompanionAssetCard[] = [
   { asset_id: "agent.review", asset_type: "agent", version: 1, status: "published", name: "검토 Agent", responsibility: "검토", capability_tags: [], contract_hash: "1".repeat(64) },
@@ -29,6 +32,11 @@ async function managerRoot() {
   return { root, manager };
 }
 
+async function gitOutput(projectRoot: string, args: string[]): Promise<string> {
+  const { stdout } = await execFileAsync("git", args, { cwd: projectRoot });
+  return stdout.replace(/\r?\n$/u, "");
+}
+
 test("creates a private Git app workspace with a minimal Graph and exact MCP cwd", async (t) => {
   const { root, manager } = await managerRoot();
   t.after(async () => { await manager.close(); await rm(root, { recursive: true, force: true }); });
@@ -46,6 +54,52 @@ test("creates a private Git app workspace with a minimal Graph and exact MCP cwd
   assert.match(config, new RegExp(JSON.stringify(appRoot).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.equal((await lstat(join(appRoot, ".codex/config.toml"))).mode & 0o777, 0o600);
   assert.equal((await lstat(join(appRoot, ".agent-factory/companion-capability.json"))).mode & 0o777, 0o600);
+  assert.equal(await gitOutput(appRoot, ["branch", "--show-current"]), "main");
+  assert.equal(await gitOutput(appRoot, ["rev-list", "--count", "HEAD"]), "1");
+  assert.deepEqual((await gitOutput(appRoot, ["log", "-1", "--format=%s%n%an%n%ae%n%cn%n%ce"])).split("\n"), [
+    "chore: initialize Companion app workspace",
+    "Agent Factory Companion",
+    "companion@agent-factory.local",
+    "Agent Factory Companion",
+    "companion@agent-factory.local",
+  ]);
+  assert.deepEqual((await gitOutput(appRoot, ["ls-tree", "-r", "--name-only", "HEAD"])).split("\n").sort(), [
+    ".agent-factory/companion-app.json",
+    ".agent-factory/companion-assets.json",
+    ".agent-factory/companion-graph.json",
+    ".gitignore",
+  ].sort());
+  assert.equal(await gitOutput(appRoot, ["status", "--porcelain=v1", "--untracked-files=all"]), "");
+  assert.equal(await gitOutput(appRoot, ["remote"]), "");
+  assert.doesNotMatch(await gitOutput(appRoot, ["config", "--local", "--list"]), /^user\./mu);
+});
+
+test("does not expose an App when the manager-owned initial Git commit fails", async (t) => {
+  const { root, manager } = await managerRoot();
+  const fakeBin = await mkdtemp(join(tmpdir(), "companion-git-shim-"));
+  t.after(async () => { await manager.close(); await rm(root, { recursive: true, force: true }); await rm(fakeBin, { recursive: true, force: true }); });
+  const gitShim = join(fakeBin, "git");
+  await writeFile(gitShim, [
+    "#!/usr/bin/env node",
+    'const { spawnSync } = require("node:child_process");',
+    "const args = process.argv.slice(2);",
+    'if (args.includes("commit")) process.exit(73);',
+    'const result = spawnSync("git", args, { stdio: "inherit", env: { ...process.env, PATH: process.env.COMPANION_TEST_REAL_PATH } });',
+    "process.exit(result.status ?? 1);",
+    "",
+  ].join("\n"), "utf8");
+  await chmod(gitShim, 0o700);
+  const originalPath = process.env.PATH ?? "";
+  process.env.COMPANION_TEST_REAL_PATH = originalPath;
+  process.env.PATH = `${fakeBin}:${originalPath}`;
+  try {
+    await assert.rejects(() => manager.createApp("failed-app", "실패 App"), (error: unknown) => error instanceof AppWorkspaceError && error.code === "initial_git_commit_failed");
+  } finally {
+    process.env.PATH = originalPath;
+    delete process.env.COMPANION_TEST_REAL_PATH;
+  }
+  assert.equal(await lstat(join(root, "failed-app")).catch(() => null), null);
+  assert.deepEqual((await readdir(root)).filter((name) => name.startsWith(".creating-")), []);
 });
 
 test("switching apps invalidates the old MCP capability and restores the active app after restart", async (t) => {
@@ -88,6 +142,12 @@ test("published exact bindings gate typed Graph references and referenced bindin
   await assert.rejects(() => manager.unbindAsset("agent.review", bound.assets_revision), (error: unknown) => error instanceof AppWorkspaceError && error.code === "asset_binding_in_use");
   await assert.rejects(() => manager.apply(result.workspace.graph_revision, [{ op: "add", target: "node", value: { id: "node.unbound", label: "검색", node_kind: "tool", tool_ref: "tool.search", invocation_control: "workflow" } }], "web"), /app에 먼저 추가/);
   await assert.rejects(() => manager.apply(result.workspace.graph_revision, [{ op: "add", target: "node", value: { id: "node.wrong-type", label: "잘못된 Tool", node_kind: "tool", tool_ref: "agent.review", invocation_control: "workflow" } }], "web"), /tool Asset/);
+  const appRoot = join(root, "asset-app");
+  assert.equal(await gitOutput(appRoot, ["rev-list", "--count", "HEAD"]), "1");
+  assert.deepEqual((await gitOutput(appRoot, ["status", "--porcelain=v1", "--untracked-files=all"])).split("\n").sort(), [
+    " M .agent-factory/companion-assets.json",
+    " M .agent-factory/companion-graph.json",
+  ].sort());
 });
 
 test("binding writes use Registry and binding revisions as independent CAS boundaries", async (t) => {

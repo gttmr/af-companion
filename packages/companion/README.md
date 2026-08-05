@@ -32,6 +32,14 @@ own Git repository, Companion manifest, exact Asset binding document, minimal
 `Input -> Output` Graph, and project-local Codex MCP config. It does not create
 a Work Item or ADK source scaffold.
 
+Creation also makes exactly one local baseline commit on `main` with the
+message `chore: initialize Companion app workspace`. That commit contains only
+`.gitignore`, the App manifest, the Asset binding document, and the Graph. The
+project-local Codex config and Companion runtime state remain ignored. The App
+Manager creates no remote, never pushes, and makes no later commits; subsequent
+Graph, Asset, and runtime-source history belongs to the user or Codex operating
+inside that App repository.
+
 The active App Graph is
 `~/work/af-companion-apps/<app-id>/.agent-factory/companion-graph.json`.
 Direct editing is supported only as a validated recovery/import path; normal

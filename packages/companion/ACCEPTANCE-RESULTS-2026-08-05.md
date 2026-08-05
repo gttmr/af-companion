@@ -45,15 +45,18 @@
   바꿔 `invalid_arguments`가 됐고, 다른 한 번은 revision을 읽지 못했다고
   판단해 안전하게 write를 생략했다. exact operation 계약을 명시한 요청은
   성공했다. Tool의 fail-closed 동작은 맞지만 prompt 민감도는 남아 있다.
-- 생성 App Git repository는 독립적으로 초기화되지만 이 실행 시점에는 아직
-  commit이 없다. local commit을 누가 언제 만드는지는 PR ready 전 별도 제품
-  정책과 구현으로 닫아야 한다. remote는 자동 생성하거나 push하지 않는다.
+- 이 격리 실행 시점의 생성 App Git repository에는 commit이 없었다. 이후
+  같은 Draft PR에서 App Manager가 `main`에 정확히 네 파일의 baseline commit
+  하나를 만들고, 후속 변경은 commit하지 않으며 remote를 만들거나 push하지
+  않는 정책을 구현했다. 실제 Git integration test가 commit identity/tree와
+  실패 시 App 미노출을 검증하므로 이 제품 경계는 닫혔다. 기존 acceptance
+  fixture의 과거 상태를 소급해 바꾸지는 않았다.
 - GitHub CI가 없으므로 아래 local verification을 원격 check가 재실행하지
   않는다.
 
 ## 자동 검증
 
-- `packages/companion`: build와 전체 69 tests 통과
+- `packages/companion`: build와 전체 70 tests 통과
 - `packages/companion`: 전체 workspace typecheck 통과
 - pinned Codex App Server schema: `codex-cli 0.146.0`, canonical hash 검증 통과
 - repository root: `node scripts/validate-artifacts.mjs` 통과

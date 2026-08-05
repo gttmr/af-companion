@@ -99,8 +99,21 @@ pass.
 The greenfield surface owns one active App at a time. It does not import the
 mixed legacy `~/work/af-apps` tree and does not accept browser-supplied paths.
 New Apps are atomically created below `~/work/af-companion-apps` (or the
-server-only `COMPANION_APPLICATIONS_ROOT`) with only Git, Companion manifests,
-the minimal Graph, and Codex MCP configuration.
+server-only `COMPANION_APPLICATIONS_ROOT`) with Git, Companion manifests, the
+minimal Graph, presentation state, and Codex MCP configuration. Before the
+staging directory is renamed into the visible App path, the manager creates one
+baseline commit on `main` using its command-scoped `Agent Factory Companion
+<companion@agent-factory.local>` identity. The commit contains exactly
+`.gitignore`, `.agent-factory/companion-app.json`,
+`.agent-factory/companion-assets.json`, and
+`.agent-factory/companion-graph.json`. Commit hooks and GPG signing are disabled
+for this one manager-owned operation; failure removes the staging directory and
+exposes no partial App.
+
+Codex config, capability, presentation, workspace state, and UI context remain
+ignored private/runtime state. The manager creates no remote, performs no push,
+and does not commit later Graph or Asset edits. Runtime source and all history
+after the baseline are owned by the user or Codex in the App repository.
 
 Switching Apps closes the previous Graph watcher, writes an inactive capability
 to the old App, opens the new canonical workspace, and rotates the current

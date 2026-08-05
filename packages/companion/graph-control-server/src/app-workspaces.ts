@@ -36,8 +36,21 @@ const execFileAsync = promisify(execFile);
 const APP_ID = /^[a-z][a-z0-9-]{1,62}$/u;
 const MANIFEST_PATH = ".agent-factory/companion-app.json";
 const ASSETS_PATH = ".agent-factory/companion-assets.json";
+const GRAPH_PATH = ".agent-factory/companion-graph.json";
 const ROOT_STATE_PATH = ".companion-state.json";
 const DEFAULT_CAPABILITY_PATH = ".agent-factory/companion-capability.json";
+const INITIAL_GIT_BRANCH = "main";
+const INITIAL_GIT_COMMIT_MESSAGE = "chore: initialize Companion app workspace";
+const INITIAL_GIT_IDENTITY = {
+  name: "Agent Factory Companion",
+  email: "companion@agent-factory.local",
+} as const;
+const INITIAL_GIT_PATHS = [
+  ".gitignore",
+  MANIFEST_PATH,
+  ASSETS_PATH,
+  GRAPH_PATH,
+] as const;
 
 export interface AssetCatalog {
   snapshotRevision(): string;
@@ -119,12 +132,12 @@ export class ActiveAppWorkspaceController implements GraphWorkspaceController {
       const stage = join(this.applicationsRoot, `.creating-${applicationId}-${randomBytes(6).toString("hex")}`);
       try {
         await mkdir(stage, { mode: 0o700 });
-        await execFileAsync("git", ["init", "--quiet", stage], { cwd: this.applicationsRoot });
+        await execFileAsync("git", ["init", "--quiet", `--initial-branch=${INITIAL_GIT_BRANCH}`, stage], { cwd: this.applicationsRoot });
         const createdAt = this.#iso();
         const manifest: CompanionAppManifest = { schema_version: 1, application_id: applicationId, display_name: displayName, created_at: createdAt };
         await writeAtomicJson(stage, MANIFEST_PATH, manifest);
         await writeAtomicJson(stage, ASSETS_PATH, emptyBindings());
-        await writeAtomicJson(stage, ".agent-factory/companion-graph.json", createMinimalAppGraph(applicationId));
+        await writeAtomicJson(stage, GRAPH_PATH, createMinimalAppGraph(applicationId));
         await writeAtomicJson(stage, ".agent-factory/companion-presentation.json", createMinimalAppPresentation());
         await writePrivateText(stage, ".gitignore", [
           ".codex/config.toml",
@@ -135,6 +148,7 @@ export class ActiveAppWorkspaceController implements GraphWorkspaceController {
           "",
         ].join("\n"));
         await writePrivateText(stage, ".codex/config.toml", generatedCodexConfig(target, this.options.mcpBinPath));
+        await createInitialGitCommit(stage);
         await rename(stage, target);
       } catch (error) {
         await rm(stage, { recursive: true, force: true }).catch(() => undefined);
@@ -369,6 +383,37 @@ function generatedCodexConfig(projectRoot: string, mcpBinPath: string): string {
     "tool_timeout_sec = 10",
     "",
   ].join("\n");
+}
+
+async function createInitialGitCommit(projectRoot: string): Promise<void> {
+  try {
+    await execFileAsync("git", ["add", "--force", "--", ...INITIAL_GIT_PATHS], { cwd: projectRoot });
+    const { stdout } = await execFileAsync("git", ["diff", "--cached", "--name-only", "--diff-filter=ACMRTUXB", "--"], { cwd: projectRoot });
+    const stagedPaths = stdout.split(/\r?\n/u).filter(Boolean).sort();
+    const expectedPaths = [...INITIAL_GIT_PATHS].sort();
+    if (stagedPaths.length !== expectedPaths.length || stagedPaths.some((path, index) => path !== expectedPaths[index])) {
+      throw new AppWorkspaceError(500, "initial_git_stage_mismatch", "App의 최초 Git commit 대상이 허용된 baseline과 일치하지 않습니다.");
+    }
+    await execFileAsync("git", [
+      "-c", `user.name=${INITIAL_GIT_IDENTITY.name}`,
+      "-c", `user.email=${INITIAL_GIT_IDENTITY.email}`,
+      "-c", "commit.gpgSign=false",
+      "-c", "core.hooksPath=/dev/null",
+      "commit", "--quiet", "--no-verify", "--message", INITIAL_GIT_COMMIT_MESSAGE,
+    ], {
+      cwd: projectRoot,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: INITIAL_GIT_IDENTITY.name,
+        GIT_AUTHOR_EMAIL: INITIAL_GIT_IDENTITY.email,
+        GIT_COMMITTER_NAME: INITIAL_GIT_IDENTITY.name,
+        GIT_COMMITTER_EMAIL: INITIAL_GIT_IDENTITY.email,
+      },
+    });
+  } catch (error) {
+    if (error instanceof AppWorkspaceError) throw error;
+    throw new AppWorkspaceError(500, "initial_git_commit_failed", "App의 최초 local Git commit을 만들지 못했습니다.");
+  }
 }
 
 async function ensureRealRoot(path: string): Promise<void> {

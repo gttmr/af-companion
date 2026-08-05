@@ -9,9 +9,27 @@
 
 1. `새 App`에서 App ID와 표시 이름을 입력한다.
 2. 생성된 Graph가 `입력 → 출력` 두 Node와 Edge 하나인지 확인한다.
-3. `Published Assets`에서 Agent, Workflow, Tool을 각각 검색하고 하나를
+3. Asset이나 Graph를 바꾸기 전에 생성된 App root에서 다음을 확인한다.
+
+   ```bash
+   git branch --show-current
+   git log -1 --format='%s%n%an%n%ae'
+   git ls-tree -r --name-only HEAD
+   git status --short
+   git remote
+   ```
+
+   branch는 `main`, commit은 하나이며 제목은
+   `chore: initialize Companion app workspace`, 작성자는
+   `Agent Factory Companion <companion@agent-factory.local>`이어야 한다. Tree는
+   `.gitignore`와 App manifest, Asset binding, Graph 네 파일만 포함해야 한다.
+   최초 status와 remote 출력은 비어 있어야 한다.
+4. `Published Assets`에서 Agent, Workflow, Tool을 각각 검색하고 하나를
    `App + Node 추가`한다.
-4. Graph를 저장한다.
+5. Graph를 저장한다.
+6. `git rev-list --count HEAD`가 계속 `1`이고 `git status --short`에 Asset
+   binding과 Graph 변경이 나타나는지 확인한다. App Manager는 최초 baseline
+   이후 자동 commit하거나 remote에 push하지 않는다.
 
 ## Asset lifecycle
 
