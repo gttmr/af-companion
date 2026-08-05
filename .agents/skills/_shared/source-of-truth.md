@@ -19,14 +19,15 @@ Use this order, scoped to the question being answered:
 
 1. Active Agent Factory vNext decisions and approved work orders own Target concepts and operating rules.
 2. Current repository source, schema, validator, CLI, and tests own Current Implementation behavior.
-3. Official ADK documentation owns documented framework semantics.
-4. Installed `google-adk` source and execution own version-specific availability and signatures.
-5. Local Google Agents CLI skills (globally installed `google-agents-cli-*`) are the standalone ADK-development base. Ordinary CLI-only ADK design, scaffold, code, test, eval, deploy, publish, and observe work must remain usable without a Companion session, Agent Factory Work Item, Registry revision, or Agent Factory review gate.
-6. This repository's `af-*` skills are an Agent Factory overlay, not a replacement ADK lifecycle. They own Agent Factory taxonomy, strict artifacts, Work Item revisions, Graph IR, Asset Registry decisions, review gates, and generated-runtime lowering only after an explicit Agent Factory scope exists. Companion references add enrollment, transport, write authority, and provenance only for that scoped lifecycle. Repository cwd or simultaneous skill visibility alone does not activate the overlay. The `_shared/adk` cards record exact-version corrections and Agent Factory lowering deltas; they do not fork the standalone ADK skill set.
+3. Execution and validators in the exact installed `google-adk` baseline own observed version-specific behavior.
+4. Exact installed `google-adk` source, exports, and signatures own version-specific availability and API shape.
+5. Official ADK documentation owns documented framework intent, but it does not override a reproducible exact-version result.
+6. Local Google Agents CLI skills (globally installed `google-agents-cli-*`) are the standalone ADK-development base. Ordinary CLI-only ADK design, scaffold, code, test, eval, deploy, publish, and observe work must remain usable without a Companion session, Agent Factory Work Item, Registry revision, or Agent Factory review gate.
+7. This repository's `af-*` skills are an Agent Factory overlay, not a replacement ADK lifecycle. They own Agent Factory taxonomy, strict artifacts, Work Item revisions, Graph IR, Asset Registry decisions, review gates, and generated-runtime lowering only after an explicit Agent Factory scope exists. Companion references add enrollment, transport, write authority, and provenance only for that scoped lifecycle. Repository cwd or simultaneous skill visibility alone does not activate the overlay. The `_shared/adk` cards record exact-version corrections and Agent Factory lowering deltas; they do not fork the standalone ADK skill set.
 
-   When both layers apply, reuse the standalone skills' ADK API, coding, test, evaluation, and operational guidance, then add the Agent Factory artifact/lowering constraints, then apply Companion transport/provenance at the durable-write boundary. The approved Agent Factory requirement, discovery, composition, and scaffold artifacts are the specification and scaffold authority for that path: do not restart a duplicate `.agents-cli-spec.md` dialogue or run `agents-cli scaffold create` unless the approved scaffold plan explicitly selects it. A measured collision showed that both skill families can be visible with no observed runtime ranking; solve that with an explicit scope boundary, not with a blanket instruction to prefer one lifecycle. Where any skill disagrees on a framework fact, rules 3 and 4 still decide. For example, the current Google card says `output_schema` disables tool calling, while installed 2.4.0 source disproves that claim.
-7. Retired or pre-vNext Agent Factory skills are salvage sources only; the canonical five-skill tree is active procedure.
-8. Archive and handoff material are historical evidence, never active authority.
+   When both layers apply, reuse the standalone skills' ADK API, coding, test, evaluation, and operational guidance, then add the Agent Factory artifact/lowering constraints, then apply Companion transport/provenance at the durable-write boundary. The approved Agent Factory requirement, discovery, composition, and scaffold artifacts are the specification and scaffold authority for that path: do not restart a duplicate `.agents-cli-spec.md` dialogue or run `agents-cli scaffold create` unless the approved scaffold plan explicitly selects it. A measured collision showed that both skill families can be visible with no observed runtime ranking; solve that with an explicit scope boundary, not with a blanket instruction to prefer one lifecycle. Where any skill disagrees on a framework fact, rules 3 through 5 decide. For example, the current Google card says `output_schema` disables tool calling, while installed 2.4.0 source and execution disprove that claim.
+8. Only the AF skills enrolled by the current bundle manifest are active procedure. Retired or pre-vNext skills are salvage sources. Names and count are not compatibility constraints: change them when evidence shows overlapping primary intent, missing ownership, or avoidable prompt load; otherwise keep the smallest one-intent boundaries.
+9. Archive and handoff material are historical evidence, never active authority.
 
 ## Writing a rule into a card
 
@@ -106,8 +107,9 @@ Stop and report a Blocker when:
 
 ## Checked date
 
-- Checked date: 2026-07-31
+- Checked date: 2026-08-05
 - Official sources: Agent Factory active docs and `https://adk.dev/`
 - Installed package version: `google-adk 2.4.0`
 - Contract note: Canonical skills use strict Target Contract v2 artifacts and Work Item schema version 2 without legacy projection.
 - 2026-07-31: a collision run showed both skill families visible with no observed runtime ranking. The resulting boundary is layered rather than competitive: Google Agents CLI skills remain the standalone ADK base, Agent Factory skills add product/lifecycle constraints only for explicit Agent Factory scope, and Companion adds transport/provenance only at that boundary. The same experiment showed that a false requirement is obeyed while a false prohibition is fact-checked, so scope every `must` and cite the symbol that enforces it.
+- 2026-08-05: exact 2.4 runtime and source now precede documentation and installed Google Skills for framework facts. Session 1 retained five AF skills only after a one-primary-intent audit; the manifest, not a fixed historical count or name list, owns bundle membership.

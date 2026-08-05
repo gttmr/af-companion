@@ -49,7 +49,15 @@ from google.adk.events import RequestInput
 
 `RequestInput` has `interrupt_id: str`, optional `payload`, optional `message`, and optional `response_schema`. When yielded by a Workflow node, installed runtime converts it to a function call named `adk_request_input`, uses `interrupt_id` as the call ID, and marks it long-running.
 
-Resume sends a `google.genai.types.FunctionResponse` with the same ID and name inside `new_message`. Runner forbids mixing that function response with text and matches it to the prior call. The helper `create_request_input_response(interrupt_id, response)` exists only in an internal workflow utility; it is not exported from `google.adk.events` in installed 2.4.0. Build the `types.Part(function_response=...)` directly or consciously isolate internal usage.
+Resume sends a `google.genai.types.FunctionResponse` with the same ID and name inside `new_message`. For a primitive answer, the exact response envelope is `response={"result": answer}`; passing the primitive directly is not the accepted FunctionResponse mapping. Runner forbids mixing that function response with text and matches it to the prior call. The helper `create_request_input_response(interrupt_id, response)` exists only in an internal workflow utility; it is not exported from `google.adk.events` in installed 2.4.0. Build the `types.Part(function_response=...)` directly or consciously isolate internal usage.
+
+```python
+types.Part(function_response=types.FunctionResponse(
+    id=interrupt_id,
+    name="adk_request_input",
+    response={"result": answer},
+))
+```
 
 Verified Function Node surface:
 
@@ -97,7 +105,7 @@ Completion is signalled by the auto-injected `finish_task` tool: `FinishTaskTool
 
 ## Failure / Retry / Timeout
 
-Define expiry, cancellation, duplicate response, and stale invocation behavior. Protect side-effecting Tools with idempotency keys or durable duplicate checks. Do not modify the Workflow between interruption and resume.
+Define expiry, cancellation, duplicate response, and stale invocation behavior. Exact 2.4 confirmation replay executes the side effect again for the same response; framework correlation is not deduplication. Protect side-effecting Tools with a durable idempotency key or duplicate check. Do not modify the Workflow between interruption and resume.
 
 ## Security / Audit
 
@@ -111,9 +119,10 @@ Authenticate the responder, authorize the decision, minimize payload data, preve
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-31
+- Checked date: 2026-08-05
 - Official sources: ADK human-input and resume documentation
 - Installed package version: `google-adk 2.4.0`
 - Known compatibility note: The response helper is internal, UI/CLI resume is unsupported, and the official `ResumabilityConfig` surface must be rechecked in the installed package before code emission. `mode='task'` pause/completion semantics and the `ctx.run_node` dispatch requirements were verified by execution against installed 2.4.0. The `output_schema`-as-gate-not-transformer behavior was confirmed by reading `agents/llm/task/_finish_task_tool.py` and live-testing against installed 2.4.0.
 - 2026-07-31 re-verification against 2.4.0: `finish_task` still discards its validated output (`del validated_output`), so the normalize-at-the-boundary rule stands. Corrected a false claim that `ResumabilityConfig` "was not included in the installed package probe" — it is installed, has a single `is_resumable: bool = False` field, and this project's own test harness had been importing it all along; resumption is therefore off by default. Added the two `rerun_on_resume` resume semantics (the `False` default makes the user's response the node output) and the per-iteration `interrupt_id` rule for loops.
 - Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.
+- 2026-08-05 runtime corrections: primitive RequestInput responses use `{"result": value}` and replaying one Tool-confirmation response repeats the side effect unless the application deduplicates it.

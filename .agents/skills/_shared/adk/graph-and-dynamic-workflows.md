@@ -21,7 +21,7 @@ Lower an approved Workflow into a static Graph or a dynamic runtime-selected sha
 - Do not place a `mode='task'` agent as a static graph node. `_validate_no_task_mode_graph_nodes` raises `ValueError` (`workflow/_workflow.py`): on re-entry the scheduler overwrites `node_input` with the latest user message, losing the task brief. The only two legal placements are (a) a sub-agent of a `mode='chat'` coordinator via function-call delegation, or (b) dispatched with `await ctx.run_node(...)` from inside a `FunctionNode`.
 - Do not wire a `mode='chat'` graph node anywhere except directly after `START`. `_validate_chat_agent_wiring` raises `ValueError` otherwise (`workflow/utils/_graph_validation.py` — moved out of `_graph.py` in 2.4.0); chat agents rely on session history and cannot consume direct node inputs.
 - Do not set `wait_for_output` manually on task/chat nodes; it is applied automatically (`workflow/utils/_workflow_graph_utils.py`). Exception: a `FunctionNode` that wraps a `ctx.run_node` dispatch to a task agent gets no such auto-treatment and must set it by hand — see Scaffold Output.
-- Do not treat multiple incoming edges as a barrier. Multiple in-edges are OR: the node fires on the first trigger and runs once. Only `JoinNode` is AND.
+- Do not treat multiple ordinary incoming edges as a barrier or a single-run OR. The node executes once for every predecessor trigger that reaches it. Only `JoinNode` is an all-predecessor barrier and executes once after its required inputs arrive.
 
 ## Required questions
 
@@ -119,7 +119,7 @@ A `FunctionNode`'s parameters are resolved by name, not by position: `ctx` recei
 
 `Workflow` does not support live/bidi streaming: it never overrides `_run_live_impl`, so `Runner.run_live` reaches the `BaseAgent` default and raises `NotImplementedError`. Use a plain agent for live flows. The graph runtime also requires Python ≥ 3.11.
 
-Fan-in semantics: multiple incoming edges are OR, so a `FunctionNode` with two in-edges fires on the first trigger and runs once. `JoinNode` is the only AND and requires all predecessors. A join delivers an aggregated dict keyed by predecessor node name, so a node reachable both through a join and through a bypass edge must normalize two different `node_input` shapes. Because the key is a node *name*, not a stable identifier, renaming a node silently breaks downstream parsing; have downstream code identify each entry by a self-describing field inside its payload (e.g. a `capability` field) rather than by the dict key.
+Fan-in semantics: every ordinary incoming edge is an independent trigger, so a `FunctionNode` with two in-edges may execute twice. There is no implicit deduplication or barrier. `JoinNode` is the only all-predecessor barrier and executes once after all required predecessors arrive. A join delivers an aggregated dict keyed by predecessor node name, so a node reachable both through a join and through a bypass edge must normalize two different `node_input` shapes. Because the key is a node *name*, not a stable identifier, renaming a node silently breaks downstream parsing; have downstream code identify each entry by a self-describing field inside its payload (e.g. a `capability` field) rather than by the dict key.
 
 Preserve valid lowering knowledge from the current generator: static routes use reviewed route dictionaries; explicit or synthesized `JoinNode` handles fan-in; static runnable graphs must be reachable.
 
@@ -146,7 +146,7 @@ Dynamic selection is signaled by an approved dynamic Workflow or dynamic/loop re
 - `mode='task'` node placed statically is rejected, and `mode='chat'` node wired off a non-`START` predecessor is rejected;
 - negative case: `ctx.run_node` without `raise_on_wait=True` loses the pause and completes the caller on turn one;
 - A/B case: `ctx.run_node` without `override_isolation_scope` omits `node_input` from the task agent's LLM request;
-- OR-versus-Join fan-in, including a node that must accept both a join-aggregated dict and a bypass `node_input`;
+- per-trigger ordinary fan-in versus all-predecessor Join, including duplicate downstream execution risk and a node that must accept both a join-aggregated dict and a bypass `node_input`;
 - renaming a predecessor node does not break a downstream node keyed off a self-describing payload field;
 - a paused task-dispatch `FunctionNode` without `wait_for_output=True` lets successors fire while the conversation is still waiting;
 - full multi-turn conversation run to completion, then external tool invocations counted from the audit log — each exactly 1;
@@ -201,9 +201,10 @@ Audit route inputs/results, selected nodes, loop count, exit reason, Tool side e
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-31
+- Checked date: 2026-08-05
 - Official sources: ADK workflows, graphs, routes, and dynamic-workflow documentation
 - Installed package version: `google-adk 2.4.0`
 - Known compatibility note: `ctx.run_node` requires a rerunnable caller, and current generator node/edge limits are Current Implementation constraints that must be reverified before expansion. `LlmAgent.mode` graph-placement rules and the `ctx.run_node` dispatch requirements (`raise_on_wait`, `override_isolation_scope`) were verified by execution against installed 2.4.0, including a deliberate negative test. The `FunctionNode.wait_for_output` requirement for task-dispatch nodes, the join-aggregate node-name keying, and the `rerun_on_resume` whole-graph re-traversal/idempotence requirement were additionally verified by execution and by live-model measurement against a real running workflow. Additionally verified: conditional-cycle static loops are an ADK 2.4.0 capability (`_detect_unconditional_cycles`), separate from the current AF generator's own choice to still lower loop/back-edge shapes dynamically; the five-step dispatch recipe (including result normalization via `Model.model_validate(raw).model_dump()`) was confirmed against installed source.
 - 2026-07-31 re-verification against 2.4.0: every symbol above was re-checked and the behavior is unchanged, but **two of them moved file** — `_validate_chat_agent_wiring` and `_detect_unconditional_cycles` left `workflow/_graph.py` for `workflow/utils/_graph_validation.py`. All private-module line citations in this card were therefore replaced with symbol names: one minor release invalidated every line number while leaving every symbol name intact, so cite symbols first and paths second. Two corrections in the same pass — the `rerun_on_resume` default table was wrong by omission (an `LlmAgent` placed in a graph defaults to `True`), and the claim that routing out of a `FunctionNode` requires an async generator was false (a returned `Event` is a documented pass-through). Added from installed source: `DEFAULT_ROUTE == "__DEFAULT__"`, the `ctx.state` fallback in `FunctionNode` parameter resolution, and the absence of live-streaming support (`Workflow` never overrides `_run_live_impl`, so `Runner.run_live` raises `NotImplementedError`).
 - Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.
+- 2026-08-05 runtime correction: a two-branch experiment proved that an ordinary two-in-edge sink executes once per trigger, while an explicit `JoinNode` executes once after both predecessors. Earlier single-run OR wording was false.

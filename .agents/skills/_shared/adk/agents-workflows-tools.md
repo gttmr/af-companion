@@ -20,7 +20,7 @@ Evidence for several Agents is not, by itself, evidence for a Workflow. Evidence
 - Do not use ADK class names to override Agent Factory Target classification.
 - Do not generate runtime code directly from a raw requirement.
 - Do not use `SequentialAgent`, `ParallelAgent`, or `LoopAgent` for Workflow composition. Those classes do exist in installed 2.4.0 (exported from `google.adk.agents`), so their absence here is a deliberate stance, not a version gap; the graph-based `Workflow` is the composition primitive these cards prescribe.
-- Do not wrap a `Workflow` in `AgentTool` or attach it as an `LlmAgent` sub-agent. `Workflow` is a `BaseNode`, not a `BaseAgent` (`class Workflow(BaseNode)` in `workflow/_workflow.py`), and `AgentTool` takes a `BaseAgent`.
+- Do not wrap a `Workflow` in `AgentTool` or attach it as an `LlmAgent` sub-agent. `Workflow` is a `BaseNode`, not a `BaseAgent` (`class Workflow(BaseNode)` in `workflow/_workflow.py`). `AgentTool(agent: BaseAgent, ...)` documents that boundary but does not enforce it at construction, so Agent Factory must reject the composition before calling the constructor.
 
 ## Required questions
 
@@ -66,7 +66,9 @@ Workflow(*, name, description='', rerun_on_resume=True, wait_for_output=False,
          state_schema=None, edges=[], max_concurrency=None, graph=None)
 ```
 
-Use only reviewed fields. The package evidence did not record a general Agent constructor recipe or Function Tool constructor; inspect installed source before emitting exact parameters beyond the verified surface. Let the repository generator own generated Python when a supported lowering exists.
+Use only reviewed fields. Session 1 verified `FunctionTool(func, *, require_confirmation=False)` and `AgentTool(agent, skip_summarization=False, *, include_plugins=True, propagate_grounding_metadata=False)` in exact 2.4.0; inspect installed source before emitting any surface beyond the recorded inventory. Let the repository generator own generated Python when a supported lowering exists.
+
+`BaseAgent` construction does not provide a complete topology guard. Reusing an already-parented child raises validation, but duplicate sibling names only log an error and construction succeeds; a recursive cycle can also be introduced after construction. Before construction or mutation, Agent Factory must validate globally unique agent names, one parent per child, and an acyclic tree, then fail closed with the offending path.
 
 `LlmAgent.mode` selects the runtime shape of an Agent unit and must be decided alongside the class (`mode: Literal['chat','task','single_turn'] | None` on `LlmAgent`):
 
@@ -95,6 +97,8 @@ and enforcing structure only on the" final response. An older ADK restriction wh
 disabled tool use no longer applies, so a graph-node agent may both call tools and return a typed result.
 
 The globally installed Google skill still carries the old restriction — `google-agents-cli-adk-code/references/adk-python.md` warns that "Using `output_schema` disables tool calling and delegation." That warning is stale; installed source contradicts it. Do not adopt it, and do not weaken this paragraph to agree with it.
+
+Structured-output enforcement also depends on execution context. An exact 2.4 graph `single_turn` agent uses the injected `set_model_response` Tool and validates its arguments client-side; malformed output raises Pydantic validation. A root `chat` agent passes the response schema to the model, but a scripted malformed plain-text response was not rejected client-side. Therefore, do not claim strict root-chat output validation from `output_schema` alone; add and test an explicit application parse/validation boundary when the contract requires one.
 
 `ManagedAgent` (`google.adk.agents.ManagedAgent`, new in 2.4.0) connects to Google's server-hosted agents: reasoning, tools, and execution all run in Google's managed environment. It is a `BaseAgent`, so it can be a sub-agent or wrapped as `AgentTool`. It is **not** a candidate for this lifecycle's default shapes: client-side tools raise `NotImplementedError`, and that includes both Python callables and client-side `McpToolset` — the two things every Tool asset here is built from. Treat it as a watch item; if a requirement genuinely needs server-side execution, raise it as a decision rather than substituting it for an `LlmAgent`.
 
@@ -126,9 +130,10 @@ Keep prompts, state, Tool arguments, and outputs within approved data policy. Pr
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-31
+- Checked date: 2026-08-05
 - Official sources: ADK agents, Agent configuration, workflows, and graphs
 - Installed package version: `google-adk 2.4.0`
 - Known compatibility note: ADK `Agent` aliases `LlmAgent` in the installed package; that alias does not alter the Agent Factory Target responsibility or Invocation Control owner. `LlmAgent.mode` semantics and the `ctx.run_node` dispatch requirements were verified by execution against installed 2.4.0, not by documentation alone. The per-context `mode` default (`chat` as sub-agent, `single_turn` as graph node) and the `mode='task'`/`mode='chat'` graph-placement `ValueError` guards were confirmed against installed source; always set `mode` explicitly rather than relying on context-dependent defaults.
 - 2026-07-31 re-verification against 2.4.0: `mode` semantics, both graph-placement guards, and the `output_schema`+`tools` compatibility were re-checked in installed source and are unchanged. Line citations were replaced with symbol names after two symbols moved file in this release. Recorded that the globally installed Google skill still carries the stale "`output_schema` disables tool calling" warning, which installed source contradicts. Added `ManagedAgent` (new in 2.4.0) as a watch item only — it rejects client-side callables and `McpToolset`, which is what every Tool asset here uses.
 - Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.
+- 2026-08-05 runtime corrections: duplicate sibling names and post-construction cycles require Agent Factory guards; the `AgentTool` annotation is not a runtime type check; graph `single_turn` and root `chat` structured-output enforcement are observably different.

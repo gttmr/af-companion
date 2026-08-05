@@ -10,6 +10,13 @@
 
 ---
 
+## 2026-08-05 · 작업 브랜치 `agent/af-skills-vnext` — exact ADK 2.4 evidence와 offline AF Skills vNext bundle
+
+- **결정**: ADK framework 사실의 우선순위를 exact 2.4 runtime → exact installed source/signature → ADK Docs MCP → installed Google Skill → AF card/generator로 고정한다. `agents-cli 1.3.1`의 generated ADK/A2A 범위가 exact 2.4/0.3을 제외하므로 locally available latest admitting release인 `1.2.1`과 네 Google Skill digest를 bundle compatibility로 채택한다.
+- **Skill 구조**: 기존 다섯 AF Skill을 이름 호환성 때문에 고정하지 않는다. Session 1에서 Route/Discover/Compose/Scaffold/Verify가 각각 하나의 primary intent와 durable output authority를 갖는 최소 경계임을 확인해 유지하며, manifest가 membership을 소유한다. 이후 audit가 overlap, missing owner 또는 context pressure를 증명하면 rename/split/merge할 수 있다.
+- **무결성과 배포 경계**: Google 네 Skill, AF 다섯 Skill과 `_shared`를 user-local common Skill scope에 설치하는 offline bundle을 version, UTF-8 bytewise tree digest, canonical manifest contract digest와 reviewed source에서 별도로 전달한 trusted expected bundle digest로 잠근다. 설치는 기존 tree를 backup하고 receipt로 rollback하며, partial copy도 제거한 뒤 이전 bytes를 복원하고 설치 후 bytes가 바뀌면 삭제하지 않고 fail-closed한다. App별 Google Skill 복사, online install, cloud model, deploy/publish/observe는 포함하지 않는다.
+- **영향**: 70-row capability inventory, 46-case exact runtime harness, five compound topology, nine source conflict, concise ADK correction cards, deterministic validator와 install/rollback test가 추가된다. `packages/companion`과 Companion product code는 변경하지 않는다.
+
 ## 2026-07-31 · PR [#20](https://github.com/gttmr/af-companion/pull/20) — standalone ADK base와 Agent Factory/Companion overlay 분리, runtime 2.4 전환
 
 - **결정**: 일반 ADK 개발은 `google-agents-cli-*`를 standalone base로 사용하며 Companion enrollment나 Agent Factory Work Item을 요구하지 않는다. 명시적인 Agent Factory scope가 있을 때만 `af-*`가 Target artifact, Graph IR, Asset Registry, review, lowering 계약을 추가하고, Companion은 그 lifecycle의 connection·handoff·write authority·provenance만 추가한다. 이 경로에서는 approved Agent Factory artifact가 specification/scaffold authority이므로 base skill의 ADK API·coding·test·eval 지침만 재사용하고 별도 `.agents-cli-spec.md` dialogue나 scaffold를 반복하지 않는다. Repository cwd나 두 skill family의 동시 노출만으로 Agent Factory overlay를 활성화하지 않는다.

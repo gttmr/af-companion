@@ -1,0 +1,1051 @@
+{
+  "schema_version": 1,
+  "inventory_id": "af-skills-vnext-session1-adk-2.4.0",
+  "checked_at": "2026-08-05T18:00:00+09:00",
+  "framework_version": "2.4.0",
+  "evidence_precedence": [
+    "exact_runtime_probe",
+    "exact_installed_source_signature_validator",
+    "adk_docs_mcp",
+    "installed_google_skill",
+    "af_reference_and_generator"
+  ],
+  "status_vocabulary": [
+    "confirmed",
+    "corrected",
+    "unsupported",
+    "blocked",
+    "excluded_cloud"
+  ],
+  "gap_baseline": {
+    "checked_at": "2026-08-05",
+    "accepted_high_medium_gaps": [
+      {
+        "capability_id": "B12-live-workflow-streaming",
+        "disposition": "exact_adk_2_4_unsupported",
+        "reason": "Workflow has no live/bidi implementation in the exact installed ADK 2.4 source."
+      },
+      {
+        "capability_id": "D08-context-compaction-cache",
+        "disposition": "user_waiver_model_blocked",
+        "reason": "The local qwen model is absent by explicit user assumption; public/private source boundaries remain recorded without claiming a runtime pass."
+      },
+      {
+        "capability_id": "F04-public-python-cancellation",
+        "disposition": "exact_adk_2_4_unsupported",
+        "reason": "The Python Runner exposes no public cancellation method in exact ADK 2.4."
+      },
+      {
+        "capability_id": "G06-workflow-a2a-exposure",
+        "disposition": "agent_factory_product_guard",
+        "reason": "Agent Factory intentionally permits A2A binding or exposure only for Agent assets even though the framework helper accepts Workflow."
+      },
+      {
+        "capability_id": "H03-local-litellm-adapter",
+        "disposition": "user_waiver_model_blocked",
+        "reason": "The local qwen adapter run is blocked by the explicit absent-model assumption and has no external fallback."
+      },
+      {
+        "capability_id": "H04-context-pressure-compaction",
+        "disposition": "user_waiver_model_blocked",
+        "reason": "Context-pressure behavior requires the absent local model and is not represented as a deterministic runtime pass."
+      },
+      {
+        "capability_id": "H07-unsupported-api-refusal",
+        "disposition": "exact_adk_2_4_unsupported",
+        "reason": "The exact runtime lacks the claimed public END, Runner cancellation and compaction exports; AF must refuse those APIs."
+      }
+    ]
+  },
+  "evidence_catalog": {
+    "docs-agents": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/agents/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-workflows": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/workflows/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-graphs": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/graphs/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-dynamic": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/graphs/dynamic/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-tools": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/tools-custom/function-tools/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-mcp": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/tools-custom/mcp-tools/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-confirmation": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/tools-custom/confirmation/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-state": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/sessions/state/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-artifacts": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/artifacts/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-memory": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/sessions/memory/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-callbacks": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/callbacks/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-plugins": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/plugins/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-resume": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/runtime/resume/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-cancel": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/runtime/cancel/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-rewind": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/runtime/rewind/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-compaction": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/context/compaction/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-a2a": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/a2a/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-litellm": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/agents/models/litellm/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-managed": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/agents/managed-agents/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "docs-ambient": {
+      "source": "AgentDevelopmentKit",
+      "page": "https://adk.dev/runtime/ambient-agents/index.md",
+      "transport": "ADK Docs MCP",
+      "checked_at": "2026-08-05"
+    },
+    "google-workflow": {
+      "path": "/home/ilmaswsl/.agents/skills/google-agents-cli-workflow/SKILL.md",
+      "version": "1.2.1",
+      "digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "digest": "83dea9d79fe84b2c79d8323fdddbe493e040be2c1ebb3a0a365aef266f445c31"
+    },
+    "google-adk-code": {
+      "path": "/home/ilmaswsl/.agents/skills/google-agents-cli-adk-code/SKILL.md",
+      "version": "1.2.1",
+      "digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "digest": "e67352cc574bcea3017e3e03a6247c3b033be7929087b119a7e987914cb48e9f"
+    },
+    "google-scaffold": {
+      "path": "/home/ilmaswsl/.agents/skills/google-agents-cli-scaffold/SKILL.md",
+      "version": "1.2.1",
+      "digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "digest": "fc3c18e81027108e18338617d105ef31c2e98821736a5b7d2b37508990240d2f"
+    },
+    "google-eval": {
+      "path": "/home/ilmaswsl/.agents/skills/google-agents-cli-eval/SKILL.md",
+      "version": "1.2.1",
+      "digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "digest": "37c2d1659016791608630fb402b67cceb51f61aa8953804ea7347e4fc7081fc9"
+    }
+  },
+  "capabilities": [
+    {
+      "capability_id": "A01-llm-agent-baseline",
+      "family": "agent_topology",
+      "framework_symbols": ["google.adk.agents.Agent", "google.adk.agents.LlmAgent", "Agent is LlmAgent"],
+      "docs_evidence": ["docs-agents"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md"],
+      "offline_class": "required",
+      "risk": "medium",
+      "experiment_ids": ["A-P01", "H-N01"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "A02-root-agent-or-workflow",
+      "family": "agent_topology",
+      "framework_symbols": ["google.adk.apps.App.root_agent", "google.adk.runners.Runner(node=...)"],
+      "docs_evidence": ["docs-agents", "docs-workflows"],
+      "google_skill_evidence": ["google-workflow", "google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md", ".agents/skills/_shared/runtime-pattern-selection.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-P01", "B-P01", "A-N02", "CP-001"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "A03-coordinator-transfer",
+      "family": "agent_topology",
+      "framework_symbols": ["EventActions.transfer_to_agent", "transfer_to_agent FunctionTool"],
+      "docs_evidence": ["docs-agents"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-P02", "A-N01", "CP-001"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "A04-agent-as-tool",
+      "family": "agent_topology",
+      "framework_symbols": ["google.adk.tools.AgentTool(BaseAgent)", "AgentTool.run_async"],
+      "docs_evidence": ["docs-agents", "docs-tools"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-P03", "A-N02", "CP-001"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "A05-sequential-agent",
+      "family": "workflow_agent",
+      "framework_symbols": ["google.adk.agents.SequentialAgent", "deprecated: Workflow"],
+      "docs_evidence": ["docs-workflows"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md"],
+      "offline_class": "required",
+      "risk": "medium",
+      "experiment_ids": ["A-P04", "CF-008"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "A06-parallel-agent",
+      "family": "workflow_agent",
+      "framework_symbols": ["google.adk.agents.ParallelAgent", "deprecated: Workflow"],
+      "docs_evidence": ["docs-workflows"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-P04", "B-N03", "CF-008"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "A07-loop-agent",
+      "family": "workflow_agent",
+      "framework_symbols": ["google.adk.agents.LoopAgent(max_iterations)", "deprecated: Workflow"],
+      "docs_evidence": ["docs-workflows"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md", ".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-P04", "B-P03", "CP-003"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "A08-nested-agent-identity",
+      "family": "agent_topology",
+      "framework_symbols": ["BaseAgent.sub_agents", "BaseAgent.parent_agent", "BaseAgent.__set_parent_agent_for_sub_agents"],
+      "docs_evidence": ["docs-agents"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md", "tests/skills/adk24/capability_probe.py::validate_agent_tree"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-N01", "A-P02", "CF-003", "CP-001"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "A09-agent-modes",
+      "family": "agent_topology",
+      "framework_symbols": ["LlmAgent.mode: chat|task|single_turn", "Workflow._validate_no_task_mode_graph_nodes", "_validate_chat_agent_wiring"],
+      "docs_evidence": ["docs-agents", "docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md", ".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-N03", "F-P01", "G-P03"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "A10-custom-base-agent",
+      "family": "agent_topology",
+      "framework_symbols": ["BaseAgent._run_async_impl", "BaseAgent.run_async"],
+      "docs_evidence": ["docs-agents"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md"],
+      "offline_class": "optional_local",
+      "risk": "medium",
+      "experiment_ids": ["A-P01", "G-P02", "G-P03"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "A11-agent-factory-clone-isolation",
+      "family": "agent_topology",
+      "framework_symbols": ["BaseAgent.clone", "AgentTool isolated InMemorySessionService", "AgentTool state delta forwarding"],
+      "docs_evidence": ["docs-agents", "docs-state"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-P03", "CP-001"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "B01-static-sequence",
+      "family": "graph_workflow",
+      "framework_symbols": ["google.adk.workflow.Workflow", "START", "FunctionNode"],
+      "docs_evidence": ["docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md", "scripts/adk-source/graph/lowering.mjs"],
+      "offline_class": "required",
+      "risk": "medium",
+      "experiment_ids": ["B-P01", "B-N02"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "B02-route-default-invalid",
+      "family": "graph_workflow",
+      "framework_symbols": ["EventActions.route", "DEFAULT_ROUTE == __DEFAULT__", "Graph conditional edges"],
+      "docs_evidence": ["docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md", "scripts/adk-source/graph/routes.mjs"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["B-P01", "B-N01", "GEN-001"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "B03-multiple-incoming-or",
+      "family": "graph_workflow",
+      "framework_symbols": ["Workflow._handle_completion", "trigger_buffer per incoming trigger"],
+      "docs_evidence": ["docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["B-P02", "CF-002"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "B04-explicit-join-and",
+      "family": "graph_workflow",
+      "framework_symbols": ["google.adk.workflow.JoinNode", "join input keyed by predecessor node name"],
+      "docs_evidence": ["docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md", "scripts/adk-source/graph/collector.mjs"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["B-P02", "CP-002", "B-N03"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "B05-routed-static-cycle",
+      "family": "graph_workflow",
+      "framework_symbols": ["_detect_unconditional_cycles", "conditional routed back-edge"],
+      "docs_evidence": ["docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md", "scripts/adk-source/graph/dynamic.mjs"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["B-P03", "B-N02", "CP-003"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "B06-reachability-unconditional-cycle",
+      "family": "graph_workflow",
+      "framework_symbols": ["Graph.validate_graph", "_detect_unconditional_cycles", "unreachable-from-START validator"],
+      "docs_evidence": ["docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md", "scripts/adk-source/graph/guards.mjs"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["B-N02", "GEN-001"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "B07-dynamic-run-node",
+      "family": "graph_workflow",
+      "framework_symbols": ["Context.run_node", "Context._run_node_internal", "rerun_on_resume guard"],
+      "docs_evidence": ["docs-dynamic"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md", "scripts/adk-source/agent-dynamic.mjs"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["B-P03", "B-N03", "CP-005"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "B08-node-kind-composition",
+      "family": "graph_workflow",
+      "framework_symbols": ["FunctionNode", "BaseTool node wrapper", "LlmAgent node wrapper", "RequestInput", "JoinNode", "Workflow"],
+      "docs_evidence": ["docs-graphs", "docs-tools", "docs-resume"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": ["scripts/adk-source/dispatch/node-kinds.mjs", ".agents/skills/_shared/graph-ir.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["C-P01", "F-P01", "CP-002", "CP-003"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "B09-nested-subworkflow",
+      "family": "graph_workflow",
+      "framework_symbols": ["Workflow is BaseNode", "Workflow nested in Workflow edges"],
+      "docs_evidence": ["docs-workflows", "docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md", "scripts/adk-source/graph/lowering.mjs"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["G-P01", "CP-004"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "B10-node-retry-timeout",
+      "family": "graph_workflow",
+      "framework_symbols": ["RetryConfig", "NodeTimeoutError", "BaseNode.retry_config", "BaseNode.timeout"],
+      "docs_evidence": ["docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["B-N03", "C-N02"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "B11-concurrency-parallel-worker",
+      "family": "graph_workflow",
+      "framework_symbols": ["Workflow.max_concurrency", "node(parallel_worker=True, max_parallel_workers=...)"],
+      "docs_evidence": ["docs-graphs", "docs-dynamic"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "optional_local",
+      "risk": "high",
+      "experiment_ids": ["A-P04", "B-N03", "CP-002"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "B12-live-workflow-streaming",
+      "family": "graph_workflow",
+      "framework_symbols": ["Workflow does not override BaseNode._run_live_impl"],
+      "docs_evidence": ["docs-workflows"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "unsupported",
+      "risk": "medium",
+      "experiment_ids": ["SRC-API-001"],
+      "status": "unsupported"
+    },
+    {
+      "capability_id": "C01-function-node-vs-function-tool",
+      "family": "tool_invocation",
+      "framework_symbols": ["FunctionNode", "FunctionTool(func, require_confirmation=...)"],
+      "docs_evidence": ["docs-tools", "docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/function-and-mcp-tools.md", ".agents/skills/_shared/taxonomy.md"],
+      "offline_class": "required",
+      "risk": "medium",
+      "experiment_ids": ["C-P01", "C-N01"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "C02-agent-selected-function-tool",
+      "family": "tool_invocation",
+      "framework_symbols": ["LlmAgent.tools", "FunctionTool.run_async", "ToolContext"],
+      "docs_evidence": ["docs-tools"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/function-and-mcp-tools.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["C-P01", "C-N01", "E-N01"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "C03-local-stdio-mcp",
+      "family": "tool_invocation",
+      "framework_symbols": ["McpToolset", "StdioConnectionParams", "mcp.StdioServerParameters"],
+      "docs_evidence": ["docs-mcp"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/function-and-mcp-tools.md", "scripts/adk-source/emitters/connected-tool.mjs"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["C-P02", "C-N02", "CF-005"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "C04-mcp-filter-lifecycle",
+      "family": "tool_invocation",
+      "framework_symbols": ["McpToolset(tool_filter=...)", "McpToolset.get_tools", "McpToolset.close"],
+      "docs_evidence": ["docs-mcp"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/function-and-mcp-tools.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["C-P02", "C-N02"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "C05-mcp-http-transports",
+      "family": "tool_invocation",
+      "framework_symbols": ["SseConnectionParams", "StreamableHTTPConnectionParams", "no generic HttpConnectionParams"],
+      "docs_evidence": ["docs-mcp"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/function-and-mcp-tools.md"],
+      "offline_class": "optional_local",
+      "risk": "high",
+      "experiment_ids": ["C-P04", "C-N04", "CF-005", "SRC-API-001"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "C06-tool-confirmation",
+      "family": "tool_invocation",
+      "framework_symbols": ["FunctionTool(require_confirmation=True)", "ToolConfirmation", "adk_request_confirmation"],
+      "docs_evidence": ["docs-confirmation", "docs-resume"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/human-input-and-resume.md", ".agents/skills/_shared/adk/function-and-mcp-tools.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["C-P03", "C-N03", "CF-004"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "C07-tool-callback-error-idempotency",
+      "family": "tool_invocation",
+      "framework_symbols": ["before_tool_callback", "after_tool_callback", "on_tool_error_callback", "ToolContext.state"],
+      "docs_evidence": ["docs-tools", "docs-callbacks", "docs-plugins"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/callbacks.md", ".agents/skills/_shared/adk/function-and-mcp-tools.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["E-N01", "C-N03", "B-N03"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "C08-openapi-auth-builtins",
+      "family": "tool_invocation",
+      "framework_symbols": ["OpenAPIToolset", "AuthConfig", "built-in tools depend on backend"],
+      "docs_evidence": ["docs-tools"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/function-and-mcp-tools.md", ".agents/skills/_shared/security-and-data.md"],
+      "offline_class": "optional_local",
+      "risk": "high",
+      "experiment_ids": ["C-P05", "C-N05", "INV-CLOUD-001", "SRC-API-001"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "D01-state-scopes",
+      "family": "state_session_event",
+      "framework_symbols": ["State.APP_PREFIX", "State.USER_PREFIX", "State.TEMP_PREFIX", "unprefixed session state"],
+      "docs_evidence": ["docs-state"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/state-and-artifacts.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["D-P01", "A-P03", "CP-002"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "D02-event-commit-partial-final",
+      "family": "state_session_event",
+      "framework_symbols": ["BaseSessionService.append_event", "partial event early return", "EventActions.state_delta"],
+      "docs_evidence": ["docs-state"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/event-loop.md", ".agents/skills/_shared/adk/state-and-artifacts.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["D-P01", "E-N01"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "D03-artifact-versioning",
+      "family": "artifact_memory",
+      "framework_symbols": ["InMemoryArtifactService.save_artifact", "load_artifact", "list_versions"],
+      "docs_evidence": ["docs-artifacts"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/state-and-artifacts.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["D-P02", "D-N01", "CP-002"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "D04-artifact-missing-concurrent",
+      "family": "artifact_memory",
+      "framework_symbols": ["load_artifact returns None", "save_artifact append-only revision"],
+      "docs_evidence": ["docs-artifacts"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/state-and-artifacts.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["D-P02", "D-N01", "CP-002"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "D05-session-invocation-identity",
+      "family": "state_session_event",
+      "framework_symbols": ["Session.id", "Event.invocation_id", "Runner.run_async(session_id=...)"],
+      "docs_evidence": ["docs-state", "docs-resume"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/event-loop.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["D-P03", "F-P01", "G-P03"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "D06-runner-rewind",
+      "family": "state_session_event",
+      "framework_symbols": ["Runner.rewind_async", "EventActions.rewind_before_invocation_id"],
+      "docs_evidence": ["docs-rewind"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/event-loop.md"],
+      "offline_class": "optional_local",
+      "risk": "high",
+      "experiment_ids": ["D-P03", "D-N01"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "D07-local-memory",
+      "family": "artifact_memory",
+      "framework_symbols": ["InMemoryMemoryService.add_events_to_memory", "search_memory"],
+      "docs_evidence": ["docs-memory"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/state-and-artifacts.md"],
+      "offline_class": "optional_local",
+      "risk": "medium",
+      "experiment_ids": ["D-P02", "H-N02"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "D08-context-compaction-cache",
+      "family": "artifact_memory",
+      "framework_symbols": ["App.events_compaction_config", "google.adk.apps._configs.EventsCompactionConfig", "App.context_cache_config"],
+      "docs_evidence": ["docs-compaction"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/event-loop.md"],
+      "offline_class": "optional_local",
+      "risk": "high",
+      "experiment_ids": ["F-N02", "CF-006", "SM-B02"],
+      "status": "blocked",
+      "blocker": "The public/private import boundary is verified, but local model context-cache and compaction behavior cannot run under the user-approved absent qwen3.6-small profile."
+    },
+    {
+      "capability_id": "D09-parallel-state-artifact-collision",
+      "family": "state_session_event",
+      "framework_symbols": ["EventActions.state_delta", "InMemoryArtifactService append revisions", "Workflow concurrent branches"],
+      "docs_evidence": ["docs-state", "docs-artifacts", "docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/state-and-artifacts.md", ".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["D-N01", "CP-002", "B-N03"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "E01-agent-callback-order-short-circuit",
+      "family": "callback_plugin_guardrail",
+      "framework_symbols": ["BaseAgent._handle_before_agent_callback", "_handle_after_agent_callback"],
+      "docs_evidence": ["docs-callbacks"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/callbacks.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["E-P01", "E-N01"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "E02-runner-plugin-order",
+      "family": "callback_plugin_guardrail",
+      "framework_symbols": ["BasePlugin", "PluginManager", "App.plugins"],
+      "docs_evidence": ["docs-plugins", "docs-callbacks"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/callbacks.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["E-P01", "E-N01"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "E03-tool-model-error-hooks",
+      "family": "callback_plugin_guardrail",
+      "framework_symbols": ["BasePlugin.on_tool_error_callback", "BasePlugin.on_model_error_callback", "LlmAgent canonical error callbacks"],
+      "docs_evidence": ["docs-plugins", "docs-callbacks"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/callbacks.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["E-N01", "C-N01"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "E04-deterministic-policy-guardrail",
+      "family": "callback_plugin_guardrail",
+      "framework_symbols": ["typed callback override", "Plugin short-circuit", "FunctionNode deterministic validation"],
+      "docs_evidence": ["docs-callbacks", "docs-plugins"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/callbacks.md", ".agents/skills/_shared/security-and-data.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["E-P01", "CP-005"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "E05-callback-state-commit-replay",
+      "family": "callback_plugin_guardrail",
+      "framework_symbols": ["CallbackContext.state", "ToolContext.state", "EventActions.state_delta"],
+      "docs_evidence": ["docs-callbacks", "docs-state", "docs-rewind"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/callbacks.md", ".agents/skills/_shared/adk/event-loop.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["E-N01", "D-P03", "C-N03"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "F01-request-input-pause-resume",
+      "family": "pause_resume_failure",
+      "framework_symbols": ["google.adk.events.RequestInput", "adk_request_input", "ResumabilityConfig(is_resumable=True)"],
+      "docs_evidence": ["docs-resume"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/human-input-and-resume.md", "scripts/adk-source/emitters/hitl.mjs"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["F-P01", "F-N01", "CP-003", "CF-007"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "F02-tool-confirmation-resume",
+      "family": "pause_resume_failure",
+      "framework_symbols": ["adk_request_confirmation", "ToolConfirmation", "FunctionResponse"],
+      "docs_evidence": ["docs-confirmation", "docs-resume"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/human-input-and-resume.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["C-P03", "C-N03", "CF-004"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "F03-task-mode-input-required",
+      "family": "pause_resume_failure",
+      "framework_symbols": ["LlmAgent(mode=task)", "FinishTaskTool", "Context.run_node(raise_on_wait=True)"],
+      "docs_evidence": ["docs-agents", "docs-resume", "docs-dynamic"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/human-input-and-resume.md", ".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-N03", "G-P03", "SRC-API-001"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "F04-public-python-cancellation",
+      "family": "pause_resume_failure",
+      "framework_symbols": ["Runner has no cancel_async", "Runner generator cleanup cancels internal root task"],
+      "docs_evidence": ["docs-cancel"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/event-loop.md"],
+      "offline_class": "unsupported",
+      "risk": "high",
+      "experiment_ids": ["F-N02", "CF-006"],
+      "status": "unsupported"
+    },
+    {
+      "capability_id": "F05-retry-timeout-fallback-partial",
+      "family": "pause_resume_failure",
+      "framework_symbols": ["RetryConfig", "NodeTimeoutError", "workflow branch failure shutdown"],
+      "docs_evidence": ["docs-graphs", "docs-resume"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md", ".agents/skills/_shared/adk/event-loop.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["B-N03", "CP-004"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "F06-restart-replay-duplicate",
+      "family": "pause_resume_failure",
+      "framework_symbols": ["Workflow.rerun_on_resume", "ReplayManager", "Runner.rewind_async"],
+      "docs_evidence": ["docs-resume", "docs-rewind"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/human-input-and-resume.md", ".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["C-N03", "D-P03", "CP-003"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "F07-bounded-loop-exhaustion",
+      "family": "pause_resume_failure",
+      "framework_symbols": ["LoopAgent.max_iterations", "conditional graph cycle application bound"],
+      "docs_evidence": ["docs-workflows", "docs-graphs"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-P04", "B-P03", "CP-003"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "F08-side-effect-idempotency",
+      "family": "pause_resume_failure",
+      "framework_symbols": ["tool execution is at-least-once", "confirmation response replay", "rerun_on_resume"],
+      "docs_evidence": ["docs-resume", "docs-confirmation"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/human-input-and-resume.md", ".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["C-N03", "CP-003", "CF-004"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "G01-local-agent-workflow-tool-import",
+      "family": "reuse_protocol",
+      "framework_symbols": ["BaseAgent", "Workflow", "BaseTool", "Python module import"],
+      "docs_evidence": ["docs-agents", "docs-workflows", "docs-tools"],
+      "google_skill_evidence": ["google-workflow", "google-adk-code"],
+      "af_surface": [".agents/skills/af-scaffold-runtime/SKILL.md", ".agents/skills/_shared/catalog-and-reuse.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-P03", "G-P01", "CP-004"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "G02-local-a2a-expose-consume",
+      "family": "reuse_protocol",
+      "framework_symbols": ["to_a2a", "RemoteA2aAgent(use_legacy=False)", "AgentCard"],
+      "docs_evidence": ["docs-a2a"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/a2a.md", "scripts/adk-source/remote-a2a.mjs"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["G-P02", "G-N01", "CP-004"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "G03-a2a-input-required-resume",
+      "family": "reuse_protocol",
+      "framework_symbols": ["A2A task input-required", "RemoteA2aAgent context continuity", "adk_request_input conversion"],
+      "docs_evidence": ["docs-a2a", "docs-resume"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/a2a.md", ".agents/skills/_shared/adk/human-input-and-resume.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["G-P03", "G-N01"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "G04-a2a-failure-timeout-malformed",
+      "family": "reuse_protocol",
+      "framework_symbols": ["RemoteA2aAgent.timeout", "AgentCardResolutionError", "A2A terminal task conversion"],
+      "docs_evidence": ["docs-a2a"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/a2a.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["G-N01", "CP-004"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "G05-agent-card-health-readiness",
+      "family": "reuse_protocol",
+      "framework_symbols": ["/.well-known/agent-card.json", "AgentCard discovery", "task terminal state"],
+      "docs_evidence": ["docs-a2a"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/a2a.md", ".agents/skills/af-verify-runtime/SKILL.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["G-P02", "G-P03", "G-N01"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "G06-workflow-a2a-exposure",
+      "family": "reuse_protocol",
+      "framework_symbols": ["to_a2a accepts BaseAgent | Workflow", "AF taxonomy allows A2A binding/exposure only for Agent"],
+      "docs_evidence": ["docs-a2a"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/a2a.md", ".agents/skills/_shared/taxonomy.md"],
+      "offline_class": "unsupported",
+      "risk": "high",
+      "experiment_ids": ["CF-009", "SRC-API-001"],
+      "status": "unsupported"
+    },
+    {
+      "capability_id": "G07-a2ui",
+      "family": "reuse_protocol",
+      "framework_symbols": ["EventActions.render_ui_widgets", "A2UI renderer is extra service/client capability"],
+      "docs_evidence": ["docs-agents"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/ambient-agents.md"],
+      "offline_class": "optional_local",
+      "risk": "medium",
+      "experiment_ids": ["INV-CLOUD-001"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "G08-ambient-trigger",
+      "family": "reuse_protocol",
+      "framework_symbols": ["generic /run and /run_sse", "PubSub/Eventarc trigger routes require configured service"],
+      "docs_evidence": ["docs-ambient"],
+      "google_skill_evidence": ["google-workflow"],
+      "af_surface": [".agents/skills/_shared/adk/ambient-agents.md"],
+      "offline_class": "excluded_cloud",
+      "risk": "high",
+      "experiment_ids": ["INV-CLOUD-001"],
+      "status": "excluded_cloud"
+    },
+    {
+      "capability_id": "G09-managed-agent",
+      "family": "reuse_protocol",
+      "framework_symbols": ["google.adk.agents.ManagedAgent", "Managed Interactions API", "client/MCP tools rejected"],
+      "docs_evidence": ["docs-managed"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md"],
+      "offline_class": "excluded_cloud",
+      "risk": "high",
+      "experiment_ids": ["G-N02", "INV-CLOUD-001"],
+      "status": "excluded_cloud"
+    },
+    {
+      "capability_id": "H01-structured-output-with-tools",
+      "family": "model_schema",
+      "framework_symbols": ["LlmAgent.output_schema", "SetModelResponseTool", "LlmAgent.tools"],
+      "docs_evidence": ["docs-agents", "docs-tools"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["H-P01", "H-N01", "CF-001", "CP-005"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "H02-malformed-structured-output",
+      "family": "model_schema",
+      "framework_symbols": ["workflow._llm_agent_wrapper.process_llm_agent_output", "utils._schema_utils.validate_schema", "root chat response schema delegation"],
+      "docs_evidence": ["docs-agents"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["H-N01", "CF-001", "CP-005"],
+      "status": "corrected"
+    },
+    {
+      "capability_id": "H03-local-litellm-adapter",
+      "family": "model_schema",
+      "framework_symbols": ["google.adk.models.lite_llm.LiteLlm", "OpenAI-compatible local endpoint boundary"],
+      "docs_evidence": ["docs-litellm"],
+      "google_skill_evidence": ["google-workflow", "google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md"],
+      "offline_class": "optional_local",
+      "risk": "high",
+      "experiment_ids": ["SM-B01", "SRC-API-001"],
+      "status": "blocked",
+      "blocker": "User explicitly authorized treating local qwen3.6-small as absent; no model call or fallback was attempted."
+    },
+    {
+      "capability_id": "H04-context-pressure-compaction",
+      "family": "model_schema",
+      "framework_symbols": ["App.context_cache_config", "App.events_compaction_config", "EventsCompactionConfig private export location"],
+      "docs_evidence": ["docs-compaction"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/event-loop.md"],
+      "offline_class": "optional_local",
+      "risk": "high",
+      "experiment_ids": ["F-N02", "SM-B02", "CF-006"],
+      "status": "blocked",
+      "blocker": "Exact source/public-import boundary is verified; the requested small-model context-pressure run is blocked by the user-approved absent model."
+    },
+    {
+      "capability_id": "H05-instruction-state-context-minimization",
+      "family": "model_schema",
+      "framework_symbols": ["LlmAgent.include_contents", "single_turn defaults", "AgentTool child session seed", "Context.run_node isolation scope"],
+      "docs_evidence": ["docs-agents", "docs-state", "docs-dynamic"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/agents-workflows-tools.md", ".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["A-P03", "A-N03", "CP-005", "SM-B03"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "H06-result-normalization",
+      "family": "model_schema",
+      "framework_symbols": ["Pydantic.model_validate", "model_dump", "task finish_task validates but returns raw args"],
+      "docs_evidence": ["docs-agents", "docs-resume"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/adk/human-input-and-resume.md", ".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "required",
+      "risk": "high",
+      "experiment_ids": ["H-P01", "H-N01", "CP-005"],
+      "status": "confirmed"
+    },
+    {
+      "capability_id": "H07-unsupported-api-refusal",
+      "family": "model_schema",
+      "framework_symbols": ["no google.adk.workflow.END export", "no Runner.cancel_async", "no public EventsCompactionConfig export"],
+      "docs_evidence": ["docs-graphs", "docs-cancel", "docs-compaction"],
+      "google_skill_evidence": ["google-adk-code"],
+      "af_surface": [".agents/skills/_shared/source-of-truth.md", ".agents/skills/_shared/adk/graph-and-dynamic-workflows.md"],
+      "offline_class": "unsupported",
+      "risk": "high",
+      "experiment_ids": ["H-N02", "F-N02", "SM-B04"],
+      "status": "unsupported"
+    },
+    {
+      "capability_id": "H08-cloud-deploy-publish-observe-web",
+      "family": "model_schema",
+      "framework_symbols": ["agents-cli deploy/publish/observe", "external Web tools", "cloud model APIs"],
+      "docs_evidence": ["docs-managed", "docs-ambient"],
+      "google_skill_evidence": ["google-workflow", "google-scaffold", "google-eval"],
+      "af_surface": [".agents/skills/_shared/security-and-data.md"],
+      "offline_class": "excluded_cloud",
+      "risk": "high",
+      "experiment_ids": ["INV-CLOUD-001"],
+      "status": "excluded_cloud"
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "bundle_id": "af-skills-vnext",
+  "bundle_version": "2.0.0-adk2.4-session1",
+  "manifest_contract_digest_algorithm": "sha256(canonical JSON excluding bundle_digest and manifest_contract_digest)",
+  "manifest_contract_digest": "fb6a2994f6ea8d752f82074f68ea9c4f47c79230045935a98f7d2e846d21890b",
+  "bundle_digest_algorithm": "sha256(UTF-8-bytewise-sorted member_id + NUL + digest + LF, including _manifest-contract)",
+  "bundle_digest": "8bafba76b99095265b927b696eddbd6ea251c68039ff356a933efdb75db8350c",
+  "distribution": {
+    "mode": "offline_user_scoped",
+    "install_root": "<user-home>/.agents/skills",
+    "discovery_contract": "Codex CLI and the VS Code extension discover the same pinned local-user Skill tree when invoked from the Application cwd; Google Skills are not copied independently per App.",
+    "online_install": false,
+    "trusted_digest_input": "Install requires the expected bundle digest from this reviewed source manifest; a self-consistent bundle manifest alone is not a provenance root.",
+    "rollback_receipt": "<user-home>/.agents/.af-skills-vnext-install.json"
+  },
+  "compatibility": {
+    "status": "compatible_with_corrections",
+    "accepted_agents_cli": "1.2.1",
+    "candidate_agents_cli": "1.3.1",
+    "candidate_rejection": "The agents-cli 1.3.1 package does not directly depend on google-adk, but its ADK scaffold template emits google-adk[gcp,otel-gcp]>=2.5.0,<3.0.0, google-adk[eval]>=2.5.0,<3.0.0 and a2a-sdk[http-server]>=1.0,<2. Those generated constraints exclude the exact ADK 2.4/A2A 0.3 baseline.",
+    "accepted_reason": "1.2.1 is the latest release present in the approved local cache whose dependency range admits google-adk 2.4.0; its installed Google Skills are also 1.2.1 and its generated App/LlmAgent imports under the exact 2.4 interpreter.",
+    "agents_cli_info_correction": "agents-cli info --json reports an empty installed_skills array even though direct installed-skill discovery finds all seven 1.2.1 skills; path/version/digest verification is authoritative for this bundle.",
+    "google_adk": "2.4.0",
+    "google_adk_requirement": "google-adk[a2a,mcp]>=2.4.0,<2.5.0",
+    "mcp": "1.28.1",
+    "a2a_sdk": "0.3.26",
+    "python": "3.13.12",
+    "rollback": {
+      "agents_cli_command": "UV_OFFLINE=1 uv tool install --offline --force google-agents-cli==1.2.1",
+      "bundle_command": "node scripts/af-skills-bundle.mjs rollback --target <user-home>",
+      "condition": "Rollback a user-scoped install when digest verification, discovery, or a required deterministic gate fails. Do not move back to 1.3.1 while exact ADK 2.4 remains required."
+    }
+  },
+  "model_profile": {
+    "requested_model": "qwen3.6-small",
+    "availability": "unavailable_user_override",
+    "forward_test_status": "blocked",
+    "external_model_fallback": false,
+    "cloud_model": false,
+    "note": "The user explicitly authorized proceeding as though the local model is absent. Deterministic framework evidence is complete, but no small-model result is represented as PASS."
+  },
+  "architecture_decision": {
+    "status": "retained_after_evidence_audit",
+    "decision": "Keep five AF Skill entrypoints for Session 1; the manifest, not historical naming, owns membership.",
+    "rationale": "Route/resume, Discover, Compose, Scaffold and Verify each have one distinct primary intent, bounded inputs and a non-overlapping durable output boundary. ADK implementation guidance remains in the four pinned Google Skills and concise shared cards, so adding or merging entrypoints would either duplicate that base or combine lifecycle authority.",
+    "change_trigger": "Rename, split or merge when an audit proves overlapping primary intents, a missing owning intent, or avoidable prompt pressure. Compatibility does not require these names or this count."
+  },
+  "required_google_skills": [
+    {
+      "skill_id": "google-agents-cli-workflow",
+      "source_path": "/home/ilmaswsl/.agents/skills/google-agents-cli-workflow",
+      "version": "1.2.1",
+      "tree_digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "tree_digest": "83dea9d79fe84b2c79d8323fdddbe493e040be2c1ebb3a0a365aef266f445c31"
+    },
+    {
+      "skill_id": "google-agents-cli-scaffold",
+      "source_path": "/home/ilmaswsl/.agents/skills/google-agents-cli-scaffold",
+      "version": "1.2.1",
+      "tree_digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "tree_digest": "fc3c18e81027108e18338617d105ef31c2e98821736a5b7d2b37508990240d2f"
+    },
+    {
+      "skill_id": "google-agents-cli-adk-code",
+      "source_path": "/home/ilmaswsl/.agents/skills/google-agents-cli-adk-code",
+      "version": "1.2.1",
+      "tree_digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "tree_digest": "e67352cc574bcea3017e3e03a6247c3b033be7929087b119a7e987914cb48e9f"
+    },
+    {
+      "skill_id": "google-agents-cli-eval",
+      "source_path": "/home/ilmaswsl/.agents/skills/google-agents-cli-eval",
+      "version": "1.2.1",
+      "tree_digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "tree_digest": "37c2d1659016791608630fb402b67cceb51f61aa8953804ea7347e4fc7081fc9"
+    }
+  ],
+  "af_skills": [
+    {
+      "skill_id": "af-workflow",
+      "source_path": ".agents/skills/af-workflow",
+      "tree_digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "tree_digest": "e77d6b1786ecf635e2cc7dd3832e06101e5c4ae30c7d0ee68b8e02e2c922a160",
+      "primary_intent": "Route or resume one current Agent Factory Work Item from revision, gate, invalidation, run and handoff evidence.",
+      "inputs": ["one strict Work Item v2 root", "current revision/gate evidence", "exact enrolled scope when a durable action is requested"],
+      "outputs": ["one owning Work Skill or typed Blocker", "bounded fresh-context handoff when required"],
+      "required_google_skills": ["google-agents-cli-workflow"]
+    },
+    {
+      "skill_id": "af-discover-assets",
+      "source_path": ".agents/skills/af-discover-assets",
+      "tree_digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "tree_digest": "106eb69910b3d7356ec14c79c54e8351e67da7c4d7091fcdb250b30ba4fc857a",
+      "primary_intent": "Explore an approved requirement and Asset Registry evidence, then materialize reviewed discovery artifacts after explicit user decisions.",
+      "inputs": ["one requirement scope", "bounded Registry evidence", "explicit user decision provenance"],
+      "outputs": ["strict analysis-result and asset candidates", "revisioned discovery cycle and review evidence"],
+      "required_google_skills": ["google-agents-cli-workflow"]
+    },
+    {
+      "skill_id": "af-compose-solution",
+      "source_path": ".agents/skills/af-compose-solution",
+      "tree_digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "tree_digest": "3a40f8843410b8a8150c63944a24c4b724aa1b144bf8ef4f16d5cdd5fd81b111",
+      "primary_intent": "Realize one approved discovery revision as Graph IR, Root Executable, exact Asset bindings and runtime contracts.",
+      "inputs": ["approved current discovery revision", "selected exact Asset versions", "one selected control strategy and Root Executable"],
+      "outputs": ["strict Graph IR and composition artifacts", "Scaffold Readiness or Return-to-Discover Blocker"],
+      "required_google_skills": ["google-agents-cli-workflow", "google-agents-cli-adk-code"]
+    },
+    {
+      "skill_id": "af-scaffold-runtime",
+      "source_path": ".agents/skills/af-scaffold-runtime",
+      "tree_digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "tree_digest": "6b294fc49e0ab05806fdb2cb951a949efe1bfd14b90247d7cebe3bd761ed7c4c",
+      "primary_intent": "Lower one approved current composition into an exact-ADK-2.4 local source scaffold or Runtime Handoff.",
+      "inputs": ["approved composition and scaffold plan", "authorized output roots", "exact version/source/protocol bindings"],
+      "outputs": ["reviewable local source or Runtime Handoff", "generated manifest and bounded checks"],
+      "required_google_skills": ["google-agents-cli-workflow", "google-agents-cli-adk-code", "google-agents-cli-scaffold"]
+    },
+    {
+      "skill_id": "af-verify-runtime",
+      "source_path": ".agents/skills/af-verify-runtime",
+      "tree_digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "tree_digest": "f0b49e7a19eba0585850848f594885739862860fa19037c9d6d60a15291b6f32",
+      "primary_intent": "Verify one current claim against decisions, revisions, exact bindings, source, runtime behavior and fresh-session continuity.",
+      "inputs": ["one focused claim", "current approved artifacts and generated source", "fresh claim-matched evidence"],
+      "outputs": ["validation report with passed, failed, blocked and unverified claims", "separate manual acceptance and follow-up boundaries"],
+      "required_google_skills": ["google-agents-cli-workflow", "google-agents-cli-adk-code", "google-agents-cli-eval"]
+    }
+  ],
+  "support_trees": [
+    {
+      "member_id": "_shared",
+      "source_path": ".agents/skills/_shared",
+      "tree_digest_algorithm": "sha256(UTF-8-bytewise-sorted relative_path + NUL + sha256(file_bytes) + LF)",
+      "tree_digest": "5ea070600d77f3e3752faf81d88bed17745a9a316d23534994826e1c16d098dc",
+      "purpose": "One-level shared Agent Factory contracts and exact ADK 2.4 correction cards referenced by the five AF Skill entrypoints."
+    }
+  ],
+  "capability_inventory": "tests/skills/adk24/capability-inventory.json",
+  "experiment_matrix": "tests/skills/adk24/experiment-matrix.json",
+  "known_unsupported": [
+    "Workflow as AgentTool or LlmAgent sub-agent",
+    "mode=task as a static Workflow graph node",
+    "public Python Runner cancellation API",
+    "Workflow live/bidi execution",
+    "private EventsCompactionConfig import in emitted source",
+    "Agent Factory A2A binding or exposure on a Workflow",
+    "ManagedAgent client-executed Function/MCP tools"
+  ],
+  "excluded": [
+    "deploy",
+    "cloud publish",
+    "cloud observability",
+    "cloud model calls",
+    "external Web calls",
+    "online installation"
+  ]
+}

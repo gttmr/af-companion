@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "matrix_id": "af-skills-vnext-session1-adk-2.4.0",
+  "checked_at": "2026-08-05T18:00:00+09:00",
+  "runtime_command": "AF_TEST_PYTHON=/home/ilmaswsl/work/af-companion/.agent-factory/runtime/.venv/bin/python node scripts/validate-af-skills-vnext.mjs --runtime",
+  "direct_probe_command": "/home/ilmaswsl/work/af-companion/.agent-factory/runtime/.venv/bin/python tests/skills/adk24/capability_probe.py",
+  "network_contract": "No Internet. Localhost sockets use OS-assigned ephemeral ports only.",
+  "model_contract": "ScriptedLlm only; no cloud or local generative model is invoked.",
+  "experiments": [
+    {"experiment_id":"ENV-ADK-001","kind":"symbol","family":"environment","risk":"high","runner":"capability_probe","status":"passed","claim":"Exact google-adk 2.4.0, mcp 1.28.1 and a2a-sdk 0.3.26 interpreter."},
+    {"experiment_id":"ENV-CLI-001","kind":"compatibility","family":"environment","risk":"high","runner":"validator","status":"passed","claim":"agents-cli 1.3.1 itself has no direct ADK dependency, but its generated ADK/A2A constraints exclude the exact 2.4/0.3 baseline; local latest admitting release 1.2.1 is installed and its scaffold imports under ADK 2.4."},
+    {"experiment_id":"ENV-SKILL-001","kind":"compatibility","family":"environment","risk":"high","runner":"validator","status":"passed","claim":"Required installed Google Skills are version 1.2.1 and match recorded relative-path digests; agents-cli info has a known detector gap."},
+
+    {"experiment_id":"A-P01","kind":"positive","family":"agent_topology","risk":"medium","runner":"capability_probe","status":"passed","claim":"A custom BaseAgent runs as root through App and Runner."},
+    {"experiment_id":"A-P02","kind":"positive","family":"agent_topology","risk":"high","runner":"capability_probe","status":"passed","claim":"A chat coordinator transfers to a specialist through transfer_to_agent."},
+    {"experiment_id":"A-P03","kind":"interaction","family":"agent_topology","risk":"high","runner":"capability_probe","status":"passed","claim":"AgentTool isolates its child session and forwards child state deltas to the parent."},
+    {"experiment_id":"A-P04","kind":"positive","family":"workflow_agent","risk":"high","runner":"capability_probe","status":"passed","claim":"SequentialAgent, ParallelAgent and bounded LoopAgent execute in 2.4 but emit deprecation guidance toward Workflow."},
+    {"experiment_id":"A-N01","kind":"negative","family":"agent_topology","risk":"high","runner":"capability_probe","status":"passed","claim":"Already-parented children fail, while duplicate sibling names and post-construction cycles require an AF fail-closed guard."},
+    {"experiment_id":"A-N02","kind":"negative","family":"agent_topology","risk":"high","runner":"capability_probe","status":"passed","claim":"Workflow is not BaseAgent; AgentTool's constructor annotation is not runtime-enforced, so AF rejects the composition before construction."},
+    {"experiment_id":"A-N03","kind":"negative","family":"agent_topology","risk":"high","runner":"capability_probe","status":"passed","claim":"Task agents are rejected as static graph nodes and chat graph nodes are accepted only directly after START."},
+
+    {"experiment_id":"B-P01","kind":"positive","family":"graph_workflow","risk":"high","runner":"capability_probe","status":"passed","claim":"Static sequence, routed edge and DEFAULT route execute."},
+    {"experiment_id":"B-P02","kind":"interaction","family":"graph_workflow","risk":"high","runner":"capability_probe","status":"passed","claim":"Ordinary multiple incoming edges execute once per trigger; explicit Join waits for all predecessors and executes once."},
+    {"experiment_id":"B-P03","kind":"positive","family":"graph_workflow","risk":"high","runner":"capability_probe","status":"passed","claim":"Context.run_node dynamic selection and a bounded routed static cycle execute."},
+    {"experiment_id":"B-N01","kind":"negative","family":"graph_workflow","risk":"high","runner":"capability_probe","status":"passed","claim":"An unmatched route without DEFAULT ends the branch without exception, requiring an AF typed-terminal/default guard."},
+    {"experiment_id":"B-N02","kind":"negative","family":"graph_workflow","risk":"high","runner":"capability_probe","status":"passed","claim":"Unreachable nodes and unconditional cycles fail graph validation."},
+    {"experiment_id":"B-N03","kind":"interaction","family":"graph_workflow","risk":"high","runner":"capability_probe","status":"passed","claim":"Retry succeeds on the configured attempt, timeout raises NodeTimeoutError, and one parallel branch failure suppresses Join downstream."},
+
+    {"experiment_id":"C-P01","kind":"positive","family":"tool_invocation","risk":"high","runner":"capability_probe","status":"passed","claim":"A Workflow-fixed FunctionTool and an Agent-selected function both execute with structured arguments."},
+    {"experiment_id":"C-P02","kind":"interaction","family":"tool_invocation","risk":"high","runner":"capability_probe","status":"passed","claim":"A local stdio MCP server is discovered, filtered to one exact tool, invoked and closed."},
+    {"experiment_id":"C-P03","kind":"interaction","family":"tool_invocation","risk":"high","runner":"capability_probe","status":"passed","claim":"Tool confirmation pauses before side effect and resumes to one execution for one response."},
+    {"experiment_id":"C-P04","kind":"interaction","family":"tool_invocation","risk":"high","runner":"capability_probe","status":"passed","claim":"Local Streamable HTTP and legacy SSE MCP servers are discovered, filtered, invoked, closed and process-bounded."},
+    {"experiment_id":"C-P05","kind":"interaction","family":"tool_invocation","risk":"high","runner":"capability_probe","status":"passed","claim":"A local OpenAPI Tool executes against localhost and injects a synthetic API-key credential into the declared header."},
+    {"experiment_id":"C-N01","kind":"negative","family":"tool_invocation","risk":"medium","runner":"capability_probe","status":"passed","claim":"Missing mandatory FunctionTool input returns a structured error response."},
+    {"experiment_id":"C-N02","kind":"negative","family":"tool_invocation","risk":"high","runner":"capability_probe","status":"passed","claim":"Unavailable stdio MCP server fails observably and cleanup remains bounded."},
+    {"experiment_id":"C-N03","kind":"interaction","family":"tool_invocation","risk":"high","runner":"capability_probe","status":"passed","claim":"Replaying the same confirmation response repeats the side effect; durable idempotency is application-owned."},
+    {"experiment_id":"C-N04","kind":"negative","family":"tool_invocation","risk":"high","runner":"capability_probe","status":"passed","claim":"An unavailable local Streamable HTTP MCP endpoint fails observably within the configured ceiling."},
+    {"experiment_id":"C-N05","kind":"negative","family":"tool_invocation","risk":"high","runner":"capability_probe","status":"passed","claim":"A malformed OpenAPI JSON contract is rejected before tool execution."},
+
+    {"experiment_id":"D-P01","kind":"positive","family":"state_session_event","risk":"high","runner":"capability_probe","status":"passed","claim":"Session, user, app and temp state scopes plus partial/final event commit behavior are reproduced."},
+    {"experiment_id":"D-P02","kind":"positive","family":"artifact_memory","risk":"high","runner":"capability_probe","status":"passed","claim":"Artifact versions, latest/specific/missing loads and local memory search execute."},
+    {"experiment_id":"D-P03","kind":"interaction","family":"state_session_event","risk":"high","runner":"capability_probe","status":"passed","claim":"Runner.rewind_async appends a rewind action and restores prior state."},
+    {"experiment_id":"D-N01","kind":"negative","family":"artifact_memory","risk":"high","runner":"capability_probe","status":"passed","claim":"Concurrent artifact saves append distinct versions but expose no compare-and-swap contract."},
+
+    {"experiment_id":"E-P01","kind":"positive","family":"callback_plugin_guardrail","risk":"high","runner":"capability_probe","status":"passed","claim":"Plugin callbacks run before agent callbacks and plugin short-circuit skips the agent body."},
+    {"experiment_id":"E-N01","kind":"interaction","family":"callback_plugin_guardrail","risk":"high","runner":"capability_probe","status":"passed","claim":"Plugin tool-error recovery returns a typed fallback and commits callback state before downstream continuation."},
+
+    {"experiment_id":"F-P01","kind":"positive","family":"pause_resume_failure","risk":"high","runner":"capability_probe","status":"passed","claim":"RequestInput pauses and resumes through a matching adk_request_input FunctionResponse using the primitive {result: value} envelope."},
+    {"experiment_id":"F-N01","kind":"negative","family":"pause_resume_failure","risk":"high","runner":"capability_probe","status":"passed","claim":"Runner rejects a resume message that mixes text and FunctionResponse."},
+    {"experiment_id":"F-N02","kind":"negative","family":"pause_resume_failure","risk":"high","runner":"capability_probe","status":"passed","claim":"Python 2.4 has no public Runner cancellation API and EventsCompactionConfig is not a public google.adk.apps export."},
+
+    {"experiment_id":"G-P01","kind":"positive","family":"reuse_protocol","risk":"high","runner":"capability_probe","status":"passed","claim":"An existing Workflow is nested and executed without copying its internals."},
+    {"experiment_id":"G-P02","kind":"positive","family":"reuse_protocol","risk":"high","runner":"capability_probe","status":"passed","claim":"A local Agent is exposed with to_a2a and consumed over real localhost HTTP by RemoteA2aAgent(use_legacy=False)."},
+    {"experiment_id":"G-P03","kind":"interaction","family":"reuse_protocol","risk":"high","runner":"capability_probe","status":"passed","claim":"Local A2A input-required is returned, answered on the same consumer session and reaches completed output."},
+    {"experiment_id":"G-N01","kind":"negative","family":"reuse_protocol","risk":"high","runner":"capability_probe","status":"passed","claim":"Unavailable local A2A discovery produces an observable non-success event rather than semantic readiness."},
+    {"experiment_id":"G-N02","kind":"negative","family":"reuse_protocol","risk":"high","runner":"capability_probe","status":"passed","claim":"ManagedAgent is cloud-backed and source rejects client/MCP tools; ambient cloud triggers remain excluded."},
+
+    {"experiment_id":"H-P01","kind":"positive","family":"model_schema","risk":"high","runner":"capability_probe","status":"passed","claim":"output_schema and ordinary tools coexist through the injected set_model_response tool."},
+    {"experiment_id":"H-N01","kind":"negative","family":"model_schema","risk":"high","runner":"capability_probe","status":"passed","claim":"Graph single_turn wrapper rejects malformed JSON client-side while root chat delegates response-schema enforcement to the model API."},
+    {"experiment_id":"H-N02","kind":"negative","family":"model_schema","risk":"high","runner":"capability_probe","status":"passed","claim":"Unsupported END, Runner.cancel_async and public EventsCompactionConfig imports are refused."},
+
+    {"experiment_id":"CP-001","kind":"compound","family":"compound_topology","risk":"high","runner":"capability_probe","status":"passed","claim":"Coordinator invokes two specialist AgentTools and produces a deterministic aggregate."},
+    {"experiment_id":"CP-002","kind":"compound","family":"compound_topology","risk":"high","runner":"capability_probe","status":"passed","claim":"Graph fan-out and Join feed a terminal consumer that reads both state and an artifact."},
+    {"experiment_id":"CP-003","kind":"compound","family":"compound_topology","risk":"high","runner":"capability_probe","status":"passed","claim":"Bounded routed cycle pauses twice for Human Input and guards side effects per iteration."},
+    {"experiment_id":"CP-004","kind":"compound","family":"compound_topology","risk":"high","runner":"capability_probe","status":"passed","claim":"Parent reuses a nested Workflow and converts local A2A unavailability into a typed observable fallback."},
+    {"experiment_id":"CP-005","kind":"compound","family":"compound_topology","risk":"high","runner":"capability_probe","status":"passed","claim":"Dynamic node selection is normalized by a typed schema, checked by a deterministic guardrail and emitted as a terminal result."},
+
+    {"experiment_id":"CF-001","kind":"source_comparison","family":"source_conflict","risk":"high","runner":"validator","status":"passed","claim":"Google adk-code says output_schema disables tools; exact 2.4 source/runtime proves SetModelResponseTool compatibility and narrows malformed-output behavior.","evidence_ids":["H-P01","H-N01"]},
+    {"experiment_id":"CF-002","kind":"source_comparison","family":"source_conflict","risk":"high","runner":"validator","status":"passed","claim":"Prior AF card said ordinary multiple-incoming OR fires once; exact runtime proves one execution per trigger.","evidence_ids":["B-P02"]},
+    {"experiment_id":"CF-003","kind":"source_comparison","family":"source_conflict","risk":"high","runner":"validator","status":"passed","claim":"BaseAgent documentation requires unique names, but exact 2.4 construction only logs duplicate sibling names; AF adds deterministic rejection.","evidence_ids":["A-N01"]},
+    {"experiment_id":"CF-004","kind":"source_comparison","family":"source_conflict","risk":"high","runner":"validator","status":"passed","claim":"Resume guidance says tools are at-least-once; exact duplicate confirmation reproduces a second side effect and requires durable deduplication.","evidence_ids":["C-P03","C-N03"]},
+    {"experiment_id":"CF-005","kind":"source_comparison","family":"source_conflict","risk":"medium","runner":"validator","status":"passed","claim":"Prior AF card recorded mcp 1.29.0; exact environment is mcp 1.28.1 and its stdio, Streamable HTTP and SSE behavior are re-probed.","evidence_ids":["ENV-ADK-001","C-P02","C-N02","C-P04","C-N04"]},
+    {"experiment_id":"CF-006","kind":"source_comparison","family":"source_conflict","risk":"high","runner":"validator","status":"passed","claim":"Docs describe cancellation/compaction, but Python 2.4 exposes no public cancel API and compaction config is private from google.adk.apps.","evidence_ids":["F-N02","H-N02"]},
+    {"experiment_id":"CF-007","kind":"source_comparison","family":"source_conflict","risk":"high","runner":"validator","status":"passed","claim":"RequestInput primitive response is unwrapped only from the exact {result: value} envelope.","evidence_ids":["F-P01","F-N01"]},
+    {"experiment_id":"CF-008","kind":"source_comparison","family":"source_conflict","risk":"medium","runner":"validator","status":"passed","claim":"Template Workflow Agents remain executable but exact 2.4 marks them deprecated in favor of Workflow and notes the current sub-agent limitation.","evidence_ids":["A-P04"]},
+    {"experiment_id":"CF-009","kind":"source_comparison","family":"source_conflict","risk":"high","runner":"validator","status":"passed","claim":"Framework to_a2a accepts Workflow, while Agent Factory taxonomy deliberately forbids Workflow A2A binding/exposure.","evidence_ids":["G-P02","A-N02"]},
+
+    {"experiment_id":"GEN-001","kind":"interaction","family":"af_lowering","risk":"high","runner":"existing_generator_matrix","status":"passed","claim":"Current generator fails closed on unsupported/stale Graph shapes and preserves selected context and exact bindings."},
+    {"experiment_id":"SRC-API-001","kind":"symbol","family":"source_only","risk":"medium","runner":"validator","status":"passed","claim":"Exact signatures/source close optional transports, parallel worker, task dispatch, live Workflow and local adapter boundaries without cloud execution."},
+    {"experiment_id":"INV-CLOUD-001","kind":"excluded","family":"cloud_surface","risk":"high","runner":"inventory_audit","status":"excluded_cloud","claim":"Managed Agent execution, Pub/Sub/Eventarc, deploy, publish, cloud observability, online tools and external Web calls are inventoried but not executed."},
+
+    {"experiment_id":"SM-B01","kind":"small_model_forward","family":"model_schema","risk":"high","runner":"none","status":"blocked","claim":"Local qwen3.6-small adapter call.","blocker":"User explicitly authorized assuming the model is absent; no fallback was enabled."},
+    {"experiment_id":"SM-B02","kind":"small_model_forward","family":"model_schema","risk":"high","runner":"none","status":"blocked","claim":"Local qwen3.6-small context-pressure and compaction behavior.","blocker":"User explicitly authorized assuming the model is absent; source/public-boundary evidence only."},
+    {"experiment_id":"SM-B03","kind":"small_model_forward","family":"model_schema","risk":"high","runner":"none","status":"blocked","claim":"Small-model bounded Sub-agent context selection.","blocker":"User explicitly authorized assuming the model is absent; deterministic context-contract probes substitute only for framework claims."},
+    {"experiment_id":"SM-B04","kind":"small_model_forward","family":"model_schema","risk":"high","runner":"none","status":"blocked","claim":"Small-model unsupported-API refusal.","blocker":"User explicitly authorized assuming the model is absent; deterministic symbol refusal is recorded separately and is not a model PASS."}
+  ]
+}
