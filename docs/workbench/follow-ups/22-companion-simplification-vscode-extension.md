@@ -1,6 +1,6 @@
 # 22. Companion 단순화와 Codex App Server 직접 소유 전환
 
-상태: **partially implemented primary path — Graph/App/MCP implemented, turn UI pending**
+상태: **partially implemented evidence — App Server direct-host direction superseded for the primary path**
 
 작성일: 2026-08-03 KST
 
@@ -18,6 +18,20 @@
 - [CLI Companion](../cli-companion.md)
 - [Operating Model](../operating-model.md)
 - [Verification Model](../validation.md)
+
+## 2026-08-05 방향 정정
+
+이 문서에서 제안한 “primary Companion Web backend가 Codex App Server client가 되어 Browser가
+thread/turn을 직접 소유한다”는 방향은 현재 primary 구현 순서가 아니다. 사용자가 확정한
+궁극적 목적은 외부 Codex CLI 또는 Codex VS Code extension이 Google 공식 Skill과 AF Skills
+vNext를 사용해 ADK source를 생성하고, Companion이 Graph·Asset·selection 기반 개발 문맥을
+제공하는 것이다.
+
+따라서 `app-server-client` 구현은 독립 protocol library로 유지할 수 있지만 다음 작업의
+선행조건은 아니다. 현재 실행 기준과 순차 작업은
+[Skill-aware ADK development context](../companion-adk-development-context.md)와
+[follow-up 23](23-companion-adk-development-program.md)이 소유한다. 아래 조사는 App Server를
+후속 rich-client 선택지로 검토할 때의 evidence이며 새 세션의 구현 지시로 사용하지 않는다.
 
 ## 이 문서의 역할
 

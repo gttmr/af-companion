@@ -1,5 +1,33 @@
 # Companion bidirectional Graph collaboration
 
+## Product north star
+
+Companion is the skill-aware ADK development context plane for an external
+Codex CLI or Codex VS Code extension. It visualizes exact Asset bindings and
+Graph structure, turns a selected Node, Edge, or Region into a bounded source
+development task, and preserves implementation evidence in the managed App
+Git repository. Google `google-agents-cli-*` Skills and separately versioned AF
+Skills own the ADK development method; external Codex owns source generation.
+The target operating environment has no Internet access and uses the local
+`qwen3.6-small` model. Cloud deployment, agent publication, and cloud
+observability Skills are therefore outside the primary path. Skill bundles,
+toolchains, dependencies, and model configuration must be provisioned and
+verified offline before a development task starts.
+
+AF Skills are an ADK 2.4 evidence-backed overlay, not a copy of Google Skill
+guidance. Framework claims are decided by exact 2.4 runtime probes, imported
+source/signatures, ADK Docs MCP evidence, and then installed agents-cli guidance.
+The evidence campaign covers the full Workflow, Agent/Sub-agent, Tool,
+state/event/artifact, callback/lifecycle, Subworkflow, and local A2A surface;
+parallel, loop, and dynamic patterns are examples rather than its boundary.
+
+This is a Target Contract, not a claim that the current package already owns
+source projects, Skill readiness, implementation mapping, or task capsules.
+Those gaps and their sequenced work orders are defined in
+[Skill-aware ADK development context](../../docs/workbench/companion-adk-development-context.md).
+The independent App Server client is optional follow-up infrastructure rather
+than a prerequisite for the external-client path.
+
 ## Decision
 
 Graph collaboration has one canonical writer and two independent planes.

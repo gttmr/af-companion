@@ -23,6 +23,7 @@ decision is implemented.
 ## Companion and safety
 
 - [External Codex Companion](workbench/cli-companion.md)
+- [Skill-aware ADK development context](workbench/companion-adk-development-context.md)
 - [Design System](visualization/design-system.md)
 - [Local Companion Security](workbench/local-dev-security.md)
 - [Verification Model](workbench/validation.md)

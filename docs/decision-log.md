@@ -8,6 +8,33 @@
 - 최신 항목이 위로 오는 역시간순. 항목 형식: 날짜 · PR/머지 커밋 · 결정 요약 · 배경(왜) · 영향 범위.
 - 결정을 되돌리거나 대체하면 과거 항목을 지우지 말고 새 항목에서 `(대체: YYYY-MM-DD 항목)`으로 연결한다.
 
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — agents-cli 1.3.1 compatibility 판정을 Session 1 gate로 위임
+
+- **결정**: 사용자는 두 session을 시작하기 전에 agents-cli를 `1.2.1`에서 `1.3.1`로 외부 upgrade한다. 현재 planning session은 그 영향을 미리 승인하거나 거부하지 않는다. Session 1이 installed CLI package/source, Google Skill metadata/digest, local command contract와 exact ADK 2.4 조합을 직접 비교해 `compatible`, `compatible_with_corrections`, `blocked` 중 하나로 판정한다.
+- **경계**: CLI upgrade는 ADK 2.4 baseline upgrade를 의미하지 않는다. CLI와 Skill bundle version이 다르면 혼합 상태로 기록하고 자동 사용하지 않는다. Internet release note는 offline acceptance의 필수 입력으로 만들지 않으며 installed source/help와 executable probe를 근거로 한다.
+- **영향**: Session 1은 compatibility 판정 전 final Skill wording과 full capability campaign으로 진행하지 않는다. Session 2는 Session 1이 승인한 exact agents-cli/Google Skill version·digest와 correction만 소비하며 자체적으로 다른 판정을 만들지 않는다. `blocked`면 자동 rollback하지 않고 사용자 결정으로 반환한다.
+
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — ADK 2.4 전 기능 evidence campaign과 두 session 실행 계약
+
+- **결정**: 전체 프로그램은 exactly two primary sessions로 수행한다. Session 1은 exact ADK 2.4의 public source·ADK Docs MCP·installed agents-cli Skill에서 Workflow·Agent·Sub-agent capability inventory를 만든 뒤 Agent topology, explicit/dynamic Graph, Tool, state/Session/Event/Artifact, callback/Plugin, pause/resume·failure, Subworkflow·local A2A와 small-model behavior 전반을 실험하고 AF Skills vNext를 완성한다. `loop`, `parallel`, `dynamic` 세 pattern이나 고정 W0–W7 통과에서 멈추지 않는다. Session 2는 그 versioned Skill/evidence bundle을 Companion source/context와 external Codex offline journey에 통합한다. Skill과 Companion product code는 같은 change set/PR에 섞지 않는다.
+- **Framework evidence**: ADK 2.4 API/runtime fact는 exact 2.4.0 minimal probe와 representative runtime → 같은 interpreter의 installed source/signature/validator → ADK Docs MCP → installed agents-cli guidance → 기존 AF card/model memory 순으로 판정한다. Product taxonomy·Graph·review authority에는 이 순서를 적용하지 않는다. source 간 차이는 exact query, symbol, positive/negative probe와 scope를 남기며 해결되지 않으면 `unverified` 또는 Blocker다.
+- **종료 기준**: Session 1은 하루 전체가 걸려도 좋으며 시간이나 실험 개수로 완료하지 않는다. 모든 inventory row가 evidence 있는 status로 닫히고, required 기능군의 positive/negative, high-risk pairwise interaction, 최소 다섯 compound topology와 source-comparison probe, 실제 offline `qwen3.6-small` forward test를 갖춰야 한다. 두 번 연속 coverage audit에서 새 high/medium-risk 누락이 없을 때만 Session 2 handoff를 만든다. Cloud-only/online 기능은 누락하지 않고 evidence 있는 제외로 기록하되 실행하지 않는다.
+- **영향**: follow-up 23은 두 work order만 유지하고 follow-up 24는 별도 session series가 아니라 Session 1 설계 범위가 된다. Session 2 acceptance는 parallel/loop/dynamic만 재검증하지 않고 Agent/Sub-agent, Graph, Tool, state/lifecycle, Subworkflow와 A2A에서 고른 representative integration set을 selection별 bounded task로 수행한다.
+
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — offline `qwen3.6-small` 개발 환경을 primary baseline으로 고정
+
+- **결정**: Companion의 실제 사용 환경은 Internet이 없는 local 개발 환경이며 기준 LLM은 사용자 제공 값 `qwen3.6-small`이다. Google agents-cli의 deploy, cloud publish, cloud observability Skill은 required lifecycle과 acceptance에서 제외하고 workflow, scaffold, ADK code, local eval처럼 offline 개발에 필요한 Skill만 사용한다. local Asset Registry publish는 cloud agent publish와 다른 repository-local lifecycle로 유지한다.
+- **Skill 설계 영향**: Google/AF Skill과 dependency는 runtime download나 marketplace에 의존하지 않고 exact version/digest의 offline bundle, local package cache 또는 prebuilt environment로 사전 provision한다. AF Skills vNext는 작은 모델을 위해 한 task/주 intent, bounded Graph context, exact input/output, 짧은 단계와 fail-closed blocker를 사용하며 parsing·validation·digest·inventory는 deterministic code에 맡긴다.
+- **검증 영향**: generated ADK acceptance는 외부 network를 차단한 상태에서 실제 local `qwen3.6-small` 경로로 수행한다. 강한 cloud model, external documentation, package index 또는 model fallback이 있어야만 통과하는 결과는 primary environment PASS가 아니다. exact offline packaging과 local model configuration schema는 후속 contract session에서 확정한다.
+
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Companion을 skill-aware ADK 개발 컨텍스트 평면으로 확정
+
+- **결정**: primary Companion은 자체 코드 생성기나 Browser IDE가 아니라, 외부 Codex CLI 또는 Codex VS Code extension이 Google 공식 `google-agents-cli-*`와 AF Skills vNext를 사용해 ADK source를 생성하도록 Graph·Asset·selection·source root·Git 기준점·검증 조건을 전달하는 개발 컨텍스트 평면이다. Browser가 Codex App Server thread/turn을 직접 소유하는 경로는 primary 선행조건이 아니라 후속 선택지다. (대체: 2026-08-03 follow-up 22의 Browser backend direct App Server host 우선 가설)
+- **Skill 경계**: 모든 ADK 작업은 Google workflow entrypoint와 단계별 관련 Skill을 명시적으로 사용하고 Agent Factory 범위에서 관련 AF Skills vNext를 함께 사용한다. 모든 Skill을 한 turn에 동시에 호출하지 않는다. 기존 `af-*` 개편은 별도 workstream과 PR에서 수행하며 Companion은 versioned Skill interface에만 의존한다.
+- **Source·Git 경계**: managed App Git root가 Graph와 하나 이상의 nested runtime source project, implementation mapping을 함께 소유한다. App Manager는 최초 baseline 뒤 source 생성·후속 commit·remote·push를 소유하지 않는다. local commit은 remote push 없이도 검증된 Graph/source history를 보존한다.
+- **Graph 경계**: 선택한 Node·Edge·Region은 개발 문맥의 기준점이지만 source write 권한이 아니다. source locator와 test evidence는 strict Graph IR field를 늘리지 않고 별도 implementation mapping에 둔다. A2A는 Agent Binding/Exposure, 재사용 Workflow는 Subworkflow Node로 표현한다.
+- **영향**: `packages/companion`의 향후 App manifest, Skill readiness, implementation mapping, development task capsule, external Codex handoff와 acceptance 순서를 정한다. Current Implementation이 이 Target을 이미 충족한다고 주장하지 않으며 exact schema와 wire는 후속 계약 PR에서 확정한다. 활성 결정과 세션별 지시서는 [Companion ADK development context](workbench/companion-adk-development-context.md)와 follow-up 23/24가 소유한다.
+
 ## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — managed App의 최초 local Git baseline 소유권
 
 - **결정**: App Manager가 새 App 생성 중 local `main` branch에 `chore: initialize Companion app workspace` commit 하나를 만든다. 이 baseline은 `.gitignore`, App manifest, exact Asset binding 문서, Graph 네 파일만 포함하며 command-scoped `Agent Factory Companion <companion@agent-factory.local>` identity를 사용한다. 사용자 global Git identity는 바꾸지 않는다.
