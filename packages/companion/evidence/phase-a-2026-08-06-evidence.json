@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "capture_date": "2026-08-06",
+  "scope": "PR #22 Phase A isolated operator transcript",
+  "overall_status": "BLOCKED",
+  "sanitization": {
+    "private_model_endpoint_removed": true,
+    "api_keys_removed": true,
+    "capability_tokens_removed": true,
+    "note": "Values below were copied from current command, browser CDP, HTTP, and MCP outputs. This is a sanitized persistent transcript, not an unedited terminal recording."
+  },
+  "model_preflight": {
+    "command": "node .agent-factory/runtime/session2-model-preflight.mjs",
+    "exit_code": 0,
+    "ready": true,
+    "provider": "self_hosted_vllm_over_tailscale_direct",
+    "model": "hosted_vllm/qwen3.6-27b-128k",
+    "reported_context_length": 131072,
+    "chat_completion": "passed",
+    "cloud_fallback": false
+  },
+  "github_baseline": {
+    "head": "42e4212588d36287f7479d641162a913f3db2c6f",
+    "pr_number": 22,
+    "is_draft": true,
+    "checks": [],
+    "gh_pr_checks_exit_code": 1,
+    "gh_pr_checks_summary": "no checks reported"
+  },
+  "local_app_git": {
+    "alpha": {
+      "application_id": "phase-a-alpha",
+      "branch": "main",
+      "baseline_commit": "b9375b289fa90a11ea3e653fe82f8250db856926",
+      "commit_subject": "chore: initialize Companion app workspace",
+      "author": "Agent Factory Companion <companion@agent-factory.local>",
+      "commit_count": 1,
+      "remote_count": 0
+    },
+    "beta": {
+      "application_id": "phase-a-beta",
+      "branch": "main",
+      "baseline_commit": "b95fcdd9c3859af05443fde1e8d719380e2e59fe",
+      "commit_subject": "chore: initialize Companion app workspace",
+      "author": "Agent Factory Companion <companion@agent-factory.local>",
+      "commit_count": 1,
+      "remote_count": 0,
+      "final_status": [
+        " M .agent-factory/companion-graph.json"
+      ]
+    }
+  },
+  "registry": {
+    "contract_validation_negative_status": 422,
+    "published_ref": "agent.phase-a.acceptance@1",
+    "next_draft_ref": "agent.phase-a.acceptance@2",
+    "stale_revision": "03f6c362ecc95a6c44aff890944b5f9a883bdd3ef87d30f53df3acfdc827ede1",
+    "first_update": {
+      "status": 200,
+      "registry_revision": "ee19bd1989ac0fa448613d66bc14bdfff43cfce36cc2eee3f9b0f77d130b5e1c"
+    },
+    "late_update": {
+      "status": 409,
+      "error": "registry_revision_conflict"
+    },
+    "stale_ui_review": {
+      "status": 409,
+      "notice": "Registry revision이 변경되어 작업을 적용하지 않았습니다. 최신 version을 다시 읽고 검토하세요."
+    },
+    "deprecation": {
+      "status": 200,
+      "registry_revision": "a9c3cf718ea2b997dc613cc125eec70cb27db6de79b2120530ebbde54f94ffcd",
+      "decision_id": "decision:session2-phase-a-deprecate"
+    }
+  },
+  "app_isolation": {
+    "old_alpha_mcp_after_beta_activation": {
+      "is_error": true,
+      "status": "UNVERIFIED",
+      "reasons": [
+        "app_inactive"
+      ]
+    },
+    "beta_tools": [
+      "companion_get_graph_workspace",
+      "companion_apply_graph_changes"
+    ],
+    "beta_selection": {
+      "kind": "node",
+      "id": "node.output"
+    }
+  },
+  "graph": {
+    "beta_initial_revision": "638606f9704109d95acc05dac8c61517f9866cd35d01e2a0a519d0edaa6a8c6b",
+    "invalid_function_add": {
+      "status": "UNVERIFIED",
+      "status_code": 422,
+      "error": "graph_contract_violation",
+      "issues": [
+        {
+          "code": "missing_field",
+          "path": "graph.nodes[2].role"
+        },
+        {
+          "code": "invalid_function_role",
+          "path": "graph.nodes[2].role"
+        }
+      ]
+    },
+    "valid_node_edge_add": {
+      "status": "APPLIED",
+      "graph_revision": "d51c979166d4ae73efe77272c98fa2462005caec1259b821e6e72e203a580c48",
+      "changed_nodes": [
+        "node.phase-a-step"
+      ],
+      "changed_edges": [
+        "edge.phase-a-step-output"
+      ]
+    },
+    "edge_inspector_save": {
+      "graph_revision": "26c180a4e291b21d9491bc16e7ccbfac8a1dfe1349aba855af69dc4609aa7497",
+      "edge": {
+        "id": "edge.phase-a-step-output",
+        "from": "node.input",
+        "to": "node.phase-a-step",
+        "control": {
+          "kind": "condition",
+          "condition": "phase_a.ready",
+          "accepted_aliases": [],
+          "default": false
+        },
+        "channel": "artifact"
+      }
+    },
+    "external_wins": {
+      "web_draft_changed_count": 1,
+      "mcp_status": "APPLIED",
+      "graph_revision": "01f70b940a5151ac9a6792c36d942f2c3fe771d1583ef31f699a39d7c63ae3a3",
+      "canonical_output_label": "MCP 외부 우선 결과",
+      "browser_notice": "Codex 변경 반영됨. 저장 전 변경 1개가 대체되었습니다."
+    },
+    "valid_direct_file_edit": {
+      "graph_revision": "a03d340cd8a7be0e47622e7b5bfde03b4bf9182d6993b2d145bd83281c888f88",
+      "canonical_input_label": "직접 파일 입력",
+      "browser_notice": "외부 파일 변경 반영됨."
+    },
+    "invalid_json": {
+      "source_health": "invalid",
+      "source_error": "invalid_json",
+      "draft_status": 409,
+      "presentation_status": 409,
+      "mcp_apply": {
+        "status": "UNVERIFIED",
+        "status_code": 409,
+        "error": "invalid_external_source"
+      },
+      "recovery_source_health": "valid",
+      "failed_label_persisted": false
+    },
+    "stale_cas": {
+      "same_initial_revision": true,
+      "initial_revision": "a03d340cd8a7be0e47622e7b5bfde03b4bf9182d6993b2d145bd83281c888f88",
+      "client_a": {
+        "status": "APPLIED",
+        "graph_revision": "f49bfda980260afe47c5ceefea8692a61b54416ff7b90171cee03c08e095d9fc"
+      },
+      "client_b_stale": {
+        "status": "UNVERIFIED",
+        "status_code": 412,
+        "error": "graph_stale",
+        "current_graph_revision": "f49bfda980260afe47c5ceefea8692a61b54416ff7b90171cee03c08e095d9fc"
+      },
+      "client_b_fresh_retry": {
+        "status": "APPLIED",
+        "graph_revision": "d8280414ee58cac9b90bfbc138e5704b05722f4845ab7c10743e1f6191c7d8ee",
+        "canonical_output_label": "MCP Chat B 재계산 결과"
+      }
+    }
+  },
+  "restart": {
+    "before": {
+      "root_state_sha256": "21a023e486a9aedb39012333584dffa9460a604a97062a65c43d015cd7ae401b",
+      "graph_sha256": "7f86453a78fe62b782599b74c6ab65719caf3ec332840f33638fef33cc59f195",
+      "presentation_sha256": "e21844c3eb647e851982898bd6a6da4e8acbd02fe9c845400c13ae5e392461b7",
+      "workspace_state_sha256": "032fe56b48d007a26c4e09947aa6b8f87c920c84fe35225f8ab469bd87c1b7ec"
+    },
+    "after": {
+      "root_state_sha256": "21a023e486a9aedb39012333584dffa9460a604a97062a65c43d015cd7ae401b",
+      "graph_sha256": "7f86453a78fe62b782599b74c6ab65719caf3ec332840f33638fef33cc59f195",
+      "presentation_sha256": "e21844c3eb647e851982898bd6a6da4e8acbd02fe9c845400c13ae5e392461b7",
+      "workspace_state_sha256": "032fe56b48d007a26c4e09947aa6b8f87c920c84fe35225f8ab469bd87c1b7ec"
+    },
+    "active_application_id": "phase-a-beta",
+    "graph_revision": "d8280414ee58cac9b90bfbc138e5704b05722f4845ab7c10743e1f6191c7d8ee",
+    "selection": {
+      "kind": "node",
+      "id": "node.output"
+    },
+    "output_position": {
+      "x": 550,
+      "y": 250,
+      "pinned": true
+    },
+    "existing_mcp_process_hot_read": "VERIFIED"
+  },
+  "vscode": {
+    "launcher_http_status": 202,
+    "launcher_ui_status": "VS Code 열기 요청됨",
+    "version": "1.131.0",
+    "remote": "WSL: Ubuntu-24.04",
+    "workspace_root": "/tmp/af-companion-session2-phase-a.Wfnw0U/apps/phase-a-beta",
+    "extension": "openai.chatgpt@26.727.40816",
+    "current_run_ai_chat_executed": false,
+    "current_run_ai_chat_status": "BLOCKED",
+    "blocker": "The installed extension exposes no approved self-hosted provider setting, while the Session 2 lock forbids its default cloud model path."
+  },
+  "browser_final_reload": {
+    "chrome": "147.0.7727.55",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "dom": {
+      "active_application_id": "phase-a-beta",
+      "graph_summary": "3 Nodes · 2 Edges · 0 Regions",
+      "context": "available",
+      "graph_validation": "passed",
+      "pinned_selection": "node.output"
+    },
+    "cdp": {
+      "runtime_exceptions": [],
+      "console_errors": [],
+      "log_errors_or_warnings": [],
+      "network_loading_failures": [],
+      "http_errors": []
+    },
+    "resource_origins": [
+      "http://127.0.0.1:8890"
+    ],
+    "external_resources": [],
+    "screenshot": {
+      "path": "packages/companion/acceptance-2026-08-06.png",
+      "sha256": "7fba8c0b81da00be24b73af912cf941dc5eeeb3f689d948478b56622cd7f0961",
+      "width": 1440,
+      "height": 1000
+    }
+  },
+  "local_validation": {
+    "typecheck_exit_code": 0,
+    "tests": {
+      "total": 70,
+      "passed": 70,
+      "failed": 0
+    },
+    "build_exit_code": 0,
+    "artifact_validator": "Artifact validation OK",
+    "git_diff_check_exit_code": 0,
+    "relative_link_check": "passed"
+  },
+  "unresolved": [
+    "Current-run VS Code Codex AI chat, Tool card, write approval, and two-chat stale retry were not executed under the Session 2 model transport lock.",
+    "An abrupt server stop left a mode-0600 stale capability atomic-write temp file in an existing App. It was manually removed from the disposable App, but no partial source mitigation is claimed.",
+    "The merged Session 1 evidence has no literal required_integration named set; CP-001 through CP-005 and the Session 2 E2 list were not silently redefined as that artifact."
+  ]
+}

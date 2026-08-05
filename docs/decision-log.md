@@ -8,6 +8,13 @@
 - 최신 항목이 위로 오는 역시간순. 항목 형식: 날짜 · PR/머지 커밋 · 결정 요약 · 배경(왜) · 영향 범위.
 - 결정을 되돌리거나 대체하면 과거 항목을 지우지 말고 새 항목에서 `(대체: YYYY-MM-DD 항목)`으로 연결한다.
 
+## 2026-08-06 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Session 2 primary acceptance를 self-hosted Qwen 3.6 27B로 고정
+
+- **결정**: Session 2 primary acceptance model은 사용자 소유 Linux system의 self-hosted Qwen 3.6 27B이고 served model ID는 `qwen3.6-27b-128k`, context lock은 128k (`131072`)다. 이 결정은 Session 2에 한정해 2026-08-05 `qwen3.6-small` primary baseline 결정을 대체한다. Session 1 manifest, AF Skill instruction과 model-forward blocked evidence는 수정하지 않는다.
+- **Toolchain lock**: Session 1이 accepted한 agents-cli `1.2.1`과 Google Skills `1.2.1` exact tree digests를 Session 2가 소비한다. Candidate `1.3.1`은 exact ADK 2.4/A2A 0.3 baseline을 제외하는 generated dependency ranges 때문에 rejected된 상태를 유지한다.
+- **Transport와 보존 경계**: model call은 ignored local configuration에만 저장된 승인된 Tailscale direct OpenAI-compatible `/v1` endpoint로 수행한다. Private endpoint bytes를 repository source, managed App, artifact, screenshot 또는 evidence에 저장하지 않으며 localhost tunnel은 acceptance transport가 아니다.
+- **금지와 판정**: 승인된 Tailscale model transport 외 Internet egress, cloud model, Gemini fallback, deploy, cloud publish와 cloud observability를 금지한다. 다른 model의 성공은 primary PASS가 아니며 결과는 `small-model PASS`가 아니라 **self-hosted-27B Session 2 acceptance**로 기록한다.
+
 ## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — agents-cli 1.3.1 compatibility 판정을 Session 1 gate로 위임
 
 - **결정**: 사용자는 두 session을 시작하기 전에 agents-cli를 `1.2.1`에서 `1.3.1`로 외부 upgrade한다. 현재 planning session은 그 영향을 미리 승인하거나 거부하지 않는다. Session 1이 installed CLI package/source, Google Skill metadata/digest, local command contract와 exact ADK 2.4 조합을 직접 비교해 `compatible`, `compatible_with_corrections`, `blocked` 중 하나로 판정한다.

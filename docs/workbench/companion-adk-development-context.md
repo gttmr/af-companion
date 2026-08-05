@@ -53,16 +53,29 @@ Asset Registry + Graph + active selection
 provision된 local toolchain, Skill bundle, dependency cache 또는 environment와 local model만
 사용해야 한다.
 
-- 기준 LLM은 사용자 제공 값 `qwen3.6-small`이다.
+- Session 2 primary acceptance model은 사용자 소유 Linux system에서 제공하는 self-hosted
+  Qwen 3.6 27B이며 served model ID는 `qwen3.6-27b-128k`, context lock은 128k
+  (`131072`)이다. Session 1의 `qwen3.6-small` manifest와 blocked evidence는 당시 기록으로
+  그대로 보존한다.
+- Session 2 model transport는 ignored local configuration에만 저장된 승인된 Tailscale direct
+  endpoint의 OpenAI-compatible `/v1` 경로다. Private endpoint bytes를 repository source,
+  artifact, evidence 또는 App에 저장하지 않으며 localhost tunnel은 acceptance transport가 아니다.
 - framework baseline은 exact `google-adk==2.4.0`이고 supported dependency line은
   `>=2.4.0,<2.5.0`이다. 새 환경은 exact interpreter와 imported package path를 다시 확인한다.
-- Session 1 전에 agents-cli가 `1.2.1`에서 `1.3.1`로 외부 upgrade된다. `1.3.1` compatibility는
-  Target Contract가 아니라 Session 1의 installed-source/Skill/runtime evidence로 판정할 open
-  verification gate다.
+- Session 1은 agents-cli `1.2.1`과 installed Google Skills `1.2.1`을
+  `compatible_with_corrections`로 accepted했다. Candidate `1.3.1`은 generated dependency
+  ranges가 exact ADK 2.4/A2A 0.3 baseline을 제외하므로 rejected다.
+- Session 2 Google Skill tree digest lock은 workflow
+  `83dea9d79fe84b2c79d8323fdddbe493e040be2c1ebb3a0a365aef266f445c31`,
+  scaffold `fc3c18e81027108e18338617d105ef31c2e98821736a5b7d2b37508990240d2f`,
+  adk-code `e67352cc574bcea3017e3e03a6247c3b033be7929087b119a7e987914cb48e9f`,
+  eval `37c2d1659016791608630fb402b67cceb51f61aa8953804ea7347e4fc7081fc9`다.
+  Session 1 manifest가 이 version/digest와 detector correction의 authority다.
 - Google agents-cli의 deploy, cloud publish, cloud observability 기능은 제품 고려사항이
   아니며 required Skill coverage에서 제외한다.
-- runtime 중 Skill marketplace, GitHub, package index, cloud documentation 또는 외부 model
-  API에 접속하는 정상 경로를 만들지 않는다.
+- runtime 중 승인된 Tailscale model transport 외 Skill marketplace, GitHub, package index,
+  cloud documentation, Internet 또는 외부 model API에 접속하는 정상 경로를 만들지 않는다.
+  Cloud model과 Gemini fallback은 금지한다.
 - Google 공식 Skill과 AF Skills vNext는 offline 환경에 들어가기 전에 version/digest가 고정된
   bundle로 준비하고, Companion은 App cwd에서 그 local bundle을 확인한다.
 - dependency 설치가 필요하면 approved local wheel/package cache, prebuilt environment 또는
@@ -70,7 +83,7 @@ provision된 local toolchain, Skill bundle, dependency cache 또는 environment�
 - local Asset Registry의 `publish` lifecycle은 cloud agent publish와 다른 repository-local
   기능이므로 기존 사용자 승인 계약을 유지한다.
 
-작은 모델을 전제로 Skill과 task를 설계한다.
+고정된 local model과 bounded context를 전제로 Skill과 task를 설계한다.
 
 - 한 task에는 하나의 주 intent와 필요한 최소 Skill만 넣는다.
 - 긴 자유 형식 배경 대신 stable field, 짧은 단계, exact path와 output schema를 사용한다.
@@ -78,7 +91,9 @@ provision된 local toolchain, Skill bundle, dependency cache 또는 environment�
   deterministic script/core가 소유한다.
 - 전체 Registry나 Graph를 넣지 않고 selection과 필요한 bounded neighborhood만 제공한다.
 - ambiguous 상태는 model이 추측하지 않고 typed blocker 또는 한 질문으로 반환한다.
-- acceptance는 강한 cloud model이 아니라 실제 `qwen3.6-small` local 경로에서 수행한다.
+- Session 2 acceptance는 다른 model fallback 없이 실제 self-hosted
+  `qwen3.6-27b-128k` Tailscale direct 경로에서 수행하고
+  **self-hosted-27B Session 2 acceptance**로 기록한다.
 
 ### ADK 2.4 framework fact의 evidence 순서
 
@@ -276,9 +291,9 @@ wire가 더 작은지는 계약 세션에서 결정한다. 선택에서 바로 s
    contract를 보호한다.
 2. AF Skills vNext CI는 capability inventory, manifest, trigger/intent fixture, compatibility,
    framework probe와 산출물 계약을 검증한다.
-3. generated App acceptance는 외부 network를 차단한 상태에서 import/lint/unit,
+3. generated App acceptance는 승인된 Tailscale model transport 외 network를 차단한 상태에서 import/lint/unit,
    `agents-cli info`, local runtime smoke, local `agents-cli eval`, Subworkflow 또는 A2A
-   contract를 실제 App source root와 `qwen3.6-small` 경로에서 검증한다.
+   contract를 실제 App source root와 self-hosted `qwen3.6-27b-128k` 경로에서 검증한다.
 
 local model process가 필요한 eval은 deterministic required GitHub check와 분리해 offline
 acceptance evidence로 기록한다. 테스트 통과는 Skill을 실제로 사용했다는 완전한 증명이

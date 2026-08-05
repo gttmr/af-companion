@@ -8,11 +8,15 @@ Graph structure, turns a selected Node, Edge, or Region into a bounded source
 development task, and preserves implementation evidence in the managed App
 Git repository. Google `google-agents-cli-*` Skills and separately versioned AF
 Skills own the ADK development method; external Codex owns source generation.
-The target operating environment has no Internet access and uses the local
-`qwen3.6-small` model. Cloud deployment, agent publication, and cloud
-observability Skills are therefore outside the primary path. Skill bundles,
-toolchains, dependencies, and model configuration must be provisioned and
-verified offline before a development task starts.
+The target operating environment has no Internet access. Session 2 primary
+acceptance uses the user-owned self-hosted `qwen3.6-27b-128k` model with a 128k
+context through one approved Tailscale direct `/v1` transport. The private
+endpoint remains in ignored local configuration and is never persisted in
+repository source, an App, artifacts, or evidence; localhost tunnels, cloud
+models, Gemini fallback, deployment, agent publication, and cloud observability
+are outside the primary path. Skill bundles, toolchains, dependencies, and
+model configuration must be provisioned and verified before a development task
+starts.
 
 AF Skills are an ADK 2.4 evidence-backed overlay, not a copy of Google Skill
 guidance. Framework claims are decided by exact 2.4 runtime probes, imported

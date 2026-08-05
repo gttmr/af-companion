@@ -1,17 +1,24 @@
 # Session 2. Companion 통합과 offline end-to-end acceptance
 
-상태: **planned — Session 1 완료 후 시작**
+상태: **blocked — Phase A current-run VS Code AI chat과 model transport lock이 충돌**
 
 Master: [2-session 프로그램](../23-companion-adk-development-program.md)
 
 ## 이 session의 한 가지 결과
 
 Session 1에서 검증한 AF Skills vNext와 ADK 2.4 capability evidence를 primary Companion에 연결해,
-선택한 Graph Node·Edge·Region에서 외부 Codex 작업을 만들고 offline `qwen3.6-small`로 ADK
-source 생성·검증·local Git commit까지 수행하는 사용자 여정을 완성한다.
+선택한 Graph Node·Edge·Region에서 외부 Codex 작업을 만들고 self-hosted
+`qwen3.6-27b-128k`로 ADK source 생성·검증·local Git commit까지 수행하는 사용자 여정을 완성한다.
 
 이 session에서는 AF Skill instruction이나 ADK pattern card를 수정하지 않는다. Skill defect는
 Session 1 workstream의 follow-up defect로 분리한다.
+
+Phase A의 browser, local MCP, Registry, App Git과 restart evidence는 2026-08-06에 다시
+수집했지만, `USER-ACCEPTANCE.md`가 요구하는 새 VS Code Codex AI chat은 current Session 2에서
+실행하지 않았다. 현재 extension은 cloud model을 기본 사용하고 설치 manifest에 approved
+self-hosted provider setting을 노출하지 않는다. Cloud model 금지와 current-run extension chat
+요구를 동시에 만족하는 검증된 경로가 없으므로 Phase A는 완료가 아니라 blocker다. 전일 cloud
+extension evidence나 독립 local MCP 결과를 current Session 2 PASS로 대체하지 않는다.
 
 ## 시작 gate
 
@@ -19,8 +26,9 @@ Session 1 workstream의 follow-up defect로 분리한다.
 2. Skill manifest input/output, ADK 2.4 capability inventory, representative integration set와
    unsupported/excluded list를 읽었다.
 3. current PR #22 state, checks, head와 worktree를 다시 확인했다.
-4. local `qwen3.6-small`, ADK 2.4.0 interpreter, agents-cli와 offline Skill/dependency bundle이
-   App cwd에서 준비됐다.
+4. self-hosted `qwen3.6-27b-128k`와 128k (`131072`) context, ADK 2.4.0 interpreter,
+   accepted agents-cli `1.2.1`과 Google Skills `1.2.1` exact digest bundle이 App cwd에서
+   준비됐다. Candidate agents-cli `1.3.1`은 Session 1에서 rejected다.
 5. primary checkout의 두 untracked historical work-order 파일을 보존했다.
 
 Session 1의 known unsupported pattern을 Companion UI나 prompt가 supported로 노출하면 code
@@ -66,7 +74,10 @@ latest `main` 기반 새 Companion change set에서 다음 versioned contract를
 - Session 1 AF bundle version/digest와 required Google Skill IDs
 - App cwd discoverability, disabled/missing/version/digest/offline-ready
 - exact ADK 2.4 and agents-cli compatibility
-- local `qwen3.6-small` profile와 allowed local dependency source
+- self-hosted `qwen3.6-27b-128k`, 128k context와 allowed local dependency source
+- ignored local configuration의 승인된 Tailscale direct `/v1` endpoint만 허용하고 private endpoint
+  bytes는 source, App, artifact 또는 evidence에 저장하지 않음
+- localhost tunnel, 다른 Internet egress, cloud model과 Gemini fallback을 fail closed로 거절
 - deploy/cloud Skill을 missing requirement로 표시하지 않음
 
 ### Development Context Capsule
@@ -111,8 +122,8 @@ React Flow 전환, 고급 layout/pan/zoom과 Browser direct App Server는 이 ph
 
 ## Phase E — Offline end-to-end matrix
 
-모든 scenario는 external network를 차단하고 local `qwen3.6-small`, exact ADK 2.4.0과 Session 1
-Skill bundle을 사용한다.
+모든 scenario는 승인된 Tailscale model transport 외 external network를 차단하고 self-hosted
+`qwen3.6-27b-128k`, exact ADK 2.4.0과 Session 1 Skill bundle을 사용한다.
 
 ### E1 Existing Workflow/Subworkflow
 
@@ -158,12 +169,12 @@ unsupported guard를 정확히 전달하는지 확인한다. Session 1의 전체
 - ADK 2.4 import/unit/runtime/local eval commands and results
 - implementation mapping before/after
 - local Git base/result commits
-- external network request가 없다는 evidence
+- 승인된 Tailscale model request 외 external network request가 없다는 evidence
 - PASS/FAIL/UNVERIFIED와 residual risk
 
-## Small-model acceptance
+## Self-hosted-27B Session 2 acceptance
 
-`qwen3.6-small`에서 다음을 별도로 판정한다.
+self-hosted `qwen3.6-27b-128k`에서 다음을 별도로 판정한다.
 
 - required Skill을 정확히 선택하는가
 - agents-cli guidance와 ADK 2.4 correction이 충돌할 때 Session 1 evidence protocol을 따르는가
@@ -172,7 +183,8 @@ unsupported guard를 정확히 전달하는지 확인한다. Session 1의 전체
 - Agent/Sub-agent, Graph, Tool, state/lifecycle 중 선택 대상에 필요한 reference만 읽는가
 - validation failure 뒤 speculative fix를 쌓지 않고 source/probe를 다시 읽는가
 
-strong model에서 대신 성공한 결과는 primary PASS가 아니다.
+다른 local/cloud model에서 대신 성공한 결과는 Session 2 primary PASS가 아니다. 이 결과를
+`small-model PASS`라고 부르지 않고 **self-hosted-27B Session 2 acceptance**로 기록한다.
 
 ## Checkpoint와 PR 경계
 
@@ -196,7 +208,7 @@ interface와 UI를 별도 PR로 나눌 수 있지만, session context와 master 
 - `node scripts/validate-artifacts.mjs`
 - contract/path/digest/read-only integration tests
 - current ADK 2.4 capability/runtime tests selected by Session 1 evidence
-- network-disabled `qwen3.6-small` E1–E3 acceptance
+- 승인된 Tailscale model transport 외 network-disabled self-hosted-27B E1–E3 acceptance
 - Chrome DevTools `8899` gate 뒤 real screen DOM/console/network와 screenshot
 - `git diff --check`, relative links, edited-file and App Git inventories
 - GitHub required checks for each product PR
@@ -207,7 +219,7 @@ interface와 UI를 별도 PR로 나눌 수 있지만, session context와 master 
 - source project, implementation mapping, Skill/model lock과 bounded capsule이 구현됐다.
 - selection에서 external Codex task를 시작하고 Skill/quality evidence를 구분할 수 있다.
 - E1 Subworkflow, E2 representative capability integration과 E3 A2A가 offline
-  `qwen3.6-small`에서 PASS다.
+  self-hosted `qwen3.6-27b-128k`에서 PASS다.
 - local Git commit이 Graph/source/evidence 기준점을 보존하고 remote push가 필요하지 않다.
 - AF Skill source를 이 session에서 수정하지 않았고 unresolved Skill defect는 별도 issue/evidence로
   반환됐다.

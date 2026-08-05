@@ -23,12 +23,19 @@ source mapping과 local Git evidence를 제공하는 전체 루프를 두 번의
 ## 확정된 제약과 제품 결정
 
 - 실제 사용 환경에는 Internet이 없다.
-- 기준 local LLM은 사용자 제공 값 `qwen3.6-small`이다.
+- Session 2 primary acceptance model은 self-hosted Qwen 3.6 27B, served model ID
+  `qwen3.6-27b-128k`, 128k (`131072`) context다. Session 1의 `qwen3.6-small` manifest와
+  blocked evidence는 수정하지 않는다.
+- Session 2는 ignored local configuration의 승인된 Tailscale direct `/v1` endpoint만 model
+  transport로 사용한다. Private endpoint를 repository나 App에 저장하지 않고 localhost tunnel,
+  Internet egress, cloud model, Gemini fallback을 사용하지 않는다.
 - generated runtime과 Skill guidance의 기준은 ADK 2.4이며 repository exact verification
   baseline은 현재 `google-adk==2.4.0`이다. 새 session은 exact interpreter를 다시 확인한다.
-- 사용자는 Session 1 전에 agents-cli를 `1.2.1`에서 `1.3.1`로 외부 upgrade한다. 이 문서는
-  compatibility를 미리 승인하지 않으며 Session 1이 installed CLI/source/Google Skill bundle과
-  ADK 2.4 조합을 evidence로 판정한다.
+- Session 1은 agents-cli `1.2.1`과 Google Skills `1.2.1`을
+  `compatible_with_corrections`로 accepted했고 candidate `1.3.1`은 exact ADK 2.4/A2A 0.3을
+  제외하는 generated dependency ranges 때문에 rejected했다. Session 2는 accepted `1.2.1`
+  source와 manifest의 exact workflow `83dea9d7…5c31`, scaffold `fc3c18e8…0d2f`,
+  adk-code `e67352cc…8e9f`, eval `37c2d165…1fc9` tree digest만 사용한다.
 - ADK Docs MCP는 offline 개발 환경에서 허용된 documentation evidence surface다. 일반 Web
   search나 online docs fallback으로 대체하지 않는다.
 - agents-cli guidance, ADK Docs MCP, installed ADK 2.4 source와 실행 결과가 충돌할 수 있다는
@@ -91,7 +98,7 @@ source signature를 확인한다. ignored runtime venv가 있을 것이라고 �
 
 | Session | 한 가지 소유 범위 | 완료 gate |
 | --- | --- | --- |
-| [1. AF Skills vNext](23-companion-adk-development/01-af-skills-vnext.md) | ADK 2.4 capability inventory, Docs MCP/source conflict records, Workflow·Agent·Sub-agent 종합 실험, concise offline Skill bundle | coverage saturation, Skill PR 검증과 `qwen3.6-small` forward test PASS |
+| [1. AF Skills vNext](23-companion-adk-development/01-af-skills-vnext.md) | ADK 2.4 capability inventory, Docs MCP/source conflict records, Workflow·Agent·Sub-agent 종합 실험, concise offline Skill bundle | coverage saturation과 Skill PR 검증; merged evidence의 `qwen3.6-small` forward cases는 blocked로 보존 |
 | [2. Companion integration](23-companion-adk-development/02-companion-integration.md) | PR #22 foundation closure, source/context contract, Skill readiness, selection handoff, representative capability·Subworkflow·A2A acceptance | offline full loop와 local Git evidence PASS |
 
 Session 안에는 여러 checkpoint와 commit이 있을 수 있다. reviewability 때문에 PR을 분리할 수
@@ -104,7 +111,7 @@ Companion package source를 섞지는 않는다.
 2. Target Contract와 Current Implementation, product contract와 ADK framework fact를 구분한다.
 3. framework claim마다 version, Docs MCP query, source locator와 실행 evidence 중 해당 근거를
    기록한다.
-4. `qwen3.6-small`에는 한 번에 하나의 primary intent와 bounded context만 전달한다.
+4. session-specific locked model에는 한 번에 하나의 primary intent와 bounded context만 전달한다.
 5. parsing, hash, path validation, artifact inventory와 scoring은 deterministic script/test가
    소유한다.
 6. skipped check를 PASS로 만들지 않고 strong cloud model이나 Internet fallback을 사용하지
@@ -186,6 +193,9 @@ agents-cli --version
 검사한다.
 
 ### 2. Session 1 실행 prompt
+
+아래 code block은 Session 1에 전달한 historical input을 보존한 것이다. 현재 Session 2
+toolchain lock으로 다시 해석하거나 실행하지 않는다.
 
 `/home/ilmaswsl/work/af-companion-skills-vnext`를 cwd로 새 Codex CLI 또는 VS Code Codex session을
 열고 다음 prompt를 그대로 전달한다.
@@ -312,7 +322,7 @@ Session 1 merged commit과 Draft/merged PR evidence를 확인하고 다음 hando
 
 - AF Skills vNext bundle location/version/digest
 - Session 1이 accepted한 exact agents-cli/Google Skill bundle과 compatibility correction
-- compatible google-adk/qwen profile
+- compatible google-adk와 active Session 2 model profile
 - capability inventory와 evidence index
 - required_integration representative set
 - known unsupported/excluded/blocked patterns
@@ -338,15 +348,17 @@ source project, implementation mapping, Skill/model lock과 read-only Developmen
 contract tests부터 구현하라. 이어서 selected Node/Edge/Region의 bounded task를 external Codex
 CLI/VS Code 경로에 연결하고 frontend-skill과 project browser rules에 따라 실제 UI를 검증하라.
 
-offline qwen3.6-small과 exact ADK 2.4에서 E1 Subworkflow, E2 representative Agent/Sub-agent·Graph·
-Tool·state/lifecycle integration, E3 local A2A를 수행하라. Internet, cloud model, deploy,
-cloud publish, cloud observability와 Browser direct App Server를 사용하지 마라.
+self-hosted `qwen3.6-27b-128k`의 승인된 Tailscale direct transport와 exact ADK 2.4에서 E1
+Subworkflow, E2 representative Agent/Sub-agent·Graph·Tool·state/lifecycle integration, E3 local
+A2A를 수행하라. 다른 Internet egress, cloud model, Gemini fallback, deploy, cloud publish,
+cloud observability와 Browser direct App Server를 사용하지 마라.
 
 Graph mutation은 항상 latest get -> base_graph_revision -> minimal apply를 사용하고 graph_stale면
 재조회 후 재계산하라. source write와 Graph write authority를 합치지 마라.
 
-각 checkpoint마다 typecheck/test/build, validator, ADK runtime, network-disabled qwen acceptance,
-browser DOM/console/network/screenshot와 local App Git evidence를 남겨라.
+각 checkpoint마다 typecheck/test/build, validator, ADK runtime, 승인된 Tailscale model transport 외
+network-disabled self-hosted-27B Session 2 acceptance, browser DOM/console/network/screenshot와 local
+App Git evidence를 남겨라.
 
 완료 gate를 충족하면 independent review, intentional commits와 changed-file inventory를 확인한 뒤
 agent/companion-adk-integration를 push하고 main 대상 Draft PR을 생성하라.
@@ -379,15 +391,17 @@ directory가 이미 존재하면 덮어쓰지 않는다.
 
 ## 프로그램 완료 조건
 
-- agents-cli 1.3.1과 installed Google Skill bundle의 compatibility가 Session 1 evidence로
-  판정되고 Session 2가 그 exact version/digest와 correction만 사용한다.
+- agents-cli `1.2.1`과 Google Skills `1.2.1`이 Session 1 evidence로
+  `compatible_with_corrections` 판정됐고 Session 2가 그 exact version/digest만 사용한다.
+  Candidate `1.3.1` rejection을 자동으로 되돌리지 않는다.
 - agents-cli guidance, Docs MCP와 ADK 2.4 source/runtime가 충돌할 때 재현 가능한 최종 판정
   절차와 evidence가 있다.
 - ADK 2.4의 Workflow·Agent·Sub-agent, Tool, state/event/artifact, callback/plugin,
   pause/resume와 local reuse capability inventory가 evidence 있는 status로 닫힌다.
 - 각 required 기능군의 positive/negative, high-risk interaction과 대표 복합 topology guidance가
   Skill reference와 tests로 검증된다.
-- Skill이 `qwen3.6-small`에서 bounded context로 동작하고 unsupported behavior를 추측하지 않는다.
+- Session 1의 model-forward blocked evidence를 PASS로 바꾸지 않고, Session 2가 self-hosted
+  `qwen3.6-27b-128k`에서 bounded context로 동작하며 unsupported behavior를 추측하지 않는다.
 - Companion이 source project, Skill bundle, local model, Graph selection과 implementation
   mapping을 한 task capsule로 연결한다.
 - Existing Workflow/Subworkflow, A2A Agent와 representative Agent/Sub-agent·Graph·Tool·state 및
