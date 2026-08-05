@@ -41,6 +41,17 @@ Published Agent, Workflow, and Tool Assets are searched from the canonical
 `catalog/asset-registry.json`. Adding one records its exact version and contract
 hash in the active App before a typed Graph Node can reference it.
 
+The `Assets` workspace manages the same canonical Registry through the shared
+Registry core. It can create and update drafts, record user review decisions,
+publish immutable versions, and deprecate published versions. The App Manager
+does not gain Registry write authority; it continues to consume published
+bindings only. CLI automation remains available through `scripts/af.mjs asset`.
+
+For destructive/manual lifecycle acceptance, point only the server at a copied
+fixture with `COMPANION_REGISTRY_PATH=/absolute/path/asset-registry.json`. The
+browser cannot provide or change this path. The default remains the repository
+`catalog/asset-registry.json`.
+
 ## Verify
 
 ```bash

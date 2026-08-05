@@ -78,7 +78,7 @@ When an owning input changes, the prior binding is retained but marked `stale`; 
 
 ## 5. Asset Registry
 
-`catalog/asset-registry.json` is the one canonical Registry document. `packages/agent-factory-core/src/assetRegistry.ts` owns strict parsing, contract hashes, deterministic search, lifecycle transitions, locking, revision comparison, and atomic replacement. The web API and `scripts/af.mjs asset ...` use this same service.
+`catalog/asset-registry.json` is the one canonical Registry document. `packages/agent-factory-core/src/assetRegistry.ts` owns strict parsing, contract hashes, deterministic search, lifecycle transitions, locking, revision comparison, and atomic replacement. The primary Companion Registry gateway, legacy web API, and `scripts/af.mjs asset ...` use this same service.
 
 Registry invariants:
 

@@ -1,6 +1,9 @@
 import type {
   ApplyGraphOperationsResponse, BindCompanionAssetRequest, CompanionAppAssetSnapshot,
-  CompanionAppsSnapshot, CompanionAssetSearchResult, CreateCompanionAppRequest,
+  CompanionAppsSnapshot, CompanionAssetSearchResult, CompanionAssetType,
+  CompanionRegistryAssetSnapshot, CompanionRegistryContract, CompanionRegistryDecision,
+  CompanionRegistryListSnapshot, CompanionRegistryPublishDecision, CompanionRegistryStatus,
+  CompanionRegistryValidationResult, CreateCompanionAppRequest,
   DraftUpdateRequest, GraphWorkspaceSnapshot, PresentationUpdateRequest, SelectionUpdateRequest,
 } from "@agent-factory/companion-contracts";
 import type { GraphEditOperation } from "@agent-factory/companion-graph-domain";
@@ -37,6 +40,14 @@ export interface CompanionApi {
   listAppAssets(signal?: AbortSignal): Promise<CompanionAppAssetSnapshot>;
   bindAsset(request: BindCompanionAssetRequest, signal?: AbortSignal): Promise<CompanionAppAssetSnapshot>;
   unbindAsset(assetId: string, baseAssetsRevision: string, signal?: AbortSignal): Promise<CompanionAppAssetSnapshot>;
+  listRegistryAssets(query: { asset_type?: CompanionAssetType; statuses?: CompanionRegistryStatus[]; all_versions?: boolean }, signal?: AbortSignal): Promise<CompanionRegistryListSnapshot>;
+  getRegistryAsset(assetId: string, version: number, signal?: AbortSignal): Promise<CompanionRegistryAssetSnapshot>;
+  validateRegistryContract(contract: CompanionRegistryContract, signal?: AbortSignal): Promise<CompanionRegistryValidationResult>;
+  createRegistryDraft(contract: CompanionRegistryContract, createdBy: string, expectedRevision: string, signal?: AbortSignal): Promise<CompanionRegistryAssetSnapshot>;
+  updateRegistryDraft(assetId: string, version: number, contract: CompanionRegistryContract, expectedRevision: string, signal?: AbortSignal): Promise<CompanionRegistryAssetSnapshot>;
+  reviewRegistryDraft(assetId: string, version: number, decision: CompanionRegistryDecision, expectedRevision: string, signal?: AbortSignal): Promise<CompanionRegistryAssetSnapshot>;
+  publishRegistryAsset(assetId: string, version: number, decision: CompanionRegistryPublishDecision, expectedRevision: string, signal?: AbortSignal): Promise<CompanionRegistryAssetSnapshot>;
+  deprecateRegistryAsset(assetId: string, version: number, decision: CompanionRegistryDecision, expectedRevision: string, signal?: AbortSignal): Promise<CompanionRegistryAssetSnapshot>;
   loadWorkspace(signal?: AbortSignal): Promise<GraphWorkspaceSnapshot>;
   updateSelection(request: SelectionUpdateRequest, signal?: AbortSignal): Promise<GraphWorkspaceSnapshot>;
   updateDraft(request: DraftUpdateRequest, signal?: AbortSignal): Promise<GraphWorkspaceSnapshot>;
@@ -55,6 +66,14 @@ export function createHttpCompanionApi(baseUrl = "/api/companion/v2"): Companion
     listAppAssets: (signal) => requestJson("/api/companion/app-assets", { signal }),
     bindAsset: (body, signal) => requestJson("/api/companion/app-assets", { method: "POST", body: JSON.stringify(body), signal }),
     unbindAsset: (assetId, base_assets_revision, signal) => requestJson(`/api/companion/app-assets/${encodeURIComponent(assetId)}`, { method: "DELETE", body: JSON.stringify({ base_assets_revision }), signal }),
+    listRegistryAssets: (query, signal) => { const params = new URLSearchParams(); if (query.asset_type) params.set("asset_type", query.asset_type); if (query.statuses?.length) params.set("statuses", query.statuses.join(",")); if (query.all_versions !== undefined) params.set("all_versions", String(query.all_versions)); return requestJson(`/api/companion/registry/assets?${params}`, { signal }); },
+    getRegistryAsset: (assetId, version, signal) => requestJson(`/api/companion/registry/assets/${encodeURIComponent(assetId)}/versions/${version}`, { signal }),
+    validateRegistryContract: (contract, signal) => requestJson("/api/companion/registry/validate", { method: "POST", body: JSON.stringify({ contract }), signal }),
+    createRegistryDraft: (contract, created_by, revision, signal) => registryMutation("/api/companion/registry/drafts", "POST", revision, { contract, created_by }, signal),
+    updateRegistryDraft: (assetId, version, contract, revision, signal) => registryMutation(`/api/companion/registry/drafts/${encodeURIComponent(assetId)}/versions/${version}`, "PUT", revision, { contract }, signal),
+    reviewRegistryDraft: (assetId, version, decision, revision, signal) => registryMutation(`/api/companion/registry/drafts/${encodeURIComponent(assetId)}/versions/${version}/review`, "POST", revision, { decision }, signal),
+    publishRegistryAsset: (assetId, version, decision, revision, signal) => registryMutation(`/api/companion/registry/assets/${encodeURIComponent(assetId)}/versions/${version}/publish`, "POST", revision, { decision }, signal),
+    deprecateRegistryAsset: (assetId, version, decision, revision, signal) => registryMutation(`/api/companion/registry/assets/${encodeURIComponent(assetId)}/versions/${version}/deprecate`, "POST", revision, { decision }, signal),
     loadWorkspace: (signal) => requestJson(`${baseUrl}/workspace`, { signal }),
     updateSelection: (body, signal) => requestJson(`${baseUrl}/selection`, { method: "PUT", body: JSON.stringify(body), signal }),
     updateDraft: (body, signal) => requestJson(`${baseUrl}/draft`, { method: "PUT", body: JSON.stringify(body), signal }),
@@ -67,6 +86,10 @@ export function createHttpCompanionApi(baseUrl = "/api/companion/v2"): Companion
       return () => events.close();
     },
   };
+}
+
+function registryMutation<T>(url: string, method: "POST" | "PUT", revision: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  return requestJson(url, { method, headers: { "If-Match": revision }, body: JSON.stringify(body), signal });
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {

@@ -14,6 +14,11 @@ External Codex -> MCP -+
 direct Graph file -----+  validated import fallback
 
 App Server client          independent execution and approval plane
+
+Companion Assets UI ---> Registry gateway ---> shared AssetRegistryService
+                                               |
+                                               v
+                                  catalog/asset-registry.json
 ```
 
 The server reconciles the Graph file before every read or mutation and also
@@ -102,8 +107,17 @@ to the old App, opens the new canonical workspace, and rotates the current
 loopback capability into it. An MCP process in the old App fails with
 `app_inactive`; it cannot silently write the newly selected App.
 
-Asset Registry access is read-only. The App stores exact published bindings in
-`.agent-factory/companion-assets.json`; Graph validation rejects unbound refs,
-type mismatches, missing exact versions, and changed contract hashes. Asset
-review, publication, deprecation, Work Items, Bridge sessions, and App Server
-threads remain outside this manager.
+The App Manager remains a read-only Registry consumer. It stores exact
+published bindings in `.agent-factory/companion-assets.json`; Graph validation
+rejects unbound refs, type mismatches, missing exact versions, and changed
+contract hashes.
+
+The primary Companion product separately owns the Asset lifecycle UI. Its
+server-side Registry gateway delegates strict validation, contract hashes,
+locking, revision comparison, lifecycle transitions, and atomic replacement to
+the shared `AssetRegistryService`. Draft create/update requires the current
+Registry revision. Review, publish, and deprecate require an explicit
+`selected_by: "user"` Decision; publish also requires Owner, Domain, and Reuse
+confirmation. A revision conflict cancels the attempted operation and requires
+a fresh read—there is no blind retry. Work Items, Bridge sessions, and App
+Server threads remain outside the App Manager and Registry gateway.

@@ -12,6 +12,14 @@ Companion은 외부 Codex 작업을 관찰·검토하는 운영 workspace다. �
 - 카드는 실제 상호작용 또는 비교 단위일 때만 사용한다.
 - 한국어 utility copy와 명확한 영어 기술 용어를 함께 사용한다.
 
+Primary `packages/companion`은 같은 절제를 유지하면서 상단의 `Graph`와
+`Assets` 두 workspace만 전환한다. Assets는 repository-global Registry임을
+명시하고, L0 version register와 선택된 contract detail을 좌우로 배치한다.
+Contract JSON editor와 lifecycle Decision form은 실제 상호작용 면이므로
+별도 작업 구획을 사용하되 dashboard card grid를 만들지 않는다. App bar는
+현재 binding context를 유지하지만 App Manager에 Registry write authority를
+부여하지 않는다.
+
 ## 화면 골격
 
 `LiveWorkbenchLayout.tsx`가 전체 shell을 소유한다.

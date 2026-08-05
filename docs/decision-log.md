@@ -8,6 +8,12 @@
 - 최신 항목이 위로 오는 역시간순. 항목 형식: 날짜 · PR/머지 커밋 · 결정 요약 · 배경(왜) · 영향 범위.
 - 결정을 되돌리거나 대체하면 과거 항목을 지우지 말고 새 항목에서 `(대체: YYYY-MM-DD 항목)`으로 연결한다.
 
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — primary Companion이 Asset lifecycle UX를 소유
+
+- **결정**: primary `packages/companion`에 repository-global `Assets` workspace를 추가한다. Draft create/update와 review/publish/deprecate 사용자 흐름은 Companion이 소유하지만, strict validation, contract hash, lock, Registry revision 비교, lifecycle transition, atomic write는 기존 shared `AssetRegistryService`만 수행한다. CLI는 동등한 보조 진입점으로 유지한다. (대체: 2026-08-04 항목의 “Asset lifecycle mutation은 이 화면의 권한이 아니다” 조항)
+- **권한 경계**: App Manager는 계속 published exact binding만 소비한다. Review, publish, deprecate는 `selected_by: "user"` Decision을 요구하고 publish는 Owner, Domain, Reuse 확인을 추가로 요구한다. Registry revision conflict는 적용하지 않고 최신 read와 재검토를 요구한다. Browser는 Registry path를 지정할 수 없다.
+- **영향**: Companion Registry wire/API/UI, shared core adapter, `COMPANION_REGISTRY_PATH` acceptance-only server override, primary architecture/acceptance 문서와 active Operating Model·Taxonomy·시각 계약. Legacy `/assets`는 acceptance 완료 전 reference surface로 남고 이 결정만으로 제거하지 않는다.
+
 ## 2026-08-04 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — `packages/companion`을 primary development surface로 선택
 
 - **결정**: 새 Companion 제품 작업과 사용자 acceptance는 App-scoped `packages/companion`을 기본 경로로 사용한다. 기존 `packages/web` Work Item lifecycle surface는 migration compatibility와 명시적인 legacy 유지보수를 위한 reference로 남기며, 이번 결정만으로 route redirect나 source 삭제를 수행하지 않는다.

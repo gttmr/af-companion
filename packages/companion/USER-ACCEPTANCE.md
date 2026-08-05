@@ -13,6 +13,34 @@
    `App + Node 추가`한다.
 4. Graph를 저장한다.
 
+## Asset lifecycle
+
+실제 Catalog를 오염시키지 않도록 이 시나리오는 임시 Registry 복사본으로
+수행한다. `packages/companion`에서 기존 server를 종료한 뒤 실행한다.
+
+```bash
+REGISTRY_FIXTURE_DIR="$(mktemp -d)"
+cp ../../catalog/asset-registry.json "$REGISTRY_FIXTURE_DIR/asset-registry.json"
+COMPANION_REGISTRY_PATH="$REGISTRY_FIXTURE_DIR/asset-registry.json" npm run dev
+```
+
+1. 상단 `Assets`를 열고 Agent·Workflow·Tool 이외 category가 없는지 확인한다.
+2. `New draft`로 테스트 Asset contract를 작성하고 `Validate` 후 생성한다.
+3. 생성한 draft를 다시 열어 responsibility를 바꾸고 `Validate` 후 갱신한다.
+4. Decision ID와 실제 사용자 검토 근거를 입력해 `Mark reviewed`를 누른다.
+5. Owner, Domain, Reuse 세 확인을 모두 선택하고 immutable version을
+   Publish한다. 하나라도 빠지면 write가 거절돼야 한다.
+6. `Graph`로 돌아와 Published Assets 검색 결과에서 방금 version을 App에
+   binding하고 typed Node를 추가한다.
+7. Published contract가 편집 불가인지 확인하고 `New version draft`가 다음
+   version을 만드는지 확인한다.
+8. 두 browser tab에서 같은 Registry revision을 사용해 lifecycle write를
+   시도한다. 늦은 요청은 `registry_revision_conflict` 안내와 함께 적용되지
+   않고 최신 version을 다시 읽어야 한다.
+9. 명시적인 사용자 Decision으로 published version을 Deprecated 처리한다.
+   기존 exact App binding은 deprecated 상태로 보이지만 새 binding 대상에는
+   사용할 수 없어야 한다.
+
 ## VS Code extension
 
 1. 상단 `VS Code에서 열기 ↗`를 누른다.

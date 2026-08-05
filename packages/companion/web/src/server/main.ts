@@ -8,15 +8,17 @@ import {
   type GraphWorkspaceController,
 } from "@agent-factory/companion-graph-control-server";
 import type { VscodeLauncher } from "./vscode-launcher.js";
-import { createReadOnlyAssetCatalog } from "./asset-catalog.js";
+import { createAssetRegistryGateway, type CompanionAssetRegistry } from "./asset-catalog.js";
 import { createCompanionWebRequestHandler } from "./web-routes.js";
 
 export async function startCompanionWeb(options: {
   projectRoot?: string;
   applicationsRoot?: string;
   repoRoot?: string;
+  registryPath?: string;
   mcpBinPath?: string;
   assetCatalog?: AssetCatalog;
+  assetRegistry?: CompanionAssetRegistry;
   host?: string;
   port?: number;
   staticRoot?: string;
@@ -26,12 +28,18 @@ export async function startCompanionWeb(options: {
   const repoRoot = resolve(options.repoRoot ?? resolve(companionRoot, "../.."));
   let workspace: GraphWorkspaceController;
   let appController: ActiveAppWorkspaceController | undefined;
+  let assetRegistry = options.assetRegistry;
   if (options.projectRoot) workspace = new GraphControlWorkspace({ projectRoot: options.projectRoot });
   else {
-    const assetCatalog = options.assetCatalog ?? await createReadOnlyAssetCatalog(
-      resolve(repoRoot, "catalog/asset-registry.json"),
-      resolve(repoRoot, "packages/agent-factory-core/src/assetRegistry.ts"),
-    );
+    let assetCatalog = options.assetCatalog;
+    if (!assetCatalog) {
+      const gateway = await createAssetRegistryGateway(
+        resolve(options.registryPath ?? resolve(repoRoot, "catalog/asset-registry.json")),
+        resolve(repoRoot, "packages/agent-factory-core/src/assetRegistry.ts"),
+      );
+      assetCatalog = gateway;
+      assetRegistry ??= gateway;
+    }
     appController = new ActiveAppWorkspaceController({
       ...(options.applicationsRoot ? { applicationsRoot: options.applicationsRoot } : {}),
       mcpBinPath: options.mcpBinPath ?? resolve(companionRoot, "mcp-plane/dist/bin.js"),
@@ -45,6 +53,7 @@ export async function startCompanionWeb(options: {
     additionalRequestHandler: createCompanionWebRequestHandler({
       ...(options.projectRoot ? { projectRoot: options.projectRoot } : {}),
       ...(appController ? { appController, getProjectRoot: () => appController!.activeProjectRoot() } : {}),
+      ...(assetRegistry ? { assetRegistry } : {}),
       ...(options.vscodeLauncher ? { vscodeLauncher: options.vscodeLauncher } : {}),
     }),
   });
@@ -58,6 +67,7 @@ async function main(): Promise<void> {
     ...(args.get("project-root") || process.env.COMPANION_PROJECT_ROOT ? { projectRoot: args.get("project-root") ?? process.env.COMPANION_PROJECT_ROOT } : {}),
     ...(args.get("applications-root") || process.env.COMPANION_APPLICATIONS_ROOT ? { applicationsRoot: args.get("applications-root") ?? process.env.COMPANION_APPLICATIONS_ROOT } : {}),
     repoRoot: args.get("repo-root") ?? process.env.COMPANION_REPO_ROOT ?? resolve(fileURLToPath(new URL("../../../../../", import.meta.url))),
+    ...(args.get("registry-path") || process.env.COMPANION_REGISTRY_PATH ? { registryPath: args.get("registry-path") ?? process.env.COMPANION_REGISTRY_PATH } : {}),
     host: args.get("host") ?? process.env.COMPANION_HOST ?? "127.0.0.1",
     port: Number(args.get("port") ?? process.env.COMPANION_PORT ?? 8890),
     staticRoot: args.get("static-root") ?? resolve(fileURLToPath(new URL("../../browser", import.meta.url))),
