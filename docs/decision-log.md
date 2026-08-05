@@ -8,21 +8,21 @@
 - 최신 항목이 위로 오는 역시간순. 항목 형식: 날짜 · PR/머지 커밋 · 결정 요약 · 배경(왜) · 영향 범위.
 - 결정을 되돌리거나 대체하면 과거 항목을 지우지 말고 새 항목에서 `(대체: YYYY-MM-DD 항목)`으로 연결한다.
 
-## 2026-08-04 · 로컬 작업 — `packages/companion`을 primary development surface로 선택
+## 2026-08-04 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — `packages/companion`을 primary development surface로 선택
 
 - **결정**: 새 Companion 제품 작업과 사용자 acceptance는 App-scoped `packages/companion`을 기본 경로로 사용한다. 기존 `packages/web` Work Item lifecycle surface는 migration compatibility와 명시적인 legacy 유지보수를 위한 reference로 남기며, 이번 결정만으로 route redirect나 source 삭제를 수행하지 않는다.
 - **App 저장소 경계**: `~/work/af-companion-apps/<app-id>`에 생성되는 App Git 저장소는 사용자가 독립적으로 관리한다. Agent Factory source 저장소의 commit/push에 자동 포함하지 않고, 별도 remote도 자동 생성하거나 push하지 않는다.
 - **App Server 경계**: 독립 `app-server-client` 구현은 유지하지만 Graph synchronization이나 제품 turn UI가 App Server에 연결됐다고 주장하지 않는다.
 - **영향**: root README/STATUS, docs index와 Handbook transition, follow-up 22 상태, `packages/companion` README/architecture. 기존 lifecycle source와 route는 변경하지 않는다.
 
-## 2026-08-04 · 로컬 구현 — Companion의 얇은 App Workspace Manager
+## 2026-08-04 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Companion의 얇은 App Workspace Manager
 
 - **결정**: greenfield `packages/companion`은 browser-supplied path나 기존 `~/work/af-apps` import 없이 `~/work/af-companion-apps` 아래에서 한 번에 하나의 active App을 관리한다. 새 App은 Git, Companion app/Asset manifest, 최소 `Input → Output` Graph, project-local Codex MCP config만 생성한다. Work Item과 ADK source scaffold는 생성하지 않는다.
 - **Asset 계약**: canonical Asset Registry는 read-only로 소비한다. published Agent·Workflow·Tool의 정확한 version과 contract hash를 App에 binding한 뒤에만 typed Graph Node가 참조할 수 있다. Asset lifecycle mutation은 이 화면의 권한이 아니다.
 - **전환 계약**: App 전환은 이전 watcher를 닫고 capability를 `inactive`로 바꾼 뒤 새 App에 현재 loopback capability를 발급한다. 이전 App의 MCP process는 `app_inactive`로 실패하며 새 active App 권한으로 승격되지 않는다.
 - **영향**: `packages/companion` App/Asset HTTP API, Context `scope.work_id: null`, VS Code launch target, MCP capability contract, 사용자 acceptance 문서. 기존 `packages/web` lifecycle surface와 App Server client는 변경하지 않는다.
 
-## 2026-08-03 · 로컬 작업 — Companion Graph를 single-writer 양방향 협업으로 전환
+## 2026-08-03 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Companion Graph를 single-writer 양방향 협업으로 전환
 
 - **결정**: isolated `packages/companion`에서 pull-only Context v1과 startup-only Graph projection 대신 strict Graph IR, Context v2, revision-checked operation batch, single-writer Graph Control Server, write-capable MCP, SSE Web 동기화를 사용한다. Layout은 presentation sidecar로 분리하며 invalid direct file edit는 마지막 valid Graph만 표시하고 write를 차단한다. App Server client는 실행 plane으로 분리 유지한다.
 - **배경**: 서버와 브라우저가 시작 시 Graph를 한 번만 읽으면 디스크 Graph와 실행 중 Graph가 달라지고, read-only MCP는 revision mismatch에서 복구하거나 Graph를 정상 경로로 변경할 수 없다. `sequence`도 Graph concurrency가 아닌 pull cursor라 사용자가 관리할 이유가 없다.
