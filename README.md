@@ -1,6 +1,20 @@
 # Agent Factory Companion
 
-Agent Factory Companion is a local web projection for Agent Factory work performed in an external Codex CLI or VS Code Codex session. Codex edits Work Item artifacts and source; the web app makes that work visible in real time, can create one strict empty Work Item through a guarded bootstrap, can open its registered app/factory multi-root VS Code descriptor, and provides bounded edit surfaces for Graph IR and the versioned Asset Registry.
+This repository currently contains two Companion surfaces with different roles.
+
+- [`packages/companion`](packages/companion/README.md) is the primary development
+  path for App-scoped Graph collaboration, exact Asset binding, and external
+  Codex CLI or VS Code extension access through read/write MCP.
+- `packages/web` is the existing Work Item lifecycle workbench. It remains
+  available as a legacy/reference surface while migration and retirement
+  decisions are made, but new Companion product work should start in
+  `packages/companion` unless it explicitly targets the legacy lifecycle.
+
+The new surface is primary by product direction, not yet by route replacement:
+the existing `packages/web` routes have not been deleted or redirected. The
+sections below document that existing lifecycle surface.
+
+The legacy Agent Factory Companion is a local web projection for Agent Factory work performed in an external Codex CLI or VS Code Codex session. Codex edits Work Item artifacts and source; the web app makes that work visible in real time, can create one strict empty Work Item through a guarded bootstrap, can open its registered app/factory multi-root VS Code descriptor, and provides bounded edit surfaces for Graph IR and the versioned Asset Registry.
 
 The lifecycle is expressed by four re-entrant Work Skills, not web-run stages:
 
@@ -146,6 +160,21 @@ Review project Hook sources and hashes with `/hooks` in Codex before trusting th
 
 ## Development
 
+Install and verify the primary Companion workspace:
+
+```bash
+cd packages/companion
+npm install
+npm run typecheck
+npm test
+npm run build
+```
+
+Its manual workflow is documented in
+[`packages/companion/USER-ACCEPTANCE.md`](packages/companion/USER-ACCEPTANCE.md).
+
+For the legacy Work Item lifecycle surface:
+
 Install and verify the web package:
 
 ```bash
@@ -177,6 +206,9 @@ node scripts/validate-artifacts.mjs artifacts/af/<work-id>
 
 ## Canonical documentation
 
+- [Primary Companion workspace](packages/companion/README.md)
+- [Primary Companion architecture](packages/companion/ARCHITECTURE.md)
+- [Primary Companion user acceptance](packages/companion/USER-ACCEPTANCE.md)
 - [Documentation index](docs/README.md)
 - [Operating Model](docs/workbench/operating-model.md)
 - [Taxonomy](docs/workbench/taxonomy.md)
