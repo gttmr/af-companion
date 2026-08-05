@@ -5,6 +5,9 @@
 - Draft PR: [#22](https://github.com/gttmr/af-companion/pull/22)
 - 격리 환경: 임시 `COMPANION_APPLICATIONS_ROOT`와 Registry 복사본
 - Client: `codex-cli 0.146.0`, 실제 browser 1440×1000, 독립 MCP process
+- VS Code 재검증: VS Code `1.131.0`, `openai.chatgpt 26.727.40816`,
+  실제 `codex_vscode` chat 2개, extension session CLI
+  `0.146.0-alpha.9.2`
 - 원칙: Tool 결과와 disk readback을 증거로 사용하고, 모델의 최종 요약은
   별도로 판정했다.
 
@@ -24,6 +27,7 @@
 | 유효한 직접 파일 편집 | 통과 | Graph JSON의 input label을 직접 바꾸자 watcher/reconciliation/SSE가 새 revision과 `외부 파일 변경 반영됨`을 표시했다. |
 | 잘못된 JSON과 복구 | 통과 | invalid JSON에서 Context 검증 실패, `Graph write · 차단`, draft/presentation `409`를 확인했다. 원본 복구 뒤 canonical Graph와 write 가능 상태가 돌아왔고 실패한 local edit는 남지 않았다. |
 | stale CAS | 통과 | 독립 MCP process 둘이 같은 revision `6c9f495d…`를 읽었다. 첫 apply 뒤 둘째가 `graph_stale`과 current revision을 받았고, fresh get 후 재계산한 apply가 성공했다. |
+| VS Code Codex chat stale CAS | 통과 | 실제 extension chat A `019fd0f1-…a2fd`와 chat B `019fd0f3-…c38d`가 같은 revision `e0546930…d41c0`을 읽었다. A의 apply는 `APPLIED`로 `6470a007…2fea`가 됐고, B의 old-revision apply는 `412 graph_stale`과 그 current revision을 반환했다. B가 fresh get 후 재계산한 apply는 `b5ef8e03…2ba5`로 성공했다. |
 | 최종 browser 상태 | 통과 | 새 browser session에서 console error 0, Context valid, Graph validation 통과를 확인했다. |
 
 ## 발견해 수정한 결함
@@ -36,21 +40,17 @@
 3. Acceptance와 화면 안내에 VS Code Workspace Trust만 있고 Codex의 exact
    project trust 전제는 없었다. 두 신뢰 경계를 분리해 안내했다.
 
-## 남은 증거와 제품 경계
+## 남은 제품 경계
 
-- 이 격리 실행은 실제 Codex CLI의 read/write와 독립 MCP session CAS를
-  검증했다. 두 개의 VS Code Codex chat을 동시에 열어 stale을 재현하는
-  사람 acceptance는 아직 별도다.
 - 자유 형식 변경 요청 한 번은 모델이 apply 인자를 `graph_revision/changes`로
   바꿔 `invalid_arguments`가 됐고, 다른 한 번은 revision을 읽지 못했다고
   판단해 안전하게 write를 생략했다. exact operation 계약을 명시한 요청은
   성공했다. Tool의 fail-closed 동작은 맞지만 prompt 민감도는 남아 있다.
-- 이 격리 실행 시점의 생성 App Git repository에는 commit이 없었다. 이후
-  같은 Draft PR에서 App Manager가 `main`에 정확히 네 파일의 baseline commit
-  하나를 만들고, 후속 변경은 commit하지 않으며 remote를 만들거나 push하지
-  않는 정책을 구현했다. 실제 Git integration test가 commit identity/tree와
-  실패 시 App 미노출을 검증하므로 이 제품 경계는 닫혔다. 기존 acceptance
-  fixture의 과거 상태를 소급해 바꾸지는 않았다.
+- VS Code 재검증용 App은 `main`의 baseline commit
+  `f9aa2145…bdd70` 하나에서 시작했다. 두 chat의 write 뒤에도 commit 수는
+  `1`, remote는 없음, canonical Graph만 dirty였다. App Manager가 초기
+  snapshot만 local commit하고 후속 작업은 사용자가 commit하도록 남기는
+  제품 경계를 실제 생성 App에서도 확인했다.
 - GitHub CI가 없으므로 아래 local verification을 원격 check가 재실행하지
   않는다.
 
@@ -62,6 +62,16 @@
 - repository root: `node scripts/validate-artifacts.mjs` 통과
 - `git diff --check` 통과
 
-## Screenshot
+## Screenshots
+
+### Companion Graph browser
 
 ![Companion Graph acceptance](./acceptance-2026-08-05.png)
+
+### VS Code Codex stale rejection
+
+![VS Code Codex graph stale acceptance](./acceptance-vscode-stale-2026-08-05.png)
+
+### VS Code Codex fresh-read retry
+
+![VS Code Codex fresh read and rebase acceptance](./acceptance-vscode-rebase-2026-08-05.png)

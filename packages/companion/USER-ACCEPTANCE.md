@@ -102,8 +102,9 @@ COMPANION_REGISTRY_PATH="$REGISTRY_FIXTURE_DIR/asset-registry.json" npm run dev
 4. Web draft 중 Codex 변경을 보내 외부 우선 적용과 폐기 개수 안내를 본다.
 5. Graph 파일을 직접 유효하게 수정해 fallback 반영을 확인한다.
 6. 잘못된 JSON 동안 fail-closed 표시와 write 차단, 복구를 확인한다.
-7. 두 Codex session의 stale write가 `graph_stale`을 받고 새 get 후
-   재계산하는지 확인한다.
+7. Codex extension에서 서로 다른 새 chat 두 개를 열어 같은 Graph revision을
+   읽는다. 첫 chat의 apply 뒤 둘째 chat이 old revision으로 apply해
+   `graph_stale`을 받고, fresh get 후 의도를 재계산해 성공하는지 확인한다.
 
 결과에는 App 생성/전환, Asset binding, VS Code extension의 두 MCP Tool,
 write 승인, `app_inactive`, stale 충돌, 실시간 Web 반영 여부를 구분해 적는다.
