@@ -40,7 +40,13 @@ Whichever transport-failure strategy is chosen — propagate an exception or ret
 
 ## Scaffold Output
 
-Official docs describe native functions as ADK Function Tools, but the installed package evidence did not record an exact Function Tool constructor. Inspect installed source before emitting one.
+Exact installed 2.4.0 Function Tool surface:
+
+```text
+FunctionTool(func, *, require_confirmation=False)
+```
+
+`require_confirmation` accepts a boolean or callable. Treat confirmation as a pause gate, not duplicate-side-effect protection; exact replay testing executed the side effect twice.
 
 Installed MCP imports are:
 
@@ -61,6 +67,10 @@ Verified connection surfaces:
 
 `tool_filter` accepts a list of names or a predicate over `BaseTool` and optional read-only context. Generic `HttpConnectionParams` is not present in installed `google-adk 2.4.0`; use `StreamableHTTPConnectionParams`. Uppercase `MCPToolset` exists only as a deprecated subclass; use `McpToolset`.
 
+Keep framework capability separate from Current Implementation lowering. Exact ADK 2.4 executes stdio, legacy SSE, and Streamable HTTP locally. The current AF generator accepts only an approved Streamable HTTP MCP runtime contract and rejects stdio or unknown transports instead of silently substituting one. A selected stdio/SSE binding is therefore a Scaffold Blocker or separately approved generator gap, not permission to hand-write around the reviewed artifacts.
+
+Exact 2.4 also exports `OpenAPIToolset(*, spec_dict=None, spec_str=None, spec_str_type='json', auth_scheme=None, auth_credential=None, credential_key=None, tool_filter=None, tool_name_prefix=None, ...)`. A localhost experiment discovered and invoked one operation and supplied a synthetic API-key credential through the declared header; malformed JSON failed before execution. This proves the local parser/call/auth seam, not the safety of an arbitrary API. Keep real credentials in an approved runtime provider, validate the reviewed specification before Tool exposure, and classify backend-dependent built-in Tools separately instead of assuming they are offline.
+
 Omit optional MCP arguments by leaving the key out; do not send `null` or an empty list as a placeholder. Build call arguments with a `_drop_none`-style helper. This is a general MCP calling habit, not specific to any one server.
 
 Attribute the failure correctly. `additionalProperties: false` only rejects keys the schema does not declare — it says nothing about the values of declared ones. Whether an explicit `null` or `[]` is rejected is decided per field by that field's own `type` (a plain `"string"` does not admit `null`; it would have to be `["string","null"]`) and by constraints such as `minItems`. Omitting the key sidesteps all of that, which is why the helper is the robust habit whatever a given server wrote. Read the specific tool's `inputSchema` before concluding why a call was rejected.
@@ -77,6 +87,7 @@ Attribute the failure correctly. `additionalProperties: false` only rejects keys
 - local deterministic mock;
 - optional argument omitted (not sent as `null`) when unset;
 - malformed tool response produces the declared failure mode (the recorded exception type or degraded-payload status), not an unhandled exception type.
+- local OpenAPI operation discovery/call with synthetic auth, malformed specification rejection, and no credential bytes in generated source or evidence.
 
 ## Failure / Retry / Timeout
 
@@ -100,8 +111,9 @@ Use approved Tool allow-lists, least-privilege auth references, sanitized schema
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-31
+- Checked date: 2026-08-05
 - Official sources: ADK Function tools and ADK MCP tools
-- Installed package version: `google-adk 2.4.0`, `mcp 1.29.0`
-- Known compatibility note: Generic `HttpConnectionParams` is not present; use the installed streamable-HTTP class, and do not rely on deprecated uppercase `MCPToolset`. In `mcp 1.29.0`, `streamable_http_client` takes a configured `http_client`; its transport-constructor timeout arguments are deprecated and ignored. The configured `httpx` timeout still applies per operation rather than as a total-call ceiling, and the raw MCP helper never closes a caller-provided `http_client`.
+- Installed package version: `google-adk 2.4.0`, `mcp 1.28.1`
+- Known compatibility note: Generic `HttpConnectionParams` is not present; use the installed streamable-HTTP class, and do not rely on deprecated uppercase `MCPToolset`. In exact `mcp 1.28.1`, `streamable_http_client(url, *, http_client=None, terminate_on_close=True)` takes a configured `http_client`; the configured `httpx` timeout still applies per operation rather than as a total-call ceiling, and the raw MCP helper never closes a caller-provided `http_client`.
 - Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.
+- 2026-08-05 runtime extension: local stdio, Streamable HTTP, and legacy SSE MCP calls, unavailable endpoints, local OpenAPI/API-key injection, and malformed OpenAPI rejection are now execution-backed rather than signature-only.
