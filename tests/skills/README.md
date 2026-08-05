@@ -88,3 +88,32 @@ Scenario, fixture, 생성 artifact, command log, evidence에 다음을 저장하
 - redaction 전 prompt, Tool argument/result, event payload, Agent Card
 
 허용되는 것은 환경변수 이름, `example.invalid` 도메인, localhost, 명백한 합성 ID와 합성 데이터뿐이다. S15의 두 sentinel 값은 안전성 검사용으로 `S15-private-data-safety/prompt.md`에만 존재해야 하며 context, artifact, evidence로 복제하면 실패다.
+
+## 6. Session 1 exact ADK 2.4 capability campaign
+
+[Capability inventory](adk24/capability-inventory.json)는 exact ADK 2.4 Workflow·Agent·Sub-agent, Tool, state/event/artifact, callback/plugin, pause/resume, local reuse와 model/schema surface를 machine-readable row로 닫는다. [Experiment matrix](adk24/experiment-matrix.json)는 positive, negative/failure, interaction, compound와 source-comparison evidence를 연결한다.
+
+```bash
+node scripts/validate-af-skills-vnext.mjs
+
+AF_TEST_PYTHON=/home/ilmaswsl/work/af-companion/.agent-factory/runtime/.venv/bin/python \
+  node scripts/validate-af-skills-vnext.mjs --runtime
+
+node scripts/validate-af-skills-vnext.mjs --audit
+node --test scripts/af-skills-bundle.test.mjs
+```
+
+An offline install must receive the reviewed source manifest's digest separately;
+the packed manifest is an integrity envelope, not its own provenance root:
+
+```bash
+node scripts/af-skills-bundle.mjs pack --output <new-bundle-directory>
+node scripts/af-skills-bundle.mjs install \
+  --bundle <new-bundle-directory> \
+  --target <user-home> \
+  --expected-digest <reviewed-bundle-sha256>
+```
+
+Runtime probe는 scripted `BaseLlm`, in-memory service, localhost의 OS-assigned port만 사용한다. Internet, cloud model, deploy는 사용하지 않는다. 사용자가 local `qwen3.6-small` 부재를 가정하도록 승인했으므로 forward-test 4건은 `blocked`이며 PASS로 계산하지 않는다.
+
+사람 검토용 결과는 [compatibility 판정](evidence/research/session1-adk24-compatibility.md), [capability index](evidence/research/session1-adk24-capability-index.md), [completion audit](evidence/research/session1-adk24-audit.md)에 있다.

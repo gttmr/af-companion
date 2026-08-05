@@ -48,6 +48,8 @@ Follow the official loop: execution yields an Event and pauses; Runner appends/p
 
 Do not hand-roll a second commit loop around Runner. Use context/service APIs from the state/artifact card and test the actual yielded events.
 
+Exact Python 2.4.0 has no public `Runner.cancel_async` (or equivalent public Runner cancellation method). Internal async-generator cleanup cancels internal tasks but is not an application cancellation contract. `EventsCompactionConfig` appears in `App` annotations from the private `google.adk.apps._configs` module and is not exported from `google.adk.apps`; do not emit that private import. Record both capabilities as unsupported until a later exact baseline exposes public surfaces.
+
 ## Verification Scenarios
 
 - state value before yield;
@@ -75,8 +77,9 @@ Do not store secrets or raw sensitive payloads in events, state deltas, artifact
 
 ## Checked date and Package Version
 
-- Checked date: 2026-07-31
+- Checked date: 2026-08-05
 - Official sources: ADK event loop and state documentation
 - Installed package version: `google-adk 2.4.0`
 - Known compatibility note: Installed `Event` has no declared top-level `state_delta`; use `Event.actions.state_delta` semantics, and never rely on partial-event actions being committed.
 - Runtime baseline: this card and the generated runtime share the ADK 2.4 compatibility line. `requirements/adk-runtime.txt` constrains generated projects to `>=2.4.0,<2.5.0`, and repository verification uses an exact `google-adk 2.4.0` interpreter. Recheck the installed version and symbol before emitting code after any later dependency move.
+- 2026-08-05 source/runtime correction: Python Runner cancellation and a public compaction config are unavailable in exact 2.4.0; internal cleanup and private imports are not substitute public contracts.
