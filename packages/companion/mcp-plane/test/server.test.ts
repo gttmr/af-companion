@@ -11,6 +11,8 @@ test("exposes exactly get and write Tools with honest annotations", async () => 
   const control = { getWorkspace: async () => ({ ...context, presentation: createDemoPresentation() }), applyChanges: async () => ({ outcome: "NO_CHANGE" as const, workspace: { ...context, presentation: createDemoPresentation() } }) };
   const server = createGraphMcpServer(control); const client = new Client({ name: "test", version: "1" }); const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair(); await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   const listed = await client.listTools(); assert.deepEqual(listed.tools.map((tool) => tool.name), ["companion_get_graph_workspace", "companion_apply_graph_changes"]); assert.equal(listed.tools[1]?.annotations?.readOnlyHint, false);
+  assert.match(listed.tools[0]?.description ?? "", /workspace\.scope\.application_id/u);
+  assert.match(listed.tools[1]?.description ?? "", /exactly \{ base_graph_revision, operations \}/u);
   const get = await client.callTool({ name: "companion_get_graph_workspace", arguments: {} }); assert.equal(get.isError, false);
   await client.close(); await server.close();
 });

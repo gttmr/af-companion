@@ -48,19 +48,22 @@ COMPANION_REGISTRY_PATH="$REGISTRY_FIXTURE_DIR/asset-registry.json" npm run dev
    `~/work/af-companion-apps/<app-id>`인지 확인한다. 다른 root를 수동으로
    열면 project-local `.codex/config.toml`이 적용되지 않는다.
 3. WSL remote window인지 확인하고 Workspace Trust를 승인한다.
-4. Codex extension에서 새 chat을 시작한다. 기존 chat은 전환 전 App의 MCP
+4. Codex가 현재 exact App root를 trusted project로 인식하는지 확인한다.
+   이 신뢰가 없으면 project-local `.codex/config.toml`과
+   `companion_graph`가 로드되지 않는다.
+5. Codex extension에서 새 chat을 시작한다. 기존 chat은 전환 전 App의 MCP
    process를 유지할 수 있으므로 재사용하지 않는다.
-5. 다음처럼 요청한다.
+6. 다음처럼 결과 경로를 명시해 요청한다.
 
-   `companion_get_graph_workspace를 호출해 application_id, 현재 선택, Node 수를 알려 줘.`
+   `companion_get_graph_workspace를 호출해 workspace.scope.application_id, workspace.active_selection, workspace.graph.nodes.length를 알려 줘.`
 
-6. Tool 목록 또는 호출 카드에서 `companion_get_graph_workspace`와
+7. Tool 목록 또는 호출 카드에서 `companion_get_graph_workspace`와
    `companion_apply_graph_changes`를 확인한다.
-7. 다음처럼 변경을 요청하고 write Tool 승인을 확인한다.
+8. 다음처럼 변경을 요청하고 write Tool 승인을 확인한다.
 
-   `반드시 get 후 apply를 사용해 출력 Node의 label을 결과로 바꿔 줘.`
+   `반드시 get 후 apply를 사용해 출력 Node의 label을 결과로 바꿔 줘. apply 인자는 정확히 base_graph_revision과 operations를 사용해.`
 
-8. 새로고침 없이 Web Graph가 갱신되는지 확인한다. 버튼의 `202 Accepted`는
+9. 새로고침 없이 Web Graph가 갱신되는지 확인한다. 버튼의 `202 Accepted`는
    VS Code dispatch 증거일 뿐 Codex thread 연결 증거가 아니다.
 
 ## App 전환과 격리
@@ -86,3 +89,6 @@ COMPANION_REGISTRY_PATH="$REGISTRY_FIXTURE_DIR/asset-registry.json" npm run dev
 
 결과에는 App 생성/전환, Asset binding, VS Code extension의 두 MCP Tool,
 write 승인, `app_inactive`, stale 충돌, 실시간 Web 반영 여부를 구분해 적는다.
+
+2026-08-05 격리 실행 결과와 남은 경계는
+[Acceptance 결과](./ACCEPTANCE-RESULTS-2026-08-05.md)에 기록했다.

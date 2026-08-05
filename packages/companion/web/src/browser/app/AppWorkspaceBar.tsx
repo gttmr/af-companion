@@ -24,7 +24,7 @@ export function AppWorkspaceBar({ apps, busy, notice, allowCreate = true, onActi
     <span className="app-root" title={apps.applications_root}>{apps.applications_root}</span>
     {notice ? <span className="app-notice" role="status">{notice}</span> : null}
     {allowCreate && open ? <form className="new-app-form" onSubmit={(event) => void submit(event)}>
-      <label><span>App ID</span><input required pattern="[a-z][a-z0-9\\-]{1,62}" placeholder="document-review" value={applicationId} onChange={(event) => setApplicationId(event.target.value)} /></label>
+      <label><span>App ID</span><input required pattern="[a-z](?:[a-z0-9]|-){1,62}" placeholder="document-review" value={applicationId} onChange={(event) => setApplicationId(event.target.value)} /></label>
       <label><span>표시 이름</span><input required maxLength={120} placeholder="문서 검토 App" value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
       <button type="submit" className="button-primary" disabled={busy}>App 만들기</button>
     </form> : null}

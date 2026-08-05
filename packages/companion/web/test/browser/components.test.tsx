@@ -7,6 +7,7 @@ import { GraphCanvas } from "../../src/browser/graph/GraphCanvas.js";
 import { ContextPublicationStrip } from "../../src/browser/context/ContextPublicationStrip.js";
 import { presentationForGraph } from "../../src/browser/app/GraphContextScreen.js";
 import { AssetRegistryScreen } from "../../src/browser/assets/AssetRegistryScreen.js";
+import { AppWorkspaceBar } from "../../src/browser/app/AppWorkspaceBar.js";
 import type { CompanionApi } from "../../src/browser/api/CompanionApi.js";
 
 function workspace() { const graph = createDemoGraph(); const revision = graphRevision(graph); return { ...finalizeUiContextDocument({ schema_version: 2 as const, authority: "none" as const, graph_revision: revision, published_at: new Date().toISOString(), scope: { workspace_id: "w", application_id: "a", work_id: "x" }, graph, active_selection: null, active_draft: null, recent_changes: [], source_health: { status: "valid" as const, observed_at: new Date().toISOString(), graph_revision: revision } }), presentation: createDemoPresentation() }; }
@@ -37,4 +38,17 @@ test("primary Companion exposes a repository-global Asset lifecycle register", (
   assert.match(html, /Tool/);
   assert.match(html, /New draft/);
   assert.doesNotMatch(html, /A2A<\/button>/);
+});
+
+test("App creation emits a browser-valid App ID pattern", () => {
+  const pattern = "[a-z](?:[a-z0-9]|-){1,62}";
+  assert.doesNotThrow(() => new RegExp(pattern, "v"));
+  const html = renderToStaticMarkup(<AppWorkspaceBar
+    apps={{ applications_root: "/tmp/apps", active_application_id: null, apps: [] }}
+    busy={false}
+    notice={null}
+    onActivate={async () => {}}
+    onCreate={async () => {}}
+  />);
+  assert.ok(html.includes(`pattern="${pattern}"`));
 });

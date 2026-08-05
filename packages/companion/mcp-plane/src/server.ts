@@ -7,7 +7,7 @@ import { createGraphControlClient, GraphControlClientError, type GraphControlCli
 
 export const GET_GRAPH_WORKSPACE_TOOL = "companion_get_graph_workspace";
 export const APPLY_GRAPH_CHANGES_TOOL = "companion_apply_graph_changes";
-const INSTRUCTIONS = "For every Graph change, call companion_get_graph_workspace first, compute an explicit operation batch from its current graph_revision, then call companion_apply_graph_changes once. On graph_stale, read again and recompute; never retry blindly. authority none, cwd, and session identifiers do not grant lifecycle authority.";
+const INSTRUCTIONS = "For every Graph change, call companion_get_graph_workspace first. Read graph_revision from structuredContent.workspace.graph_revision, application_id from structuredContent.workspace.scope.application_id, and selection from structuredContent.workspace.active_selection. Then call companion_apply_graph_changes with exactly { base_graph_revision, operations }; never rename those keys to graph_revision or changes. Each operation uses { op, target, id?, value? }. On graph_stale, read again and recompute; never retry blindly. authority none, cwd, and session identifiers do not grant lifecycle authority.";
 
 export function createGraphMcpServer(client: GraphControlClient): Server {
   const server = new Server({ name: "agent-factory-companion-graph", version: "0.2.0" }, { capabilities: { tools: {} }, instructions: INSTRUCTIONS });
@@ -39,13 +39,13 @@ export async function runStdioServer(input: { projectRoot: string; capabilityPat
 export function toolDefinitions(): Array<Record<string, unknown>> { return [
   {
     name: GET_GRAPH_WORKSPACE_TOOL, title: "Get Companion Graph workspace",
-    description: "Read the latest canonical Graph, Graph revision, UI selection, active draft, recent changes, and external source health.",
+    description: "Read the latest canonical Graph workspace. In the result, use workspace.graph_revision, workspace.scope.application_id, workspace.active_selection, workspace.graph, workspace.active_draft, workspace.recent_changes, and workspace.source_health.",
     inputSchema: { type: "object", additionalProperties: false, properties: { expected_application_id: { type: "string", minLength: 1, maxLength: 256 }, expected_work_id: { type: "string", minLength: 1, maxLength: 256 } } },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
     name: APPLY_GRAPH_CHANGES_TOOL, title: "Apply Companion Graph changes",
-    description: "Atomically validate and apply an explicit Node, Edge, or Region operation batch against base_graph_revision.",
+    description: "Atomically validate and apply an explicit Node, Edge, or Region operation batch. Arguments must be exactly { base_graph_revision, operations }; do not use graph_revision or changes aliases. Each operation uses op, target, and the required id/value fields.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
