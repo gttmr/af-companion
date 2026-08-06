@@ -123,6 +123,58 @@
     "gh_pr_checks_exit_code": 1,
     "gh_pr_checks_summary": "no checks reported"
   },
+  "github_ci": {
+    "workflow": ".github/workflows/companion-foundation.yml",
+    "initial_failure": {
+      "run_id": 31062409540,
+      "job_id": 92492928113,
+      "head": "b7cd9ef5822a6c279f3b4f942544adc15d0b65ee",
+      "conclusion": "failure",
+      "failed_step": "Test Companion",
+      "test": "each readiness request is aborted within the remaining deadline",
+      "failure_type": "cancelledByParent",
+      "error": "Promise resolution is still pending but the event loop has already resolved",
+      "build_and_validator": "skipped"
+    },
+    "root_cause": "The launcher test double awaited only AbortSignal.timeout(), whose unref timer allowed the Node 22 runner event loop to resolve before the fake request promise.",
+    "minimal_fix": {
+      "commit": "8fd2d4507e02f9a9d3cff5b061ac234cd23414df",
+      "scope": "test-only",
+      "change": "Add a referenced one-second fail-safe to the fake request and clear it on abort; retain the existing less-than-250ms abort assertion.",
+      "launcher_test_local_repetitions": 20,
+      "launcher_test_local_passes": 20,
+      "full_local_tests": "70/70 passed"
+    },
+    "source_fix_pass": {
+      "run_id": 31062612139,
+      "job_id": 92493525855,
+      "head": "8fd2d4507e02f9a9d3cff5b061ac234cd23414df",
+      "conclusion": "success",
+      "duration_seconds": 86,
+      "passed_steps": [
+        "Install Companion dependencies",
+        "Typecheck Companion",
+        "Test Companion",
+        "Build Companion",
+        "Validate shared artifacts"
+      ]
+    },
+    "actions_runtime_hygiene": {
+      "observed_annotation": "checkout/setup-node v4 targeted the deprecated Node 20 action runtime",
+      "official_releases_checked_on": "2026-08-06",
+      "checkout_release": "v7.0.1",
+      "setup_node_release": "v7.0.0",
+      "commit": "fd12ba86c3fb889537e117bfaa41b245f008afae",
+      "change": "Only actions/checkout and actions/setup-node refs changed from v4 to v7",
+      "run_id": 31062757202,
+      "job_id": 92493959495,
+      "conclusion": "success",
+      "duration_seconds": 91,
+      "deprecation_annotations": 0
+    },
+    "foundation_status": "PASSED",
+    "overall_phase_a_status": "BLOCKED_BY_MODEL_MEDIATED_COMPANION_MCP"
+  },
   "local_app_git": {
     "alpha": {
       "application_id": "phase-a-alpha",
@@ -353,8 +405,11 @@
     "artifact_validator": "Artifact validation OK",
     "git_diff_check_exit_code": 0,
     "relative_link_check": "passed",
+    "relative_link_scope_commit": "b7cd9ef5822a6c279f3b4f942544adc15d0b65ee",
     "relative_links_checked": 29,
-    "markdown_files_checked": 6
+    "markdown_files_checked": 6,
+    "launcher_safety_repetitions": 20,
+    "launcher_safety_passes": 20
   },
   "unresolved": [
     "Codex CLI direct chat and project MCP discovery passed, but the self-hosted model did not invoke Companion MCP through either the Responses namespace or code-mode freeform/custom tool representation.",

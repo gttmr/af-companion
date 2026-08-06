@@ -45,6 +45,29 @@ root artifact validator를 실행하는 `Companion foundation` workflow 추가�
 수동 acceptance에서 별도로 발견한 capability temp 문제에는 partial source fix를 섞지 않고
 아래 남은 위험으로 기록했다.
 
+첫 workflow 실행 [run `31062409540`](https://github.com/gttmr/af-companion/actions/runs/31062409540),
+head `b7cd9ef5822a6c279f3b4f942544adc15d0b65ee`, job `92492928113`은 `Test Companion`에서
+실패했다. `each readiness request is aborted within the remaining deadline` test가
+`cancelledByParent`와 `Promise resolution is still pending but the event loop has already resolved`를
+보고했고 build와 artifact validator는 skip됐다. 실패를 재현한 뒤 test double이
+`AbortSignal.timeout()`의 unref timer만 기다려 Node 22 runner의 event loop가 먼저 종료되는
+것으로 국소화했다. Production source는 바꾸지 않고
+`8fd2d4507e02f9a9d3cff5b061ac234cd23414df`에서 fake request에 ref 상태인 1초 fail-safe를
+추가하고 abort 때 clear했다. Abort가 동작하지 않으면 기존 `<250ms` assertion이 그대로
+실패한다.
+
+수정한 launcher safety test는 local에서 20회 연속 통과했고 full local suite도 70/70
+통과했다. Source-fix [run `31062612139`](https://github.com/gttmr/af-companion/actions/runs/31062612139),
+head `8fd2d4507e02f9a9d3cff5b061ac234cd23414df`, job `92493525855`는 1분 26초에 install,
+typecheck, test, build와 validator를 모두 통과했다. 이 run은 `actions/checkout@v4`와
+`actions/setup-node@v4`의 Node 20 action-runtime deprecation annotation을 남겼다. 2026-08-06에
+official release API로 각각 최신 `v7.0.1`, `v7.0.0`을 확인한 뒤 workflow의 두 action ref만
+`@v7`로 올렸다. Hygiene commit `fd12ba86c3fb889537e117bfaa41b245f008afae`의
+[run `31062757202`](https://github.com/gttmr/af-companion/actions/runs/31062757202), job
+`92493959495`는 1분 31초에 모든 step을 통과했고 같은 deprecation annotation이 없었다.
+GitHub CI foundation은 통과했지만 model-mediated Companion MCP blocker 때문에 전체 Phase A
+판정은 계속 BLOCKED다.
+
 ## Codex CLI current-run 대체 검증
 
 사용자의 Session 2 전용 결정에 따라 extension AI chat 대신 Codex CLI `0.146.0`을 exact
@@ -196,16 +219,21 @@ Screenshot은 1440×1000 PNG이며 SHA-256은
 - `node scripts/validate-artifacts.mjs`: `Artifact validation OK`
 - `git diff --check`: exit 0
 - sanitized evidence JSON parse: 통과
-- 현재 evidence amendment의 Markdown 6개에서 relative link 29개 검사: 통과
+- criterion/evidence amendment commit `b7cd9ef5822a6c279f3b4f942544adc15d0b65ee`의 Markdown
+  6개에서 relative link 29개 검사: 통과
+- `node --test test/dev-launcher-safety.test.mjs` 20회 연속 실행: 20/20 통과
+- GitHub source-fix run `31062612139`: 1분 26초, 모든 step 통과
+- GitHub current-actions run `31062757202`: 1분 31초, 모든 step 통과, deprecation annotation 0
 
-실행 command는 다음과 같다. 최종 commit과 GitHub check 결과는 PR evidence에 별도로
-기록한다.
+실행 command는 다음과 같다. 이 evidence-only final head의 GitHub check는 PR description에
+별도로 기록한다.
 
 ```bash
 cd packages/companion
 npm run typecheck
 npm run test
 npm run build
+for i in $(seq 1 20); do node --test test/dev-launcher-safety.test.mjs || exit 1; done
 cd ../..
 node scripts/validate-artifacts.mjs
 git diff --check
