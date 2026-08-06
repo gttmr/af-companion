@@ -1,14 +1,18 @@
 # Session 2. Companion 통합과 constrained-egress end-to-end acceptance
 
-상태: **Phase A passed — PR #22 Draft 유지, 사용자 merge 결정 대기**
+상태: **Phase B–D와 deterministic E1–E3 구현 검증 완료 — target private-vLLM acceptance UNVERIFIED, Draft PR review gate**
 
 Master: [2-session 프로그램](../23-companion-adk-development-program.md)
+
+Evidence: [Phase B–E acceptance](../../../../packages/companion/evidence/session2-integration/phase-b-e-acceptance.md)
 
 ## 이 session의 한 가지 결과
 
 Session 1에서 검증한 AF Skills vNext와 ADK 2.4 capability evidence를 primary Companion에 연결해,
-선택한 Graph Node·Edge·Region에서 외부 Codex 작업을 만들고 locked
-`gemini-3.1-flash-lite`로 ADK source 생성·검증·local Git commit까지 수행하는 사용자 여정을 완성한다.
+선택한 Graph Node·Edge·Region에서 외부 Codex 작업을 만든다. 이번 구현 작업은 빠른
+development model을 보조로 사용했지만 제품 capsule과 generated runtime에는 포함하지 않는다.
+생성 결과는 Internet이 없는 은행 내부망의 private vLLM `qwen3.6-27b-128k`로 검증하고 local Git
+commit까지 보존한다.
 
 이 session에서는 AF Skill instruction이나 ADK pattern card를 수정하지 않는다. Skill defect는
 Session 1 workstream의 follow-up defect로 분리한다.
@@ -16,9 +20,10 @@ Session 1 workstream의 follow-up defect로 분리한다.
 Phase A의 browser, local MCP, Registry, App Git과 restart evidence는 2026-08-06에 다시
 수집했다. 사용자는 installed Codex VS Code extension에 approved provider를 설정할 수 없으면
 current-run extension AI chat을 생략하고 Codex CLI만 사용하도록 Session 2 gate를 조정했다.
-초기 self-hosted Qwen endpoint는 chat은 응답했지만 llama.cpp로 보이는 serving 경로에서 Tool
-call이 관찰되지 않았고, 사용자가 이 Session 2에 한해 Gemini Developer API를 primary model
-transport로 승인했다.
+초기 self-hosted Qwen endpoint는 chat은 응답했지만 llama.cpp serving 경로에서 Tool call이
+관찰되지 않았다. 이후 host-local Codex compatibility bridge가 developer message 병합과 namespaced
+Tool 변환/복원을 담당하면서 실제 Companion MCP Tool call이 통과했다. 사용자는 느린 Qwen 대신
+Gemini Developer API로 이번 source 개발을 계속하되 Qwen 3.6 27B 검증을 필수로 유지했다.
 
 Codex CLI `0.146.0`은 local Responses bridge를 통해 `gemini-3.1-flash-lite`를 사용했다. Final
 turn은 exact `companion_get_graph_workspace`와 `companion_apply_graph_changes`를 각각 한 번,
@@ -26,7 +31,11 @@ turn은 exact `companion_get_graph_workspace`와 `companion_apply_graph_changes`
 Developer API destination만 허용했고 별도 deny probe는 임의 외부 IP를 차단했다. Companion
 70/70 tests, typecheck/build, artifact validator, ADK 2.4 runtime probe 46/46, GitHub
 `companion-foundation`, browser DOM/console/network/screenshot와 local App Git evidence가 통과했다.
-Phase A는 사용자의 PR #22 merge 결정 전에는 다음 phase로 진행하지 않는다.
+이 결과는 당시 Phase A의 Gemini acceptance 기록이다. 사용자가 merge를 명시적으로 승인한 뒤
+PR #22는 merge commit `f3ef4992235f08d656c6aa0237788ef852111e25`로 merge됐고, 같은 Codex
+conversation에서 `agent/companion-adk-integration` worktree로 전환했다. 이후 Gemini는 개발
+가속 이력으로만 남고 product capsule/runtime에는 포함하지 않으며, target private vLLM Qwen이
+offline acceptance를 소유한다는 최신 결정을 적용한다.
 
 ## 시작 gate
 
@@ -34,9 +43,9 @@ Phase A는 사용자의 PR #22 merge 결정 전에는 다음 phase로 진행하�
 2. Skill manifest input/output, ADK 2.4 capability inventory, representative integration set와
    unsupported/excluded list를 읽었다.
 3. current PR #22 state, checks, head와 worktree를 다시 확인했다.
-4. `gemini-3.1-flash-lite`와 observed input context `1048576`, output limit `65536`, ADK 2.4.0 interpreter,
-   accepted agents-cli `1.2.1`과 Google Skills `1.2.1` exact digest bundle이 App cwd에서
-   준비됐다. Candidate agents-cli `1.3.1`은 Session 1에서 rejected다.
+4. 필수 acceptance model `qwen3.6-27b-128k`, context `131072`, private OpenAI-compatible vLLM,
+   ADK 2.4.0 interpreter, accepted agents-cli `1.2.1`과 Google Skills `1.2.1` exact digest bundle이
+   App cwd에서 준비된다. Candidate agents-cli `1.3.1`은 Session 1에서 rejected다.
 5. primary checkout의 두 untracked historical work-order 파일을 보존했다.
 
 Session 1의 known unsupported pattern을 Companion UI나 prompt가 supported로 노출하면 code
@@ -83,13 +92,14 @@ latest `main` 기반 새 Companion change set에서 다음 versioned contract를
 - Session 1 AF bundle version/digest와 required Google Skill IDs
 - App cwd discoverability, disabled/missing/version/digest/offline-ready
 - exact ADK 2.4 and agents-cli compatibility
-- `gemini-3.1-flash-lite`, observed input context `1048576`, output limit `65536`과 allowed local
-  dependency source
-- Companion, Codex CLI와 generated runtime에는 ignored local configuration의 loopback bridge
-  `http://127.0.0.1:8897/v1`만 노출하고 API key bytes는 source, App, artifact 또는 evidence에
+- required acceptance model `qwen3.6-27b-128k`, context `131072`, private OpenAI-compatible vLLM
+  endpoint/key source `AF_QWEN_BASE_URL`과 `AF_QWEN_API_KEY`
+- vLLM `/v1/models` exact served ID와 `max_model_len: 131072`; llama-specific metadata는 target
+  readiness로 인정하지 않음
+- private endpoint와 API key bytes는 source, App, capsule, artifact, screenshot 또는 evidence에
   저장하지 않음
-- Bridge의 Gemini Developer API destination과 loopback 외 Internet egress, 다른 model과 fallback을
-  fail closed로 거절
+- Qwen acceptance에서는 private model transport와 필요한 loopback 외 Internet egress와 모든
+  model fallback을 fail closed로 거절
 - deploy/cloud Skill을 missing requirement로 표시하지 않음
 
 ### Development Context Capsule
@@ -134,8 +144,11 @@ React Flow 전환, 고급 layout/pan/zoom과 Browser direct App Server는 이 ph
 
 ## Phase E — Offline end-to-end matrix
 
-모든 scenario는 loopback과 Gemini Developer API 외 external network를 차단하고
-`gemini-3.1-flash-lite`, exact ADK 2.4.0과 Session 1 Skill bundle을 사용한다.
+Source 작성 때 사용한 development model은 product contract 밖의 진단 수단이다. 모든 scenario의
+필수 acceptance는 Internet egress를 차단한 상태에서 target private vLLM의
+`qwen3.6-27b-128k`, exact ADK 2.4.0과 Session 1 Skill bundle을 사용한다. Compatibility bridge나
+다른 model 성공은 target vLLM acceptance를 대신하지 않고 generated runtime은 proxy, Gemini,
+cloud login을 요구하지 않는다.
 
 ### E1 Existing Workflow/Subworkflow
 
@@ -183,12 +196,13 @@ unsupported guard를 정확히 전달하는지 확인한다. Session 1의 전체
 - ADK 2.4 import/unit/runtime/local eval commands and results
 - implementation mapping before/after
 - local Git base/result commits
-- Gemini Developer API model request 외 external network request가 없다는 evidence
+- development diagnostics와 target Qwen acceptance를 분리하고, target acceptance에는 private
+  vLLM transport 외 external network request가 없다는 evidence
 - PASS/FAIL/UNVERIFIED와 residual risk
 
-## Gemini 3.1 Flash-Lite Session 2 acceptance
+## self-hosted-27B Session 2 acceptance
 
-locked `gemini-3.1-flash-lite`에서 다음을 별도로 판정한다.
+Internet이 없는 target 환경과 같은 locked `qwen3.6-27b-128k`에서 다음을 별도로 판정한다.
 
 - required Skill을 정확히 선택하는가
 - agents-cli guidance와 ADK 2.4 correction이 충돌할 때 Session 1 evidence protocol을 따르는가
@@ -197,10 +211,9 @@ locked `gemini-3.1-flash-lite`에서 다음을 별도로 판정한다.
 - Agent/Sub-agent, Graph, Tool, state/lifecycle 중 선택 대상에 필요한 reference만 읽는가
 - validation failure 뒤 speculative fix를 쌓지 않고 source/probe를 다시 읽는가
 
-다른 model에서 대신 성공한 결과는 Session 2 primary PASS가 아니다. Gemini는 fallback이 아니라
-사용자가 승인한 primary acceptance model이다. 이 결과를 `small-model PASS`나
-`self-hosted-27B Session 2 acceptance`라고 부르지 않고 **Gemini 3.1 Flash-Lite Session 2
-acceptance**로 기록한다.
+Compatibility bridge와 다른 model 결과는 source 개발 또는 진단 evidence일 뿐 Session 2 target
+PASS가 아니다. Target private vLLM의 required checks가 모두 통과한 결과만 `small-model PASS`가
+아니라 **self-hosted-27B Session 2 acceptance**로 기록한다.
 
 ## Checkpoint와 PR 경계
 
@@ -224,7 +237,7 @@ interface와 UI를 별도 PR로 나눌 수 있지만, session context와 master 
 - `node scripts/validate-artifacts.mjs`
 - contract/path/digest/read-only integration tests
 - current ADK 2.4 capability/runtime tests selected by Session 1 evidence
-- loopback과 Gemini Developer API 외 network-disabled Gemini 3.1 Flash-Lite E1–E3 acceptance
+- Internet-disabled private-vLLM Qwen 3.6 27B E1–E3 acceptance와 분리된 development diagnostics
 - Chrome DevTools `8899` gate 뒤 real screen DOM/console/network와 screenshot
 - `git diff --check`, relative links, edited-file and App Git inventories
 - GitHub required checks for each product PR
@@ -234,8 +247,9 @@ interface와 UI를 별도 PR로 나눌 수 있지만, session context와 master 
 - PR #22 foundation이 merged 또는 current equivalent로 검증됐다.
 - source project, implementation mapping, Skill/model lock과 bounded capsule이 구현됐다.
 - selection에서 external Codex task를 시작하고 Skill/quality evidence를 구분할 수 있다.
-- E1 Subworkflow, E2 representative capability integration과 E3 A2A가 constrained-egress
-  `gemini-3.1-flash-lite`에서 PASS다.
+- E1 Subworkflow, E2 representative capability integration과 E3 A2A가 Internet-disabled
+  private vLLM `qwen3.6-27b-128k`에서 PASS다. Compatibility bridge나 다른 model 결과로 이 gate를
+  닫지 않는다.
 - local Git commit이 Graph/source/evidence 기준점을 보존하고 remote push가 필요하지 않다.
 - AF Skill source를 이 session에서 수정하지 않았고 unresolved Skill defect는 별도 issue/evidence로
   반환됐다.

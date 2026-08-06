@@ -6,8 +6,9 @@ managed App workspace and Graph Control Server.
 ## Boundary
 
 - Browser code uses `/api/companion/v2` and SSE for Graph collaboration. The
-  separate Web composition action opens only the server-selected active App in
-  VS Code; browser input cannot select a filesystem path.
+  separate Web composition actions open only the server-selected active App or
+  a server-derived contained source project in VS Code; browser input cannot
+  select an arbitrary filesystem path.
 - Node startup composes `ActiveAppWorkspaceController` and one active
   `GraphControlWorkspace`; persistence and Graph concurrency remain owned by
   `graph-control-server`.
@@ -34,6 +35,10 @@ MCP availability is never shown as a connected Codex thread.
 | `POST` | `/api/companion/v2/graph/operations` | atomic revision-checked Graph write |
 | `PUT` | `/api/companion/v2/presentation` | layout sidecar write |
 | `POST` | `/api/companion/editor/launch-vscode` | open the active App in a new VS Code window |
+| `GET`, `POST` | `/api/companion/source-projects` | list or explicitly create/attach contained ADK source projects |
+| `GET`, `PUT` | `/api/companion/implementation-mappings` | read or CAS-update separate Graph/Asset-to-source evidence |
+| `POST` | `/api/companion/development-context` | assemble one read-only bounded selected-element capsule |
+| `POST` | `/api/companion/development-task/launch-vscode` | revalidate the capsule and open its server-derived source cwd |
 | `GET` | `/api/companion/registry/assets` | list exact Registry versions by type/status |
 | `GET` | `/api/companion/registry/assets/:id/versions/:version` | read a full versioned contract and lifecycle evidence |
 | `POST` | `/api/companion/registry/validate` | validate draft contract bytes without mutation |

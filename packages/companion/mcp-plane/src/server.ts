@@ -2,6 +2,7 @@ import type { Readable, Writable } from "node:stream";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CompanionDevelopmentContextRequest } from "@agent-factory/companion-contracts";
 import type { GraphEditOperation } from "@agent-factory/companion-graph-domain";
 import { createGraphControlClient, GraphControlClientError, type GraphControlClient } from "./client.js";
 
@@ -19,7 +20,8 @@ export function createGraphMcpServer(client: GraphControlClient): Server {
         const workspace = await client.getWorkspace();
         if (expected.expected_application_id && expected.expected_application_id !== workspace.scope.application_id) return failure("application_scope_mismatch");
         if (expected.expected_work_id && expected.expected_work_id !== workspace.scope.work_id) return failure("work_scope_mismatch");
-        return success({ status: "VERIFIED", workspace });
+        const development_context = expected.development_task ? await client.getDevelopmentContext(expected.development_task) : undefined;
+        return success({ status: "VERIFIED", workspace, ...(development_context ? { development_context } : {}) });
       } catch (error) { return clientFailure(error); }
     }
     if (request.params.name === APPLY_GRAPH_CHANGES_TOOL) {
@@ -39,8 +41,8 @@ export async function runStdioServer(input: { projectRoot: string; capabilityPat
 export function toolDefinitions(): Array<Record<string, unknown>> { return [
   {
     name: GET_GRAPH_WORKSPACE_TOOL, title: "Get Companion Graph workspace",
-    description: "Read the latest canonical Graph workspace. In the result, use workspace.graph_revision, workspace.scope.application_id, workspace.active_selection, workspace.graph, workspace.active_draft, workspace.recent_changes, and workspace.source_health.",
-    inputSchema: { type: "object", additionalProperties: false, properties: { expected_application_id: { type: "string", minLength: 1, maxLength: 256 }, expected_work_id: { type: "string", minLength: 1, maxLength: 256 } } },
+    description: "Read the latest canonical Graph workspace. In the result, use workspace.graph_revision, workspace.scope.application_id, workspace.active_selection, workspace.graph, workspace.active_draft, workspace.recent_changes, and workspace.source_health. Optionally request one bounded, read-only development_context for the active selection; this never writes source or Graph state.",
+    inputSchema: { type: "object", additionalProperties: false, properties: { expected_application_id: { type: "string", minLength: 1, maxLength: 256 }, expected_work_id: { type: "string", minLength: 1, maxLength: 256 }, development_task: { type: "object", additionalProperties: false, required: ["expected_graph_revision", "source_project_id", "primary_intent"], properties: { expected_graph_revision: { type: "string", pattern: "^[a-f0-9]{64}$" }, source_project_id: { type: "string", pattern: "^[a-z][a-z0-9-]{1,62}$" }, primary_intent: { enum: ["implement_selected_element", "verify_selected_element"] } } } } },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
@@ -73,7 +75,26 @@ export function toolDefinitions(): Array<Record<string, unknown>> { return [
   },
 ]; }
 
-function parseGetArguments(value: unknown): { expected_application_id?: string; expected_work_id?: string } | { error: string } { if (value === undefined) return {}; if (!record(value) || Object.keys(value).some((key) => !["expected_application_id", "expected_work_id"].includes(key))) return { error: "invalid_arguments" }; const result: { expected_application_id?: string; expected_work_id?: string } = {}; for (const key of ["expected_application_id", "expected_work_id"] as const) { if (value[key] !== undefined) { if (typeof value[key] !== "string" || !value[key].trim() || value[key].length > 256) return { error: `invalid_${key}` }; result[key] = value[key]; } } return result; }
+function parseGetArguments(value: unknown): { expected_application_id?: string; expected_work_id?: string; development_task?: CompanionDevelopmentContextRequest } | { error: string } {
+  if (value === undefined) return {};
+  if (!record(value) || Object.keys(value).some((key) => !["expected_application_id", "expected_work_id", "development_task"].includes(key))) return { error: "invalid_arguments" };
+  const result: { expected_application_id?: string; expected_work_id?: string; development_task?: CompanionDevelopmentContextRequest } = {};
+  for (const key of ["expected_application_id", "expected_work_id"] as const) {
+    if (value[key] !== undefined) {
+      if (typeof value[key] !== "string" || !value[key].trim() || value[key].length > 256) return { error: `invalid_${key}` };
+      result[key] = value[key];
+    }
+  }
+  if (value.development_task !== undefined) {
+    if (!result.expected_application_id || !record(value.development_task) || Object.keys(value.development_task).sort().join(",") !== "expected_graph_revision,primary_intent,source_project_id") return { error: "invalid_development_task" };
+    const task = value.development_task;
+    if (typeof task.expected_graph_revision !== "string" || !/^[a-f0-9]{64}$/u.test(task.expected_graph_revision)) return { error: "invalid_expected_graph_revision" };
+    if (typeof task.source_project_id !== "string" || !/^[a-z][a-z0-9-]{1,62}$/u.test(task.source_project_id)) return { error: "invalid_source_project_id" };
+    if (!(["implement_selected_element", "verify_selected_element"] as unknown[]).includes(task.primary_intent)) return { error: "invalid_primary_intent" };
+    result.development_task = { expected_application_id: result.expected_application_id, expected_graph_revision: task.expected_graph_revision, source_project_id: task.source_project_id, primary_intent: task.primary_intent as CompanionDevelopmentContextRequest["primary_intent"] };
+  }
+  return result;
+}
 function parseApplyArguments(value: unknown): { base_graph_revision: string; operations: GraphEditOperation[]; source: "mcp" } | { error: string } { if (!record(value) || Object.keys(value).some((key) => !["base_graph_revision", "operations"].includes(key)) || typeof value.base_graph_revision !== "string" || !/^[a-f0-9]{64}$/u.test(value.base_graph_revision) || !Array.isArray(value.operations) || value.operations.length === 0 || value.operations.length > 100) return { error: "invalid_arguments" }; return { base_graph_revision: value.base_graph_revision, operations: value.operations as GraphEditOperation[], source: "mcp" }; }
 function clientFailure(error: unknown): CallToolResult { if (error instanceof GraphControlClientError) return failure(error.code, { status_code: error.status, ...error.details }); return failure("control_unavailable"); }
 function success(payload: Record<string, unknown>): CallToolResult { return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload, isError: false }; }

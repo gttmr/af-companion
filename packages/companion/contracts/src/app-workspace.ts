@@ -117,16 +117,37 @@ export interface CompanionRegistryValidationResult {
   contract_hash: string;
 }
 
-export interface CompanionAppManifest {
-  schema_version: 1;
+export interface CompanionSourceProjectRuntime {
+  framework: "google-adk";
+  framework_version: "2.4.0";
+  language: "python";
+  package_manager: "uv";
+  entrypoint: string;
+}
+
+export interface CompanionSourceProject {
+  source_project_id: string;
+  root: string;
+  runtime: CompanionSourceProjectRuntime;
+}
+
+interface CompanionAppManifestBase {
   application_id: string;
   display_name: string;
   created_at: string;
 }
 
-export interface CompanionAppSummary extends CompanionAppManifest {
-  active: boolean;
+export interface CompanionAppManifestV1 extends CompanionAppManifestBase {
+  schema_version: 1;
 }
+
+export interface CompanionAppManifestV2 extends CompanionAppManifestBase {
+  schema_version: 2;
+  source_projects: CompanionSourceProject[];
+}
+
+export type CompanionAppManifest = CompanionAppManifestV1 | CompanionAppManifestV2;
+export type CompanionAppSummary = CompanionAppManifest & { active: boolean };
 
 export interface CompanionAppsSnapshot {
   applications_root: string;
@@ -180,6 +201,11 @@ export interface CreateCompanionAppRequest {
 
 export interface ActivateCompanionAppRequest {
   application_id: string;
+}
+
+export interface AddCompanionSourceProjectRequest {
+  mode: "create" | "attach";
+  source_project: CompanionSourceProject;
 }
 
 export interface BindCompanionAssetRequest {

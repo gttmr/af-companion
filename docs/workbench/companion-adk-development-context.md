@@ -1,6 +1,6 @@
 # Companion의 skill-aware ADK 개발 컨텍스트
 
-상태: **Target Contract와 순차 구현 방향 확정, Current Implementation은 일부만 충족**
+상태: **Session 2 구현·결정론적/browser 검증 완료, target private-vLLM acceptance UNVERIFIED — Draft PR review gate**
 
 결정일: 2026-08-05 KST
 
@@ -9,6 +9,7 @@
 - [Companion architecture](../../packages/companion/ARCHITECTURE.md)
 - [Companion ADK 개발 프로그램](follow-ups/23-companion-adk-development-program.md)
 - [AF Skills vNext 프로그램](follow-ups/24-af-skills-vnext-program.md)
+- [Session 2 Phase B–E evidence](../../packages/companion/evidence/session2-integration/phase-b-e-acceptance.md)
 - [Taxonomy](taxonomy.md)
 - [Graph IR](graph-ir.md)
 
@@ -49,21 +50,21 @@ Asset Registry + Graph + active selection
 
 ## 2. 실행 환경 제약
 
-Companion의 장기 target은 Internet 연결이 없는 환경이다. 개발·검증은 provision된 local
-toolchain, Skill bundle, dependency cache 또는 environment를 사용한다. 다만 Session 2에는
-사용자가 승인한 model-only 예외가 있다. ADK dependency·Skill·source 검증은 계속 local이고,
-model call만 아래 Gemini Developer API 경로를 사용한다.
+Companion의 target은 Internet 연결이 없는 은행 내부망이다. 개발·검증은 provision된 local
+toolchain, Skill bundle, dependency cache 또는 environment를 사용한다. 제품 readiness와 required
+acceptance는 아래 self-hosted Qwen vLLM 경로만 소유한다.
 
-- Session 2 primary acceptance model은 `gemini-3.1-flash-lite`다. Gemini API가 보고한 observed
-  model version은 `3.1-flash-lite-05-2026`, input context는 `1048576`, output token limit은
-  `65536`이다. 요청했던 `gemini-2.5-flash-lite`는 새 project에서 사용할 수 없어 404를 반환했고
-  acceptance 결과에 포함하지 않았다. Session 1의 `qwen3.6-small` manifest와 blocked evidence,
-  이전 Session 2 self-hosted Qwen 시도는 당시 기록으로 보존한다.
-- Companion, Codex CLI와 generated runtime이 사용하는 model base는 ignored local configuration의
-  loopback bridge `http://127.0.0.1:8897/v1`뿐이다. Bridge만
-  `generativelanguage.googleapis.com`의 Gemini Developer API로 egress할 수 있다. API key는
-  mode `0600` external env file에서만 읽고 repository source, managed App, artifact, screenshot
-  또는 evidence에 저장하지 않는다.
+- Session 2 primary acceptance model은 사용자 소유 Linux system의 `qwen3.6-27b-128k`이고
+  context lock은 `131072`다. 실제 target serving은 안정적인 private vLLM이며 Companion과 generated
+  runtime은 ignored local configuration의 `AF_QWEN_BASE_URL`과 `AF_QWEN_API_KEY`로
+  OpenAI-compatible `/v1` endpoint와 Bearer credential을 받는다. endpoint/key 값을 App, Graph,
+  source, capsule 또는 evidence에 저장하지 않고 특정 proxy를
+  요구하지 않는다. Readiness와 target acceptance는 vLLM `/v1/models`의 exact served ID와
+  `max_model_len: 131072`를 요구하며 llama-specific metadata를 대체 증거로 받지 않는다.
+- 이번 구현 중 사용한 Gemini accelerator와 llama.cpp compatibility bridge 결과는 development 또는
+  diagnostic evidence일 뿐 제품 readiness, fallback, generated-runtime dependency 또는 target vLLM
+  acceptance가 아니다. Session 1의 `qwen3.6-small` manifest와 blocked evidence 및 과거 Session 2
+  model evidence는 당시 기록으로 보존한다.
 - Session 2에서 Codex VS Code extension이 이 provider를 사용할 수 없으면 current-run
   extension AI chat은 필수조건에서 제외하고 Codex CLI를 유일한 AI acceptance client로 사용한다.
   이 대체는 direct model chat, project MCP discovery와 model-mediated MCP get/apply를 별도로
@@ -81,10 +82,9 @@ model call만 아래 Gemini Developer API 경로를 사용한다.
   Session 1 manifest가 이 version/digest와 detector correction의 authority다.
 - Google agents-cli의 deploy, cloud publish, cloud observability 기능은 제품 고려사항이
   아니며 required Skill coverage에서 제외한다.
-- Session 2 acceptance runtime은 Gemini Developer API hostname과 loopback 외 egress를
+- Session 2 required acceptance는 private vLLM transport와 필요한 loopback 외 Internet egress를
   system-level network policy로 차단한다. Skill marketplace, GitHub, package index, cloud
-  documentation, 다른 model API와 fallback은 금지한다. Gemini는 fallback이 아니라 이
-  Session 2의 primary acceptance model이다.
+  documentation, 다른 model API와 model fallback은 금지한다.
 - Google 공식 Skill과 AF Skills vNext는 offline 환경에 들어가기 전에 version/digest가 고정된
   bundle로 준비하고, Companion은 App cwd에서 그 local bundle을 확인한다.
 - dependency 설치가 필요하면 approved local wheel/package cache, prebuilt environment 또는
@@ -100,10 +100,9 @@ model call만 아래 Gemini Developer API 경로를 사용한다.
   deterministic script/core가 소유한다.
 - 전체 Registry나 Graph를 넣지 않고 selection과 필요한 bounded neighborhood만 제공한다.
 - ambiguous 상태는 model이 추측하지 않고 typed blocker 또는 한 질문으로 반환한다.
-- Session 2 acceptance는 다른 model fallback 없이 loopback bridge를 통한
-  `gemini-3.1-flash-lite` 경로에서 수행하고 **Gemini 3.1 Flash-Lite Session 2 acceptance**로
-  기록한다. 이 결과를 `small-model PASS`나 `self-hosted-27B Session 2 acceptance`라고 부르지
-  않는다.
+- Session 2 acceptance는 다른 model fallback 없이 target private vLLM의
+  `qwen3.6-27b-128k` 경로에서 수행하고 **self-hosted-27B Session 2 acceptance**로 기록한다.
+  Compatibility bridge나 다른 model 결과로 이 PASS를 대신하지 않는다.
 
 ### ADK 2.4 framework fact의 evidence 순서
 
@@ -279,19 +278,22 @@ wire가 더 작은지는 계약 세션에서 결정한다. 선택에서 바로 s
 
 ## 6. Current Implementation과 Gap
 
-2026-08-05 PR #22 기준 snapshot이다. 새 세션은 source와 PR 상태를 다시 확인한다.
+2026-08-06 integration branch 기준 snapshot이다. Companion 구현, 결정론적 App 검증, browser
+검증과 independent review는 끝났지만 target bank private-vLLM 환경의 Qwen E1–E3는 실행하지
+못했다. 따라서 Draft PR review gate에는 도달했어도 self-hosted-27B Session 2 acceptance 완료로
+간주하지 않는다.
 
 | 영역 | Current Implementation | Target gap |
 | --- | --- | --- |
-| App | Git baseline, App manifest v1, exact Asset binding, Graph와 presentation | source project와 runtime entrypoint가 manifest에 없음 |
-| Git | Manager-owned 최초 local commit, remote/push 없음 | task base/result commit과 mapping evidence가 없음 |
-| Graph | Node·Edge·Region 선택, revision-checked Web/MCP write | 선택을 source·Skill 작업으로 변환하지 않음 |
-| Asset | search, exact binding, primary lifecycle UX | project-local implementation locator 연결이 없음 |
-| Skill | App-local Codex MCP config | offline Skill bundle lock, discoverability, version readiness가 없음 |
-| MCP | Graph workspace read와 Graph apply | 개발 작업 capsule read surface가 없음 |
-| Source | 사용자가 별도로 source를 만들 수 있음 | App이 source project identity를 소유하지 않음 |
-| Execution | VS Code convenience launch, 독립 App Server client | skill-aware external Codex handoff와 완료 evidence가 없음 |
-| Verification | Companion typecheck/test/build와 수동 acceptance | GitHub CI, generated ADK eval, skill quality suite가 없음 |
+| App | App manifest v2가 nested source project와 exact ADK 2.4 runtime locator를 소유하고 v1은 explicit mutation 때만 upgrade | target private-vLLM E1–E3만 UNVERIFIED |
+| Git | Manager-owned 최초 local commit, task base/result locator와 mapping drift 계산; local App HEAD와 8/8 current mapping evidence 보존 | mapping sidecar는 HEAD 고정 때문에 intentionally local dirty |
+| Graph | Node·Edge·Region 선택, revision-checked Web/MCP write, bounded one-hop capsule | target Qwen의 실제 bounded-task 사용성은 UNVERIFIED |
+| Asset | search, 11 exact bindings, primary lifecycle UX, mapping의 exact Asset ref/hash 검증 | published Agent A2A exposure가 없어 provider는 project-local |
+| Skill | exact Session 1 bundle/version/tree digest와 App cwd filesystem readiness | target Qwen의 Skill 선택·사용 품질은 UNVERIFIED |
+| MCP | Graph workspace read/apply 두 Tool을 유지하며 read Tool에 optional development capsule 추가 | target Qwen model-mediated MCP journey는 UNVERIFIED |
+| Source | contained create/attach, symlink/path/duplicate guard, source-cwd launch, generated ADK tests/eval | target vLLM latency·Tool reliability 검증 필요 |
+| Execution | read-only review capsule, manual-copy receipt, source-cwd VS Code launch와 real browser evidence | bank-like vLLM environment replay 필요 |
+| Verification | Companion CI-equivalent checks, generated App 47 tests·2/2 eval, browser와 independent review | E3 timeout subtype과 target private-vLLM full acceptance 미해결 |
 
 ## 7. Verification 전략
 
@@ -301,9 +303,10 @@ wire가 더 작은지는 계약 세션에서 결정한다. 선택에서 바로 s
    contract를 보호한다.
 2. AF Skills vNext CI는 capability inventory, manifest, trigger/intent fixture, compatibility,
    framework probe와 산출물 계약을 검증한다.
-3. generated App acceptance는 loopback과 Gemini Developer API 외 network를 차단한 상태에서
-   import/lint/unit, `agents-cli info`, local runtime smoke, local `agents-cli eval`, Subworkflow
-   또는 A2A contract를 실제 App source root와 `gemini-3.1-flash-lite` 경로에서 검증한다.
+3. generated App acceptance는 Internet egress를 차단한 상태에서 import/lint/unit,
+   `agents-cli info`, local runtime smoke, local `agents-cli eval`, Subworkflow 또는 A2A contract를
+   실제 App source root와 private vLLM의 `qwen3.6-27b-128k` 경로에서 검증한다. 다른 serving
+   stack 또는 development model 결과는 별도 evidence로 기록하고 이 gate를 대신하지 않는다.
 
 model process나 API가 필요한 eval은 deterministic required GitHub check와 분리해 constrained
 acceptance evidence로 기록한다. 테스트 통과는 Skill을 실제로 사용했다는 완전한 증명이

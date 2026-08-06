@@ -9,6 +9,7 @@ import { presentationForGraph } from "../../src/browser/app/GraphContextScreen.j
 import { AssetRegistryScreen } from "../../src/browser/assets/AssetRegistryScreen.js";
 import { AppWorkspaceBar } from "../../src/browser/app/AppWorkspaceBar.js";
 import type { CompanionApi } from "../../src/browser/api/CompanionApi.js";
+import { DevelopmentTaskPanel } from "../../src/browser/development/DevelopmentTaskPanel.js";
 
 function workspace() { const graph = createDemoGraph(); const revision = graphRevision(graph); return { ...finalizeUiContextDocument({ schema_version: 2 as const, authority: "none" as const, graph_revision: revision, published_at: new Date().toISOString(), scope: { workspace_id: "w", application_id: "a", work_id: "x" }, graph, active_selection: null, active_draft: null, recent_changes: [], source_health: { status: "valid" as const, observed_at: new Date().toISOString(), graph_revision: revision } }), presentation: createDemoPresentation() }; }
 
@@ -51,4 +52,12 @@ test("App creation emits a browser-valid App ID pattern", () => {
     onCreate={async () => {}}
   />);
   assert.ok(html.includes(`pattern="${pattern}"`));
+});
+
+test("selected Graph elements expose one bounded Codex development action", () => {
+  const html = renderToStaticMarkup(<DevelopmentTaskPanel api={{} as CompanionApi} applicationId="review-app" graphRevision={"a".repeat(64)} selection={{ kind: "node", id: "node.review" }} />);
+  assert.match(html, /Codex 개발 작업 만들기/);
+  assert.match(html, /선택 요소만 bounded context로 전달/);
+  assert.match(html, /aria-expanded="false"/);
+  assert.doesNotMatch(html, /deploy|publish|A2A Asset/);
 });

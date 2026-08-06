@@ -1,12 +1,14 @@
 # 23. Companion skill-aware ADK 개발 — 2-session 프로그램
 
-상태: **in progress — Session 1 merged, Session 2 Phase A passed and awaits user merge decision**
+상태: **Session 2 Draft PR review gate — deterministic/browser PASS, target private-vLLM acceptance UNVERIFIED**
 
 작성일: 2026-08-05 KST
 
 정본 결정: [Companion의 skill-aware ADK 개발 컨텍스트](../companion-adk-development-context.md)
 
 Skill 설계 기준: [24. AF Skills vNext 프로그램](24-af-skills-vnext-program.md)
+
+Current evidence: [Session 2 Phase B–E acceptance](../../../packages/companion/evidence/session2-integration/phase-b-e-acceptance.md)
 
 ## 목적
 
@@ -22,15 +24,15 @@ source mapping과 local Git evidence를 제공하는 전체 루프를 두 번의
 
 ## 확정된 제약과 제품 결정
 
-- 장기 제품 target은 Internet이 없는 개발 환경이다. Session 2에는 사용자가 승인한 model-only
-  Gemini Developer API egress 예외를 적용하고 dependency·Skill·source 검증은 계속 local로 한다.
-- Session 2 primary acceptance model은 `gemini-3.1-flash-lite`다. Observed model version은
-  `3.1-flash-lite-05-2026`, input context는 `1048576`, output limit은 `65536`이다. 요청했던
-  `gemini-2.5-flash-lite`는 사용할 수 없어 404를 반환했고 acceptance에 포함하지 않았다.
-  Session 1의 `qwen3.6-small` manifest와 blocked evidence는 수정하지 않는다.
-- Companion, Codex CLI와 generated runtime은 ignored local configuration의 loopback bridge
-  `http://127.0.0.1:8897/v1`만 사용한다. Bridge만 Gemini Developer API로 egress하고 API key는
-  external mode-0600 env file에서 읽는다. 다른 Internet egress, model API와 fallback은 금지한다.
+- 제품 target은 Internet이 없는 은행 내부망이다. Session 2 primary acceptance model은 사용자
+  소유 private vLLM의 `qwen3.6-27b-128k`, context `131072`다. Companion과 generated runtime은
+  ignored local config의 `AF_QWEN_BASE_URL`과 `AF_QWEN_API_KEY`로 private OpenAI-compatible
+  `/v1` endpoint와 Bearer credential만 받고 특정 compatibility proxy나 cloud model profile을
+  요구하지 않는다. Readiness는 vLLM model
+  card의 exact ID와 `max_model_len: 131072`를 fail-closed로 확인한다.
+- 이번 구현 중 Gemini와 llama.cpp compatibility bridge를 사용한 결과는 development/diagnostic
+  evidence로만 보존한다. Target vLLM acceptance, fallback 또는 generated-runtime dependency가
+  아니며 Session 1의 `qwen3.6-small` manifest와 blocked evidence는 수정하지 않는다.
 - generated runtime과 Skill guidance의 기준은 ADK 2.4이며 repository exact verification
   baseline은 현재 `google-adk==2.4.0`이다. 새 session은 exact interpreter를 다시 확인한다.
 - Session 1은 agents-cli `1.2.1`과 Google Skills `1.2.1`을
@@ -42,9 +44,8 @@ source mapping과 local Git evidence를 제공하는 전체 루프를 두 번의
   search나 online docs fallback으로 대체하지 않는다.
 - agents-cli guidance, ADK Docs MCP, installed ADK 2.4 source와 실행 결과가 충돌할 수 있다는
   것을 정상 입력으로 취급한다. 충돌을 숨기거나 model이 임의로 하나를 고르게 하지 않는다.
-- deploy, cloud publish, cloud observability는 고려하지 않는다. Gemini Developer API는 이
-  Session 2의 primary model transport일 뿐 deploy/publish/observability 승인이 아니다. local Asset Registry publish는
-  별도 repository lifecycle로 유지한다.
+- deploy, cloud publish, cloud observability와 cloud model은 고려하지 않는다. local Asset
+  Registry publish는 별도 repository lifecycle로 유지한다.
 - App Git root가 Graph, source project, implementation mapping과 local history를 함께 소유한다.
 - AF Skills vNext와 Companion product code는 같은 change set/PR에 섞지 않는다.
 - Browser App Server direct-host, React Flow 전환과 legacy migration은 두 session의 비범위다.
@@ -84,6 +85,11 @@ ADK Docs MCP 사용 순서는 `list_doc_sources -> fetch_docs(llms.txt) -> 관�
 | exact repository verification baseline | `google-adk 2.4.0` |
 | agents-cli transition | 기록 시점 `1.2.1`; Session 1 전 외부 `1.3.1` upgrade 예정; compatibility 미판정 |
 | 보존할 local 파일 | primary checkout의 `agent-factory-web-first-journey-work-order.md`, `agent-factory-web-first-next-session-context.md` |
+
+2026-08-06 current execution은 PR #22 merge commit
+`f3ef4992235f08d656c6aa0237788ef852111e25` 기반
+`/home/ilmaswsl/work/af-companion-adk-integration`의 `agent/companion-adk-integration` branch에서
+진행한다. 위 표는 historical snapshot이며 current head나 PR 상태 authority가 아니다.
 
 새 session은 다음을 다시 확인한다.
 
@@ -356,17 +362,18 @@ source project, implementation mapping, Skill/model lock과 read-only Developmen
 contract tests부터 구현하라. 이어서 selected Node/Edge/Region의 bounded task를 external Codex
 CLI/VS Code 경로에 연결하고 frontend-skill과 project browser rules에 따라 실제 UI를 검증하라.
 
-loopback bridge를 통한 `gemini-3.1-flash-lite`와 exact ADK 2.4에서 E1
-Subworkflow, E2 representative Agent/Sub-agent·Graph·Tool·state/lifecycle integration, E3 local
-A2A를 수행하라. Gemini Developer API 외 Internet egress, 다른 model, fallback, deploy, cloud publish,
-cloud observability와 Browser direct App Server를 사용하지 마라.
+Source 작성에 사용한 외부 development model은 제품 capsule이나 generated runtime에 기록하지
+마라. Exact ADK 2.4의 E1 Subworkflow, E2 representative Agent/Sub-agent·Graph·Tool·state/lifecycle
+integration, E3 local A2A 필수 acceptance는 Internet egress가 차단된 target private vLLM의
+`qwen3.6-27b-128k`에서 수행하라. 다른 serving stack 결과를 target PASS로 대신하지 말고 deploy,
+cloud publish, cloud observability와 Browser direct App Server를 사용하지 마라.
 
 Graph mutation은 항상 latest get -> base_graph_revision -> minimal apply를 사용하고 graph_stale면
 재조회 후 재계산하라. source write와 Graph write authority를 합치지 마라.
 
-각 checkpoint마다 typecheck/test/build, validator, ADK runtime, loopback과 Gemini Developer API 외
-network-disabled Gemini 3.1 Flash-Lite Session 2 acceptance, browser DOM/console/network/screenshot와 local
-App Git evidence를 남겨라.
+각 checkpoint마다 typecheck/test/build, validator, ADK runtime, development diagnostics와
+Internet-disabled private-vLLM self-hosted-27B Session 2 acceptance를 분리하고, browser
+DOM/console/network/screenshot와 local App Git evidence를 남겨라.
 
 완료 gate를 충족하면 independent review, intentional commits와 changed-file inventory를 확인한 뒤
 agent/companion-adk-integration를 push하고 main 대상 Draft PR을 생성하라.
@@ -409,13 +416,13 @@ directory가 이미 존재하면 덮어쓰지 않는다.
 - 각 required 기능군의 positive/negative, high-risk interaction과 대표 복합 topology guidance가
   Skill reference와 tests로 검증된다.
 - Session 1의 model-forward blocked evidence를 PASS로 바꾸지 않고, Session 2가
-  `gemini-3.1-flash-lite`에서 bounded context로 동작하며 unsupported behavior를 추측하지 않는다.
+  `qwen3.6-27b-128k`에서 bounded context로 동작하며 unsupported behavior를 추측하지 않는다.
 - Companion이 source project, Skill bundle, locked model profile, Graph selection과 implementation
   mapping을 한 task capsule로 연결한다.
 - Existing Workflow/Subworkflow, A2A Agent와 representative Agent/Sub-agent·Graph·Tool·state 및
   lifecycle 조합이 constrained-egress end-to-end에서 source/test/eval/local Git evidence를 남긴다.
-- cloud deploy/publish/observability, Gemini Developer API 외 Internet과 model fallback 없이 위
-  결과를 재현한다.
+- cloud deploy/publish/observability와 Internet egress 없이 target private-vLLM Qwen acceptance를
+  재현한다. 다른 serving stack의 development evidence는 target PASS와 분리한다.
 
 두 planned session 중 하나가 blocker로 끝나면 다음 session으로 우회하지 않는다. 같은 work
 order에 evidence와 필요한 사용자 결정을 남기며, 예외적인 recovery session이 필요하다는

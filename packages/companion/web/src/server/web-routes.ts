@@ -10,6 +10,7 @@ import type { CompanionAssetRegistry } from "./asset-catalog.js";
 import { VscodeLaunchError, VscodeProjectLauncher, type VscodeLauncher } from "./vscode-launcher.js";
 
 export const VSCODE_LAUNCH_PATH = "/api/companion/editor/launch-vscode";
+export const DEVELOPMENT_VSCODE_LAUNCH_PATH = "/api/companion/development-task/launch-vscode";
 const BODY_LIMIT = 4 * 1_024;
 const REGISTRY_BODY_LIMIT = 1_024 * 1_024;
 const REGISTRY_PREFIX = "/api/companion/registry";
@@ -23,7 +24,7 @@ export function createCompanionWebRequestHandler(input: { projectRoot?: string; 
       return true;
     }
     if (input.appController && url.pathname.startsWith("/api/companion/")) {
-      const handled = await handleAppRoute(request, response, url, input.appController);
+      const handled = await handleAppRoute(request, response, url, input.appController, input.vscodeLauncher);
       if (handled) return true;
     }
     if (url.pathname !== VSCODE_LAUNCH_PATH) return false;
@@ -121,9 +122,9 @@ async function handleRegistryRoute(request: IncomingMessage, response: ServerRes
   }
 }
 
-async function handleAppRoute(request: IncomingMessage, response: ServerResponse, url: URL, controller: ActiveAppWorkspaceController): Promise<boolean> {
+async function handleAppRoute(request: IncomingMessage, response: ServerResponse, url: URL, controller: ActiveAppWorkspaceController, vscodeLauncher?: VscodeLauncher): Promise<boolean> {
   const appAssetPrefix = "/api/companion/app-assets/";
-  const known = ["/api/companion/apps", "/api/companion/apps/active", "/api/companion/assets", "/api/companion/app-assets"];
+  const known = ["/api/companion/apps", "/api/companion/apps/active", "/api/companion/assets", "/api/companion/app-assets", "/api/companion/source-projects", "/api/companion/implementation-mappings", "/api/companion/development-context", DEVELOPMENT_VSCODE_LAUNCH_PATH];
   if (!known.includes(url.pathname) && !url.pathname.startsWith(appAssetPrefix)) return false;
   try {
     if (request.method === "GET" && url.pathname === "/api/companion/apps") writeJson(response, 200, await controller.listApps());
@@ -138,6 +139,25 @@ async function handleAppRoute(request: IncomingMessage, response: ServerResponse
       if (assetType && !["agent", "workflow", "tool"].includes(assetType)) throw new WebRouteError(422, "invalid_asset_type", "Asset type은 Agent, Workflow, Tool 중 하나여야 합니다.");
       writeJson(response, 200, controller.searchAssets(url.searchParams.get("q") ?? undefined, assetType as "agent" | "workflow" | "tool" | undefined));
     } else if (request.method === "GET" && url.pathname === "/api/companion/app-assets") writeJson(response, 200, controller.appAssets());
+    else if (request.method === "GET" && url.pathname === "/api/companion/source-projects") writeJson(response, 200, await controller.sourceProjects());
+    else if (request.method === "POST" && url.pathname === "/api/companion/source-projects") {
+      enforceBrowserOrigin(request); const body = exactObject(await readJson(request), ["mode", "source_project"]);
+      writeJson(response, 201, await controller.addSourceProject(body as never));
+    } else if (request.method === "GET" && url.pathname === "/api/companion/implementation-mappings") writeJson(response, 200, await controller.implementationMappings());
+    else if (request.method === "PUT" && url.pathname === "/api/companion/implementation-mappings") {
+      enforceBrowserOrigin(request); const body = exactObject(await readJson(request, REGISTRY_BODY_LIMIT), ["base_mapping_revision", "mapping"]);
+      writeJson(response, 200, await controller.putImplementationMapping(body as never));
+    } else if (request.method === "POST" && url.pathname === "/api/companion/development-context") {
+      enforceBrowserOrigin(request); const body = exactObject(await readJson(request), ["expected_application_id", "expected_graph_revision", "source_project_id", "primary_intent"]);
+      writeJson(response, 200, await controller.developmentContext(body as never));
+    } else if (request.method === "POST" && url.pathname === DEVELOPMENT_VSCODE_LAUNCH_PATH) {
+      enforceBrowserOrigin(request); const body = exactObject(await readJson(request), ["expected_application_id", "expected_graph_revision", "source_project_id", "primary_intent"]);
+      const capsule = await controller.developmentContext(body as never);
+      const sourceRoot = await controller.sourceProjectRoot(text(body.source_project_id, "source_project_id"));
+      const launcher = vscodeLauncher ?? new VscodeProjectLauncher(sourceRoot);
+      const receipt = await launcher.launch(sourceRoot);
+      writeJson(response, 202, { status: "requested", client: "vscode", prompt_delivery: "manual_copy_required", capsule_id: capsule.capsule_id, launch: receipt });
+    }
     else if (request.method === "POST" && url.pathname === "/api/companion/app-assets") {
       enforceBrowserOrigin(request); const body = object(await readJson(request));
       writeJson(response, 201, await controller.bindAsset({ asset_id: text(body.asset_id, "asset_id"), version: integer(body.version, "version"), registry_revision: text(body.registry_revision, "registry_revision"), base_assets_revision: text(body.base_assets_revision, "base_assets_revision") }));

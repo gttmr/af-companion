@@ -29,16 +29,23 @@ another dedicated managed root. The browser never accepts an arbitrary path.
 
 Create or select one active App in `http://127.0.0.1:8890/`. A new App gets its
 own Git repository, Companion manifest, exact Asset binding document, minimal
-`Input -> Output` Graph, and project-local Codex MCP config. It does not create
-a Work Item or ADK source scaffold.
+`Input -> Output` Graph, development lock, empty implementation mapping, and
+project-local Codex MCP config. It does not create a Work Item or ADK source
+scaffold.
 
 Creation also makes exactly one local baseline commit on `main` with the
 message `chore: initialize Companion app workspace`. That commit contains only
-`.gitignore`, the App manifest, the Asset binding document, and the Graph. The
-project-local Codex config and Companion runtime state remain ignored. The App
-Manager creates no remote, never pushes, and makes no later commits; subsequent
-Graph, Asset, and runtime-source history belongs to the user or Codex operating
-inside that App repository.
+`.gitignore`, the App manifest, Asset binding document, Graph, development lock,
+and empty implementation mapping. The project-local Codex config and Companion
+runtime state remain ignored. The App Manager creates no remote, never pushes,
+and makes no later commits; subsequent Graph, Asset, mapping, and runtime-source
+history belongs to the user or Codex operating inside that App repository.
+
+After selecting a Node, Edge, or Region, `Codex 개발 작업 만들기` can create or
+attach one contained ADK source project, review a deterministic bounded context
+capsule, copy its exact prompt, and open the server-derived source cwd. Launch is
+a request receipt only; source completion and quality require separate tests,
+runtime evidence, implementation mapping, and a user/Codex-owned local commit.
 
 The active App Graph is
 `~/work/af-companion-apps/<app-id>/.agent-factory/companion-graph.json`.
