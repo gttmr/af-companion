@@ -1,26 +1,32 @@
-# Session 2. Companion 통합과 offline end-to-end acceptance
+# Session 2. Companion 통합과 constrained-egress end-to-end acceptance
 
-상태: **blocked — Phase A Codex CLI model-mediated Companion MCP transport가 호환되지 않음**
+상태: **Phase A passed — PR #22 Draft 유지, 사용자 merge 결정 대기**
 
 Master: [2-session 프로그램](../23-companion-adk-development-program.md)
 
 ## 이 session의 한 가지 결과
 
 Session 1에서 검증한 AF Skills vNext와 ADK 2.4 capability evidence를 primary Companion에 연결해,
-선택한 Graph Node·Edge·Region에서 외부 Codex 작업을 만들고 self-hosted
-`qwen3.6-27b-128k`로 ADK source 생성·검증·local Git commit까지 수행하는 사용자 여정을 완성한다.
+선택한 Graph Node·Edge·Region에서 외부 Codex 작업을 만들고 locked
+`gemini-3.1-flash-lite`로 ADK source 생성·검증·local Git commit까지 수행하는 사용자 여정을 완성한다.
 
 이 session에서는 AF Skill instruction이나 ADK pattern card를 수정하지 않는다. Skill defect는
 Session 1 workstream의 follow-up defect로 분리한다.
 
 Phase A의 browser, local MCP, Registry, App Git과 restart evidence는 2026-08-06에 다시
-수집했다. 사용자는 installed Codex VS Code extension에 approved self-hosted provider를 설정할
-수 없으면 current-run extension AI chat을 생략하고 Codex CLI만 사용하도록 Session 2 gate를
-조정했다. Codex CLI `0.146.0`의 direct model chat과 project MCP discovery는 통과했지만,
-Codex Responses의 nested namespace Tool과 code-mode freeform/custom `exec` Tool 표현 모두에서
-model-mediated `companion_get_graph_workspace`가 실행되지 않았다. 이 관찰만으로 Codex,
-serving adapter/tool template 또는 model 중 하나를 root cause로 확정하지 않는다. 독립 local MCP
-결과는 이 실패를 대신하지 않으므로 Phase A는 여전히 blocker다.
+수집했다. 사용자는 installed Codex VS Code extension에 approved provider를 설정할 수 없으면
+current-run extension AI chat을 생략하고 Codex CLI만 사용하도록 Session 2 gate를 조정했다.
+초기 self-hosted Qwen endpoint는 chat은 응답했지만 llama.cpp로 보이는 serving 경로에서 Tool
+call이 관찰되지 않았고, 사용자가 이 Session 2에 한해 Gemini Developer API를 primary model
+transport로 승인했다.
+
+Codex CLI `0.146.0`은 local Responses bridge를 통해 `gemini-3.1-flash-lite`를 사용했다. Final
+turn은 exact `companion_get_graph_workspace`와 `companion_apply_graph_changes`를 각각 한 번,
+총 두 번만 호출해 `node.output` label 하나를 변경했다. System-level policy는 loopback과 Gemini
+Developer API destination만 허용했고 별도 deny probe는 임의 외부 IP를 차단했다. Companion
+70/70 tests, typecheck/build, artifact validator, ADK 2.4 runtime probe 46/46, GitHub
+`companion-foundation`, browser DOM/console/network/screenshot와 local App Git evidence가 통과했다.
+Phase A는 사용자의 PR #22 merge 결정 전에는 다음 phase로 진행하지 않는다.
 
 ## 시작 gate
 
@@ -28,7 +34,7 @@ serving adapter/tool template 또는 model 중 하나를 root cause로 확정하
 2. Skill manifest input/output, ADK 2.4 capability inventory, representative integration set와
    unsupported/excluded list를 읽었다.
 3. current PR #22 state, checks, head와 worktree를 다시 확인했다.
-4. self-hosted `qwen3.6-27b-128k`와 128k (`131072`) context, ADK 2.4.0 interpreter,
+4. `gemini-3.1-flash-lite`와 observed input context `1048576`, output limit `65536`, ADK 2.4.0 interpreter,
    accepted agents-cli `1.2.1`과 Google Skills `1.2.1` exact digest bundle이 App cwd에서
    준비됐다. Candidate agents-cli `1.3.1`은 Session 1에서 rejected다.
 5. primary checkout의 두 untracked historical work-order 파일을 보존했다.
@@ -43,9 +49,9 @@ write 전에 contract mismatch로 중단한다.
 1. 최소 GitHub CI에 Companion typecheck, test, build와 shared artifact validator를 추가한다.
 2. `USER-ACCEPTANCE.md`의 App·Asset·Graph·MCP·local Git foundation을 fresh server/App에서
    실행한다.
-3. App switch `app_inactive`, restart recovery, invalid Graph fail-closed, `graph_stale`, approved
-   self-hosted model을 사용하는 Codex CLI get/apply와 screenshot을 검증한다. Extension은
-   self-hosted provider가 지원될 때만 같은 current-run evidence에 포함한다.
+3. App switch `app_inactive`, restart recovery, invalid Graph fail-closed, `graph_stale`, locked
+   model을 사용하는 Codex CLI get/apply와 screenshot을 검증한다. Extension은 approved
+   provider가 지원될 때만 같은 current-run evidence에 포함한다.
 4. current foundation failure만 재현 후 최소 수정한다. source/Skill context 기능을 PR #22의
    과거 commit에 억지로 섞지 않는다.
 5. independent review와 사용자 merge gate 뒤 PR #22를 merge하고 clean worktree만 정리한다.
@@ -77,10 +83,13 @@ latest `main` 기반 새 Companion change set에서 다음 versioned contract를
 - Session 1 AF bundle version/digest와 required Google Skill IDs
 - App cwd discoverability, disabled/missing/version/digest/offline-ready
 - exact ADK 2.4 and agents-cli compatibility
-- self-hosted `qwen3.6-27b-128k`, 128k context와 allowed local dependency source
-- ignored local configuration의 승인된 Tailscale direct `/v1` endpoint만 허용하고 private endpoint
-  bytes는 source, App, artifact 또는 evidence에 저장하지 않음
-- localhost tunnel, 다른 Internet egress, cloud model과 Gemini fallback을 fail closed로 거절
+- `gemini-3.1-flash-lite`, observed input context `1048576`, output limit `65536`과 allowed local
+  dependency source
+- Companion, Codex CLI와 generated runtime에는 ignored local configuration의 loopback bridge
+  `http://127.0.0.1:8897/v1`만 노출하고 API key bytes는 source, App, artifact 또는 evidence에
+  저장하지 않음
+- Bridge의 Gemini Developer API destination과 loopback 외 Internet egress, 다른 model과 fallback을
+  fail closed로 거절
 - deploy/cloud Skill을 missing requirement로 표시하지 않음
 
 ### Development Context Capsule
@@ -91,7 +100,7 @@ latest `main` 기반 새 Companion change set에서 다음 versioned contract를
 - primary intent 하나와 explicit `$skill-name`
 - write roots, forbidden changes와 verification
 - Session 1 capability/experiment evidence ID와 known unsupported guard
-- no Internet, no cloud fallback와 local model profile
+- exact network allowlist, no model fallback와 locked model profile
 
 dedicated read-only MCP Tool과 existing workspace read 확장 중 더 작은 wire를 source/tests로
 결정한다. selection에서 source를 직접 쓰는 Tool은 만들지 않는다.
@@ -125,8 +134,8 @@ React Flow 전환, 고급 layout/pan/zoom과 Browser direct App Server는 이 ph
 
 ## Phase E — Offline end-to-end matrix
 
-모든 scenario는 승인된 Tailscale model transport 외 external network를 차단하고 self-hosted
-`qwen3.6-27b-128k`, exact ADK 2.4.0과 Session 1 Skill bundle을 사용한다.
+모든 scenario는 loopback과 Gemini Developer API 외 external network를 차단하고
+`gemini-3.1-flash-lite`, exact ADK 2.4.0과 Session 1 Skill bundle을 사용한다.
 
 ### E1 Existing Workflow/Subworkflow
 
@@ -137,8 +146,10 @@ React Flow 전환, 고급 layout/pan/zoom과 Browser direct App Server는 이 ph
 
 ### E2 representative capability integration
 
-Session 1 capability inventory가 `required_integration`으로 지정한 대표 집합을 하나의 검토 가능한
-App Graph와 여러 bounded task로 통합한다. 최소한 다음 기능군을 포함한다.
+merged Session 1 artifact에는 literal `required_integration` field나 named set이 없다. Phase B는
+이 contract gap을 명시적으로 해소해야 하며 CP-001–CP-005 compound set이나 아래 E2 minimum
+list를 Session 1이 지정한 artifact로 임의 재정의하지 않는다. 승인된 representative mapping이
+생기면 하나의 검토 가능한 App Graph와 여러 bounded task로 통합하고 최소한 다음 기능군을 포함한다.
 
 - coordinator와 둘 이상의 Sub-agent delegation, result aggregation와 error propagation
 - explicit Graph route, parallel fan-out/fan-in과 real Join
@@ -172,12 +183,12 @@ unsupported guard를 정확히 전달하는지 확인한다. Session 1의 전체
 - ADK 2.4 import/unit/runtime/local eval commands and results
 - implementation mapping before/after
 - local Git base/result commits
-- 승인된 Tailscale model request 외 external network request가 없다는 evidence
+- Gemini Developer API model request 외 external network request가 없다는 evidence
 - PASS/FAIL/UNVERIFIED와 residual risk
 
-## Self-hosted-27B Session 2 acceptance
+## Gemini 3.1 Flash-Lite Session 2 acceptance
 
-self-hosted `qwen3.6-27b-128k`에서 다음을 별도로 판정한다.
+locked `gemini-3.1-flash-lite`에서 다음을 별도로 판정한다.
 
 - required Skill을 정확히 선택하는가
 - agents-cli guidance와 ADK 2.4 correction이 충돌할 때 Session 1 evidence protocol을 따르는가
@@ -186,8 +197,10 @@ self-hosted `qwen3.6-27b-128k`에서 다음을 별도로 판정한다.
 - Agent/Sub-agent, Graph, Tool, state/lifecycle 중 선택 대상에 필요한 reference만 읽는가
 - validation failure 뒤 speculative fix를 쌓지 않고 source/probe를 다시 읽는가
 
-다른 local/cloud model에서 대신 성공한 결과는 Session 2 primary PASS가 아니다. 이 결과를
-`small-model PASS`라고 부르지 않고 **self-hosted-27B Session 2 acceptance**로 기록한다.
+다른 model에서 대신 성공한 결과는 Session 2 primary PASS가 아니다. Gemini는 fallback이 아니라
+사용자가 승인한 primary acceptance model이다. 이 결과를 `small-model PASS`나
+`self-hosted-27B Session 2 acceptance`라고 부르지 않고 **Gemini 3.1 Flash-Lite Session 2
+acceptance**로 기록한다.
 
 ## Checkpoint와 PR 경계
 
@@ -211,7 +224,7 @@ interface와 UI를 별도 PR로 나눌 수 있지만, session context와 master 
 - `node scripts/validate-artifacts.mjs`
 - contract/path/digest/read-only integration tests
 - current ADK 2.4 capability/runtime tests selected by Session 1 evidence
-- 승인된 Tailscale model transport 외 network-disabled self-hosted-27B E1–E3 acceptance
+- loopback과 Gemini Developer API 외 network-disabled Gemini 3.1 Flash-Lite E1–E3 acceptance
 - Chrome DevTools `8899` gate 뒤 real screen DOM/console/network와 screenshot
 - `git diff --check`, relative links, edited-file and App Git inventories
 - GitHub required checks for each product PR
@@ -221,8 +234,8 @@ interface와 UI를 별도 PR로 나눌 수 있지만, session context와 master 
 - PR #22 foundation이 merged 또는 current equivalent로 검증됐다.
 - source project, implementation mapping, Skill/model lock과 bounded capsule이 구현됐다.
 - selection에서 external Codex task를 시작하고 Skill/quality evidence를 구분할 수 있다.
-- E1 Subworkflow, E2 representative capability integration과 E3 A2A가 offline
-  self-hosted `qwen3.6-27b-128k`에서 PASS다.
+- E1 Subworkflow, E2 representative capability integration과 E3 A2A가 constrained-egress
+  `gemini-3.1-flash-lite`에서 PASS다.
 - local Git commit이 Graph/source/evidence 기준점을 보존하고 remote push가 필요하지 않다.
 - AF Skill source를 이 session에서 수정하지 않았고 unresolved Skill defect는 별도 issue/evidence로
   반환됐다.

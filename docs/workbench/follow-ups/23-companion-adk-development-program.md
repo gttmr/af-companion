@@ -1,6 +1,6 @@
 # 23. Companion skill-aware ADK 개발 — 2-session 프로그램
 
-상태: **planned — exactly two primary sessions**
+상태: **in progress — Session 1 merged, Session 2 Phase A passed and awaits user merge decision**
 
 작성일: 2026-08-05 KST
 
@@ -10,7 +10,7 @@ Skill 설계 기준: [24. AF Skills vNext 프로그램](24-af-skills-vnext-progr
 
 ## 목적
 
-외부 Codex CLI 또는 Codex VS Code extension이 offline 환경에서 Google 공식 Skill과 AF
+외부 Codex CLI 또는 Codex VS Code extension이 제한된 개발 환경에서 Google 공식 Skill과 AF
 Skills vNext를 사용해 ADK 2.4 source를 만들고, Companion이 Asset·Graph·selection 기반 문맥,
 source mapping과 local Git evidence를 제공하는 전체 루프를 두 번의 fresh session으로 완성한다.
 
@@ -22,13 +22,15 @@ source mapping과 local Git evidence를 제공하는 전체 루프를 두 번의
 
 ## 확정된 제약과 제품 결정
 
-- 실제 사용 환경에는 Internet이 없다.
-- Session 2 primary acceptance model은 self-hosted Qwen 3.6 27B, served model ID
-  `qwen3.6-27b-128k`, 128k (`131072`) context다. Session 1의 `qwen3.6-small` manifest와
-  blocked evidence는 수정하지 않는다.
-- Session 2는 ignored local configuration의 승인된 Tailscale direct `/v1` endpoint만 model
-  transport로 사용한다. Private endpoint를 repository나 App에 저장하지 않고 localhost tunnel,
-  Internet egress, cloud model, Gemini fallback을 사용하지 않는다.
+- 장기 제품 target은 Internet이 없는 개발 환경이다. Session 2에는 사용자가 승인한 model-only
+  Gemini Developer API egress 예외를 적용하고 dependency·Skill·source 검증은 계속 local로 한다.
+- Session 2 primary acceptance model은 `gemini-3.1-flash-lite`다. Observed model version은
+  `3.1-flash-lite-05-2026`, input context는 `1048576`, output limit은 `65536`이다. 요청했던
+  `gemini-2.5-flash-lite`는 사용할 수 없어 404를 반환했고 acceptance에 포함하지 않았다.
+  Session 1의 `qwen3.6-small` manifest와 blocked evidence는 수정하지 않는다.
+- Companion, Codex CLI와 generated runtime은 ignored local configuration의 loopback bridge
+  `http://127.0.0.1:8897/v1`만 사용한다. Bridge만 Gemini Developer API로 egress하고 API key는
+  external mode-0600 env file에서 읽는다. 다른 Internet egress, model API와 fallback은 금지한다.
 - generated runtime과 Skill guidance의 기준은 ADK 2.4이며 repository exact verification
   baseline은 현재 `google-adk==2.4.0`이다. 새 session은 exact interpreter를 다시 확인한다.
 - Session 1은 agents-cli `1.2.1`과 Google Skills `1.2.1`을
@@ -40,7 +42,8 @@ source mapping과 local Git evidence를 제공하는 전체 루프를 두 번의
   search나 online docs fallback으로 대체하지 않는다.
 - agents-cli guidance, ADK Docs MCP, installed ADK 2.4 source와 실행 결과가 충돌할 수 있다는
   것을 정상 입력으로 취급한다. 충돌을 숨기거나 model이 임의로 하나를 고르게 하지 않는다.
-- deploy, cloud publish, cloud observability는 고려하지 않는다. local Asset Registry publish는
+- deploy, cloud publish, cloud observability는 고려하지 않는다. Gemini Developer API는 이
+  Session 2의 primary model transport일 뿐 deploy/publish/observability 승인이 아니다. local Asset Registry publish는
   별도 repository lifecycle로 유지한다.
 - App Git root가 Graph, source project, implementation mapping과 local history를 함께 소유한다.
 - AF Skills vNext와 Companion product code는 같은 change set/PR에 섞지 않는다.
@@ -99,7 +102,7 @@ source signature를 확인한다. ignored runtime venv가 있을 것이라고 �
 | Session | 한 가지 소유 범위 | 완료 gate |
 | --- | --- | --- |
 | [1. AF Skills vNext](23-companion-adk-development/01-af-skills-vnext.md) | ADK 2.4 capability inventory, Docs MCP/source conflict records, Workflow·Agent·Sub-agent 종합 실험, concise offline Skill bundle | coverage saturation과 Skill PR 검증; merged evidence의 `qwen3.6-small` forward cases는 blocked로 보존 |
-| [2. Companion integration](23-companion-adk-development/02-companion-integration.md) | PR #22 foundation closure, source/context contract, Skill readiness, selection handoff, representative capability·Subworkflow·A2A acceptance | offline full loop와 local Git evidence PASS |
+| [2. Companion integration](23-companion-adk-development/02-companion-integration.md) | PR #22 foundation closure, source/context contract, Skill readiness, selection handoff, representative capability·Subworkflow·A2A acceptance | constrained-egress full loop와 local Git evidence PASS |
 
 Session 안에는 여러 checkpoint와 commit이 있을 수 있다. reviewability 때문에 PR을 분리할 수
 있지만 새 fresh session으로 쪼개지 않는다. 반대로 같은 commit이나 PR에 AF Skill source와
@@ -114,8 +117,8 @@ Companion package source를 섞지는 않는다.
 4. session-specific locked model에는 한 번에 하나의 primary intent와 bounded context만 전달한다.
 5. parsing, hash, path validation, artifact inventory와 scoring은 deterministic script/test가
    소유한다.
-6. skipped check를 PASS로 만들지 않고 strong cloud model이나 Internet fallback을 사용하지
-   않는다.
+6. skipped check를 PASS로 만들지 않고 locked model 외 model fallback이나 승인되지 않은 Internet
+   egress를 사용하지 않는다.
 7. interface/schema/UX 결정은 `docs/decision-log.md`에 append한다.
 8. session 종료 시 commit/PR, exact commands/results, evidence paths, remaining risk와 다음
    session의 선행조건을 기록한다.
@@ -335,7 +338,7 @@ Session 2만 수행하고 AF Skill instruction과 Session 1 evidence를 수정�
 PR #22를 ready 또는 merge하기 전에는 evidence와 remaining risk를 보고하고 사용자의 명시적
 merge 결정을 받아라.
 
-Session 2에서 approved self-hosted provider를 Codex VS Code extension에 설정할 수 없으면
+Session 2에서 approved provider를 Codex VS Code extension에 설정할 수 없으면
 current-run extension AI chat은 생략하고 Codex CLI만 AI acceptance client로 사용한다. 이 경우에도
 direct model chat과 MCP config/list만으로 model-mediated get/apply를 PASS 처리하지 말고, 실제
 Codex CLI turn의 Companion MCP 호출 여부를 별도로 증명하라.
@@ -353,16 +356,16 @@ source project, implementation mapping, Skill/model lock과 read-only Developmen
 contract tests부터 구현하라. 이어서 selected Node/Edge/Region의 bounded task를 external Codex
 CLI/VS Code 경로에 연결하고 frontend-skill과 project browser rules에 따라 실제 UI를 검증하라.
 
-self-hosted `qwen3.6-27b-128k`의 승인된 Tailscale direct transport와 exact ADK 2.4에서 E1
+loopback bridge를 통한 `gemini-3.1-flash-lite`와 exact ADK 2.4에서 E1
 Subworkflow, E2 representative Agent/Sub-agent·Graph·Tool·state/lifecycle integration, E3 local
-A2A를 수행하라. 다른 Internet egress, cloud model, Gemini fallback, deploy, cloud publish,
+A2A를 수행하라. Gemini Developer API 외 Internet egress, 다른 model, fallback, deploy, cloud publish,
 cloud observability와 Browser direct App Server를 사용하지 마라.
 
 Graph mutation은 항상 latest get -> base_graph_revision -> minimal apply를 사용하고 graph_stale면
 재조회 후 재계산하라. source write와 Graph write authority를 합치지 마라.
 
-각 checkpoint마다 typecheck/test/build, validator, ADK runtime, 승인된 Tailscale model transport 외
-network-disabled self-hosted-27B Session 2 acceptance, browser DOM/console/network/screenshot와 local
+각 checkpoint마다 typecheck/test/build, validator, ADK runtime, loopback과 Gemini Developer API 외
+network-disabled Gemini 3.1 Flash-Lite Session 2 acceptance, browser DOM/console/network/screenshot와 local
 App Git evidence를 남겨라.
 
 완료 gate를 충족하면 independent review, intentional commits와 changed-file inventory를 확인한 뒤
@@ -405,13 +408,14 @@ directory가 이미 존재하면 덮어쓰지 않는다.
   pause/resume와 local reuse capability inventory가 evidence 있는 status로 닫힌다.
 - 각 required 기능군의 positive/negative, high-risk interaction과 대표 복합 topology guidance가
   Skill reference와 tests로 검증된다.
-- Session 1의 model-forward blocked evidence를 PASS로 바꾸지 않고, Session 2가 self-hosted
-  `qwen3.6-27b-128k`에서 bounded context로 동작하며 unsupported behavior를 추측하지 않는다.
-- Companion이 source project, Skill bundle, local model, Graph selection과 implementation
+- Session 1의 model-forward blocked evidence를 PASS로 바꾸지 않고, Session 2가
+  `gemini-3.1-flash-lite`에서 bounded context로 동작하며 unsupported behavior를 추측하지 않는다.
+- Companion이 source project, Skill bundle, locked model profile, Graph selection과 implementation
   mapping을 한 task capsule로 연결한다.
 - Existing Workflow/Subworkflow, A2A Agent와 representative Agent/Sub-agent·Graph·Tool·state 및
-  lifecycle 조합이 offline end-to-end에서 source/test/eval/local Git evidence를 남긴다.
-- cloud deploy/publish/observability, Internet과 strong-model fallback 없이 위 결과를 재현한다.
+  lifecycle 조합이 constrained-egress end-to-end에서 source/test/eval/local Git evidence를 남긴다.
+- cloud deploy/publish/observability, Gemini Developer API 외 Internet과 model fallback 없이 위
+  결과를 재현한다.
 
 두 planned session 중 하나가 blocker로 끝나면 다음 session으로 우회하지 않는다. 같은 work
 order에 evidence와 필요한 사용자 결정을 남기며, 예외적인 recovery session이 필요하다는

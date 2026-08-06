@@ -49,18 +49,22 @@ Asset Registry + Graph + active selection
 
 ## 2. 실행 환경 제약
 
-사용자가 Companion을 실제 사용하는 환경에는 Internet 연결이 없다. 개발·검증은 이미
-provision된 local toolchain, Skill bundle, dependency cache 또는 environment와 local model만
-사용해야 한다.
+Companion의 장기 target은 Internet 연결이 없는 환경이다. 개발·검증은 provision된 local
+toolchain, Skill bundle, dependency cache 또는 environment를 사용한다. 다만 Session 2에는
+사용자가 승인한 model-only 예외가 있다. ADK dependency·Skill·source 검증은 계속 local이고,
+model call만 아래 Gemini Developer API 경로를 사용한다.
 
-- Session 2 primary acceptance model은 사용자 소유 Linux system에서 제공하는 self-hosted
-  Qwen 3.6 27B이며 served model ID는 `qwen3.6-27b-128k`, context lock은 128k
-  (`131072`)이다. Session 1의 `qwen3.6-small` manifest와 blocked evidence는 당시 기록으로
-  그대로 보존한다.
-- Session 2 model transport는 ignored local configuration에만 저장된 승인된 Tailscale direct
-  endpoint의 OpenAI-compatible `/v1` 경로다. Private endpoint bytes를 repository source,
-  artifact, evidence 또는 App에 저장하지 않으며 localhost tunnel은 acceptance transport가 아니다.
-- Session 2에서 Codex VS Code extension이 이 self-hosted provider를 사용할 수 없으면 current-run
+- Session 2 primary acceptance model은 `gemini-3.1-flash-lite`다. Gemini API가 보고한 observed
+  model version은 `3.1-flash-lite-05-2026`, input context는 `1048576`, output token limit은
+  `65536`이다. 요청했던 `gemini-2.5-flash-lite`는 새 project에서 사용할 수 없어 404를 반환했고
+  acceptance 결과에 포함하지 않았다. Session 1의 `qwen3.6-small` manifest와 blocked evidence,
+  이전 Session 2 self-hosted Qwen 시도는 당시 기록으로 보존한다.
+- Companion, Codex CLI와 generated runtime이 사용하는 model base는 ignored local configuration의
+  loopback bridge `http://127.0.0.1:8897/v1`뿐이다. Bridge만
+  `generativelanguage.googleapis.com`의 Gemini Developer API로 egress할 수 있다. API key는
+  mode `0600` external env file에서만 읽고 repository source, managed App, artifact, screenshot
+  또는 evidence에 저장하지 않는다.
+- Session 2에서 Codex VS Code extension이 이 provider를 사용할 수 없으면 current-run
   extension AI chat은 필수조건에서 제외하고 Codex CLI를 유일한 AI acceptance client로 사용한다.
   이 대체는 direct model chat, project MCP discovery와 model-mediated MCP get/apply를 별도로
   판정하며, 앞의 두 결과나 독립 local MCP 호출을 마지막 결과의 PASS로 대신하지 않는다.
@@ -77,9 +81,10 @@ provision된 local toolchain, Skill bundle, dependency cache 또는 environment�
   Session 1 manifest가 이 version/digest와 detector correction의 authority다.
 - Google agents-cli의 deploy, cloud publish, cloud observability 기능은 제품 고려사항이
   아니며 required Skill coverage에서 제외한다.
-- runtime 중 승인된 Tailscale model transport 외 Skill marketplace, GitHub, package index,
-  cloud documentation, Internet 또는 외부 model API에 접속하는 정상 경로를 만들지 않는다.
-  Cloud model과 Gemini fallback은 금지한다.
+- Session 2 acceptance runtime은 Gemini Developer API hostname과 loopback 외 egress를
+  system-level network policy로 차단한다. Skill marketplace, GitHub, package index, cloud
+  documentation, 다른 model API와 fallback은 금지한다. Gemini는 fallback이 아니라 이
+  Session 2의 primary acceptance model이다.
 - Google 공식 Skill과 AF Skills vNext는 offline 환경에 들어가기 전에 version/digest가 고정된
   bundle로 준비하고, Companion은 App cwd에서 그 local bundle을 확인한다.
 - dependency 설치가 필요하면 approved local wheel/package cache, prebuilt environment 또는
@@ -95,9 +100,10 @@ provision된 local toolchain, Skill bundle, dependency cache 또는 environment�
   deterministic script/core가 소유한다.
 - 전체 Registry나 Graph를 넣지 않고 selection과 필요한 bounded neighborhood만 제공한다.
 - ambiguous 상태는 model이 추측하지 않고 typed blocker 또는 한 질문으로 반환한다.
-- Session 2 acceptance는 다른 model fallback 없이 실제 self-hosted
-  `qwen3.6-27b-128k` Tailscale direct 경로에서 수행하고
-  **self-hosted-27B Session 2 acceptance**로 기록한다.
+- Session 2 acceptance는 다른 model fallback 없이 loopback bridge를 통한
+  `gemini-3.1-flash-lite` 경로에서 수행하고 **Gemini 3.1 Flash-Lite Session 2 acceptance**로
+  기록한다. 이 결과를 `small-model PASS`나 `self-hosted-27B Session 2 acceptance`라고 부르지
+  않는다.
 
 ### ADK 2.4 framework fact의 evidence 순서
 
@@ -248,7 +254,7 @@ Companion이 만드는 검토 가능한 작업에는 최소한 다음이 포함�
 - exact Asset version, contract hash, binding과 runtime contract
 - 사용자 intent
 - required Skill IDs와 명시적 invocation
-- `offline: true`, local model profile과 허용된 local dependency source
+- explicit network/model profile, 허용된 endpoint class와 local dependency source
 - source write roots와 금지 범위
 - acceptance와 verification commands
 
@@ -295,14 +301,15 @@ wire가 더 작은지는 계약 세션에서 결정한다. 선택에서 바로 s
    contract를 보호한다.
 2. AF Skills vNext CI는 capability inventory, manifest, trigger/intent fixture, compatibility,
    framework probe와 산출물 계약을 검증한다.
-3. generated App acceptance는 승인된 Tailscale model transport 외 network를 차단한 상태에서 import/lint/unit,
-   `agents-cli info`, local runtime smoke, local `agents-cli eval`, Subworkflow 또는 A2A
-   contract를 실제 App source root와 self-hosted `qwen3.6-27b-128k` 경로에서 검증한다.
+3. generated App acceptance는 loopback과 Gemini Developer API 외 network를 차단한 상태에서
+   import/lint/unit, `agents-cli info`, local runtime smoke, local `agents-cli eval`, Subworkflow
+   또는 A2A contract를 실제 App source root와 `gemini-3.1-flash-lite` 경로에서 검증한다.
 
-local model process가 필요한 eval은 deterministic required GitHub check와 분리해 offline
+model process나 API가 필요한 eval은 deterministic required GitHub check와 분리해 constrained
 acceptance evidence로 기록한다. 테스트 통과는 Skill을 실제로 사용했다는 완전한 증명이
 아니므로, task에 요청된 Skill, completion receipt와 output quality evidence를 구분해 기록한다.
-Internet이 우연히 열려 있어야만 PASS하는 test나 runtime은 offline readiness 실패다.
+선언된 network profile보다 넓은 Internet이 우연히 열려 있어야만 PASS하는 test나 runtime은
+readiness 실패다.
 
 ## 8. 우선순위와 명시적 비범위
 

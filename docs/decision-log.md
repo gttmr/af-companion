@@ -8,6 +8,13 @@
 - 최신 항목이 위로 오는 역시간순. 항목 형식: 날짜 · PR/머지 커밋 · 결정 요약 · 배경(왜) · 영향 범위.
 - 결정을 되돌리거나 대체하면 과거 항목을 지우지 말고 새 항목에서 `(대체: YYYY-MM-DD 항목)`으로 연결한다.
 
+## 2026-08-06 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Session 2 primary acceptance를 Gemini 3.1 Flash-Lite로 전환
+
+- **결정**: 초기 self-hosted Qwen endpoint는 chat completion은 반환했지만 llama.cpp로 보이는 serving 경로에서 Tool call이 관찰되지 않았다. 사용자는 현장에서 그 server를 다시 띄우기 어려워 Session 2 primary acceptance model을 `gemini-3.1-flash-lite`로 변경했다. 요청했던 `gemini-2.5-flash-lite`는 새 project에서 404로 사용할 수 없었고 acceptance에 포함하지 않았다. 이 항목은 같은 날짜의 self-hosted Qwen 3.6 27B lock을 Session 2에 한해 대체한다.
+- **Transport와 egress**: Companion, Codex CLI와 generated runtime은 ignored local configuration의 loopback bridge `http://127.0.0.1:8897/v1`만 사용한다. Bridge만 Gemini Developer API destination에 egress할 수 있고 API key는 external mode-0600 env file에서 읽는다. Loopback과 Gemini Developer API 외 Internet egress, 다른 model/fallback, deploy, cloud publish와 cloud observability는 금지한다. Gemini는 fallback이 아니라 이 Session 2의 primary model이다.
+- **Acceptance 결과**: system-level deny/allow policy 아래 `gemini-3.1-flash-lite` chat/function preflight와 Codex CLI `0.146.0`의 exact Companion MCP get/apply가 통과했다. Final turn은 두 Graph Tool을 각각 한 번만 호출하고 `node.output` 하나만 변경했다. Phase A는 CI, local checks, ADK runtime, browser와 App Git evidence까지 통과했지만 PR #22는 Draft로 유지하며 사용자 merge 결정 전에는 ready/merge하지 않는다.
+- **명명과 보존**: 결과는 **Gemini 3.1 Flash-Lite Session 2 acceptance**이며 `small-model PASS`나 `self-hosted-27B Session 2 acceptance`가 아니다. Session 1 manifest, AF Skill instruction과 Session 1 evidence, 이전 Qwen 실패 evidence는 수정하지 않는다.
+
 ## 2026-08-06 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Session 2 Phase A의 AI client를 Codex CLI로 한정
 
 - **결정**: installed Codex VS Code extension이 approved self-hosted provider를 설정할 수 없으면 Session 2 current-run extension AI chat은 필수조건에서 제외하고 Codex CLI를 유일한 AI acceptance client로 사용한다. Launcher, exact WSL root와 project config 경계는 계속 browser/operator evidence로 검증한다.

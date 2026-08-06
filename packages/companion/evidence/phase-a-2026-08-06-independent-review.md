@@ -67,3 +67,31 @@ exact sanitized proof marker and `systemctl show` separately captured the contem
 policy observation.
 The inventory was recomputed from the current amendment as six Markdown files and 29 relative links.
 These corrections do not change the reviewer gate: PR #22 remains **BLOCKED**.
+
+## Gemini criterion closure review
+
+After the user changed the Session 2 primary model to `gemini-3.1-flash-lite`, a fresh independent
+Codex CLI `0.146.0` thread reviewed the final uncommitted documentation, sanitized JSON and screenshot
+in read-only mode. The reviewer process ran in system-level unit
+`af-session2-phase-a-independent-review-20260806-10.service`, invocation
+`c4f06562a0ee4528815fe85e0bb16e24`, with all network denied except IPv4/IPv6 loopback. Only the
+separately restricted bridge could reach the Gemini Developer API. The reviewer did not call MCP or
+modify files. Its thread ID was `019fd520-7a7e-7173-93a6-0b79ec2b5450` and last-message SHA-256 was
+`cd0244412600daddd613ae09b5323ba40475c8e76792b4938c67294581ca83e8`.
+
+Two setup-only units were excluded before this final review: one exited before model invocation
+because systemd lacked the Node PATH, and one exited on an incompatible CLI flag combination. Neither
+called the model, reviewed content or changed files.
+
+The closure reviewer returned **no actionable findings**. It confirmed that the changed evidence is
+consistent with the user-approved model-only Gemini egress, Codex-CLI-only criterion, exact two-call
+Companion MCP mutation and Draft merge gate. It retained these risks:
+
+- Gemini API resolved-IP allowlists need a fail-closed refresh when DNS changes.
+- no-egress agents-cli `installed_skills` shape drift remains outside the direct exact-ADK 46/46 pass.
+- Codex `0.146.0` still warns that custom model metadata falls back despite explicit context settings.
+- existing Apps still lack source remediation for stale mode-0600 capability temp files.
+
+Final gate recommendation: **Phase A passed; keep PR #22 Draft and wait for the user's explicit merge
+decision.** The earlier BLOCKED findings above remain historical observations of the superseded model
+and criterion state; they are not rewritten as passes.

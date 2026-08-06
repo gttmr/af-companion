@@ -2,22 +2,87 @@
   "schema_version": 1,
   "capture_date": "2026-08-06",
   "scope": "PR #22 Phase A isolated operator transcript",
-  "overall_status": "BLOCKED",
+  "overall_status": "PASSED_AWAITING_USER_MERGE_DECISION",
   "sanitization": {
     "private_model_endpoint_removed": true,
     "api_keys_removed": true,
     "capability_tokens_removed": true,
-    "note": "Values below were copied from current command, browser CDP, HTTP, and MCP outputs. This is a sanitized persistent transcript, not an unedited terminal recording."
+    "resolved_public_api_ip_removed": true,
+    "note": "Values below were copied from current command, browser CDP, HTTP, MCP, Git, GitHub and systemd outputs. This is a sanitized persistent transcript, not an unedited terminal recording."
+  },
+  "session2_model_lock": {
+    "status": "ACTIVE",
+    "primary_model": "gemini-3.1-flash-lite",
+    "classification": "Gemini 3.1 Flash-Lite Session 2 acceptance",
+    "not_classified_as": [
+      "small-model PASS",
+      "self-hosted-27B Session 2 acceptance"
+    ],
+    "requested_but_unavailable": {
+      "model": "gemini-2.5-flash-lite",
+      "result": "HTTP 404 for the current project",
+      "included_in_acceptance": false
+    },
+    "superseded_model_attempt": {
+      "model": "qwen3.6-27b-128k",
+      "chat_completion": "passed",
+      "tool_call": "not observed through the llama.cpp-like serving path",
+      "included_in_final_acceptance": false,
+      "evidence_preserved": true
+    },
+    "model_fallback": false,
+    "decision_scope": "Session 2 only",
+    "session1_manifest_or_evidence_changed": false
   },
   "model_preflight": {
     "command": "node .agent-factory/runtime/session2-model-preflight.mjs",
+    "unit": "af-session2-phase-a-model-preflight-20260806-06.service",
+    "invocation_id": "64b10c4db72244f5839f7d97fdebc067",
     "exit_code": 0,
     "ready": true,
-    "provider": "self_hosted_vllm_over_tailscale_direct",
-    "model": "hosted_vllm/qwen3.6-27b-128k",
-    "reported_context_length": 131072,
+    "provider": "gemini_developer_api_openai_compatibility",
+    "model": "gemini-3.1-flash-lite",
+    "observed_model_version": "3.1-flash-lite-05-2026",
+    "reported_input_context_length": 1048576,
+    "reported_output_token_limit": 65536,
     "chat_completion": "passed",
-    "cloud_fallback": false
+    "function_call": "passed",
+    "credential_file_mode": "600",
+    "authorized_egress": [
+      "generativelanguage.googleapis.com"
+    ],
+    "model_fallback": false,
+    "network_policy": {
+      "IPAddressDeny": "0.0.0.0/0 ::/0",
+      "IPAddressAllow": "127.0.0.0/8 ::1/128 <resolved-gemini-api-ip>/32"
+    },
+    "final_recheck": {
+      "unit": "af-session2-phase-a-model-preflight-20260806-12.service",
+      "result": "success",
+      "ready": true
+    }
+  },
+  "model_transport": {
+    "client_base": "http://127.0.0.1:8897/v1",
+    "clients": [
+      "Companion acceptance runtime",
+      "Codex CLI",
+      "generated runtime"
+    ],
+    "bridge": {
+      "scope": "ignored Session 2 local acceptance plumbing",
+      "tracked_product_source": false,
+      "unit": "af-session2-phase-a-gemini-bridge-20260806-05.service",
+      "invocation_id": "6c3c8df4ca15427ebb8341ebc2e8716b",
+      "listen": "127.0.0.1:8897",
+      "upstream": "Gemini Developer API OpenAI compatibility endpoint",
+      "reason": "The Google OpenAI compatibility endpoint returned 404 for Codex Responses /responses, so the local adapter converts Responses namespace tools to Chat Completions functions and restores exact namespace/name pairs.",
+      "codex_wire_source": {
+        "tag": "rust-v0.146.0",
+        "commit": "e363b08c9175ac1cbe5893615dd2cb9ddf95043b",
+        "verified_contract": "ResponseItem::FunctionCall optional namespace and ToolName::new(namespace, name)"
+      }
+    }
   },
   "codex_cli": {
     "version": "0.146.0",
@@ -44,77 +109,93 @@
       "status": "VERIFIED"
     },
     "direct_model_chat": {
-      "transport": "approved direct Tailscale OpenAI-compatible /v1 endpoint",
-      "model": "qwen3.6-27b-128k",
+      "transport": "loopback Responses bridge to Gemini Developer API",
+      "model": "gemini-3.1-flash-lite",
       "exit_code": 0,
-      "exact_response": "SESSION2_CODEX_DIRECT_OK",
       "status": "PASSED",
-      "cloud_fallback": false
+      "model_fallback": false
     },
     "model_mediated_mcp": {
-      "direct_namespace_attempt": {
-        "codex_representation": "Responses nested namespace with exact Companion child functions",
-        "request_envelope_observed_via_local_diagnostic_proxy": true,
-        "diagnostic_proxy_counted_as_acceptance_transport": false,
-        "tool_invoked": false,
-        "graph_mutated": false,
-        "status": "BLOCKED"
-      },
-      "code_mode_attempt": {
-        "codex_source_version": "rust-v0.146.0",
-        "codex_representation": "freeform/custom exec exposing tools.mcp__companion_graph__companion_get_graph_workspace",
-        "model_visible_function_tools_reported": [
-          "wait",
-          "request_user_input"
-        ],
-        "exec_visible_to_model": false,
-        "tool_invoked": false,
-        "graph_mutated": false,
-        "status": "BLOCKED",
-        "named_unit": "af-session2-phase-a-cli-mcp-20260806-01.service",
-        "invocation_id": "0ced2ec61a5149d581dfeabe39c9be8f",
-        "started_at": "2026-08-06T10:06:02+09:00",
-        "exec_main_status": 0,
-        "events_sha256": "7fdb059ec8580ea6187a7a474e7a04efd895bd1d45648ab8154c6565677c1499",
-        "last_message_sha256": "6fc84537bb2e62c2a3a396d172aa6c4aa95f99467b709a3d138f8c876c593e23",
-        "graph_sha256_before_after": "7f86453a78fe62b782599b74c6ab65719caf3ec332840f33638fef33cc59f195"
-      },
-      "conclusion": "Model-mediated Companion MCP invocation failed for both Codex Responses tool representations. The available evidence does not isolate the root cause to Codex, the serving adapter/tool template, or the model. Direct chat, project discovery, and independent local MCP calls do not satisfy this claim."
-    },
-    "egress_enforcement": {
-      "acceptance_scope": "system-level transient unit",
-      "policy": "deny 0.0.0.0/0 and ::/0; allow only the approved Tailscale model IP /32 and 127.0.0.0/8",
-      "direct_chat_unit": {
-        "name": "af-session2-phase-a-cli-journal-20260806-01.service",
-        "invocation_id": "5eba38d90c404a0c998a61347007ec09",
-        "started_at": "2026-08-06T10:16:50+09:00",
-        "exec_main_status": 0,
-        "systemctl_show_sanitized": {
-          "IPAddressDeny": "0.0.0.0/0 ::/0",
-          "IPAddressAllow": "<approved-tailscale-model-ip>/32 127.0.0.0/8"
-        },
-        "journal_retained_stdout_marker": {
-          "allowed_tailscale_models_http": 200,
-          "blocked_external_exit": 28,
-          "codex_exit": 0,
-          "exact_response": "SESSION2_CODEX_DIRECT_OK"
-        },
-        "events_sha256": "cbc231d99461d99f0f2950b372f871e5c176699fdb525a5b079a4bea843472f3",
-        "last_message_sha256": "cb09754319df31c656b5ba7856ed7ed8da387c38bae7e65f7a9cc239ca1c9850"
-      },
-      "sanitized_command_shape": "sudo systemd-run --unit=<named-unit> --property=RemainAfterExit=yes --property=IPAddressDeny=any --property=IPAddressAllow=<approved-tailscale-model-ip>/32 --property=IPAddressAllow=127.0.0.0/8 <sanitized-proof-command>",
-      "allowed_model_models_http_status": 200,
-      "blocked_external_curl_exit_code": 28,
       "status": "PASSED",
-      "preliminary_user_scope_probe_incident": {
-        "included_in_acceptance": false,
-        "expected_block": true,
-        "actually_reached_external_ip": true,
-        "cause": "user-scope systemd network policy did not enforce IPAddressDeny on this host",
-        "disposition": "replaced with and reverified under the system-level transient unit"
-      }
+      "thread_id": "019fd511-3ffc-7573-b5d5-012dfc0aada2",
+      "sandbox": "read-only",
+      "approval_override": "companion_apply_graph_changes only",
+      "function_call_count": 2,
+      "function_calls": [
+        {
+          "ordinal": 1,
+          "namespace": "mcp__companion_graph",
+          "name": "companion_get_graph_workspace"
+        },
+        {
+          "ordinal": 2,
+          "namespace": "mcp__companion_graph",
+          "name": "companion_apply_graph_changes"
+        }
+      ],
+      "other_tool_call_count": 0,
+      "retry_count": 0,
+      "base_graph_revision": "04e1a8c7a838e1bbbd8070f0b033a12c18df43bc9baf65d590ad5184f74a8056",
+      "apply_status": "APPLIED",
+      "result_graph_revision": "6c3d865b91657b1784f881055a23a53ad63cc42c0b24ef943a791762156fb132",
+      "changed_nodes": [
+        "node.output"
+      ],
+      "changed_count": 1,
+      "final_label": "Gemini egress-locked MCP acceptance",
+      "rollout_sha256": "9749948adfb8cabab76ad06c8ed2640d00400ef765ec80eb7c0f784eea2d8944"
+    },
+    "remaining_warning": "Codex did not find built-in model metadata for the custom model ID and reported fallback metadata usage; the explicit context override and accepted calls passed."
+  },
+  "egress_enforcement": {
+    "status": "PASSED",
+    "acceptance_scope": "system-level units",
+    "policy": "deny all IPv4/IPv6; allow loopback and the resolved Gemini Developer API /32 only",
+    "bridge_unit": {
+      "name": "af-session2-phase-a-gemini-bridge-20260806-05.service",
+      "invocation_id": "6c3c8df4ca15427ebb8341ebc2e8716b",
+      "IPAddressDeny": "0.0.0.0/0 ::/0",
+      "IPAddressAllow": "127.0.0.0/8 ::1/128 <resolved-gemini-api-ip>/32"
+    },
+    "preflight_unit": {
+      "name": "af-session2-phase-a-model-preflight-20260806-06.service",
+      "invocation_id": "64b10c4db72244f5839f7d97fdebc067",
+      "exec_main_status": 0
+    },
+    "arbitrary_external_ip_deny": {
+      "name": "af-session2-phase-a-egress-deny-20260806-07.service",
+      "invocation_id": "2bb4f0e7b2e4435ea46a2f2d61c812d0",
+      "target": "sanitized-external-ip:80",
+      "blocked": true,
+      "error_type": "TimeoutError",
+      "elapsed_ms": 2001.99,
+      "exec_main_status": 0
+    },
+    "blocked_non_gemini_attempt": {
+      "source": "LiteLLM remote model cost map",
+      "destination_class": "GitHub raw content",
+      "result": "DNS/network policy failure; local backup used"
+    },
+    "prohibited_paths_used": {
+      "other_model": false,
+      "model_fallback": false,
+      "deploy": false,
+      "cloud_publish": false,
+      "cloud_observability": false
     }
   },
+  "excluded_incidents": [
+    {
+      "incident": "A preliminary user-scope systemd network policy probe unexpectedly reached an external IP because the policy was not enforced on this host.",
+      "included_in_acceptance": false,
+      "disposition": "Replaced with system-level units and a separate blocked-IP proof."
+    },
+    {
+      "incident": "The first aggregate AF Skills runtime-validator diagnostic allowed agents-cli to perform an update check that attempted PyPI access.",
+      "included_in_acceptance": false,
+      "disposition": "No-egress rerun exposed installed_skills shape drift; accepted ADK runtime evidence uses the exact interpreter in a loopback-only unit."
+    }
+  ],
   "github_baseline": {
     "head": "42e4212588d36287f7479d641162a913f3db2c6f",
     "pr_number": 22,
@@ -149,115 +230,98 @@
       "run_id": 31062612139,
       "job_id": 92493525855,
       "head": "8fd2d4507e02f9a9d3cff5b061ac234cd23414df",
-      "conclusion": "success",
-      "duration_seconds": 86,
-      "passed_steps": [
-        "Install Companion dependencies",
-        "Typecheck Companion",
-        "Test Companion",
-        "Build Companion",
-        "Validate shared artifacts"
-      ]
+      "conclusion": "success"
     },
     "actions_runtime_hygiene": {
-      "observed_annotation": "checkout/setup-node v4 targeted the deprecated Node 20 action runtime",
-      "official_releases_checked_on": "2026-08-06",
-      "checkout_release": "v7.0.1",
-      "setup_node_release": "v7.0.0",
       "commit": "fd12ba86c3fb889537e117bfaa41b245f008afae",
       "change": "Only actions/checkout and actions/setup-node refs changed from v4 to v7",
       "run_id": 31062757202,
       "job_id": 92493959495,
       "conclusion": "success",
-      "duration_seconds": 91,
       "deprecation_annotations": 0
     },
+    "evidence_head_pass": {
+      "head": "5ecea5b0513ebee4293fcd2dae806317887bb320",
+      "run_id": 31063076608,
+      "job_id": 92494924746,
+      "conclusion": "success"
+    },
     "foundation_status": "PASSED",
-    "overall_phase_a_status": "BLOCKED_BY_MODEL_MEDIATED_COMPANION_MCP"
+    "overall_phase_a_status": "PASSED_AWAITING_USER_MERGE_DECISION"
+  },
+  "adk_runtime": {
+    "status": "PASSED_DIRECT_EXACT_RUNTIME_PROBE",
+    "unit": "af-session2-phase-a-adk-runtime-20260806-04.service",
+    "invocation_id": "463f3ba95fd84a369ca7be34a0490c03",
+    "IPAddressDeny": "0.0.0.0/0 ::/0",
+    "IPAddressAllow": "127.0.0.0/8 ::1/128",
+    "python": "/home/ilmaswsl/work/af-companion/.agent-factory/runtime/.venv/bin/python",
+    "google_adk": "2.4.0",
+    "expected_cases": 46,
+    "passed": 46,
+    "failed": 0,
+    "compound_ids": [
+      "CP-001",
+      "CP-002",
+      "CP-003",
+      "CP-004",
+      "CP-005"
+    ],
+    "aggregate_validator": {
+      "status": "NOT_ACCEPTED_AS_RUNTIME_PASS",
+      "no_egress_failure": "agents-cli info invoked npx skills list, timed out, and returned installed_skills null instead of the Session 1 expected shape",
+      "session1_validator_or_evidence_changed": false
+    },
+    "final_recheck": {
+      "unit": "af-session2-phase-a-adk-runtime-20260806-11.service",
+      "result": "success",
+      "passed": 46,
+      "failed": 0
+    }
   },
   "local_app_git": {
-    "alpha": {
-      "application_id": "phase-a-alpha",
-      "branch": "main",
-      "baseline_commit": "b9375b289fa90a11ea3e653fe82f8250db856926",
-      "commit_subject": "chore: initialize Companion app workspace",
-      "author": "Agent Factory Companion <companion@agent-factory.local>",
-      "commit_count": 1,
-      "remote_count": 0
-    },
-    "beta": {
-      "application_id": "phase-a-beta",
-      "branch": "main",
-      "baseline_commit": "b95fcdd9c3859af05443fde1e8d719380e2e59fe",
-      "commit_subject": "chore: initialize Companion app workspace",
-      "author": "Agent Factory Companion <companion@agent-factory.local>",
-      "commit_count": 1,
-      "remote_count": 0,
-      "final_status": [
-        " M .agent-factory/companion-graph.json"
-      ]
-    }
+    "application_id": "phase-a-beta",
+    "branch": "main",
+    "baseline_commit": "b95fcdd9c3859af05443fde1e8d719380e2e59fe",
+    "commit_subject": "chore: initialize Companion app workspace",
+    "author": "Agent Factory Companion <companion@agent-factory.local>",
+    "commit_count": 1,
+    "remote_count": 0,
+    "final_status": [
+      " M .agent-factory/companion-graph.json"
+    ],
+    "graph_sha256": "e22fac548c09e0752c58c30a9b9b43acc9c4ff1e499217895a8939117c443ae2"
   },
   "registry": {
     "contract_validation_negative_status": 422,
     "published_ref": "agent.phase-a.acceptance@1",
     "next_draft_ref": "agent.phase-a.acceptance@2",
-    "stale_revision": "03f6c362ecc95a6c44aff890944b5f9a883bdd3ef87d30f53df3acfdc827ede1",
-    "first_update": {
-      "status": 200,
-      "registry_revision": "ee19bd1989ac0fa448613d66bc14bdfff43cfce36cc2eee3f9b0f77d130b5e1c"
-    },
-    "late_update": {
-      "status": 409,
-      "error": "registry_revision_conflict"
-    },
-    "stale_ui_review": {
-      "status": 409,
-      "notice": "Registry revision이 변경되어 작업을 적용하지 않았습니다. 최신 version을 다시 읽고 검토하세요."
-    },
-    "deprecation": {
-      "status": 200,
-      "registry_revision": "a9c3cf718ea2b997dc613cc125eec70cb27db6de79b2120530ebbde54f94ffcd",
-      "decision_id": "decision:session2-phase-a-deprecate"
-    }
+    "first_update_status": 200,
+    "late_update_status": 409,
+    "late_update_error": "registry_revision_conflict",
+    "stale_ui_review_status": 409,
+    "deprecation_status": 200,
+    "deprecation_decision_id": "decision:session2-phase-a-deprecate"
   },
   "app_isolation": {
-    "old_alpha_mcp_after_beta_activation": {
-      "is_error": true,
-      "status": "UNVERIFIED",
-      "reasons": [
-        "app_inactive"
-      ]
-    },
-    "beta_tools": [
+    "old_application_after_switch": "app_inactive",
+    "active_application_id": "phase-a-beta",
+    "tools": [
       "companion_get_graph_workspace",
       "companion_apply_graph_changes"
     ],
-    "beta_selection": {
+    "selection": {
       "kind": "node",
       "id": "node.output"
     }
   },
   "graph": {
-    "beta_initial_revision": "638606f9704109d95acc05dac8c61517f9866cd35d01e2a0a519d0edaa6a8c6b",
-    "invalid_function_add": {
-      "status": "UNVERIFIED",
+    "contract_negative": {
       "status_code": 422,
-      "error": "graph_contract_violation",
-      "issues": [
-        {
-          "code": "missing_field",
-          "path": "graph.nodes[2].role"
-        },
-        {
-          "code": "invalid_function_role",
-          "path": "graph.nodes[2].role"
-        }
-      ]
+      "error": "graph_contract_violation"
     },
     "valid_node_edge_add": {
       "status": "APPLIED",
-      "graph_revision": "d51c979166d4ae73efe77272c98fa2462005caec1259b821e6e72e203a580c48",
       "changed_nodes": [
         "node.phase-a-step"
       ],
@@ -265,81 +329,40 @@
         "edge.phase-a-step-output"
       ]
     },
-    "edge_inspector_save": {
-      "graph_revision": "26c180a4e291b21d9491bc16e7ccbfac8a1dfe1349aba855af69dc4609aa7497",
-      "edge": {
-        "id": "edge.phase-a-step-output",
-        "from": "node.input",
-        "to": "node.phase-a-step",
-        "control": {
-          "kind": "condition",
-          "condition": "phase_a.ready",
-          "accepted_aliases": [],
-          "default": false
-        },
-        "channel": "artifact"
-      }
-    },
     "external_wins": {
       "web_draft_changed_count": 1,
       "mcp_status": "APPLIED",
-      "graph_revision": "01f70b940a5151ac9a6792c36d942f2c3fe771d1583ef31f699a39d7c63ae3a3",
       "canonical_output_label": "MCP 외부 우선 결과",
       "browser_notice": "Codex 변경 반영됨. 저장 전 변경 1개가 대체되었습니다."
     },
-    "valid_direct_file_edit": {
-      "graph_revision": "a03d340cd8a7be0e47622e7b5bfde03b4bf9182d6993b2d145bd83281c888f88",
-      "canonical_input_label": "직접 파일 입력",
-      "browser_notice": "외부 파일 변경 반영됨."
-    },
     "invalid_json": {
       "source_health": "invalid",
-      "source_error": "invalid_json",
       "draft_status": 409,
       "presentation_status": 409,
-      "mcp_apply": {
-        "status": "UNVERIFIED",
-        "status_code": 409,
-        "error": "invalid_external_source"
-      },
-      "recovery_source_health": "valid",
-      "failed_label_persisted": false
+      "mcp_status": 409,
+      "mcp_error": "invalid_external_source",
+      "recovered": true
     },
     "stale_cas": {
-      "same_initial_revision": true,
-      "initial_revision": "a03d340cd8a7be0e47622e7b5bfde03b4bf9182d6993b2d145bd83281c888f88",
-      "client_a": {
-        "status": "APPLIED",
-        "graph_revision": "f49bfda980260afe47c5ceefea8692a61b54416ff7b90171cee03c08e095d9fc"
-      },
-      "client_b_stale": {
-        "status": "UNVERIFIED",
-        "status_code": 412,
-        "error": "graph_stale",
-        "current_graph_revision": "f49bfda980260afe47c5ceefea8692a61b54416ff7b90171cee03c08e095d9fc"
-      },
-      "client_b_fresh_retry": {
-        "status": "APPLIED",
-        "graph_revision": "d8280414ee58cac9b90bfbc138e5704b05722f4845ab7c10743e1f6191c7d8ee",
-        "canonical_output_label": "MCP Chat B 재계산 결과"
-      }
+      "first_apply": "APPLIED",
+      "stale_status_code": 412,
+      "stale_error": "graph_stale",
+      "fresh_recomputed_apply": "APPLIED"
+    },
+    "gemini_model_mediated_acceptance": {
+      "status": "APPLIED",
+      "base_graph_revision": "04e1a8c7a838e1bbbd8070f0b033a12c18df43bc9baf65d590ad5184f74a8056",
+      "graph_revision": "6c3d865b91657b1784f881055a23a53ad63cc42c0b24ef943a791762156fb132",
+      "changed_nodes": [
+        "node.output"
+      ],
+      "changed_count": 1,
+      "canonical_output_label": "Gemini egress-locked MCP acceptance"
     }
   },
   "restart": {
-    "before": {
-      "root_state_sha256": "21a023e486a9aedb39012333584dffa9460a604a97062a65c43d015cd7ae401b",
-      "graph_sha256": "7f86453a78fe62b782599b74c6ab65719caf3ec332840f33638fef33cc59f195",
-      "presentation_sha256": "e21844c3eb647e851982898bd6a6da4e8acbd02fe9c845400c13ae5e392461b7",
-      "workspace_state_sha256": "032fe56b48d007a26c4e09947aa6b8f87c920c84fe35225f8ab469bd87c1b7ec"
-    },
-    "after": {
-      "root_state_sha256": "21a023e486a9aedb39012333584dffa9460a604a97062a65c43d015cd7ae401b",
-      "graph_sha256": "7f86453a78fe62b782599b74c6ab65719caf3ec332840f33638fef33cc59f195",
-      "presentation_sha256": "e21844c3eb647e851982898bd6a6da4e8acbd02fe9c845400c13ae5e392461b7",
-      "workspace_state_sha256": "032fe56b48d007a26c4e09947aa6b8f87c920c84fe35225f8ab469bd87c1b7ec"
-    },
+    "status": "PASSED_BEFORE_FINAL_GEMINI_MUTATION",
     "active_application_id": "phase-a-beta",
-    "graph_revision": "d8280414ee58cac9b90bfbc138e5704b05722f4845ab7c10743e1f6191c7d8ee",
     "selection": {
       "kind": "node",
       "id": "node.output"
@@ -349,6 +372,7 @@
       "y": 250,
       "pinned": true
     },
+    "state_hashes_before_after_equal": true,
     "existing_mcp_process_hot_read": "VERIFIED"
   },
   "vscode": {
@@ -361,7 +385,7 @@
     "current_run_ai_chat_executed": false,
     "current_run_ai_chat_status": "OMITTED_BY_USER_DECISION",
     "required_for_session2_current_run": false,
-    "omission_basis": "The installed extension exposes no approved self-hosted provider setting; the user approved Codex CLI as the sole current-run AI acceptance client."
+    "omission_basis": "The installed extension exposes no approved provider setting; the user approved Codex CLI as the sole current-run AI acceptance client."
   },
   "browser_final_reload": {
     "chrome": "147.0.7727.55",
@@ -370,15 +394,22 @@
       "height": 1000
     },
     "dom": {
+      "ready_state": "complete",
+      "title": "Companion Graph Workbench",
       "active_application_id": "phase-a-beta",
+      "graph_revision_prefix": "6c3d865b",
       "graph_summary": "3 Nodes · 2 Edges · 0 Regions",
       "context": "available",
       "graph_validation": "passed",
-      "pinned_selection": "node.output"
+      "pinned_selection": "node.output",
+      "output_label": "Gemini egress-locked MCP acceptance"
     },
     "cdp": {
+      "request_count": 38,
+      "resource_status_count": 36,
+      "resource_statuses_all_200": true,
       "runtime_exceptions": [],
-      "console_errors": [],
+      "console_errors_or_warnings": [],
       "log_errors_or_warnings": [],
       "network_loading_failures": [],
       "http_errors": []
@@ -388,13 +419,14 @@
     ],
     "external_resources": [],
     "screenshot": {
-      "path": "packages/companion/acceptance-2026-08-06.png",
-      "sha256": "7fba8c0b81da00be24b73af912cf941dc5eeeb3f689d948478b56622cd7f0961",
+      "path": "packages/companion/acceptance-gemini-2026-08-06.png",
+      "sha256": "365db0296394a3dab02dfd0e9c66b526874b47aeacb48b85201554bad67bea13",
       "width": 1440,
       "height": 1000
     }
   },
   "local_validation": {
+    "command": "cd packages/companion && npm run typecheck && npm run test && npm run build",
     "typecheck_exit_code": 0,
     "tests": {
       "total": 70,
@@ -405,16 +437,38 @@
     "artifact_validator": "Artifact validation OK",
     "git_diff_check_exit_code": 0,
     "relative_link_check": "passed",
-    "relative_link_scope_commit": "b7cd9ef5822a6c279f3b4f942544adc15d0b65ee",
-    "relative_links_checked": 29,
     "markdown_files_checked": 6,
+    "relative_links_checked": 29,
     "launcher_safety_repetitions": 20,
     "launcher_safety_passes": 20
   },
-  "unresolved": [
-    "Codex CLI direct chat and project MCP discovery passed, but the self-hosted model did not invoke Companion MCP through either the Responses namespace or code-mode freeform/custom tool representation.",
-    "An abrupt server stop left a mode-0600 stale capability atomic-write temp file in an existing App. It was manually removed from the disposable App, but no partial source mitigation is claimed.",
+  "independent_review": {
+    "status": "PASSED_WITH_NO_ACTIONABLE_FINDINGS",
+    "client": "Codex CLI 0.146.0 through the locked Gemini bridge",
+    "thread_id": "019fd520-7a7e-7173-93a6-0b79ec2b5450",
+    "unit": "af-session2-phase-a-independent-review-20260806-10.service",
+    "invocation_id": "c4f06562a0ee4528815fe85e0bb16e24",
+    "sandbox": "read-only",
+    "mcp_called": false,
+    "files_modified": false,
+    "reviewer_network": "loopback only",
+    "last_message_sha256": "cd0244412600daddd613ae09b5323ba40475c8e76792b4938c67294581ca83e8",
+    "actionable_findings": 0,
+    "recommendation": "Phase A passed; keep PR #22 Draft and wait for explicit user merge decision."
+  },
+  "remaining_risks": [
+    "An abrupt server stop left a mode-0600 capability atomic-write temp file in an existing App. It was manually removed from the disposable App, but no existing-App source remediation is claimed.",
     "The merged Session 1 evidence has no literal required_integration named set; CP-001 through CP-005 and the Session 2 E2 list were not silently redefined as that artifact.",
-    "A preliminary user-scope egress-policy probe unexpectedly reached an external IP once; it is excluded from acceptance and the final direct model and deny proofs used a verified system-level transient unit."
-  ]
+    "Codex 0.146.0 reports fallback model metadata for the custom model ID despite the explicit context override and successful calls.",
+    "The ignored local Responses bridge is acceptance plumbing, not tracked product/runtime source.",
+    "The aggregate AF Skills runtime validator still sees agents-cli installed_skills shape drift under no-egress execution; direct exact-ADK runtime evidence passed instead.",
+    "The resolved Gemini API /32 allowlist must be regenerated with a fail-closed preflight when DNS changes."
+  ],
+  "merge_gate": {
+    "pr_number": 22,
+    "draft_must_remain": true,
+    "ready_or_merge_authorized": false,
+    "phase_b_through_e_started": false,
+    "required_next_event": "explicit user merge decision"
+  }
 }
