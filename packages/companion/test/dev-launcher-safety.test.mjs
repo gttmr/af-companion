@@ -28,6 +28,6 @@ test("readiness failure is bounded and identifies the unavailable service", asyn
 
 test("each readiness request is aborted within the remaining deadline", async () => {
   const startedAt = Date.now();
-  await assert.rejects(() => waitForServices([{ label: "Companion API", url: "http://api.test/health", child: { exitCode: null } }], { timeoutMs: 40, requestTimeoutMs: 1_000, fetchImpl: async (_url, init) => new Promise((_, reject) => { init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true }); }) }), /Companion API did not become healthy/);
+  await assert.rejects(() => waitForServices([{ label: "Companion API", url: "http://api.test/health", child: { exitCode: null } }], { timeoutMs: 40, requestTimeoutMs: 1_000, fetchImpl: async (_url, init) => new Promise((_, reject) => { const failSafe = setTimeout(() => reject(new Error("health request did not abort")), 1_000); init.signal.addEventListener("abort", () => { clearTimeout(failSafe); reject(init.signal.reason); }, { once: true }); }) }), /Companion API did not become healthy/);
   assert.ok(Date.now() - startedAt < 250, "health request exceeded its bounded deadline");
 });
