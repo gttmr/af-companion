@@ -60,6 +60,10 @@ provision된 local toolchain, Skill bundle, dependency cache 또는 environment�
 - Session 2 model transport는 ignored local configuration에만 저장된 승인된 Tailscale direct
   endpoint의 OpenAI-compatible `/v1` 경로다. Private endpoint bytes를 repository source,
   artifact, evidence 또는 App에 저장하지 않으며 localhost tunnel은 acceptance transport가 아니다.
+- Session 2에서 Codex VS Code extension이 이 self-hosted provider를 사용할 수 없으면 current-run
+  extension AI chat은 필수조건에서 제외하고 Codex CLI를 유일한 AI acceptance client로 사용한다.
+  이 대체는 direct model chat, project MCP discovery와 model-mediated MCP get/apply를 별도로
+  판정하며, 앞의 두 결과나 독립 local MCP 호출을 마지막 결과의 PASS로 대신하지 않는다.
 - framework baseline은 exact `google-adk==2.4.0`이고 supported dependency line은
   `>=2.4.0,<2.5.0`이다. 새 환경은 exact interpreter와 imported package path를 다시 확인한다.
 - Session 1은 agents-cli `1.2.1`과 installed Google Skills `1.2.1`을

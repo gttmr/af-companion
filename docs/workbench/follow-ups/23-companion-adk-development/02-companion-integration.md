@@ -1,6 +1,6 @@
 # Session 2. Companion 통합과 offline end-to-end acceptance
 
-상태: **blocked — Phase A current-run VS Code AI chat과 model transport lock이 충돌**
+상태: **blocked — Phase A Codex CLI model-mediated Companion MCP transport가 호환되지 않음**
 
 Master: [2-session 프로그램](../23-companion-adk-development-program.md)
 
@@ -14,11 +14,13 @@ Session 1에서 검증한 AF Skills vNext와 ADK 2.4 capability evidence를 prim
 Session 1 workstream의 follow-up defect로 분리한다.
 
 Phase A의 browser, local MCP, Registry, App Git과 restart evidence는 2026-08-06에 다시
-수집했지만, `USER-ACCEPTANCE.md`가 요구하는 새 VS Code Codex AI chat은 current Session 2에서
-실행하지 않았다. 현재 extension은 cloud model을 기본 사용하고 설치 manifest에 approved
-self-hosted provider setting을 노출하지 않는다. Cloud model 금지와 current-run extension chat
-요구를 동시에 만족하는 검증된 경로가 없으므로 Phase A는 완료가 아니라 blocker다. 전일 cloud
-extension evidence나 독립 local MCP 결과를 current Session 2 PASS로 대체하지 않는다.
+수집했다. 사용자는 installed Codex VS Code extension에 approved self-hosted provider를 설정할
+수 없으면 current-run extension AI chat을 생략하고 Codex CLI만 사용하도록 Session 2 gate를
+조정했다. Codex CLI `0.146.0`의 direct model chat과 project MCP discovery는 통과했지만,
+Codex Responses의 nested namespace Tool과 code-mode freeform/custom `exec` Tool 표현 모두에서
+model-mediated `companion_get_graph_workspace`가 실행되지 않았다. 이 관찰만으로 Codex,
+serving adapter/tool template 또는 model 중 하나를 root cause로 확정하지 않는다. 독립 local MCP
+결과는 이 실패를 대신하지 않으므로 Phase A는 여전히 blocker다.
 
 ## 시작 gate
 
@@ -41,8 +43,9 @@ write 전에 contract mismatch로 중단한다.
 1. 최소 GitHub CI에 Companion typecheck, test, build와 shared artifact validator를 추가한다.
 2. `USER-ACCEPTANCE.md`의 App·Asset·Graph·MCP·local Git foundation을 fresh server/App에서
    실행한다.
-3. App switch `app_inactive`, restart recovery, invalid Graph fail-closed, `graph_stale`, VS Code
-   get/apply와 screenshot을 검증한다.
+3. App switch `app_inactive`, restart recovery, invalid Graph fail-closed, `graph_stale`, approved
+   self-hosted model을 사용하는 Codex CLI get/apply와 screenshot을 검증한다. Extension은
+   self-hosted provider가 지원될 때만 같은 current-run evidence에 포함한다.
 4. current foundation failure만 재현 후 최소 수정한다. source/Skill context 기능을 PR #22의
    과거 commit에 억지로 섞지 않는다.
 5. independent review와 사용자 merge gate 뒤 PR #22를 merge하고 clean worktree만 정리한다.

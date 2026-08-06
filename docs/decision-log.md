@@ -8,6 +8,13 @@
 - 최신 항목이 위로 오는 역시간순. 항목 형식: 날짜 · PR/머지 커밋 · 결정 요약 · 배경(왜) · 영향 범위.
 - 결정을 되돌리거나 대체하면 과거 항목을 지우지 말고 새 항목에서 `(대체: YYYY-MM-DD 항목)`으로 연결한다.
 
+## 2026-08-06 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Session 2 Phase A의 AI client를 Codex CLI로 한정
+
+- **결정**: installed Codex VS Code extension이 approved self-hosted provider를 설정할 수 없으면 Session 2 current-run extension AI chat은 필수조건에서 제외하고 Codex CLI를 유일한 AI acceptance client로 사용한다. Launcher, exact WSL root와 project config 경계는 계속 browser/operator evidence로 검증한다.
+- **Acceptance 경계**: Codex CLI direct model chat, project MCP config/list와 model-mediated Companion MCP get/apply는 서로 다른 claim이다. 앞의 두 결과나 독립 local MCP client 성공을 마지막 결과의 PASS로 대신하지 않는다. Extension 생략은 Tool 호출·write·stale behavior를 생략하는 승인이 아니다.
+- **Current result**: direct Tailscale model chat과 system-level egress deny evidence는 통과했지만, Codex CLI `0.146.0`의 Responses namespace와 code-mode freeform/custom Tool 표현 모두에서 model-mediated get이 실행되지 않았다. 관찰된 compatibility failure의 원인을 Codex, serving adapter/tool template 또는 model 중 하나로 단정하지 않는다. Phase A와 PR #22는 이 gap이 남은 동안 blocked다.
+- **영향**: Session 2 active context/program/integration work order와 2026-08-06 Phase A evidence. Session 1 manifest, AF Skill instruction과 Session 1 evidence는 변경하지 않는다.
+
 ## 2026-08-06 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Session 2 primary acceptance를 self-hosted Qwen 3.6 27B로 고정
 
 - **결정**: Session 2 primary acceptance model은 사용자 소유 Linux system의 self-hosted Qwen 3.6 27B이고 served model ID는 `qwen3.6-27b-128k`, context lock은 128k (`131072`)다. 이 결정은 Session 2에 한정해 2026-08-05 `qwen3.6-small` primary baseline 결정을 대체한다. Session 1 manifest, AF Skill instruction과 model-forward blocked evidence는 수정하지 않는다.

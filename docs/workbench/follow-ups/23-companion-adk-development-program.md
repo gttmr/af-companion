@@ -335,6 +335,11 @@ Session 2만 수행하고 AF Skill instruction과 Session 1 evidence를 수정�
 PR #22를 ready 또는 merge하기 전에는 evidence와 remaining risk를 보고하고 사용자의 명시적
 merge 결정을 받아라.
 
+Session 2에서 approved self-hosted provider를 Codex VS Code extension에 설정할 수 없으면
+current-run extension AI chat은 생략하고 Codex CLI만 AI acceptance client로 사용한다. 이 경우에도
+direct model chat과 MCP config/list만으로 model-mediated get/apply를 PASS 처리하지 말고, 실제
+Codex CLI turn의 Companion MCP 호출 여부를 별도로 증명하라.
+
 사용자가 PR #22 merge를 승인하면 merge를 확인하고 origin/main을 fetch하라.
 같은 Codex conversation을 유지한 채 다음 clean worktree를 생성해 cwd를 전환하라.
 

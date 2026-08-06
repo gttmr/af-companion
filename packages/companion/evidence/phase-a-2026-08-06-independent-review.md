@@ -25,3 +25,45 @@ Internet search, cloud model fallback, deploy, publish, or observability path.
 
 The sanitized execution transcript is
 [phase-a-2026-08-06-evidence.json](./phase-a-2026-08-06-evidence.json).
+
+## Criterion change after the first review
+
+The user subsequently approved a Session 2-only criterion change: when the installed VS Code
+extension cannot use the approved self-hosted provider, its current-run AI chat may be omitted and
+Codex CLI becomes the sole AI acceptance client. This supersedes the literal extension requirement
+in the first High finding, but does not waive model-mediated MCP get/apply behavior.
+
+The operator then verified Codex CLI `0.146.0` direct model chat and project MCP discovery under the
+approved direct Tailscale transport and a system-level egress deny policy. A direct Responses
+namespace attempt and a Codex-supported code-mode attempt both failed to make the model invoke
+`companion_get_graph_workspace`; neither mutated the Graph. Direct chat, MCP discovery and the
+independent local MCP transcript are not substitutes for that model-mediated call.
+
+## Independent re-review
+
+The independent read-only re-review found no High issue and returned the following findings. It
+made no file changes and did not invoke Internet, model fallback, deploy, publish or observability.
+
+| Severity | Finding | Disposition |
+| --- | --- | --- |
+| Medium | The draft over-attributed the failed Tool call to the serving adapter although the evidence did not isolate that layer. | **Resolved after review.** Current text classifies an observed Codex CLI/model/Responses tool-form compatibility failure and leaves Codex, adapter/tool template and model as unisolated possibilities. |
+| Medium | Egress PASS lacked a durable named unit, sanitized policy command, timing and result linkage, especially after the failed user-scope enforcement probe. | **Resolved after review.** A journal-backed direct unit retains the HTTP/exit/exact-response marker, while contemporaneous `systemctl show` records sanitized deny/allow properties; a separate named code-mode unit records invocation, hashes and unchanged Graph SHA. |
+| Low | The criterion-change section still said the re-review was pending. | **Resolved by this section.** |
+| Low | The Markdown inventory count was ambiguous for the current amendment. | **Resolved after review.** The result now states that the current evidence amendment has six Markdown files and 29 checked relative links. |
+
+The reviewer confirmed that direct chat PASS, project MCP discovery PASS and model-mediated MCP
+BLOCKED remain separate; no private endpoint, key or capability token was present; Session 1
+evidence and `.agents/skills/**` had no current diff; CI remained minimal; and JSON parse plus
+`git diff --check` passed. Gate recommendation remains **BLOCKED: do not mark PR #22 ready or
+merge it** while model-mediated Companion MCP invocation is unresolved.
+
+## Post-fix check
+
+The resumed reviewer found that the first remediation still called terminal-captured values
+`journal_markers` although that unit had piped stdout away from journald, and that the file-count
+baseline mixed the full remote PR with the current amendment. The operator reran the direct proof as
+`af-session2-phase-a-cli-journal-20260806-01.service` without `--pipe`; `journalctl` then retained the
+exact sanitized proof marker and `systemctl show` separately captured the contemporaneous live
+policy observation.
+The inventory was recomputed from the current amendment as six Markdown files and 29 relative links.
+These corrections do not change the reviewer gate: PR #22 remains **BLOCKED**.
