@@ -8,6 +8,87 @@
 - 최신 항목이 위로 오는 역시간순. 항목 형식: 날짜 · PR/머지 커밋 · 결정 요약 · 배경(왜) · 영향 범위.
 - 결정을 되돌리거나 대체하면 과거 항목을 지우지 말고 새 항목에서 `(대체: YYYY-MM-DD 항목)`으로 연결한다.
 
+## 2026-08-06 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Session 2 primary acceptance를 Gemini 3.1 Flash-Lite로 전환
+
+- **결정**: 초기 self-hosted Qwen endpoint는 chat completion은 반환했지만 llama.cpp로 보이는 serving 경로에서 Tool call이 관찰되지 않았다. 사용자는 현장에서 그 server를 다시 띄우기 어려워 Session 2 primary acceptance model을 `gemini-3.1-flash-lite`로 변경했다. 요청했던 `gemini-2.5-flash-lite`는 새 project에서 404로 사용할 수 없었고 acceptance에 포함하지 않았다. 이 항목은 같은 날짜의 self-hosted Qwen 3.6 27B lock을 Session 2에 한해 대체한다.
+- **Transport와 egress**: Companion, Codex CLI와 generated runtime은 ignored local configuration의 loopback bridge `http://127.0.0.1:8897/v1`만 사용한다. Bridge만 Gemini Developer API destination에 egress할 수 있고 API key는 external mode-0600 env file에서 읽는다. Loopback과 Gemini Developer API 외 Internet egress, 다른 model/fallback, deploy, cloud publish와 cloud observability는 금지한다. Gemini는 fallback이 아니라 이 Session 2의 primary model이다.
+- **Acceptance 결과**: system-level deny/allow policy 아래 `gemini-3.1-flash-lite` chat/function preflight와 Codex CLI `0.146.0`의 exact Companion MCP get/apply가 통과했다. Final turn은 두 Graph Tool을 각각 한 번만 호출하고 `node.output` 하나만 변경했다. Phase A는 CI, local checks, ADK runtime, browser와 App Git evidence까지 통과했지만 PR #22는 Draft로 유지하며 사용자 merge 결정 전에는 ready/merge하지 않는다.
+- **명명과 보존**: 결과는 **Gemini 3.1 Flash-Lite Session 2 acceptance**이며 `small-model PASS`나 `self-hosted-27B Session 2 acceptance`가 아니다. Session 1 manifest, AF Skill instruction과 Session 1 evidence, 이전 Qwen 실패 evidence는 수정하지 않는다.
+
+## 2026-08-06 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Session 2 Phase A의 AI client를 Codex CLI로 한정
+
+- **결정**: installed Codex VS Code extension이 approved self-hosted provider를 설정할 수 없으면 Session 2 current-run extension AI chat은 필수조건에서 제외하고 Codex CLI를 유일한 AI acceptance client로 사용한다. Launcher, exact WSL root와 project config 경계는 계속 browser/operator evidence로 검증한다.
+- **Acceptance 경계**: Codex CLI direct model chat, project MCP config/list와 model-mediated Companion MCP get/apply는 서로 다른 claim이다. 앞의 두 결과나 독립 local MCP client 성공을 마지막 결과의 PASS로 대신하지 않는다. Extension 생략은 Tool 호출·write·stale behavior를 생략하는 승인이 아니다.
+- **Current result**: direct Tailscale model chat과 system-level egress deny evidence는 통과했지만, Codex CLI `0.146.0`의 Responses namespace와 code-mode freeform/custom Tool 표현 모두에서 model-mediated get이 실행되지 않았다. 관찰된 compatibility failure의 원인을 Codex, serving adapter/tool template 또는 model 중 하나로 단정하지 않는다. Phase A와 PR #22는 이 gap이 남은 동안 blocked다.
+- **영향**: Session 2 active context/program/integration work order와 2026-08-06 Phase A evidence. Session 1 manifest, AF Skill instruction과 Session 1 evidence는 변경하지 않는다.
+
+## 2026-08-06 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Session 2 primary acceptance를 self-hosted Qwen 3.6 27B로 고정
+
+- **결정**: Session 2 primary acceptance model은 사용자 소유 Linux system의 self-hosted Qwen 3.6 27B이고 served model ID는 `qwen3.6-27b-128k`, context lock은 128k (`131072`)다. 이 결정은 Session 2에 한정해 2026-08-05 `qwen3.6-small` primary baseline 결정을 대체한다. Session 1 manifest, AF Skill instruction과 model-forward blocked evidence는 수정하지 않는다.
+- **Toolchain lock**: Session 1이 accepted한 agents-cli `1.2.1`과 Google Skills `1.2.1` exact tree digests를 Session 2가 소비한다. Candidate `1.3.1`은 exact ADK 2.4/A2A 0.3 baseline을 제외하는 generated dependency ranges 때문에 rejected된 상태를 유지한다.
+- **Transport와 보존 경계**: model call은 ignored local configuration에만 저장된 승인된 Tailscale direct OpenAI-compatible `/v1` endpoint로 수행한다. Private endpoint bytes를 repository source, managed App, artifact, screenshot 또는 evidence에 저장하지 않으며 localhost tunnel은 acceptance transport가 아니다.
+- **금지와 판정**: 승인된 Tailscale model transport 외 Internet egress, cloud model, Gemini fallback, deploy, cloud publish와 cloud observability를 금지한다. 다른 model의 성공은 primary PASS가 아니며 결과는 `small-model PASS`가 아니라 **self-hosted-27B Session 2 acceptance**로 기록한다.
+
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — agents-cli 1.3.1 compatibility 판정을 Session 1 gate로 위임
+
+- **결정**: 사용자는 두 session을 시작하기 전에 agents-cli를 `1.2.1`에서 `1.3.1`로 외부 upgrade한다. 현재 planning session은 그 영향을 미리 승인하거나 거부하지 않는다. Session 1이 installed CLI package/source, Google Skill metadata/digest, local command contract와 exact ADK 2.4 조합을 직접 비교해 `compatible`, `compatible_with_corrections`, `blocked` 중 하나로 판정한다.
+- **경계**: CLI upgrade는 ADK 2.4 baseline upgrade를 의미하지 않는다. CLI와 Skill bundle version이 다르면 혼합 상태로 기록하고 자동 사용하지 않는다. Internet release note는 offline acceptance의 필수 입력으로 만들지 않으며 installed source/help와 executable probe를 근거로 한다.
+- **영향**: Session 1은 compatibility 판정 전 final Skill wording과 full capability campaign으로 진행하지 않는다. Session 2는 Session 1이 승인한 exact agents-cli/Google Skill version·digest와 correction만 소비하며 자체적으로 다른 판정을 만들지 않는다. `blocked`면 자동 rollback하지 않고 사용자 결정으로 반환한다.
+
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — ADK 2.4 전 기능 evidence campaign과 두 session 실행 계약
+
+- **결정**: 전체 프로그램은 exactly two primary sessions로 수행한다. Session 1은 exact ADK 2.4의 public source·ADK Docs MCP·installed agents-cli Skill에서 Workflow·Agent·Sub-agent capability inventory를 만든 뒤 Agent topology, explicit/dynamic Graph, Tool, state/Session/Event/Artifact, callback/Plugin, pause/resume·failure, Subworkflow·local A2A와 small-model behavior 전반을 실험하고 AF Skills vNext를 완성한다. `loop`, `parallel`, `dynamic` 세 pattern이나 고정 W0–W7 통과에서 멈추지 않는다. Session 2는 그 versioned Skill/evidence bundle을 Companion source/context와 external Codex offline journey에 통합한다. Skill과 Companion product code는 같은 change set/PR에 섞지 않는다.
+- **Framework evidence**: ADK 2.4 API/runtime fact는 exact 2.4.0 minimal probe와 representative runtime → 같은 interpreter의 installed source/signature/validator → ADK Docs MCP → installed agents-cli guidance → 기존 AF card/model memory 순으로 판정한다. Product taxonomy·Graph·review authority에는 이 순서를 적용하지 않는다. source 간 차이는 exact query, symbol, positive/negative probe와 scope를 남기며 해결되지 않으면 `unverified` 또는 Blocker다.
+- **종료 기준**: Session 1은 하루 전체가 걸려도 좋으며 시간이나 실험 개수로 완료하지 않는다. 모든 inventory row가 evidence 있는 status로 닫히고, required 기능군의 positive/negative, high-risk pairwise interaction, 최소 다섯 compound topology와 source-comparison probe, 실제 offline `qwen3.6-small` forward test를 갖춰야 한다. 두 번 연속 coverage audit에서 새 high/medium-risk 누락이 없을 때만 Session 2 handoff를 만든다. Cloud-only/online 기능은 누락하지 않고 evidence 있는 제외로 기록하되 실행하지 않는다.
+- **영향**: follow-up 23은 두 work order만 유지하고 follow-up 24는 별도 session series가 아니라 Session 1 설계 범위가 된다. Session 2 acceptance는 parallel/loop/dynamic만 재검증하지 않고 Agent/Sub-agent, Graph, Tool, state/lifecycle, Subworkflow와 A2A에서 고른 representative integration set을 selection별 bounded task로 수행한다.
+
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — offline `qwen3.6-small` 개발 환경을 primary baseline으로 고정
+
+- **결정**: Companion의 실제 사용 환경은 Internet이 없는 local 개발 환경이며 기준 LLM은 사용자 제공 값 `qwen3.6-small`이다. Google agents-cli의 deploy, cloud publish, cloud observability Skill은 required lifecycle과 acceptance에서 제외하고 workflow, scaffold, ADK code, local eval처럼 offline 개발에 필요한 Skill만 사용한다. local Asset Registry publish는 cloud agent publish와 다른 repository-local lifecycle로 유지한다.
+- **Skill 설계 영향**: Google/AF Skill과 dependency는 runtime download나 marketplace에 의존하지 않고 exact version/digest의 offline bundle, local package cache 또는 prebuilt environment로 사전 provision한다. AF Skills vNext는 작은 모델을 위해 한 task/주 intent, bounded Graph context, exact input/output, 짧은 단계와 fail-closed blocker를 사용하며 parsing·validation·digest·inventory는 deterministic code에 맡긴다.
+- **검증 영향**: generated ADK acceptance는 외부 network를 차단한 상태에서 실제 local `qwen3.6-small` 경로로 수행한다. 강한 cloud model, external documentation, package index 또는 model fallback이 있어야만 통과하는 결과는 primary environment PASS가 아니다. exact offline packaging과 local model configuration schema는 후속 contract session에서 확정한다.
+
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Companion을 skill-aware ADK 개발 컨텍스트 평면으로 확정
+
+- **결정**: primary Companion은 자체 코드 생성기나 Browser IDE가 아니라, 외부 Codex CLI 또는 Codex VS Code extension이 Google 공식 `google-agents-cli-*`와 AF Skills vNext를 사용해 ADK source를 생성하도록 Graph·Asset·selection·source root·Git 기준점·검증 조건을 전달하는 개발 컨텍스트 평면이다. Browser가 Codex App Server thread/turn을 직접 소유하는 경로는 primary 선행조건이 아니라 후속 선택지다. (대체: 2026-08-03 follow-up 22의 Browser backend direct App Server host 우선 가설)
+- **Skill 경계**: 모든 ADK 작업은 Google workflow entrypoint와 단계별 관련 Skill을 명시적으로 사용하고 Agent Factory 범위에서 관련 AF Skills vNext를 함께 사용한다. 모든 Skill을 한 turn에 동시에 호출하지 않는다. 기존 `af-*` 개편은 별도 workstream과 PR에서 수행하며 Companion은 versioned Skill interface에만 의존한다.
+- **Source·Git 경계**: managed App Git root가 Graph와 하나 이상의 nested runtime source project, implementation mapping을 함께 소유한다. App Manager는 최초 baseline 뒤 source 생성·후속 commit·remote·push를 소유하지 않는다. local commit은 remote push 없이도 검증된 Graph/source history를 보존한다.
+- **Graph 경계**: 선택한 Node·Edge·Region은 개발 문맥의 기준점이지만 source write 권한이 아니다. source locator와 test evidence는 strict Graph IR field를 늘리지 않고 별도 implementation mapping에 둔다. A2A는 Agent Binding/Exposure, 재사용 Workflow는 Subworkflow Node로 표현한다.
+- **영향**: `packages/companion`의 향후 App manifest, Skill readiness, implementation mapping, development task capsule, external Codex handoff와 acceptance 순서를 정한다. Current Implementation이 이 Target을 이미 충족한다고 주장하지 않으며 exact schema와 wire는 후속 계약 PR에서 확정한다. 활성 결정과 세션별 지시서는 [Companion ADK development context](workbench/companion-adk-development-context.md)와 follow-up 23/24가 소유한다.
+
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — managed App의 최초 local Git baseline 소유권
+
+- **결정**: App Manager가 새 App 생성 중 local `main` branch에 `chore: initialize Companion app workspace` commit 하나를 만든다. 이 baseline은 `.gitignore`, App manifest, exact Asset binding 문서, Graph 네 파일만 포함하며 command-scoped `Agent Factory Companion <companion@agent-factory.local>` identity를 사용한다. 사용자 global Git identity는 바꾸지 않는다.
+- **소유권 경계**: Codex config, capability, presentation, workspace state, UI context는 ignored private/runtime state다. Baseline 뒤의 Graph·Asset·runtime source 변경과 commit history는 사용자 또는 해당 App에서 동작하는 Codex가 소유한다. App Manager는 후속 commit, remote 생성, push를 하지 않는다. (구체화: 2026-08-04 primary Companion의 App 저장소 경계)
+- **원자성**: baseline path set을 명시적으로 stage하고 검증한 뒤, manager-owned commit에 user hook과 GPG signing을 적용하지 않는다. Commit이 실패하면 staging directory를 제거하고 최종 App path를 노출하지 않는다.
+- **영향**: `packages/companion/graph-control-server` App 생성 트랜잭션과 실제 Git regression, primary README·architecture·acceptance 결과, root product status. Work Item 생성, ADK scaffold, Registry authority에는 변화가 없다.
+
+## 2026-08-05 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — primary Companion이 Asset lifecycle UX를 소유
+
+- **결정**: primary `packages/companion`에 repository-global `Assets` workspace를 추가한다. Draft create/update와 review/publish/deprecate 사용자 흐름은 Companion이 소유하지만, strict validation, contract hash, lock, Registry revision 비교, lifecycle transition, atomic write는 기존 shared `AssetRegistryService`만 수행한다. CLI는 동등한 보조 진입점으로 유지한다. (대체: 2026-08-04 항목의 “Asset lifecycle mutation은 이 화면의 권한이 아니다” 조항)
+- **권한 경계**: App Manager는 계속 published exact binding만 소비한다. Review, publish, deprecate는 `selected_by: "user"` Decision을 요구하고 publish는 Owner, Domain, Reuse 확인을 추가로 요구한다. Registry revision conflict는 적용하지 않고 최신 read와 재검토를 요구한다. Browser는 Registry path를 지정할 수 없다.
+- **영향**: Companion Registry wire/API/UI, shared core adapter, `COMPANION_REGISTRY_PATH` acceptance-only server override, primary architecture/acceptance 문서와 active Operating Model·Taxonomy·시각 계약. Legacy `/assets`는 acceptance 완료 전 reference surface로 남고 이 결정만으로 제거하지 않는다.
+
+## 2026-08-04 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — `packages/companion`을 primary development surface로 선택
+
+- **결정**: 새 Companion 제품 작업과 사용자 acceptance는 App-scoped `packages/companion`을 기본 경로로 사용한다. 기존 `packages/web` Work Item lifecycle surface는 migration compatibility와 명시적인 legacy 유지보수를 위한 reference로 남기며, 이번 결정만으로 route redirect나 source 삭제를 수행하지 않는다.
+- **App 저장소 경계**: `~/work/af-companion-apps/<app-id>`에 생성되는 App Git 저장소는 사용자가 독립적으로 관리한다. Agent Factory source 저장소의 commit/push에 자동 포함하지 않고, 별도 remote도 자동 생성하거나 push하지 않는다.
+- **App Server 경계**: 독립 `app-server-client` 구현은 유지하지만 Graph synchronization이나 제품 turn UI가 App Server에 연결됐다고 주장하지 않는다.
+- **영향**: root README/STATUS, docs index와 Handbook transition, follow-up 22 상태, `packages/companion` README/architecture. 기존 lifecycle source와 route는 변경하지 않는다.
+
+## 2026-08-04 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Companion의 얇은 App Workspace Manager
+
+- **결정**: greenfield `packages/companion`은 browser-supplied path나 기존 `~/work/af-apps` import 없이 `~/work/af-companion-apps` 아래에서 한 번에 하나의 active App을 관리한다. 새 App은 Git, Companion app/Asset manifest, 최소 `Input → Output` Graph, project-local Codex MCP config만 생성한다. Work Item과 ADK source scaffold는 생성하지 않는다.
+- **Asset 계약**: canonical Asset Registry는 read-only로 소비한다. published Agent·Workflow·Tool의 정확한 version과 contract hash를 App에 binding한 뒤에만 typed Graph Node가 참조할 수 있다. Asset lifecycle mutation은 이 화면의 권한이 아니다.
+- **전환 계약**: App 전환은 이전 watcher를 닫고 capability를 `inactive`로 바꾼 뒤 새 App에 현재 loopback capability를 발급한다. 이전 App의 MCP process는 `app_inactive`로 실패하며 새 active App 권한으로 승격되지 않는다.
+- **영향**: `packages/companion` App/Asset HTTP API, Context `scope.work_id: null`, VS Code launch target, MCP capability contract, 사용자 acceptance 문서. 기존 `packages/web` lifecycle surface와 App Server client는 변경하지 않는다.
+
+## 2026-08-03 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Companion Graph를 single-writer 양방향 협업으로 전환
+
+- **결정**: isolated `packages/companion`에서 pull-only Context v1과 startup-only Graph projection 대신 strict Graph IR, Context v2, revision-checked operation batch, single-writer Graph Control Server, write-capable MCP, SSE Web 동기화를 사용한다. Layout은 presentation sidecar로 분리하며 invalid direct file edit는 마지막 valid Graph만 표시하고 write를 차단한다. App Server client는 실행 plane으로 분리 유지한다.
+- **배경**: 서버와 브라우저가 시작 시 Graph를 한 번만 읽으면 디스크 Graph와 실행 중 Graph가 달라지고, read-only MCP는 revision mismatch에서 복구하거나 Graph를 정상 경로로 변경할 수 없다. `sequence`도 Graph concurrency가 아닌 pull cursor라 사용자가 관리할 이유가 없다.
+- **영향**: `packages/companion/{graph-domain,contracts,graph-control-server,mcp-plane,web}`, active App의 project-local Codex config, isolated acceptance 문서. 기존 `packages/web` Graph surface와 Agent Factory 세 artifact transaction은 acceptance 이후 별도 전환으로 남긴다.
+
 ---
 
 ## 2026-08-05 · 작업 브랜치 `agent/af-skills-vnext` — exact ADK 2.4 evidence와 offline AF Skills vNext bundle

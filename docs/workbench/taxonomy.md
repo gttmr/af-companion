@@ -222,6 +222,7 @@ strict v2 read boundary는 legacy 전용 field, 제거된 category, 버전 없�
 | strict analysis read 검증 | `packages/web/src/analyzer/targetContract.ts` | `validateTargetAnalysisResult`, `assertTargetAnalysisResult` |
 | 자산 JSON Schema | `schemas/asset-candidate.schema.json` | root schema와 `allOf` 자산별 제약 |
 | Asset Registry strict contract/service | `packages/agent-factory-core/src/assetRegistry.ts` | `validateRegistryDocument`, `AssetRegistryService` |
+| Primary Companion Registry gateway/UI | `packages/companion/web/src/server/asset-catalog.ts`, `packages/companion/web/src/browser/assets/AssetRegistryScreen.tsx` | `createAssetRegistryGateway`, `AssetRegistryScreen` |
 | Registry Web API | `packages/web/server/assetRegistryApi.ts` | `createAssetRegistryMiddleware` |
 | Registry CLI | `scripts/af.mjs` | `dispatchAsset` |
 | validator enum | `scripts/artifact-validation/constants.mjs` | `targetContractVersion`, `assetTypes`, `invocationControls` |

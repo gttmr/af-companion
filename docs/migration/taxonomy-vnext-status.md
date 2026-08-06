@@ -1,6 +1,6 @@
 # Target Contract v2 Status
 
-Checked 2026-07-24.
+Checked 2026-08-05.
 
 ## Current
 
@@ -9,7 +9,7 @@ Checked 2026-07-24.
 - Graph IR uses the canonical eight Node kinds, typed asset refs, `control`, optional `channel`, and `parallel`/`loop` regions.
 - Tool Invocation Control is Workflow or Agent.
 - A2A is an Agent binding/exposure, not a Catalog bucket or asset type.
-- Asset Registry storage is strict `catalog/asset-registry.json`; Web and CLI share one parser/service and no YAML bucket compatibility remains.
+- Asset Registry storage is strict `catalog/asset-registry.json`; primary Companion, legacy Web, and CLI share one parser/service and no YAML bucket compatibility remains.
 - Generator and validators consume Target fields directly; compatibility projection is absent.
 - Lifecycle state is re-entrant `af-work-item.json` v2; the previous stage manifest and v1 Work Item are rejected.
 

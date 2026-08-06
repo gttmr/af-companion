@@ -2,6 +2,14 @@
 
 The Handbook maps current product behavior to source. It is a navigation aid, not authority over the code.
 
+> Transition note: this Handbook currently maps the existing `packages/web`
+> Work Item lifecycle surface. New Companion development is centered on
+> [`packages/companion`](../../packages/companion/README.md), whose own
+> [architecture](../../packages/companion/ARCHITECTURE.md) and
+> [acceptance guide](../../packages/companion/USER-ACCEPTANCE.md) are the
+> current navigation path for App-scoped Graph/MCP work. The legacy surface has
+> not yet been removed or redirected.
+
 Current survey date: 2026-07-24.
 
 ## Reading path

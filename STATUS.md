@@ -1,6 +1,6 @@
 # STATUS — Agent Factory Companion
 
-Last updated: 2026-07-28 (KST).
+Last updated: 2026-08-05 (KST).
 
 This is a branch-neutral product status. Check the live checkout separately:
 
@@ -10,7 +10,28 @@ git rev-parse --abbrev-ref HEAD
 git rev-parse --short HEAD
 ```
 
-## Current implementation
+## Product direction
+
+- `packages/companion` is the primary Companion development and acceptance
+  surface. It owns managed App workspaces under `~/work/af-companion-apps`,
+  exact published Asset bindings, the canonical Graph writer, Context v2,
+  read/write MCP, live Web synchronization, and the VS Code extension entry
+  point.
+- Generated App repositories are independent. App creation makes one clean
+  manager-owned baseline commit on local `main` containing only `.gitignore`,
+  the App manifest, exact Asset bindings, and Graph. All later source, Graph,
+  Asset, and commit history is user/Codex-controlled. These repositories are
+  not part of this repository's commit or push flow, and the manager creates no
+  remote and performs no push.
+- `packages/web` remains implemented and test-covered as the legacy Agent
+  Factory Work Item lifecycle surface. No route redirect or source removal is
+  claimed yet; new work should modify it only when the task explicitly targets
+  legacy lifecycle behavior or migration compatibility.
+- The independent `packages/companion/app-server-client` is implemented and
+  verified, but it is not yet wired into the Graph synchronization plane or a
+  replacement execution UI.
+
+## Legacy lifecycle implementation
 
 - The web product is an external-Codex-first live companion. It no longer runs Analyze, Design, Build, or Verify stages.
 - The lifecycle ledger is strict `artifacts/af/<work-id>/af-work-item.json` v2 with four Work Skills, revision-bound review gates, re-entrant discovery/composition cycles, decisions, invalidations, and session handoffs.
@@ -45,6 +66,15 @@ Vite registers only these product API families:
 ## Verification posture
 
 Source remains the authority. Required local gates are:
+
+```bash
+cd packages/companion
+npm run typecheck
+npm test
+npm run build
+```
+
+The legacy lifecycle gates remain:
 
 ```bash
 node scripts/validate-skills.mjs
