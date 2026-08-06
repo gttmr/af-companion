@@ -75,6 +75,7 @@ export async function createAssetRegistryGateway(registryPath: string, coreModul
       return { registry_revision: result.registry_revision, results: result.results.map(({ card }) => normalizeConsumable(card)) };
     },
     resolveExact(assetId, version) { return normalizeConsumable(service.resolveExact(assetId, version)); },
+    resolveContract(assetId, version) { return structuredClone(service.resolveExact(assetId, version)); },
     listRegistry(options = {}) {
       const snapshot = service.loadSnapshot();
       return { schema_version: 1, registry_revision: snapshot.registry_revision, items: structuredClone(core.list(snapshot, options)) };

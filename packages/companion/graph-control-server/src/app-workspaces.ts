@@ -6,10 +6,17 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import type {
+  AddCompanionSourceProjectRequest,
   ApplyGraphOperationsResponse,
   BindCompanionAssetRequest,
   CompanionAppAssetSnapshot,
   CompanionAppManifest,
+  CompanionDevelopmentContextCapsule,
+  CompanionDevelopmentContextRequest,
+  CompanionImplementationMappingSnapshot,
+  CompanionRegistryRecord,
+  CompanionSourceProjectsSnapshot,
+  PutCompanionImplementationMappingRequest,
   CompanionAppsSnapshot,
   CompanionAssetBinding,
   CompanionAssetBindingsDocument,
@@ -30,6 +37,21 @@ import {
 } from "@agent-factory/companion-graph-domain";
 import type { ControlCapability, GraphWorkspaceController } from "./http.js";
 import { readContainedFile, writeAtomicJson } from "./atomic-files.js";
+import {
+  addSourceProject,
+  assertSourceProjectContract,
+  DEVELOPMENT_LOCK_PATH,
+  DevelopmentContextError,
+  developmentContext,
+  type DevelopmentReadinessProbe,
+  emptyImplementationMapping,
+  IMPLEMENTATION_MAPPING_PATH,
+  implementationMappings,
+  inspectDevelopmentReadiness,
+  putImplementationMapping,
+  SESSION2_DEVELOPMENT_LOCK,
+  sourceProjectsSnapshot,
+} from "./development-context.js";
 import { GraphControlWorkspace, type WorkspaceEvent } from "./workspace.js";
 
 const execFileAsync = promisify(execFile);
@@ -49,13 +71,16 @@ const INITIAL_GIT_PATHS = [
   ".gitignore",
   MANIFEST_PATH,
   ASSETS_PATH,
+  DEVELOPMENT_LOCK_PATH,
   GRAPH_PATH,
+  IMPLEMENTATION_MAPPING_PATH,
 ] as const;
 
 export interface AssetCatalog {
   snapshotRevision(): string;
   search(input: { text?: string; asset_type?: "agent" | "workflow" | "tool" }): CompanionAssetSearchResult;
   resolveExact(assetId: string, version: number): CompanionAssetCard;
+  resolveContract?(assetId: string, version: number): CompanionRegistryRecord;
 }
 
 export interface AppWorkspaceManagerOptions {
@@ -63,6 +88,7 @@ export interface AppWorkspaceManagerOptions {
   mcpBinPath: string;
   assetCatalog: AssetCatalog;
   now?: () => Date;
+  developmentReadinessProbe?: DevelopmentReadinessProbe;
 }
 
 export class AppWorkspaceError extends Error {
@@ -78,6 +104,7 @@ export class ActiveAppWorkspaceController implements GraphWorkspaceController {
   #workspace: GraphControlWorkspace | null = null;
   #workspaceUnsubscribe: (() => void) | null = null;
   #bindings: CompanionAssetBindingsDocument = emptyBindings();
+  #manifest: CompanionAppManifest | null = null;
   #listeners = new Set<(event: WorkspaceEvent) => void>();
   #tail = Promise.resolve();
   #capability: ControlCapability | null = null;
@@ -134,10 +161,12 @@ export class ActiveAppWorkspaceController implements GraphWorkspaceController {
         await mkdir(stage, { mode: 0o700 });
         await execFileAsync("git", ["init", "--quiet", `--initial-branch=${INITIAL_GIT_BRANCH}`, stage], { cwd: this.applicationsRoot });
         const createdAt = this.#iso();
-        const manifest: CompanionAppManifest = { schema_version: 1, application_id: applicationId, display_name: displayName, created_at: createdAt };
+        const manifest: CompanionAppManifest = { schema_version: 2, application_id: applicationId, display_name: displayName, created_at: createdAt, source_projects: [] };
         await writeAtomicJson(stage, MANIFEST_PATH, manifest);
         await writeAtomicJson(stage, ASSETS_PATH, emptyBindings());
+        await writeAtomicJson(stage, DEVELOPMENT_LOCK_PATH, SESSION2_DEVELOPMENT_LOCK);
         await writeAtomicJson(stage, GRAPH_PATH, createMinimalAppGraph(applicationId));
+        await writeAtomicJson(stage, IMPLEMENTATION_MAPPING_PATH, emptyImplementationMapping());
         await writeAtomicJson(stage, ".agent-factory/companion-presentation.json", createMinimalAppPresentation());
         await writePrivateText(stage, ".gitignore", [
           ".codex/config.toml",
@@ -170,6 +199,66 @@ export class ActiveAppWorkspaceController implements GraphWorkspaceController {
   activeProjectRoot(): string {
     if (!this.#workspace) throw new AppWorkspaceError(409, "no_active_app", "먼저 App을 만들거나 선택하세요.");
     return this.#workspace.projectRoot;
+  }
+
+  async sourceProjects(): Promise<CompanionSourceProjectsSnapshot> {
+    const workspace = this.#requireWorkspace();
+    if (!this.#manifest) throw new AppWorkspaceError(409, "invalid_app_manifest", "Active App manifest를 읽을 수 없습니다.");
+    return sourceProjectsSnapshot(workspace.projectRoot, this.#manifest);
+  }
+
+  async addSourceProject(request: AddCompanionSourceProjectRequest): Promise<CompanionSourceProjectsSnapshot> {
+    return this.#enqueue(async () => {
+      const workspace = this.#requireWorkspace();
+      if (!this.#manifest) throw new AppWorkspaceError(409, "invalid_app_manifest", "Active App manifest를 읽을 수 없습니다.");
+      try {
+        const result = await addSourceProject(workspace.projectRoot, this.#manifest, request);
+        this.#manifest = result.manifest;
+        return result.snapshot;
+      } catch (error) {
+        if (error instanceof DevelopmentContextError) throw new AppWorkspaceError(error.status, error.code, error.message, error.details);
+        throw error;
+      }
+    });
+  }
+
+  async implementationMappings(): Promise<CompanionImplementationMappingSnapshot> {
+    const workspace = this.#requireWorkspace();
+    if (!this.#manifest) throw new AppWorkspaceError(409, "invalid_app_manifest", "Active App manifest를 읽을 수 없습니다.");
+    try { return await implementationMappings({ projectRoot: workspace.projectRoot, manifest: this.#manifest, workspace: await workspace.snapshot(), bindings: this.#bindings }); }
+    catch (error) { throw appDevelopmentError(error); }
+  }
+
+  async putImplementationMapping(request: PutCompanionImplementationMappingRequest): Promise<CompanionImplementationMappingSnapshot> {
+    return this.#enqueue(async () => {
+      const workspace = this.#requireWorkspace();
+      if (!this.#manifest) throw new AppWorkspaceError(409, "invalid_app_manifest", "Active App manifest를 읽을 수 없습니다.");
+      try { return await putImplementationMapping({ projectRoot: workspace.projectRoot, manifest: this.#manifest, workspace: await workspace.snapshot(), bindings: this.#bindings, request }); }
+      catch (error) { throw appDevelopmentError(error); }
+    });
+  }
+
+  async developmentContext(request: CompanionDevelopmentContextRequest): Promise<CompanionDevelopmentContextCapsule> {
+    const workspace = this.#requireWorkspace();
+    if (!this.#manifest) throw new AppWorkspaceError(409, "invalid_app_manifest", "Active App manifest를 읽을 수 없습니다.");
+    try {
+      return await developmentContext({
+        projectRoot: workspace.projectRoot,
+        manifest: this.#manifest,
+        workspace: await workspace.snapshot(),
+        bindings: this.#bindings,
+        assetCatalog: this.options.assetCatalog,
+        request,
+        readinessProbe: this.options.developmentReadinessProbe ?? (() => inspectDevelopmentReadiness()),
+      });
+    } catch (error) { throw appDevelopmentError(error); }
+  }
+
+  async sourceProjectRoot(sourceProjectId: string): Promise<string> {
+    const snapshot = await this.sourceProjects();
+    const project = snapshot.source_projects.find((candidate) => candidate.source_project_id === sourceProjectId);
+    if (!project) throw new AppWorkspaceError(404, "source_project_missing", "Source project를 찾을 수 없습니다.");
+    return project.canonical_root;
   }
 
   searchAssets(text?: string, assetType?: "agent" | "workflow" | "tool"): CompanionAssetSearchResult {
@@ -249,6 +338,7 @@ export class ActiveAppWorkspaceController implements GraphWorkspaceController {
     try { await this.#deactivateCurrent(); }
     catch (error) { await candidate.close(); throw error; }
     this.#activeId = applicationId;
+    this.#manifest = manifest;
     this.#bindings = bindings;
     this.#workspace = candidate;
     this.#workspaceUnsubscribe = candidate.subscribe((event) => this.#broadcast(event));
@@ -265,6 +355,7 @@ export class ActiveAppWorkspaceController implements GraphWorkspaceController {
     this.#workspaceUnsubscribe?.();
     this.#workspaceUnsubscribe = null;
     this.#workspace = null;
+    this.#manifest = null;
     if (!workspace) return;
     await writeAtomicJson(workspace.projectRoot, DEFAULT_CAPABILITY_PATH, { schema_version: 1, status: "inactive", application_id: this.#activeId }, 0o600).catch(() => undefined);
     await workspace.close();
@@ -341,7 +432,17 @@ function finalizeBindings(bindings: CompanionAssetBinding[]): CompanionAssetBind
 
 async function readManifest(projectRoot: string): Promise<CompanionAppManifest> {
   const value = JSON.parse((await readContainedFile(projectRoot, MANIFEST_PATH, 64 * 1024)).toString("utf8")) as Record<string, unknown>;
-  if (value.schema_version !== 1 || typeof value.application_id !== "string" || !APP_ID.test(value.application_id) || typeof value.display_name !== "string" || !value.display_name.trim() || typeof value.created_at !== "string" || !Number.isFinite(Date.parse(value.created_at))) throw new AppWorkspaceError(409, "invalid_app_manifest", "Companion app manifest가 유효하지 않습니다.");
+  if (![1, 2].includes(Number(value.schema_version)) || typeof value.application_id !== "string" || !APP_ID.test(value.application_id) || typeof value.display_name !== "string" || !value.display_name.trim() || typeof value.created_at !== "string" || !Number.isFinite(Date.parse(value.created_at))) throw new AppWorkspaceError(409, "invalid_app_manifest", "Companion app manifest가 유효하지 않습니다.");
+  if (value.schema_version === 1 && Object.keys(value).some((key) => !["schema_version", "application_id", "display_name", "created_at"].includes(key))) throw new AppWorkspaceError(409, "invalid_app_manifest", "Companion v1 app manifest가 유효하지 않습니다.");
+  if (value.schema_version === 2) {
+    if (Object.keys(value).some((key) => !["schema_version", "application_id", "display_name", "created_at", "source_projects"].includes(key)) || !Array.isArray(value.source_projects)) throw new AppWorkspaceError(409, "invalid_app_manifest", "Companion v2 app manifest가 유효하지 않습니다.");
+    try {
+      value.source_projects.forEach(assertSourceProjectContract);
+      const ids = new Set(value.source_projects.map((entry) => entry.source_project_id));
+      const roots = new Set(value.source_projects.map((entry) => entry.root));
+      if (ids.size !== value.source_projects.length || roots.size !== value.source_projects.length) throw new Error("duplicate source project");
+    } catch { throw new AppWorkspaceError(409, "invalid_app_manifest", "Companion v2 source project contract가 유효하지 않습니다."); }
+  }
   return value as unknown as CompanionAppManifest;
 }
 
@@ -439,3 +540,6 @@ async function writePrivateText(root: string, relativePath: string, text: string
 }
 
 function isCode(error: unknown, code: string): error is NodeJS.ErrnoException { return error instanceof Error && "code" in error && error.code === code; }
+function appDevelopmentError(error: unknown): Error {
+  return error instanceof DevelopmentContextError ? new AppWorkspaceError(error.status, error.code, error.message, error.details) : error instanceof Error ? error : new Error("Development context operation failed");
+}

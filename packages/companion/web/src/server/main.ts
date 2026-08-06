@@ -5,6 +5,7 @@ import {
   createGraphControlServer,
   GraphControlWorkspace,
   type AssetCatalog,
+  type DevelopmentReadinessProbe,
   type GraphWorkspaceController,
 } from "@agent-factory/companion-graph-control-server";
 import type { VscodeLauncher } from "./vscode-launcher.js";
@@ -23,6 +24,7 @@ export async function startCompanionWeb(options: {
   port?: number;
   staticRoot?: string;
   vscodeLauncher?: VscodeLauncher;
+  developmentReadinessProbe?: DevelopmentReadinessProbe;
 }): Promise<{ origin: string; close(): Promise<void> }> {
   const companionRoot = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
   const repoRoot = resolve(options.repoRoot ?? resolve(companionRoot, "../.."));
@@ -44,6 +46,7 @@ export async function startCompanionWeb(options: {
       ...(options.applicationsRoot ? { applicationsRoot: options.applicationsRoot } : {}),
       mcpBinPath: options.mcpBinPath ?? resolve(companionRoot, "mcp-plane/dist/bin.js"),
       assetCatalog,
+      ...(options.developmentReadinessProbe ? { developmentReadinessProbe: options.developmentReadinessProbe } : {}),
     });
     workspace = appController;
   }

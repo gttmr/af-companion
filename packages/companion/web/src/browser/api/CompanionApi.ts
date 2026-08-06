@@ -1,9 +1,12 @@
 import type {
-  ApplyGraphOperationsResponse, BindCompanionAssetRequest, CompanionAppAssetSnapshot,
+  AddCompanionSourceProjectRequest, ApplyGraphOperationsResponse, BindCompanionAssetRequest, CompanionAppAssetSnapshot,
   CompanionAppsSnapshot, CompanionAssetSearchResult, CompanionAssetType,
+  CompanionDevelopmentContextCapsule, CompanionDevelopmentContextRequest,
+  CompanionImplementationMappingSnapshot, CompanionSourceProjectsSnapshot,
   CompanionRegistryAssetSnapshot, CompanionRegistryContract, CompanionRegistryDecision,
   CompanionRegistryListSnapshot, CompanionRegistryPublishDecision, CompanionRegistryStatus,
   CompanionRegistryValidationResult, CreateCompanionAppRequest,
+  PutCompanionImplementationMappingRequest,
   DraftUpdateRequest, GraphWorkspaceSnapshot, PresentationUpdateRequest, SelectionUpdateRequest,
 } from "@agent-factory/companion-contracts";
 import type { GraphEditOperation } from "@agent-factory/companion-graph-domain";
@@ -28,6 +31,14 @@ export interface VscodeLaunchReceipt {
   codex_extension_version: string | null;
 }
 
+export interface DevelopmentTaskLaunchReceipt {
+  status: "requested";
+  client: "vscode";
+  prompt_delivery: "manual_copy_required";
+  capsule_id: string;
+  launch: VscodeLaunchReceipt;
+}
+
 export class CompanionApiError extends Error {
   constructor(readonly status: number, readonly code: string, message: string, readonly details?: Record<string, unknown>) { super(message); this.name = "CompanionApiError"; }
 }
@@ -40,6 +51,12 @@ export interface CompanionApi {
   listAppAssets(signal?: AbortSignal): Promise<CompanionAppAssetSnapshot>;
   bindAsset(request: BindCompanionAssetRequest, signal?: AbortSignal): Promise<CompanionAppAssetSnapshot>;
   unbindAsset(assetId: string, baseAssetsRevision: string, signal?: AbortSignal): Promise<CompanionAppAssetSnapshot>;
+  listSourceProjects(signal?: AbortSignal): Promise<CompanionSourceProjectsSnapshot>;
+  addSourceProject(request: AddCompanionSourceProjectRequest, signal?: AbortSignal): Promise<CompanionSourceProjectsSnapshot>;
+  listImplementationMappings(signal?: AbortSignal): Promise<CompanionImplementationMappingSnapshot>;
+  putImplementationMapping(request: PutCompanionImplementationMappingRequest, signal?: AbortSignal): Promise<CompanionImplementationMappingSnapshot>;
+  getDevelopmentContext(request: CompanionDevelopmentContextRequest, signal?: AbortSignal): Promise<CompanionDevelopmentContextCapsule>;
+  launchDevelopmentTask(request: CompanionDevelopmentContextRequest, signal?: AbortSignal): Promise<DevelopmentTaskLaunchReceipt>;
   listRegistryAssets(query: { asset_type?: CompanionAssetType; statuses?: CompanionRegistryStatus[]; all_versions?: boolean }, signal?: AbortSignal): Promise<CompanionRegistryListSnapshot>;
   getRegistryAsset(assetId: string, version: number, signal?: AbortSignal): Promise<CompanionRegistryAssetSnapshot>;
   validateRegistryContract(contract: CompanionRegistryContract, signal?: AbortSignal): Promise<CompanionRegistryValidationResult>;
@@ -66,6 +83,12 @@ export function createHttpCompanionApi(baseUrl = "/api/companion/v2"): Companion
     listAppAssets: (signal) => requestJson("/api/companion/app-assets", { signal }),
     bindAsset: (body, signal) => requestJson("/api/companion/app-assets", { method: "POST", body: JSON.stringify(body), signal }),
     unbindAsset: (assetId, base_assets_revision, signal) => requestJson(`/api/companion/app-assets/${encodeURIComponent(assetId)}`, { method: "DELETE", body: JSON.stringify({ base_assets_revision }), signal }),
+    listSourceProjects: (signal) => requestJson("/api/companion/source-projects", { signal }),
+    addSourceProject: (body, signal) => requestJson("/api/companion/source-projects", { method: "POST", body: JSON.stringify(body), signal }),
+    listImplementationMappings: (signal) => requestJson("/api/companion/implementation-mappings", { signal }),
+    putImplementationMapping: (body, signal) => requestJson("/api/companion/implementation-mappings", { method: "PUT", body: JSON.stringify(body), signal }),
+    getDevelopmentContext: (body, signal) => requestJson("/api/companion/development-context", { method: "POST", body: JSON.stringify(body), signal }),
+    launchDevelopmentTask: (body, signal) => requestJson("/api/companion/development-task/launch-vscode", { method: "POST", body: JSON.stringify(body), signal }),
     listRegistryAssets: (query, signal) => { const params = new URLSearchParams(); if (query.asset_type) params.set("asset_type", query.asset_type); if (query.statuses?.length) params.set("statuses", query.statuses.join(",")); if (query.all_versions !== undefined) params.set("all_versions", String(query.all_versions)); return requestJson(`/api/companion/registry/assets?${params}`, { signal }); },
     getRegistryAsset: (assetId, version, signal) => requestJson(`/api/companion/registry/assets/${encodeURIComponent(assetId)}/versions/${version}`, { signal }),
     validateRegistryContract: (contract, signal) => requestJson("/api/companion/registry/validate", { method: "POST", body: JSON.stringify({ contract }), signal }),

@@ -18,7 +18,7 @@ export interface VscodeLaunchReceipt {
 }
 
 export interface VscodeLauncher {
-  launch(): Promise<VscodeLaunchReceipt>;
+  launch(projectRoot?: string): Promise<VscodeLaunchReceipt>;
 }
 
 export class VscodeLaunchError extends Error {
@@ -41,13 +41,13 @@ export class VscodeProjectLauncher implements VscodeLauncher {
     this.#now = options.now ?? (() => new Date());
   }
 
-  async launch(): Promise<VscodeLaunchReceipt> {
+  async launch(requestedProjectRoot?: string): Promise<VscodeLaunchReceipt> {
     const now = this.#now();
     if (this.#launching || (this.#lastLaunchAt !== null && now.getTime() - this.#lastLaunchAt < LAUNCH_COOLDOWN_MS)) {
       throw new VscodeLaunchError(429, "launch_cooldown", "VS Code를 여는 중입니다. 잠시 뒤 다시 시도하세요.");
     }
 
-    const projectRoot = await this.#projectRoot;
+    const projectRoot = requestedProjectRoot ? await canonicalDirectory(requestedProjectRoot) : await this.#projectRoot;
     const executable = await resolveHostCodeExecutable(projectRoot, this.#env);
     if (!executable) {
       throw new VscodeLaunchError(503, "code_unavailable", "WSL에서 사용할 수 있는 VS Code code 명령을 찾지 못했습니다.");

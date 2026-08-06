@@ -8,6 +8,20 @@
 - 최신 항목이 위로 오는 역시간순. 항목 형식: 날짜 · PR/머지 커밋 · 결정 요약 · 배경(왜) · 영향 범위.
 - 결정을 되돌리거나 대체하면 과거 항목을 지우지 말고 새 항목에서 `(대체: YYYY-MM-DD 항목)`으로 연결한다.
 
+## 2026-08-06 · 작업 브랜치 `agent/companion-adk-integration` — private vLLM Qwen 제품 계약으로 단순화
+
+- **결정**: 실제 은행 내부망 acceptance 환경은 안정적으로 tool calling을 제공하는 사용자 소유 private vLLM의 `qwen3.6-27b-128k`, context `131072`다. Companion lock과 generated runtime은 특정 compatibility proxy나 Gemini profile을 제품 계약으로 갖지 않고, ignored local configuration의 `AF_QWEN_BASE_URL`로 private OpenAI-compatible `/v1` endpoint만 받는다. (대체: 같은 날짜의 “Qwen offline acceptance와 Gemini development 역할 분리” 항목 중 제품 transport/UX 계약)
+- **약한 모델 보조 경계**: 사용성은 full Graph나 긴 prompt가 아니라 selection별 bounded capsule, 한 task의 한 intent, exact field/key 계약, deterministic validation, bounded loop와 typed blocker로 보조한다. 누락 필드를 기본값으로 채우거나 model fallback/retry로 억지 PASS를 만들지 않는다.
+- **검증 판정**: 이번 개발 중 Gemini와 llama.cpp compatibility bridge를 사용한 기록은 historical development/diagnostic evidence로 보존하지만 target vLLM acceptance가 아니다. Companion readiness와 generated acceptance는 vLLM `/v1/models`의 exact served ID와 `max_model_len: 131072`를 요구하고 llama-specific `meta.n_ctx`를 대체 증거로 받지 않는다. 실제 vLLM 재검증 전에는 E1–E3를 target-environment PASS로 부르지 않는다.
+- **보안·UX 영향**: App lock, Context Capsule, Inspector와 prompt에서 proxy URL 및 Gemini accelerator를 제거한다. endpoint/key 값은 App, Graph, source, screenshot 또는 evidence에 저장하지 않고 ignored `AF_QWEN_BASE_URL`/`AF_QWEN_API_KEY`에서만 읽는다. Readiness는 vLLM이 보호하는 `/v1/models`에도 Bearer key를 보내며 private endpoint 외 Internet egress, cloud fallback, deploy, publish와 cloud observability를 계속 금지한다.
+
+## 2026-08-06 · 작업 브랜치 `agent/companion-adk-integration` — Qwen offline acceptance와 Gemini development 역할 분리
+
+- **결정**: 사용자가 host-local Codex compatibility bridge에서 self-hosted Qwen의 developer-message 및 namespaced Tool 호환 문제를 해결했다. Session 2 primary acceptance를 `qwen3.6-27b-128k`, context `131072`의 **self-hosted-27B Session 2 acceptance**로 복원한다. `gemini-3.1-flash-lite`는 느린 Qwen 대신 이번 source 구현을 빠르게 진행하는 선택적 development-only accelerator이며 acceptance, fallback 또는 generated-runtime dependency가 아니다. (대체: 같은 날짜의 “Session 2 primary acceptance를 Gemini 3.1 Flash-Lite로 전환” 항목)
+- **환경과 보존 경계**: target은 Internet이 없는 은행 내부망이다. Qwen acceptance process는 host-local loopback compatibility bridge와 private model transport만 허용하고 Internet egress를 차단한다. Gemini development process는 loopback/Gemini Developer API destination만 별도로 허용한다. Private upstream, API key와 credential bytes는 repository source, managed App, artifact, screenshot 또는 evidence에 저장하지 않는다.
+- **제품 계약**: App manifest v2의 contained source project, separate implementation mapping, exact Skill/model readiness와 selected Node·Edge·Region의 bounded read-only capsule을 추가한다. Qwen과 local Skill bundle만 required offline readiness를 결정하며 Gemini가 unavailable이어도 offline task를 막지 않는다. 기존 MCP는 read/apply 두 Tool을 유지하고 source write와 Graph write authority를 합치지 않는다.
+- **UX와 검증 영향**: Inspector는 `Codex 개발 작업 만들기`에서 source project, Qwen required acceptance, optional Gemini accelerator, write roots와 guard를 실행 전에 보여 주고 server-derived source cwd만 launch한다. E1–E3는 Gemini로 작성할 수 있지만 Internet-disabled Qwen 검증이 없으면 PASS가 아니다. PR #22는 사용자 승인 뒤 merge commit `f3ef4992235f08d656c6aa0237788ef852111e25`로 merge됐고 Session 1 manifest, AF Skill instruction과 Session 1 evidence는 수정하지 않는다.
+
 ## 2026-08-06 · Draft PR [#22](https://github.com/gttmr/af-companion/pull/22) — Session 2 primary acceptance를 Gemini 3.1 Flash-Lite로 전환
 
 - **결정**: 초기 self-hosted Qwen endpoint는 chat completion은 반환했지만 llama.cpp로 보이는 serving 경로에서 Tool call이 관찰되지 않았다. 사용자는 현장에서 그 server를 다시 띄우기 어려워 Session 2 primary acceptance model을 `gemini-3.1-flash-lite`로 변경했다. 요청했던 `gemini-2.5-flash-lite`는 새 project에서 404로 사용할 수 없었고 acceptance에 포함하지 않았다. 이 항목은 같은 날짜의 self-hosted Qwen 3.6 27B lock을 Session 2에 한해 대체한다.

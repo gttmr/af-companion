@@ -10,13 +10,14 @@ Git repository. Google `google-agents-cli-*` Skills and separately versioned AF
 Skills own the ADK development method; external Codex owns source generation.
 The target operating environment has no Internet access. Session 2 primary
 acceptance uses the user-owned self-hosted `qwen3.6-27b-128k` model with a 128k
-context through one approved Tailscale direct `/v1` transport. The private
-endpoint remains in ignored local configuration and is never persisted in
-repository source, an App, artifacts, or evidence; localhost tunnels, cloud
-models, Gemini fallback, deployment, agent publication, and cloud observability
-are outside the primary path. Skill bundles, toolchains, dependencies, and
-model configuration must be provisioned and verified before a development task
-starts.
+context through a private OpenAI-compatible vLLM endpoint. Its endpoint and key
+remain in ignored local configuration and are never persisted in repository
+source, an App, a capsule, artifacts, or evidence. Compatibility proxies and
+development-only cloud models are diagnostics outside the product contract,
+not acceptance evidence, fallback, or generated-runtime dependencies.
+Deployment, agent publication, and cloud observability remain outside the
+primary path. Skill bundles, toolchains, dependencies, and model configuration
+must be provisioned and verified before a development task starts.
 
 AF Skills are an ADK 2.4 evidence-backed overlay, not a copy of Google Skill
 guidance. Framework claims are decided by exact 2.4 runtime probes, imported
@@ -25,10 +26,14 @@ The evidence campaign covers the full Workflow, Agent/Sub-agent, Tool,
 state/event/artifact, callback/lifecycle, Subworkflow, and local A2A surface;
 parallel, loop, and dynamic patterns are examples rather than its boundary.
 
-This is a Target Contract, not a claim that the current package already owns
-source projects, Skill readiness, implementation mapping, or task capsules.
-Those gaps and their sequenced work orders are defined in
+The current package owns versioned source-project declarations, local Skill and
+model readiness, a separate implementation mapping, and a bounded task capsule
+on its existing read surface. Deterministic ADK and browser verification are
+complete for the Session 2 Draft PR, while target private-vLLM Qwen acceptance
+remains explicitly unverified. The sequenced work orders are defined in
 [Skill-aware ADK development context](../../docs/workbench/companion-adk-development-context.md).
+Current evidence is recorded in
+[Session 2 Phase B–E acceptance](evidence/session2-integration/phase-b-e-acceptance.md).
 The independent App Server client is optional follow-up infrastructure rather
 than a prerequisite for the external-client path.
 
@@ -71,6 +76,16 @@ Graph for reference while all writes fail closed.
   do not change `graph_revision`.
 - Context v2 removes `sequence`, `after_sequence`, and `UNCHANGED`.
   `document_revision` identifies a snapshot and `authority` is always `none`.
+- App manifest v2 owns contained source-project identity and an exact ADK 2.4
+  runtime locator. Legacy v1 remains readable and upgrades only on an explicit
+  source-project mutation.
+- `.agent-factory/companion-implementation.json` owns Graph/Asset-to-source
+  locators and its own CAS revision. Source locators never expand Graph IR.
+- `.agent-factory/companion-development.json` locks the exact local Skill bundle,
+  required offline Qwen model/context and private-vLLM transport class without
+  storing credential or endpoint values. Readiness obtains them only from
+  `AF_QWEN_BASE_URL` and `AF_QWEN_API_KEY`, sends the key as Bearer auth, and
+  requires the exact vLLM model card ID and `max_model_len: 131072`.
 
 ## Control API
 
@@ -80,6 +95,10 @@ Graph for reference while all writes fail closed.
 - `PUT /api/companion/v2/draft`
 - `POST /api/companion/v2/graph/operations`
 - `PUT /api/companion/v2/presentation`
+- `GET|POST /api/companion/source-projects`
+- `GET|PUT /api/companion/implementation-mappings`
+- `POST /api/companion/development-context`
+- `POST /api/companion/development-task/launch-vscode`
 
 Stale Graph revisions return `412 graph_stale`, contract failures return `422`,
 an invalid external source returns `409 invalid_external_source`, and a
@@ -87,13 +106,15 @@ semantically identical operation batch returns `NO_CHANGE`.
 
 ## MCP and authority
 
-The project MCP exposes only:
+The project MCP still exposes only:
 
 - `companion_get_graph_workspace`
 - `companion_apply_graph_changes`
 
-Server instructions require `get -> apply` and a fresh recomputation after a
-stale response. The write Tool advertises `readOnlyHint: false`; generated Codex
+The read Tool accepts an optional development-task request and returns one
+deterministic bounded read-only capsule; no source-write Tool is added. Server
+instructions require `get -> apply` and a fresh recomputation after a stale
+response. The write Tool advertises `readOnlyHint: false`; generated Codex
 configuration uses `default_tools_approval_mode = "writes"`. The MCP process
 hot-reads a project-contained mode-0600 capability and accepts only loopback
 HTTP origins. App Server thread execution remains independent.
@@ -106,11 +127,12 @@ discarded, preserved selection is kept, deleted selection is cleared, and the
 UI reports the discarded operation count. Changed Node, Edge, and Region IDs
 receive a short visual highlight.
 
-The Web composition layer also exposes a same-origin `POST
-/api/companion/editor/launch-vscode` action. It accepts no path input and opens
-only the server-canonical project root with a trusted external `code`
-executable. This editor handoff is not part of the Graph Control API and is not
-evidence that a Codex thread is connected.
+The Web composition layer exposes same-origin editor handoffs. The generic
+`POST /api/companion/editor/launch-vscode` accepts no path input and opens only
+the server-canonical App root. The development-task action reassembles the exact
+capsule server-side and opens only its server-derived source root with a trusted
+external `code` executable. Both return launch receipts; neither is evidence
+that a Codex thread received the prompt or completed work.
 
 ## Integration boundary
 
@@ -138,9 +160,10 @@ baseline commit on `main` using its command-scoped `Agent Factory Companion
 <companion@agent-factory.local>` identity. The commit contains exactly
 `.gitignore`, `.agent-factory/companion-app.json`,
 `.agent-factory/companion-assets.json`, and
-`.agent-factory/companion-graph.json`. Commit hooks and GPG signing are disabled
-for this one manager-owned operation; failure removes the staging directory and
-exposes no partial App.
+`.agent-factory/companion-graph.json`, plus the initial development lock and
+empty implementation mapping sidecars. Commit hooks and GPG signing are
+disabled for this one manager-owned operation; failure removes the staging
+directory and exposes no partial App.
 
 Codex config, capability, presentation, workspace state, and UI context remain
 ignored private/runtime state. The manager creates no remote, performs no push,

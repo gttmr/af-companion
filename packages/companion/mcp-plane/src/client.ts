@@ -1,7 +1,7 @@
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import type { ApplyGraphOperationsRequest, ApplyGraphOperationsResponse, GraphWorkspaceSnapshot } from "@agent-factory/companion-contracts";
+import type { ApplyGraphOperationsRequest, ApplyGraphOperationsResponse, CompanionDevelopmentContextCapsule, CompanionDevelopmentContextRequest, GraphWorkspaceSnapshot } from "@agent-factory/companion-contracts";
 
 export const DEFAULT_CAPABILITY_PATH = ".agent-factory/companion-capability.json";
 
@@ -11,6 +11,7 @@ export class GraphControlClientError extends Error {
 
 export interface GraphControlClient {
   getWorkspace(): Promise<GraphWorkspaceSnapshot>;
+  getDevelopmentContext(request: CompanionDevelopmentContextRequest): Promise<CompanionDevelopmentContextCapsule>;
   applyChanges(request: ApplyGraphOperationsRequest): Promise<ApplyGraphOperationsResponse>;
 }
 
@@ -29,6 +30,7 @@ export function createGraphControlClient(input: { projectRoot: string; capabilit
   }
   return {
     getWorkspace: () => request("/api/companion/v2/workspace"),
+    getDevelopmentContext: (body) => request("/api/companion/development-context", { method: "POST", body: JSON.stringify(body) }),
     applyChanges: (body) => request("/api/companion/v2/graph/operations", { method: "POST", body: JSON.stringify({ ...body, source: "mcp" }) }),
   };
 }
